@@ -8,8 +8,8 @@ use App\Domain\Bar\Models\CarteBoisson;
 use App\Domain\Comptabilite\Models\CentreCout;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Services\CalculTvaService;
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
-use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use App\Domain\Depenses\Services\DepenseService;
 use App\Domain\Numerotation\Services\SequenceDocumentService;
 use App\Domain\Restaurant\Models\CommandeRestaurant;
@@ -18,6 +18,8 @@ use App\Domain\Restaurant\Services\CommandeRestaurantService;
 use App\Domain\Restaurant\Services\DeductionStockCuisineService;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
+use App\Domain\Tourisme\Models\Circuit;
+use App\Domain\Vehicules\Models\Vehicule;
 use App\Domain\Ventes\Models\LigneVente;
 use App\Domain\Ventes\Models\Vente;
 use Carbon\CarbonInterface;
@@ -118,8 +120,10 @@ class VenteService
 
     /**
      * Cause portée par une entrée de `stock_non_impacte` quand un plat vendu
-     * hors connexion n'avait aucune composition (décision PO du 15/10/2026,
-     * chemin synchronisé seulement — voir `deduireStock()`).
+     * n'avait aucune composition : fiche sans ingrédient, aucun lien direct.
+     * Décision PO du 15/10/2026 pour la vente synchronisée, étendue à toute
+     * vente le 30/10/2026 (le plat se vend, sans mouvement de stock — voir
+     * `deduireStock()`).
      */
     public const CAUSE_PLAT_SANS_COMPOSITION = 'plat_sans_composition';
 
@@ -149,15 +153,22 @@ class VenteService
      * Modules réellement encaissables ici, parce qu'ils ont un catalogue
      * serveur d'où figer un prix et un libellé.
      *
-     * Les trois autres modules de `MODULES` restent nommés — le registre décrit
-     * ce qu'une ligne PEUT porter, y compris ce qui viendra — mais un
-     * encaissement les refuse. Les accepter obligerait l'écran à transmettre
-     * un prix au clavier, exactement l'anti-pattern PA-24. Le jour où M1, M8
-     * et M9 auront leur catalogue, il n'y aura qu'à les ajouter ici.
+     * M1 reste nommé — le registre décrit ce qu'une ligne PEUT porter, y
+     * compris ce qui viendra — mais un encaissement le refuse : l'accepter
+     * obligerait l'écran à transmettre un prix au clavier, exactement
+     * l'anti-pattern PA-24. Le jour où M1 aura son catalogue, il n'y aura
+     * qu'à l'ajouter ici.
+     *
+     * Le TOURISME (M9, `circuits.prix`) et la LOCATION de véhicules (M8,
+     * `vehicules.tarif_jour`) sont encaissables depuis le 22/10/2026 (directive
+     * du PO : « encaissables au comptoir, au poste comme au web ») : ils ont
+     * un catalogue d'où figer prix et libellé. Vente LIBRE de prestation : le
+     * comptoir n'a aucun lien avec un contrat de location ni avec une
+     * réservation de circuit saisis ailleurs (voir `resoudreCircuit`).
      *
      * @var list<string>
      */
-    public const MODULES_ENCAISSABLES = ['M4', 'M5'];
+    public const MODULES_ENCAISSABLES = ['M4', 'M5', 'M8', 'M9'];
 
     /**
      * Journal d'imputation des ventes.
@@ -183,7 +194,7 @@ class VenteService
      *
      * `note_chambre` est absent de ce registre **et ce n'est pas un oubli** :
      * aucune trésorerie ne bouge, la consommation devient une créance client
-     * ({@see self::COMPTE_CLIENTS}). Débiter la caisse pour une note de
+     * ((rôle {@see self::ROLE_CLIENTS})). Débiter la caisse pour une note de
      * chambre gonflerait le fond de caisse d'un argent que personne n'a remis.
      *
      * @var array<string, string>
@@ -196,40 +207,48 @@ class VenteService
     ];
 
     /**
-     * Compte de tiers d'une consommation portée sur la note de chambre —
-     * `ATELIER_PLAN_COMPTABLE.md` §4, « 4111 Clients ».
+     * Rôle comptable du tiers d'une consommation portée sur la note de chambre
+     * — `ATELIER_PLAN_COMPTABLE.md` §4, « 4111 Clients » par défaut. Le compte
+     * lui-même est celui de la correspondance au moment de passer la pièce.
      */
-    public const COMPTE_CLIENTS = ComptesSyscohada::CLIENTS;
+    public const ROLE_CLIENTS = 'CLIENTS';
 
     /**
-     * Comptes de produits par module — `ATELIER_PLAN_COMPTABLE.md` §2.
+     * Rôle du compte de produits de chaque module — `ATELIER_PLAN_COMPTABLE.md`
+     * §2. Le COMPTE qu'un rôle désigne est celui de la correspondance
+     * ({@see CorrespondanceComptesService}, modifiable depuis le 26/10/2026) ;
+     * ses défauts sont ceux de `ComptesSyscohada` : restaurant (M4) 7061, bar
+     * (M5) 7011, location de véhicules (M8) 7073 « Locations », tourisme (M9)
+     * 7061 « services vendus » — le plan du PO n'a pas de compte dédié aux
+     * circuits, le centre de coût « Tourisme » porte la distinction (comptes
+     * validés par le PO le 26/10/2026).
      *
      * Ce registre couvre exactement {@see self::MODULES_ENCAISSABLES} : y
-     * inscrire M1, M8 et M9 aujourd'hui produirait trois entrées qu'aucun
-     * chemin n'atteint. Le plan documenté les porte déjà (hébergement sur 7061, location de véhicules sur 7073 ;
-     * le plan du PO n'a pas de compte dédié aux circuits touristiques) : le jour
-     * où ces modules deviennent encaissables, il n'y a qu'à les ajouter ici.
+     * inscrire M1 produirait une entrée qu'aucun chemin n'atteint.
      *
      * @var array<string, string>
      */
-    /**
-     * SYSCOHADA `443` « État, TVA facturée » — au plan depuis le 01/09/2026
-     * (décision PO : prix TTC, TVA 18 % ; recommandation d'expertise
-     * comptable). La part TVA de chaque vente s'y crédite quand la TVA est
-     * active ; le compte fait foi ici et dans `ComptabiliteReferentielSeeder`.
-     */
-    public const COMPTE_TVA_FACTUREE = ComptesSyscohada::TVA_FACTUREE_BIENS;
+    public const ROLES_PRODUIT = [
+        'M4' => 'PRODUIT_PRESTATIONS',
+        'M5' => 'PRODUIT_MARCHANDISES',
+        'M8' => 'PRODUIT_LOCATIONS',
+        'M9' => 'PRODUIT_CIRCUITS',
+    ];
 
     /**
-     * TVA facturée par module : boissons revendues (M5) sur 4431, prestations
-     * servies (M4, repas) sur 4432 — table `ComptesSyscohada`, à valider par
-     * le comptable.
+     * Rôle de la TVA facturée par module : boissons revendues (M5) sur
+     * « T.V.A. facturée sur ventes » (4431 par défaut), prestations servies
+     * (M4 repas, M8 location, M9 circuit) sur « T.V.A. facturée sur prestations
+     * de services » (4432 par défaut, validé par le PO le 26/10/2026). Au plan
+     * depuis le 01/09/2026 (décision PO : prix TTC, TVA 18 %).
      *
      * @var array<string, string>
      */
-    public const COMPTES_TVA = [
-        'M4' => ComptesSyscohada::TVA_FACTUREE_PRESTATIONS,
-        'M5' => ComptesSyscohada::TVA_FACTUREE_BIENS,
+    public const ROLES_TVA = [
+        'M4' => 'TVA_FACTUREE_PRESTATIONS',
+        'M5' => 'TVA_FACTUREE_BIENS',
+        'M8' => 'TVA_FACTUREE_PRESTATIONS',
+        'M9' => 'TVA_FACTUREE_PRESTATIONS',
     ];
 
     /**
@@ -241,11 +260,8 @@ class VenteService
     public const CENTRES_PAR_MODULE = [
         'M4' => 'Restaurant',
         'M5' => 'Bar',
-    ];
-
-    public const COMPTES_PRODUIT = [
-        'M4' => ComptesSyscohada::PRODUIT_PRESTATIONS,
-        'M5' => ComptesSyscohada::PRODUIT_MARCHANDISES,
+        'M8' => 'Véhicules',
+        'M9' => 'Tourisme',
     ];
 
     private const MODE_NOTE_CHAMBRE = 'note_chambre';
@@ -264,6 +280,31 @@ class VenteService
         return array_diff_key(self::MODES_PAIEMENT, [self::MODE_NOTE_CHAMBRE => null]);
     }
 
+    /** Longueur maximale de la mention client : la colonne `ventes.client_mention` (string, 255). */
+    public const MENTION_CLIENT_MAX = 255;
+
+    /**
+     * La MENTION client telle qu'elle est conservée et imprimée : texte libre,
+     * jamais de caractère de contrôle (un saut de ligne ou un octet de commande
+     * casserait le ticket thermique), bornée à la colonne. Chaque caractère de
+     * contrôle (C0, DEL, C1) devient une espace, les espaces de bord tombent,
+     * le vide devient `null` (« aucune mention » et « mention vide » ne se
+     * distinguent pas). Le poste en porte la réplique exacte
+     * (`MentionClient.normaliser`, confrontée à ce code par
+     * `mention_client_contre_serveur_test`).
+     */
+    public static function normaliserMentionClient(mixed $brut): ?string
+    {
+        if ($brut === null) {
+            return null;
+        }
+
+        $texte = preg_replace('/[\x00-\x1F\x7F\x{80}-\x{9F}]/u', ' ', (string) $brut) ?? '';
+        $texte = trim(mb_substr(trim($texte, ' '), 0, self::MENTION_CLIENT_MAX), ' ');
+
+        return $texte === '' ? null : $texte;
+    }
+
     /** Le mode « note de chambre » est-il celui-ci ? — pour le refus du comptoir. */
     public static function estModeNoteChambre(string $mode): bool
     {
@@ -277,6 +318,7 @@ class VenteService
         private readonly PasserEcritureService $ecritures,
         private readonly CalculTvaService $tva,
         private readonly DeductionStockCuisineService $deductionCuisine,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -325,7 +367,6 @@ class VenteService
      *                          référence de catalogue introuvable, prix imposé absent ou négatif,
      *                          ou pièce comptable refusée (journal, compte, exercice, centre)
      * @throws \App\Domain\Stocks\Exceptions\RuptureStockException
-     * @throws \App\Domain\Restaurant\Exceptions\RecetteManquanteException
      */
     public function enregistrer(
         array $donnees,
@@ -375,7 +416,7 @@ class VenteService
         // La pièce porte le NET encaissé : la ventilation brute par module est
         // ramenée au net, dernier module ajusté pour un équilibre exact.
         $ventilation = self::ventilerAuNet($this->ventilerParModule($resolues), $total, $net);
-        $compteContrepartie = $this->compteDeContrepartie($modePaiement);
+        $roleContrepartie = $this->roleDeContrepartie($modePaiement);
 
         return DB::transaction(function () use (
             $donnees,
@@ -384,7 +425,7 @@ class VenteService
             $identifiant,
             $net,
             $ventilation,
-            $compteContrepartie,
+            $roleContrepartie,
             $dateVente,
             $sansBonDeCuisine
         ): Vente {
@@ -412,7 +453,7 @@ class VenteService
                 'journal' => self::JOURNAL,
                 'date' => ($dateVente ?? now())->toDateString(),
                 'libelle' => $this->libelleDeLaPiece($numero),
-                'lignes' => $this->lignesDeLaPiece($ventilation, $compteContrepartie, $net),
+                'lignes' => $this->lignesDeLaPiece($ventilation, $roleContrepartie, $net),
             ]);
 
             $vente = new Vente([
@@ -424,9 +465,7 @@ class VenteService
                 // MENTION imprimée, jamais une FK — décision PO du 02/09/2026,
                 // vente au comptoir anonyme par nature : ce nom n'alimente
                 // aucun registre client (voir la migration du 07/09).
-                'client_mention' => blank($donnees['client_mention'] ?? null)
-                    ? null
-                    : trim((string) $donnees['client_mention']),
+                'client_mention' => self::normaliserMentionClient($donnees['client_mention'] ?? null),
                 'table' => $donnees['table'] ?? null,
                 'table_id' => $donnees['table_id'] ?? null,
                 // Lot F5 (17/10/2026) : le séjour d'une vente en note de
@@ -531,9 +570,9 @@ class VenteService
             )),
             (string) $vente->montant_total,
         );
-        $compteContrepartie = $this->compteDeContrepartie($vente->mode_paiement);
+        $roleContrepartie = $this->roleDeContrepartie($vente->mode_paiement);
 
-        return DB::transaction(function () use ($vente, $ventilation, $compteContrepartie): Vente {
+        return DB::transaction(function () use ($vente, $ventilation, $roleContrepartie): Vente {
             $piece = $this->ecritures->passerEtValider([
                 'journal' => self::JOURNAL,
                 // La date de la VENTE, jamais celle du rattrapage : une pièce
@@ -544,7 +583,7 @@ class VenteService
                 'libelle' => $this->libelleDeLaPiece($vente->numero),
                 'lignes' => $this->lignesDeLaPiece(
                     $ventilation,
-                    $compteContrepartie,
+                    $roleContrepartie,
                     (string) $vente->montant_total,
                 ),
             ]);
@@ -592,12 +631,17 @@ class VenteService
                 );
             }
 
-            $pointBar = $this->pointBar();
+            // Le point « bar » n'est exigé que s'il y a une boisson à rendre :
+            // une vente de tourisme ou de location (M8/M9) ne sort aucun stock
+            // et doit s'annuler même sans point de stockage « bar ».
+            $pointBar = null;
 
             foreach ($vente->lignes()->get() as $ligne) {
                 if ($ligne->module !== 'M5') {
                     continue;
                 }
+
+                $pointBar ??= $this->pointBar();
 
                 $boisson = CarteBoisson::find($ligne->code);
 
@@ -717,9 +761,12 @@ class VenteService
 
             $reference = (string) $ligne['reference_id'];
 
-            $resolue = $module === 'M5'
-                ? $this->resoudreBoisson($reference, $quantite)
-                : $this->resoudrePlat($reference, $quantite);
+            $resolue = match ($module) {
+                'M5' => $this->resoudreBoisson($reference, $quantite),
+                'M8' => $this->resoudreVehicule($reference, $quantite),
+                'M9' => $this->resoudreCircuit($reference, $quantite),
+                default => $this->resoudrePlat($reference, $quantite),
+            };
 
             if ($prixImposes) {
                 $resolue = $this->imposerPrix($resolue, $ligne['prix_unitaire'] ?? null);
@@ -781,6 +828,67 @@ class VenteService
             'stock' => $this->mouvements->arrondirQuantite(
                 $boisson->stockConsommePour((string) $quantite),
             ),
+        ];
+    }
+
+    /**
+     * Un circuit du catalogue (M9), au prix `circuits.prix` par unité.
+     *
+     * La quantité est le nombre de places vendues. Aucun lien avec une
+     * réservation de circuit : le comptoir vend la prestation LIBREMENT, il ne
+     * crée ni ne règle de `ReservationTour` (une réservation déjà saisie dans
+     * M9 reste réglée par sa facture — ne pas l'encaisser aussi ici).
+     *
+     * @return array<string, mixed>
+     */
+    private function resoudreCircuit(string $reference, int $quantite): array
+    {
+        $circuit = Circuit::find($reference);
+
+        if ($circuit === null) {
+            throw new RuntimeException(__('ventes.reference_inconnue', ['reference' => $reference]));
+        }
+
+        $prix = (string) $circuit->prix;
+
+        return [
+            'module' => 'M9',
+            'reference_id' => $circuit->id,
+            'nom' => $circuit->nom,
+            'categorie' => 'prestations',
+            'prix_unitaire' => $prix,
+            'quantite' => $quantite,
+            'montant' => bcmul($prix, (string) $quantite, self::PRECISION),
+        ];
+    }
+
+    /**
+     * Un véhicule du parc (M8), au tarif `vehicules.tarif_jour` par jour.
+     *
+     * La quantité est le nombre de jours. Vente LIBRE de prestation : aucun
+     * `ContratLocation` n'est créé ni réglé (un contrat déjà saisi dans M8
+     * reste réglé par sa facture), et le statut du véhicule n'est pas modifié.
+     *
+     * @return array<string, mixed>
+     */
+    private function resoudreVehicule(string $reference, int $quantite): array
+    {
+        $vehicule = Vehicule::find($reference);
+
+        if ($vehicule === null) {
+            throw new RuntimeException(__('ventes.reference_inconnue', ['reference' => $reference]));
+        }
+
+        $prix = (string) $vehicule->tarif_jour;
+
+        return [
+            'module' => 'M8',
+            'reference_id' => $vehicule->id,
+            'nom' => $vehicule->immatriculation.' ('.$vehicule->categorie.')',
+            'categorie' => 'prestations',
+            'prix_unitaire' => $prix,
+            'quantite' => $quantite,
+            'montant' => bcmul($prix, (string) $quantite, self::PRECISION),
         ];
     }
 
@@ -851,38 +959,51 @@ class VenteService
             return $nonImpacte;
         }
 
+        /*
+         * UN PLAT SANS FICHE SE VEND — décision du PO du 30/10/2026 (« le stock
+         * s'ajoute après »).
+         *
+         * Ce que ce fichier disait avant : un plat dont la fiche technique n'a
+         * aucun ingrédient (et sans lien direct au stock) était REFUSÉ au
+         * comptoir (`RecetteManquanteException`, levée par la déduction de la
+         * cuisine) ; seule la vente synchronisée, déjà servie, était gardée —
+         * et signalée en anomalie. Pourquoi on s'en écarte : le restaurant
+         * veut encaisser la carte importée AVANT d'avoir composé ses fiches.
+         *
+         * Désormais : un plat sans composition est vendable, la vente n'écrit
+         * AUCUN mouvement de stock pour lui et le DIT (`stock_non_impacte`,
+         * cause `plat_sans_composition`). Un plat qui a une composition (fiche
+         * à ingrédients ou lien direct) sort ses denrées comme avant (RG-05).
+         */
+        $plats = [];
+
+        foreach ($lignesRestaurant as $i => $ligne) {
+            $plat = Plat::query()->with('recette')->findOrFail((string) $ligne['reference_id']);
+            $plats[$i] = $plat;
+
+            if (! $this->deductionCuisine->aDeQuoiDeduire($plat)) {
+                $nonImpacte[] = [
+                    'ligne' => (string) $ligne['nom'],
+                    'module' => 'M4',
+                    'motif' => __('ventes.stock_non_sorti_plat_sans_composition', ['plat' => $plat->libelle]),
+                    'cause' => self::CAUSE_PLAT_SANS_COMPOSITION,
+                    'plat_id' => $plat->id,
+                    'quantite' => (int) $ligne['quantite'],
+                ];
+            }
+        }
+
         if ($sansBonDeCuisine) {
             // Vente synchronisée (15/10/2026) : l'assiette est servie, aucun
             // bon de cuisine n'a de sens — mais les denrées sont sorties, par
-            // le MÊME calcul que la transmission (voir `enregistrer()`).
-            //
-            // Un plat SANS composition (fiche vide, aucun lien direct) ne fait
-            // PAS rejeter la vente (décision du Product Owner du 15/10/2026) :
-            // elle a été servie et encaissée hors connexion, la refuser ferait
-            // disparaître l'argent des livres. La ligne est écartée de la
-            // déduction et la vente le DIT (`stock_non_impacte`, cause
-            // `plat_sans_composition`) ; la synchronisation en fait une
-            // anomalie à examiner. En ligne, ce chemin n'est jamais pris : un
-            // plat sans fiche y reste refusé (`RecetteManquanteException`).
+            // le MÊME calcul que la transmission (voir `enregistrer()`). Les
+            // plats sans composition ont été notés ci-dessus et n'y entrent pas.
             $aDeduire = [];
 
-            foreach ($lignesRestaurant as $ligne) {
-                $plat = Plat::query()->with('recette')->findOrFail((string) $ligne['reference_id']);
-
-                if (! $this->deductionCuisine->aDeQuoiDeduire($plat)) {
-                    $nonImpacte[] = [
-                        'ligne' => (string) $ligne['nom'],
-                        'module' => 'M4',
-                        'motif' => __('ventes.stock_non_sorti_plat_sans_composition', ['plat' => $plat->libelle]),
-                        'cause' => self::CAUSE_PLAT_SANS_COMPOSITION,
-                        'plat_id' => $plat->id,
-                        'quantite' => (int) $ligne['quantite'],
-                    ];
-
-                    continue;
+            foreach ($lignesRestaurant as $i => $ligne) {
+                if ($this->deductionCuisine->aDeQuoiDeduire($plats[$i])) {
+                    $aDeduire[] = ['plat' => $plats[$i], 'quantite' => (int) $ligne['quantite']];
                 }
-
-                $aDeduire[] = ['plat' => $plat, 'quantite' => (int) $ligne['quantite']];
             }
 
             if ($aDeduire !== []) {
@@ -895,10 +1016,16 @@ class VenteService
         if ($commandeId !== null) {
             // Le stock est sorti à la transmission en cuisine, pas ici. La
             // vente le DIT : un ticket sans mouvement de stock se lirait
-            // autrement comme un défaut de déduction.
+            // autrement comme un défaut de déduction. Un plat sans composition
+            // n'a rien sorti du tout : il est déjà noté plus haut, la phrase
+            // « déjà sorti » serait fausse pour lui.
             $commande = CommandeRestaurant::findOrFail((string) $commandeId);
 
-            foreach ($lignesRestaurant as $ligne) {
+            foreach ($lignesRestaurant as $i => $ligne) {
+                if (! $this->deductionCuisine->aDeQuoiDeduire($plats[$i])) {
+                    continue;
+                }
+
                 $nonImpacte[] = [
                     'ligne' => (string) $ligne['nom'],
                     'module' => 'M4',
@@ -958,7 +1085,7 @@ class VenteService
      * @throws RuntimeException TVA assujettie (aucun compte de collecte au plan),
      *                          ou module sans compte de produits
      */
-    private function lignesDeLaPiece(array $ventilation, string $compteContrepartie, string $total): array
+    private function lignesDeLaPiece(array $ventilation, string $roleContrepartie, string $total): array
     {
         /*
          * LA LACUNE DE TVA COLLECTÉE EST COMBLÉE (01/09/2026) — décision du
@@ -986,7 +1113,11 @@ class VenteService
         $piece = [];
 
         $piece[] = [
-            'compte' => $compteContrepartie,
+            // Les comptes sont lus de la CORRESPONDANCE ici, au moment de
+            // passer la pièce (26/10/2026) ; le rôle suit la ligne pour le
+            // centre par défaut.
+            'compte' => $this->comptes->compte($roleContrepartie),
+            'role' => $roleContrepartie,
             'debit' => $total,
             'credit' => '0.00',
         ];
@@ -995,21 +1126,24 @@ class VenteService
         $centres = [];
 
         foreach ($ventilation as $module => $montant) {
-            $compte = self::COMPTES_PRODUIT[$module] ?? null;
+            $roleProduit = self::ROLES_PRODUIT[$module] ?? null;
 
-            if ($compte === null) {
+            if ($roleProduit === null) {
                 throw new RuntimeException(__('ventes.compte_produit_absent', [
                     'module' => self::MODULES[$module] ?? $module,
                 ]));
             }
 
+            $compte = $this->comptes->compte($roleProduit);
             $credit = $montant;
 
             if ($tvaActive) {
                 $ht = $this->tva->ventiler($montant)['ht'];
-                $compteTva = self::COMPTES_TVA[$module];
-                $tvaParCompte[$compteTva] = bcadd(
-                    $tvaParCompte[$compteTva] ?? '0.00',
+                // Groupée par RÔLE : deux rôles de TVA désignant le même compte
+                // donnent deux lignes, ici comme sur le poste (même pièce).
+                $roleTva = self::ROLES_TVA[$module];
+                $tvaParCompte[$roleTva] = bcadd(
+                    $tvaParCompte[$roleTva] ?? '0.00',
                     bcsub($montant, $ht, self::PRECISION),
                     self::PRECISION,
                 );
@@ -1018,16 +1152,18 @@ class VenteService
 
             $piece[] = [
                 'compte' => $compte,
+                'role' => $roleProduit,
                 'debit' => '0.00',
                 'credit' => $credit,
                 'centre_id' => $this->centreDuModule($module),
             ];
         }
 
-        foreach ($tvaParCompte as $compteTva => $tva) {
+        foreach ($tvaParCompte as $roleTva => $tva) {
             if (bccomp($tva, '0.00', self::PRECISION) > 0) {
                 $piece[] = [
-                    'compte' => (string) $compteTva,
+                    'compte' => $this->comptes->compte((string) $roleTva),
+                    'role' => (string) $roleTva,
                     'debit' => '0.00',
                     'credit' => $tva,
                 ];
@@ -1049,14 +1185,15 @@ class VenteService
     }
 
     /**
-     * Compte de débit d'une vente, selon le mode de paiement.
+     * Rôle du compte de débit d'une vente, selon le mode de paiement (le compte
+     * lui-même est lu de la correspondance au moment de passer la pièce).
      *
      * @throws RuntimeException mode de paiement sans contrepartie déclarée
      */
-    private function compteDeContrepartie(string $modePaiement): string
+    private function roleDeContrepartie(string $modePaiement): string
     {
         if ($modePaiement === self::MODE_NOTE_CHAMBRE) {
-            return self::COMPTE_CLIENTS;
+            return self::ROLE_CLIENTS;
         }
 
         $tresorerie = self::CONTREPARTIES_TRESORERIE[$modePaiement] ?? null;
@@ -1071,7 +1208,7 @@ class VenteService
             ]));
         }
 
-        return DepenseService::TRESORERIES[$tresorerie]['compte'];
+        return CorrespondanceComptesService::roleDeTresorerie($tresorerie);
     }
 
     /**

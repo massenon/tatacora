@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/features/rh/data/employe_dao.dart';
 import 'package:tatacora_flutter/features/rh/data/paie_dao.dart';
+import 'package:tatacora_flutter/features/rh/domain/entities/employe.dart';
+import 'package:tatacora_flutter/features/rh/domain/refus_rh.dart';
 import 'package:tatacora_flutter/features/rh/domain/services/calcul_paie_service.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/descente_catalogue_dao.dart';
 
@@ -106,6 +108,7 @@ void main() {
                       'matricule': 'EMP-2026-00007',
                       'nom': 'KORA',
                       'prenom': 'Jean',
+                      'email': 'jean.kora@exemple.bj',
                       'poste': 'Veilleur',
                       'service_id': 'srv-heb',
                       'date_embauche': '2024-01-15',
@@ -138,8 +141,110 @@ void main() {
 
     final e = (await rh.parId('emp-1'))!;
     expect((e.matricule, e.serviceId), ('EMP-2026-00007', hebergement));
+    // L'e-mail facultatif (v45) descend avec le dossier ; absent, il reste vide.
+    expect(e.email, 'jean.kora@exemple.bj');
     final bulletin = (await PaieDao(b.db).parId('bul-1'))!;
     expect(bulletin.netAPayer, 77120);
     expect(await b.total(), 0, reason: 'ce qui descend ne remonte pas');
+  });
+
+  group('E-mail facultatif (v45)', () {
+    Map<String, Object?> charge(String operation) =>
+        jsonDecode(operation.substring(operation.indexOf('{')))
+            as Map<String, Object?>;
+
+    Future<void> retoucher(String id, {String? email, String? poste}) =>
+        rh.mettreAJour(
+          id,
+          nom: 'HOUNSOU',
+          prenom: 'Marceline',
+          poste: poste ?? 'Réceptionniste',
+          serviceId: hebergement,
+          dateEmbauche: DateTime(2023, 2, 1),
+          salaireBase: 150000,
+          email: email,
+          statut: StatutEmploye.actif,
+        );
+
+    test(
+      'il est normalisé à la saisie et part dans la création, puis dans '
+      'chaque modification ; vider l’adresse l’EFFACE (null explicite)',
+      () async {
+        final employe = await rh.creer(
+          nom: 'HOUNSOU',
+          prenom: 'Marceline',
+          poste: 'Réceptionniste',
+          serviceId: hebergement,
+          dateEmbauche: DateTime(2023, 2, 1),
+          salaireBase: 150000,
+          email: '  Marceline.HOUNSOU@Exemple.BJ ',
+        );
+        expect(employe.email, 'marceline.hounsou@exemple.bj');
+
+        // Le dossier est connu du serveur (sa création attend dans la file) : la
+        // retouche part en modification, dossier ENTIER.
+        await retoucher(employe.id, email: 'MH@exemple.bj');
+        await retoucher(employe.id, email: '   ');
+
+        final ops = await file();
+        expect(ops, hasLength(3));
+        expect(ops[0], startsWith('creation employes '));
+        expect(charge(ops[0])['email'], 'marceline.hounsou@exemple.bj');
+        expect(ops[1], startsWith('modification employes '));
+        expect(charge(ops[1])['email'], 'mh@exemple.bj');
+        expect(charge(ops[2]), containsPair('email', null));
+        expect((await rh.parId(employe.id))!.email, isNull);
+      },
+    );
+
+    test('mal formé : refus avec la phrase du serveur, RIEN n’est écrit ni '
+        'enfilé ; deux dossiers peuvent partager une adresse', () async {
+      await expectLater(
+        rh.creer(
+          nom: 'X',
+          prenom: 'Y',
+          poste: 'Z',
+          serviceId: hebergement,
+          dateEmbauche: DateTime(2023, 2, 1),
+          salaireBase: 1,
+          email: 'pas-une-adresse',
+        ),
+        throwsA(
+          isA<EmailInvalide>().having(
+            (e) => e.message,
+            'message',
+            'Adresse email invalide.',
+          ),
+        ),
+      );
+      expect(await rh.employes(), isEmpty);
+      expect(await file(), isEmpty);
+
+      for (final nom in ['A', 'B']) {
+        await rh.creer(
+          nom: nom,
+          prenom: 'Y',
+          poste: 'Z',
+          serviceId: hebergement,
+          dateEmbauche: DateTime(2023, 2, 1),
+          salaireBase: 1,
+          email: 'commune@exemple.bj',
+        );
+      }
+      expect(
+        {for (final e in await rh.employes()) e.email},
+        {'commune@exemple.bj'},
+      );
+    });
+
+    test('l’archivage n’envoie toujours que le statut', () async {
+      final id = await embaucher();
+      await b
+          .manager(FauxTransport((r) => reponseLot(r)))
+          .synchroniserMaintenant();
+      await rh.archiver(id);
+      final ops = await file();
+      expect(ops.last, 'modification employes {"statut":"parti"}');
+    });
   });
 }

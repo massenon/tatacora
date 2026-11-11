@@ -9,11 +9,14 @@ use App\Pwa\Livewire\Accueil;
 use App\Pwa\Livewire\Achats\Achats;
 use App\Pwa\Livewire\Achats\Approvisionnement;
 use App\Pwa\Livewire\Bar\CarteBar;
+use App\Pwa\Livewire\ChangementMotDePasseObligatoire;
+use App\Pwa\Livewire\CodeSecours;
 use App\Pwa\Livewire\Comptabilite\Analytique;
 use App\Pwa\Livewire\Comptabilite\Balance;
 use App\Pwa\Livewire\Comptabilite\Bilan;
 use App\Pwa\Livewire\Comptabilite\Cloture;
 use App\Pwa\Livewire\Comptabilite\CompteResultat;
+use App\Pwa\Livewire\Comptabilite\CorrespondanceComptes;
 use App\Pwa\Livewire\Comptabilite\EtatsFinanciers;
 use App\Pwa\Livewire\Comptabilite\FluxTresorerie;
 use App\Pwa\Livewire\Comptabilite\GrandLivre;
@@ -28,6 +31,7 @@ use App\Pwa\Livewire\Depenses\Depenses;
 use App\Pwa\Livewire\Etats\Etats;
 use App\Pwa\Livewire\Etats\EtatsStudio;
 use App\Pwa\Livewire\Facturation\Facturation;
+use App\Pwa\Livewire\Facturation\Proformas;
 use App\Pwa\Livewire\Hebergement\Hebergement as PwaHebergement;
 use App\Pwa\Livewire\Hebergement\Reservations as PwaReservations;
 use App\Pwa\Livewire\Notifications\Hub as NotificationsHub;
@@ -37,18 +41,23 @@ use App\Pwa\Livewire\Pos\PosComptant;
 use App\Pwa\Livewire\Pos\PosHeberges;
 use App\Pwa\Livewire\Restaurant\CarteRestaurant;
 use App\Pwa\Livewire\Restaurant\Restauration;
+use App\Pwa\Livewire\Rh\CongesPlannings;
 use App\Pwa\Livewire\Rh\Paie as PwaPaie;
 use App\Pwa\Livewire\Stocks\Inventaires;
 use App\Pwa\Livewire\Stocks\Stocks;
 use App\Pwa\Livewire\Tourisme\Departs;
 use App\Pwa\Livewire\Transverse\AideAPropos;
+use App\Pwa\Livewire\Transverse\ComptesUtilisateurs;
 use App\Pwa\Livewire\Transverse\ContactEditeur;
+use App\Pwa\Livewire\Transverse\EnvoiSynchronisation;
 use App\Pwa\Livewire\Transverse\ImportExport;
 use App\Pwa\Livewire\Transverse\JournalAudit;
 use App\Pwa\Livewire\Transverse\MonProfil;
 use App\Pwa\Livewire\Transverse\PageTransverse;
 use App\Pwa\Livewire\Transverse\Parametres;
+use App\Pwa\Livewire\Transverse\ReceptionSynchronisation;
 use App\Pwa\Livewire\Transverse\RolesPermissions;
+use App\Pwa\Livewire\Transverse\Synchronisation;
 use App\Pwa\Livewire\Transverse\SynchronisationPostes;
 use App\Pwa\Livewire\Transverse\VerrouSession;
 use App\Pwa\Livewire\Vehicules\Locations;
@@ -141,6 +150,16 @@ final class PwaActionsReluesTest extends TestCase
     private const ACTIONS_RELUES = [
         Connexion::class => ['seConnecter', 'render'],
 
+        // Mot de passe perdu SANS e-mail (29/10/2026, option A du PO). Les deux
+        // écrans « invité » : aucune session (ou une session « changement
+        // obligatoire » qui ne touche qu\'à son propre compte) — donc aucun
+        // module RBAC, même famille que `seConnecter`.
+        ChangementMotDePasseObligatoire::class => ['render', 'definirNouveauMotDePasse'],
+        CodeSecours::class => ['render', 'reinitialiserParCodeDeSecours'],
+        // La liste des comptes et « Réinitialiser le mot de passe » : l\'écriture
+        // exige `C` sur ROLES (`exigerEcriture`) ET un rôle d\'administration.
+        ComptesUtilisateurs::class => ['render', 'ouvrirReinitialisation', 'fermerModales', 'reinitialiserMotDePasse', 'ouvrirSuppression', 'supprimerCompte'],
+
         // ⚠ M11 — LE TABLEAU DE BORD PORTE CINQ GESTES RAPIDES (31/08/2026).
         //
         // Ses actions ecrivent sur d'AUTRES modules que M11 : le check-in et
@@ -199,7 +218,22 @@ final class PwaActionsReluesTest extends TestCase
             'demarrerCloture', 'reprendreSaisie', 'rouvrirExercice',
             // Lot 4 : l'archive légale — générer (écriture M10), télécharger.
             'genererArchive', 'telechargerArchive',
+            // Affectation du résultat de l'exercice clôturé (09/11/2026) : trois
+            // gestes gardés par `exigerEcriture(M10)` ; le droit du COMPTABLE est
+            // porté par `AffectationResultatService`.
+            'demanderAffectation', 'passerAffectation', 'contrepasserAffectation',
+            // Crochet Livewire : recalcule le report à nouveau (le reste) dans
+            // l'état du composant, aucune table touchée.
+            'updatedAffectation',
             'fermerModales',
+        ],
+        // Correspondance des comptes (26/10/2026, decision du PO : les comptes se
+        // modifient sur le web). Quatre gestes, chacun garde par
+        // `exigerEcriture(self::MODULE)` (M10) : ouvrir l'edition d'un role,
+        // enregistrer le compte, retablir le defaut, fermer.
+        CorrespondanceComptes::class => [
+            'render',
+            'ouvrirEditionRole', 'enregistrerRole', 'retablirRole', 'fermerModales',
         ],
         PlanComptable::class => ['render'],
         Journal::class => ['render'],
@@ -248,17 +282,16 @@ final class PwaActionsReluesTest extends TestCase
         // seul, reverifie dans le composant), reinitialisation (phrase VIDER,
         // modale unique au markup du maitre — l'etape intermediaire
         // `passerEtapeFinaleReinitialisation` du 01/09 est supprimee).
-        // LECTURES : `telechargerSauvegarde` et `telechargerModeleCsv`
+        // LECTURES : `telechargerSauvegarde` et `telechargerModele`
         // (fichiers/flux), `ouvrirExport` (etat d'interface), `exporterTable`
         // (contenu JSON d'une table de la liste fermee `ExportTableService`).
         ImportExport::class => [
             'render',
-            'telechargerModeleCsv', 'controlerFichierImport', 'confirmerImport',
+            'telechargerModele', 'telechargerExempleGite', 'controlerFichierImport', 'confirmerImport',
             'genererSauvegarde', 'telechargerSauvegarde',
             'retirerSauvegarde', 'confirmerRetraitSauvegarde',
             'ouvrirExport', 'exporterTable',
             'restaurerArchive', 'ouvrirPurge', 'purgerArchive',
-            'ouvrirReinitialisation', 'reinitialiserDonneesTest',
             'fermerModales',
             // Livewire\WithFileUploads
             '_startUpload', '_finishUpload', '_removeUpload', '_uploadErrored',
@@ -272,7 +305,26 @@ final class PwaActionsReluesTest extends TestCase
         // Révocation d'appairage (19/10/2026) : réservée aux Administrateurs,
         // confirmée par la modale ; `demanderRevocation`/`annulerRevocation`
         // n'écrivent rien.
-        SynchronisationPostes::class => ['render', 'synchroniser', 'demanderRevocation', 'annulerRevocation', 'revoquer'],
+        SynchronisationPostes::class => ['render', 'actualiser', 'synchroniser', 'demanderRevocation', 'annulerRevocation', 'revoquer'],
+
+        // Page « Synchronisation » (09/11/2026) : les journaux ex-onglets de la page des postes ;
+        // `changerOnglet` ne change que la vue.
+        Synchronisation::class => ['render', 'actualiser', 'changerOnglet'],
+
+        // Onglets « Réception » et « Envoi » de « Postes & Appairage »
+        // (26/10/2026, composants imbriqués). Lecture réservée aux
+        // Administrateurs et au Comptable. Les ouvertures/fermetures de
+        // fenêtres n'écrivent rien ; `enregistrerCorrection`, `relancer` et
+        // `ignorer` écrivent par `CorrectionReceptionService` (droit
+        // d'écriture sur le module DE LA DONNÉE, 403 sinon, auteur tracé) ;
+        // `redescendre` pose une demande de redescente (Administrateurs).
+        ReceptionSynchronisation::class => [
+            'render', 'actualiser', 'ouvrirOperation', 'fermerOperation', 'ouvrirCorrection', 'fermerCorrection',
+            'enregistrerCorrection', 'relancer', 'ouvrirIgnorer', 'fermerIgnorer', 'ignorer',
+        ],
+        EnvoiSynchronisation::class => [
+            'render', 'actualiser', 'voirPoste', 'fermerPoste', 'demanderRedescente', 'annulerRedescente', 'redescendre',
+        ],
 
         // Mon profil — le changement de mot de passe (01/09/2026, directive
         // du Product Owner). `changerMotDePasse()` n'exige AUCUN module RBAC
@@ -281,7 +333,7 @@ final class PwaActionsReluesTest extends TestCase
         // par `exigerEcriture()`, meme famille que `seConnecter`/
         // `deverrouiller`. `ouvrirFormulaireMotDePasse` et `fermerModales`
         // n'ecrivent rien : etat d'interface seul.
-        MonProfil::class => ['render', 'ouvrirFormulaireMotDePasse', 'fermerModales', 'changerMotDePasse'],
+        MonProfil::class => ['render', 'mount', 'ouvrirFormulaireMotDePasse', 'fermerModales', 'changerMotDePasse', 'enregistrerInformations', 'ouvrirFormulaireCodeSecours', 'genererCodeSecours'],
 
         // Le voile de verrouillage — monté une seule fois par
         // `layouts.pwa`, sur CHAQUE écran authentifié. `deverrouiller()`
@@ -295,6 +347,11 @@ final class PwaActionsReluesTest extends TestCase
         // qui fait le geste (`alertes_vues`) : voir `ECRITURES_HORS_MODULE`.
         \App\Pwa\Livewire\Transverse\ClocheNotifications::class => ['render', 'marquerToutLu', 'marquerLu'],
         \App\Pwa\Livewire\Transverse\RechercheGlobale::class => ['render'],
+        // L'icône de synchronisation de la barre (03/11/2026) : `ouvrir` et
+        // `fermer` n'écrivent rien ; `demander` est inscrite dans
+        // `PwaEcritureAutoriseeTest::ECRITURES_HORS_MODULE` (une demande
+        // horodatée, comme `SynchronisationPostes::synchroniser`).
+        \App\Pwa\Livewire\Transverse\SynchronisationBarre::class => ['render', 'ouvrir', 'fermer', 'demander'],
         // Le sélecteur d'exercice global (20/10/2026) — quatrième widget de la
         // barre. Choisir et revenir n'écrivent que la SESSION
         // (`ExerciceConsulte`) ; voir `METHODES_DE_LECTURE`.
@@ -329,6 +386,11 @@ final class PwaActionsReluesTest extends TestCase
         Parametres::class => [
             'render',
             'ouvrirEditionParametre', 'enregistrerParametre', 'fermerModales',
+            // « Réinitialiser les données de test » revenue dans Paramètres (09/11/2026) :
+            // ouvrir et fermer la modale n'écrivent rien ; l'exécution est gardée par
+            // `ReinitialisationDonneesTestService::estPermisA` (administrateurs) ET
+            // `validerEcriture` (`exigerEcriture(static::MODULE)`).
+            'ouvrirReinitialisation', 'reinitialiserDonneesTest', 'fermerReinitialisation',
             'ouvrirAjoutCanal', 'ouvrirRenommageCanal', 'enregistrerCanal', 'basculerCanal',
             // Confirmation de desactivation par la MODALE du depot — jamais
             // wire:confirm (boite native, MotifsInterditsPwaTest). Pose un
@@ -347,11 +409,16 @@ final class PwaActionsReluesTest extends TestCase
             // du PO) : `exigerEcriture(self::MODULE)` ET rôle
             // d'administration ; la valeur n'est jamais rechargee.
             'enregistrerMotDePasseSmtp', 'effacerMotDePasseSmtp',
+            // Facturation normalisee (07/11/2026) : le jeton e-MECeF, chiffre,
+            // jamais rendu — `exigerEcriture(self::MODULE)` ET role
+            // d'administration ; « Tester la connexion » n'ecrit rien mais
+            // appelle la DGI avec le jeton : meme garde.
+            'ouvrirSaisieJetonMecef', 'enregistrerJetonMecef', 'demanderEffacementJetonMecef', 'effacerJetonMecef', 'testerConnexionMecef',
             // Logo & Apparence — televersement reel via `WithFileUploads`
             // (fichiers remplaces, jamais accumules ; servis par la route
             // `pwa.apparence`, sans storage:link).
             'ouvrirChangementLogo', 'enregistrerLogo',
-            'ouvrirChangementFavicon', 'enregistrerFavicon',
+            'ouvrirChangementFavicon', 'enregistrerFavicon', 'ouvrirChangementSignature', 'enregistrerSignature', 'ouvrirChangementCachet', 'enregistrerCachet', 'retirerSignature', 'retirerCachet',
             // Espaces & tables — CRUD reel du referentiel `tables_salle`
             // (`TableSalleService`, l'unique auteur des regles du maitre :
             // unicite du numero, libelle qui suit le numero, refus de
@@ -387,7 +454,7 @@ final class PwaActionsReluesTest extends TestCase
             'render',
             'editerArticle', 'enregistrerArticle', 'enregistrerMouvement', 'forcerMouvement',
             'nouvelArticle', 'ouvrirMouvement', 'fermerModales',
-            'genererExport', 'ouvrirExport', 'lancerImport', 'ouvrirImport', 'telechargerModeleCsv',
+            'genererExport', 'ouvrirExport', 'lancerImport', 'ouvrirImport', 'telechargerModele',
             'messages',
             // ARCHIVAGE du referentiel (03/09/2026, demande du Product Owner).
             // Les deux premieres passent par `exigerArchivage()` — RBAC
@@ -468,9 +535,21 @@ final class PwaActionsReluesTest extends TestCase
 
         // M2 — l'avoir est le SEUL geste d'ecriture de la facturation :
         // RG-03 fige une facture emise, la correction passe par contre-piece.
+        // Proformas (07/11/2026) : document non fiscal, toutes les écritures exigent M2 = C.
+        Proformas::class => [
+            'render', 'mount',
+            'ouvrirCreation', 'ouvrirModification', 'ajouterLigne', 'retirerLigne', 'enregistrer', 'emettre',
+            'ouvrirAnnulation', 'confirmerAnnulation', 'ouvrirConversion', 'confirmerConversion',
+            'imprimer', 'fermerModales',
+            // Pagination (09/11/2026) : crochet du cadre, il ne remet que la page à 1 quand un filtre change.
+            'updated',
+        ],
+
         Facturation::class => [
             'render',
             'ouvrirFormulaireAvoir', 'enregistrerAvoir',
+            // « Normaliser » (e-MECeF, 07/11/2026) : jamais automatique, exige l'écriture sur M2.
+            'normaliser',
             'imprimerFacture', 'fermerModales',
             // Selection + pagination du tableau generique (G6, 01/09/2026) —
             // memes crochets de cadre que `Achats`.
@@ -499,6 +578,9 @@ final class PwaActionsReluesTest extends TestCase
             'ouvrirModificationPrix', 'enregistrerModificationPrix', 'fermerModales',
             'ouvrirHistoriquePrix',
             'genererExport', 'imprimerFichePrix',
+            // Rattrapage « Rapprocher les plats du stock » (PO 09/11/2026) :
+            // ecrit des liens (M4) et des articles (M6) — exigerEcriture des deux.
+            'rapprocherLesPlatsDuStock',
             // Onglet « Ventes du Restaurant » (03/09/2026, Product Owner) :
             // `updated()` est le crochet du CADRE Livewire qui remet la
             // pagination a 1 quand un filtre de l'onglet change. Il n'ecrit
@@ -549,6 +631,8 @@ final class PwaActionsReluesTest extends TestCase
             'ouvrirFormulaireImmobilisation', 'enregistrerImmobilisation',
             'confirmerArchivage', 'executerSuppression',
             'genererExport', 'fermerModales',
+            // Reçu de location (PDF d'UN contrat) : une lecture.
+            'imprimerRecu',
         ],
 
         // ⚠ LES DEUX PAGES M14 — un cas a part, et il le reste sous le
@@ -570,6 +654,7 @@ final class PwaActionsReluesTest extends TestCase
             'render', 'mount',
             'ouvrirFormulaireReservation', 'enregistrerReservation',
             'updatedCircuitIdResa', 'updatedDateDepartResa',
+            'ouvrirAjoutGuide', 'fermerAjoutGuide', 'enregistrerGuide',
             'ouvrirFormulaireGuide', 'enregistrerReaffectationGuide',
             'ouvrirFormulairePrestation', 'enregistrerPrestation',
             'confirmerArchivage', 'executerSuppression',
@@ -598,6 +683,9 @@ final class PwaActionsReluesTest extends TestCase
             // `M1 = C` en toutes lettres.
             'basculerServiceFiche',
             'ajouterLigneFiche',
+            // Multi-chambres (10/11/2026) : état du formulaire, M1 = C exigé, rien n'est écrit en base.
+            'ajouterChambre',
+            'retirerChambre',
             'retirerLigneFiche',
             'annulerReservation',
             'confirmerAnnulation',
@@ -725,6 +813,16 @@ final class PwaActionsReluesTest extends TestCase
             // `archiverEmployes` appelle `exigerEcriture(self::MODULE)` ET
             // la bascule ; `updatedToutSelectionne` est un cycle de vie.
             'updatedToutSelectionne', 'ouvrirArchivageEmployes', 'archiverEmployes',
+        ],
+        // M13 — Conges & Plannings (21/10/2026). `ouvrirPlanification` et
+        // `ouvrirDemandeConge` deleguent a `ouvrirFormulaire()` ; les deux
+        // `enregistrer*` a `validerEcriture()` ; `validerConge` et
+        // `refuserConge` appellent `exigerEcriture(self::MODULE)` directement.
+        CongesPlannings::class => [
+            'render',
+            'ouvrirPlanification', 'enregistrerPlanning',
+            'ouvrirDemandeConge', 'enregistrerConge',
+            'validerConge', 'refuserConge', 'fermerModales',
         ],
         // M12 — referentiel reel (modeles, declencheurs, journal). La FILE
         // D'ATTENTE (01/09/2026) — cinq actions reelles. `detecterMaintenant`
@@ -1057,8 +1155,8 @@ final class PwaActionsReluesTest extends TestCase
     {
         $this->get('/pwa/connexion')
             ->assertOk()
-            ->assertSee('Identifiant')
-            ->assertSee('Se connecter');
+            ->assertSee(__('pwa.connexion.login'))
+            ->assertSee(__('pwa.connexion.valider'));
     }
 
     /**
@@ -1131,17 +1229,32 @@ final class PwaActionsReluesTest extends TestCase
         // PAR ROLE, portant le NOM et la FONCTION d'un compte
         // (SECURITY_STRICT.md §12) : ce que le bloc ci-dessous verifie
         // reste vrai, juste sur un compte de deux plutot qu'un.
-        $this->assertSame(2, substr_count($html, '<button'), 'La page de connexion ne doit porter que le bouton de soumission et l\'oeil du mot de passe.');
-        $this->assertSame(0, substr_count($html, '<a '), 'La page de connexion ne doit porter aucun lien.');
+        // ⚠ TROIS boutons depuis le 29/10/2026 (refonte de l'ecran, PO) : la
+        // soumission, l'oeil, et « Mot de passe oublie ? » (type="button", qui
+        // n'ouvre aucune route : il revele « Contactez l'administrateur »).
+        // Toujours aucun bouton par role, aucun lien.
+        $this->assertSame(3, substr_count($html, '<button'), 'La page de connexion ne doit porter que la soumission, l\'oeil du mot de passe et « Mot de passe oublie ? ».');
+        // UN lien depuis le 29/10/2026 (PO, option A du « mot de passe perdu ») :
+        // « J'ai perdu mon mot de passe administrateur », dans le message
+        // « Contactez l'administrateur ». Il mene a UNE page fixe (le recours par
+        // code de secours) — jamais un lien par compte, ce que ce controle interdit.
+        $this->assertSame(1, substr_count($html, '<a '), 'La page de connexion ne porte qu\'un lien : le recours du dernier administrateur.');
+        $this->assertMatchesRegularExpression(
+            '#<a [^>]*href="'.preg_quote(route('pwa.code-secours'), '#').'"[^>]*>\s*'.preg_quote(e(__('pwa.connexion.mot_de_passe_administrateur_perdu')), '#').'\s*</a>#',
+            $html,
+            'Le seul lien de la page de connexion mene a l\'ecran du code de secours.',
+        );
 
         preg_match_all('#<button[^>]*type="(submit|button)"[^>]*>(.*?)</button>#s', $html, $boutons, PREG_SET_ORDER);
-        $this->assertCount(2, $boutons, 'Les deux boutons doivent porter un type explicite.');
+        $this->assertCount(3, $boutons, 'Les trois boutons doivent porter un type explicite.');
 
         $soumission = array_values(array_filter($boutons, static fn (array $b): bool => $b[1] === 'submit'));
         $this->assertCount(1, $soumission, 'Un seul bouton de soumission.');
+        // Le bouton porte deux etats (repos / « Connexion… » pendant l'envoi) :
+        // le libelle de connexion y figure, rien d'autre que ces deux phrases.
         $this->assertSame(
-            __('pwa.connexion.valider'),
-            trim(strip_tags($soumission[0][2])),
+            __('pwa.connexion.valider').' '.__('pwa.connexion.connexion_en_cours'),
+            trim((string) preg_replace('/\s+/', ' ', strip_tags($soumission[0][2]))),
             'Le bouton de soumission doit porter le libelle de connexion.',
         );
 
@@ -1149,12 +1262,22 @@ final class PwaActionsReluesTest extends TestCase
         // texte visible est vide (icones SVG seules), ce qui interdit
         // structurellement qu'il soit pris pour une tuile de compte.
         $autre = array_values(array_filter($boutons, static fn (array $b): bool => $b[1] === 'button'));
-        $this->assertCount(1, $autre);
-        $this->assertSame('', trim(strip_tags($autre[0][2])), 'Le bouton hors soumission ne doit porter aucun texte visible.');
+        $this->assertCount(2, $autre);
+        // L'oeil : aucun texte visible. « Mot de passe oublie ? » : cette phrase
+        // et aucune autre — jamais un nom ni une fonction de compte.
+        $textes = array_map(static fn (array $b): string => trim(strip_tags($b[2])), $autre);
+        sort($textes);
+        $this->assertSame(['', __('pwa.connexion.mot_de_passe_oublie')], $textes, 'Les boutons hors soumission ne portent que l\'oeil et « Mot de passe oublie ? ».');
 
         // Aucune cle de role ne sert d'etiquette a un element interactif.
         preg_match_all('#<(?:button|a)\b[^>]*>(.*?)</(?:button|a)>#is', $html, $interactifs);
-        $texteInteractif = strip_tags(implode(' ', $interactifs[1]));
+        $texteInteractif = html_entity_decode(strip_tags(implode(' ', $interactifs[1])), ENT_QUOTES);
+
+        // Le libelle voulu par le PO (29/10/2026) contient le mot « administrateur »,
+        // qui est aussi une cle de role. Ce n'est pas une tuile de compte : c'est
+        // le lien fixe vers l'ecran du code de secours, verifie plus haut (href et
+        // texte exacts). On le retire du balayage, et de lui SEUL.
+        $texteInteractif = str_replace(__('pwa.connexion.mot_de_passe_administrateur_perdu'), '', $texteInteractif);
 
         // Le balayage ci-dessous ne vaut que s'il porte sur quelque chose.
         // La regex a d'abord ete ecrite avec `\b` corrompu en caractere de

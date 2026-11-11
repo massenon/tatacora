@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 return [
     'convention_inconnue' => 'Convention de prix inconnue : « :convention ». '
-        . 'Valeurs admises : `ht` ou `ttc` (paramètre `:cle`).',
+        . 'Valeurs admises : « ht » ou « ttc » (paramètre « :cle »).',
     'taux_absent' => 'Le taux de TVA n\'est pas paramétré (:cle). '
         . 'Aucun montant de taxe ne peut être calculé tant qu\'un Administrateur ne l\'a pas renseigné.',
     'compte_absent' => 'Le compte :compte est absent du plan comptable. '
@@ -145,4 +145,56 @@ return [
     'archive_cloture_rouverte' => 'Cette clôture a été rouverte : son archive n\'est plus celle de l\'exercice.',
     'archive_sans_cloture' => "Cet exercice n'a pas de clôture active : il n'y a pas d'archive.",
     'archive_alteree' => "L'archive de clôture ne correspond plus à son empreinte : un fichier a été modifié ou supprimé. Elle n'est pas délivrée.",
+
+    // --- Demandes de clôture envoyées par un poste (26/10/2026) ---------------
+    'demande_cloture_exercice_inconnu' => "L'exercice :annee n'existe pas sur le serveur : la demande de clôture ne peut pas être exécutée.",
+    'demande_cloture_action_inconnue' => 'Action de clôture inconnue : « :action ». Valeurs admises : :admises.',
+
+    // --- Affectation du résultat d'un exercice clôturé (09/11/2026) ------------
+    // `AffectationResultatService`. Le poste Windows reprend ces phrases AU MOT
+    // (`messages_affectation.dart`), confrontées au vrai PHP par un test.
+    'affectation_reservee' => "Seul le comptable peut passer ou contre-passer l'affectation du résultat.",
+    'affectation_exige_cloture' => "L'exercice :annee n'est pas clôturé : son résultat ne peut pas être affecté avant sa clôture.",
+    'affectation_resultat_nul' => "Le résultat de l'exercice :annee est nul : il n'y a rien à affecter.",
+    'affectation_deja_passee' => "Le résultat de l'exercice :annee est déjà affecté (pièce :piece). Contre-passez cette affectation avant d'en passer une autre.",
+    'affectation_date_invalide' => "La date de l'approbation des comptes ou de la décision de l'exploitant « :date » n'est pas une date valide.",
+    'affectation_date_hors_exercice' => "La date de l'approbation des comptes ou de la décision de l'exploitant (:date) doit tomber dans l'exercice :annee, celui qui suit l'exercice clôturé.",
+    'affectation_exercice_non_ouvert' => "L'exercice :annee est :statut : l'affectation du résultat ne peut être passée que dans un exercice ouvert.",
+    'affectation_montant_illisible' => "Le montant de « :poste » n'est pas lisible (« :valeur ») : saisissez un nombre positif, deux décimales au plus.",
+    'affectation_montant_negatif' => "Le montant de « :poste » ne peut pas être négatif.",
+    'affectation_dividende_sur_perte' => "Aucun dividende ne se verse sur une perte : le résultat à affecter est une perte.",
+    'affectation_reserve_legale_sur_perte' => "Une perte ne s'affecte pas à la réserve légale : elle se reporte à nouveau ou s'impute sur les réserves.",
+    'affectation_imputation_sur_benefice' => "L'imputation sur le report à nouveau créditeur ne vaut que pour une perte.",
+    'affectation_somme_differente' => "La ventilation totalise :somme alors que le résultat à affecter est de :resultat (écart :ecart) : elle doit l'égaler exactement.",
+    'affectation_imputation_excessive' => "L'imputation sur « :poste » (:montant) dépasse son solde créditeur (:solde).",
+    'affectation_centre_absent' => "Le centre de coût « :centre » est introuvable : l'affectation du résultat ne peut pas être passée.",
+    'affectation_motif' => "Le motif de la contre-passation est obligatoire (:min caractères au moins) : il est écrit au journal d'audit et sur les contre-passations.",
+    'affectation_aucune' => "Le résultat de l'exercice :annee n'a aucune affectation active : il n'y a rien à contre-passer.",
+    'affectation_contrepassation_exercice_clos' => "L'affectation du résultat de l'exercice :annee ne peut pas être contre-passée : l'exercice :suivant, qui la porte, est clôturé. Rouvrez d'abord :suivant.",
+    'affectation_piece_divergente' => "La pièce d'affectation envoyée par le poste ne correspond pas à celle que le serveur passerait pour cette ventilation : vérifiez la correspondance des comptes des deux côtés.",
+    'affectation_poste_reserve_legale' => 'Réserve légale',
+    'affectation_poste_autres_reserves' => 'Autres réserves',
+    'affectation_poste_dividendes' => 'Dividendes',
+    'affectation_poste_report_a_nouveau' => 'Report à nouveau',
+    'affectation_poste_imputation_report_crediteur' => 'Imputation sur le report à nouveau créditeur',
+    'affectation_poste_compte_exploitant' => "Compte de l'exploitant",
+    // Forme juridique (09/11/2026) : entreprise individuelle (défaut du Gîte), SARL, SA.
+    'forme_juridique_entreprise_individuelle' => 'Entreprise individuelle',
+    'forme_juridique_sarl' => 'SARL',
+    'forme_juridique_sa' => 'SA',
+    'affectation_ei_reserve_legale' => "Une entreprise individuelle n'a pas de réserve légale : le montant de la réserve légale doit être nul. Ventilez entre le compte de l'exploitant, le report à nouveau et les autres réserves.",
+    'affectation_ei_dividende' => "Une entreprise individuelle ne verse pas de dividendes (compte 465) : le bénéfice revient à l'exploitant. Portez-le au compte de l'exploitant, au report à nouveau ou aux autres réserves.",
+    'affectation_societe_compte_exploitant' => "Le compte de l'exploitant n'existe que dans une entreprise individuelle : la forme juridique de l'établissement est « :forme ». Ventilez entre les postes d'une société.",
+    'affectation_reserve_legale_insuffisante' => "La réserve légale est obligatoire : elle doit recevoir au moins :minimum (10 % de :base, le bénéfice net des pertes antérieures de :pertes), tant qu'elle n'atteint pas 20 % du capital (:capital) ; la ventilation en prévoit :saisi.",
+    'affectation_dividende_capitaux_propres' => "La distribution de :dividendes ferait passer les capitaux propres à :apres, sous le capital augmenté des réserves non distribuables (:plancher) : un dividende ne peut pas entamer le capital ni les réserves que la loi interdit de distribuer.",
+    'affectation_avertissement_capital_indetermine' => "Le capital n'est pas déterminable (aucun solde créditeur au compte 101) : la réserve légale obligatoire ne peut pas être contrôlée et aucune n'est proposée. À vérifier avec le comptable avant de passer l'affectation.",
+    'affectation_alerte_moitie_capital' => "ALERTE : après cette perte, les capitaux propres (:propres) sont inférieurs à la moitié du capital (:capital). L'assemblée doit se prononcer dans les quatre mois sur la poursuite de l'activité (Acte uniforme, art. 664 : à faire confirmer par le comptable).",
+    'affectation_contrepassation_exercice_non_ouvert' => "L'affectation du résultat de l'exercice :annee ne peut pas être contre-passée : l'exercice :suivant, qui la porte, est :statut. La contre-passation ne se passe que dans un exercice ouvert.",
+    'affectation_contrepassation_date_hors_exercice' => "La contre-passation se date du jour de la correction (:date) : elle doit tomber dans l'exercice :suivant, qui porte l'affectation.",
+    'affectation_contrepassation_anterieure' => "La contre-passation (:date) ne peut pas être datée avant la pièce d'affectation (:origine).",
+    'affectation_dividende_regle' => "L'affectation du résultat de l'exercice :annee ne peut pas être contre-passée : un dividende est déjà réglé en tout ou partie (:regle réglé sur :dividendes). Annulez d'abord le règlement du dividende, puis contre-passez l'affectation.",
+    'affectation_reference_trop_longue' => 'La référence de la décision est limitée à :max caractères.',
+    'libelle_affectation_resultat' => "Affectation du résultat de l'exercice :annee",
+    'libelle_contrepassation_affectation' => "Contre-passation de l'affectation du résultat :annee — :motif",
+    'reouverture_affectation_active' => "L'exercice :annee ne peut pas être rouvert : son résultat est affecté (pièce :piece). Contre-passez d'abord l'affectation du résultat.",
 ];

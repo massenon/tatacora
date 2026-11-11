@@ -15,6 +15,7 @@ import '../../domain/departs.dart';
 import '../../domain/entities/circuit.dart';
 import '../../domain/entities/guide.dart';
 import '../providers_tourisme.dart';
+import 'modale_ajout_guide.dart';
 
 /// Ouvre **« Réserver des places »** — vue l.643-745.
 ///
@@ -158,9 +159,11 @@ class _ModaleReservationState extends ConsumerState<_ModaleReservation> {
                   DropdownMenuItem(
                     value: c.id,
                     // La vue compose « nom — prix · durée » (l.671). La durée
-                    // n'est pas répliquée : elle est omise plutôt que rendue
-                    // « — » au milieu d'une ligne d'option, où le tiret se
-                    // lirait comme une valeur.
+                    // existe (`Circuit.duree`, texte libre) mais n'est pas
+                    // composée ici : écart OUVERT (relu le 27/10/2026, l'ancien
+                    // motif « non répliquée » était faux). Elle est omise
+                    // plutôt que rendue « — » au milieu d'une ligne d'option,
+                    // où le tiret se lirait comme une valeur.
                     child: Text('${c.nom} — ${formaterFcfa(c.prix)}'),
                   ),
               ],
@@ -223,17 +226,6 @@ class _ModaleReservationState extends ConsumerState<_ModaleReservation> {
                   'ne peut pas exister sans lui. La réaffectation se fait '
                   'ensuite depuis la liste des départs.',
             ),
-          const SizedBox(height: AppSpacing.xs),
-          // Ce que cet écran fait RÉELLEMENT de la saisie. Sans cette phrase,
-          // un exploitant croirait sa réservation partie ailleurs.
-          const _Note(
-            cle: Key('tourisme-note-poste'),
-            texte:
-                'La réservation est enregistrée sur ce poste. Elle n\'est mise '
-                'en attente de rien : aucune table de M9 ne part par une file '
-                'de synchronisation, et le cumul des places n\'est donc arbitré '
-                'qu\'ici — pas entre deux postes.',
-          ),
         ],
       ),
       actions: [
@@ -292,43 +284,63 @@ class _ModaleReservationState extends ConsumerState<_ModaleReservation> {
   }
 
   Widget _champGuide(List<Guide> guides, Guide? guideEnPlace) {
-    if (guides.isEmpty) {
-      return const _Avertissement(
-        cle: Key('tourisme-aucun-guide'),
-        // Le message de la vue (l.687), au mot — parenthèse technique
-        // comprise : c'est elle qui dit pourquoi le blocage est absolu.
-        texte:
-            'Aucun guide au référentiel — une réservation ne peut pas être '
-            'prise sans lui (`reservations_tour.guide_id` est NOT NULL).',
-      );
-    }
+    // Le départ existe déjà : son guide est IMPOSÉ, on n'en ajoute pas.
+    final peutAjouter = guideEnPlace == null && !_departImpose;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         const EtiquetteChampRestaurant(texte: 'Guide', obligatoire: true),
-        DropdownButtonFormField<String>(
-          key: const Key('tourisme-resa-guide'),
-          initialValue: _guideId,
-          isExpanded: true,
-          style: TextesModaleRestaurant.corps,
-          decoration: const InputDecoration(
-            isDense: true,
-            border: OutlineInputBorder(),
+        if (guides.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(bottom: AppSpacing.xxs),
+            child: _Avertissement(
+              cle: Key('tourisme-aucun-guide'),
+              // Le message de la vue, au mot.
+              texte:
+                  'Aucun guide au référentiel — une réservation ne peut pas '
+                  'être prise sans lui.',
+            ),
+          )
+        else
+          DropdownButtonFormField<String>(
+            key: const Key('tourisme-resa-guide'),
+            initialValue: _guideId,
+            isExpanded: true,
+            style: TextesModaleRestaurant.corps,
+            decoration: const InputDecoration(
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              for (final g in guides)
+                DropdownMenuItem(value: g.id, child: Text(g.nom)),
+            ],
+            // Le départ existe déjà : son guide est IMPOSÉ. Le champ reste
+            // rendu et lié — il n'est pas libre, il n'est pas absent.
+            onChanged: guideEnPlace != null || _departImpose
+                ? null
+                : (v) => setState(() => _guideId = v),
           ),
-          items: [
-            for (final g in guides)
-              DropdownMenuItem(value: g.id, child: Text(g.nom)),
-          ],
-          // Le départ existe déjà : son guide est IMPOSÉ. Le champ reste
-          // rendu et lié — il n'est pas libre, il n'est pas absent (l.689-694).
-          onChanged: guideEnPlace != null || _departImpose
-              ? null
-              : (v) => setState(() => _guideId = v),
-        ),
+        if (peutAjouter)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: const Key('tourisme-resa-guide-ajouter'),
+              onPressed: _ajouterGuide,
+              child: const Text('+ Ajouter'),
+            ),
+          ),
       ],
     );
+  }
+
+  /// Ouvre « Ajouter un guide touristique » et sélectionne le guide créé.
+  Future<void> _ajouterGuide() async {
+    final guide = await ouvrirModaleAjoutGuide(context);
+    if (guide == null || !mounted) return;
+    setState(() => _guideId = guide.id);
   }
 
   Widget _champClient(List<Client> clients) {
@@ -337,7 +349,7 @@ class _ModaleReservationState extends ConsumerState<_ModaleReservation> {
         cle: Key('tourisme-aucun-client'),
         // Le message de la vue (l.711), au mot.
         texte:
-            'Aucun client au référentiel M3 — créez-le d\'abord depuis '
+            'Aucun client au référentiel — créez-le d\'abord depuis '
             '« Clients & Créances ».',
       );
     }

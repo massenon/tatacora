@@ -491,7 +491,8 @@ void main() {
 
       expect(h.numeroMecef, isNull);
       expect(h.estCertifiee, isFalse);
-      expect(h.libelleCertification, 'MECeF — non certifiée, démonstration');
+      // Décision du PO du 07/11/2026 : aucune mention de démonstration.
+      expect(h.libelleCertification, isNull);
     });
 
     test('un numéro de DÉMONSTRATION ne compte PAS comme certification', () {

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Gestionnaires;
 
-use App\Shared\Rbac\Services\DroitArchivageService;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Support\CleNaturelle;
 use App\Shared\Sync\Support\ContexteSynchronisation;
@@ -65,8 +64,8 @@ use RuntimeException;
  *    matière) restent refusées exactement comme la route les refuse ;
  * 4. l'écriture passe par la méthode de modification du SERVICE de domaine
  *    (audit RG-15 compris) ;
- * 5. `actif` archive ou restaure, par le service et sous la règle de droits
- *    de l'écran en ligne (`DroitArchivageService`) — pour les seules tables
+ * 5. `actif` archive ou restaure, par le service, sans juger le compte du jeton
+ *    (la règle `DroitArchivageService` reste celle du web et du poste) — pour les seules tables
  *    qui s'archivent (articles, unités d'hébergement ; fournisseurs à part).
  *    Ailleurs, demander l'archivage est refusé avec motif.
  *
@@ -127,6 +126,7 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
             unset($payload[$champ]);
         }
 
+        $complements = $this->extraireComplements($payload);
         $payload = $this->resoudreReferences($payload);
 
         if ($payload !== []) {
@@ -135,6 +135,10 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
             if ($donnees !== []) {
                 $this->ecrireModification($element, $donnees, $contexte);
             }
+        }
+
+        if ($complements !== []) {
+            $this->appliquerComplements($element->refresh(), $complements);
         }
 
         if ($actif !== null) {
@@ -200,8 +204,8 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
     }
 
     /**
-     * Archive ou restaure par le service, sous la règle de droits de l'écran
-     * en ligne — la même que `GestionnaireFournisseurs`.
+     * Archive ou restaure par le service (ses verrous d'engagement), sans juger le
+     * compte du jeton d'appairage — la même règle que `GestionnaireFournisseurs`.
      */
     private function basculerArchive(Model $element, bool $actif, ContexteSynchronisation $contexte): void
     {
@@ -219,10 +223,6 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
             return;
         }
 
-        if (! app(DroitArchivageService::class)->peutArchiver($contexte->utilisateur, $this->module())) {
-            throw new RuntimeException(__('pwa.archivage.refus_bascule'));
-        }
-
         $actif ? $this->restaurer($element) : $this->archiver($element);
     }
 
@@ -232,12 +232,17 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
             unset($payload[$champ]);
         }
 
+        $complements = $this->extraireComplements($payload);
         $payload = $this->resoudreReferences($payload);
         $donnees = $this->validerCreation($payload);
         $equivalent = $this->equivalent($donnees);
 
         if ($equivalent !== null) {
             $idServeur = (string) $equivalent->getKey();
+
+            if ($complements !== []) {
+                $this->appliquerComplements($equivalent, $complements);
+            }
 
             return new EcritureSynchronisee(
                 $idServeur,
@@ -250,7 +255,33 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
 
         $this->ecrire($entiteId, $donnees, $contexte);
 
+        if ($complements !== []) {
+            $this->appliquerComplements($this->trouver($entiteId), $complements);
+        }
+
         return new EcritureSynchronisee($entiteId);
+    }
+
+    /**
+     * Champs du payload qui ne sont PAS des champs de la requête d'API (donc jamais
+     * validés par elle) et que le gestionnaire sait poser lui-même. Ils sont RETIRÉS du
+     * payload avant la validation. Par défaut : aucun.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    protected function extraireComplements(array &$payload): array
+    {
+        return [];
+    }
+
+    /**
+     * Pose les compléments extraits par `extraireComplements()`, une fois l'élément écrit.
+     *
+     * @param  array<string, mixed>  $complements
+     */
+    protected function appliquerComplements(Model $element, array $complements): void
+    {
     }
 
     /**

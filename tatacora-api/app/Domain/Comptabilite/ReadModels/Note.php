@@ -22,7 +22,7 @@ namespace App\Domain\Comptabilite\ReadModels;
 final readonly class Note
 {
     /**
-     * @param  list<array{libelle: string, montant: string, prefixes?: list<string>}>  $postes
+     * @param  list<array{libelle: string, montant: string, prefixes?: list<string>, ouverture?: string, variation?: string}>  $postes
      */
     public function __construct(
         public int $numero,

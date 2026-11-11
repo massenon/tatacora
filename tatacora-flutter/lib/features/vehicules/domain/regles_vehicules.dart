@@ -19,6 +19,7 @@
 /// autre — ce que le PHPDoc de `Vehicule::exigePermis()` dit lui-même.
 library;
 
+import '../../../core/format/formats.dart' show formaterDate;
 import 'entities/vehicule.dart';
 
 /// Les catégories dispensées de permis — **l'unique auteur local de RG-09**.
@@ -104,6 +105,13 @@ final class RefusVehicule implements Exception {
 /// sur les deux canaux. L'exploitant qui a vu la phrase sur la PWA doit la
 /// reconnaître ici.
 abstract final class MessagesVehicules {
+  /// Les refus d'une immobilisation (entretien ou carburation).
+  static const String dateEntretienManquante = 'La date est obligatoire.';
+  static const String coutEntretienInvalide =
+      'Le coût est un nombre entier de francs, zéro ou plus.';
+  static const String typeEntretienInconnu =
+      'Le motif doit être « Entretien » ou « Carburation ».';
+
   /// `vehicules.chevauchement` — RG-08.
   static const String chevauchement =
       'Ce véhicule est déjà loué sur cette période.';
@@ -120,6 +128,25 @@ abstract final class MessagesVehicules {
   /// `vehicules.non_louable`.
   static String nonLouable(String statut) =>
       'Ce véhicule est indisponible ($statut) : il ne peut pas être loué.';
+
+  /// `vehicules.pwa.verrou_contrat_annule` — la phrase de la vue quand le
+  /// contrat est DÉJÀ annulé (le service du serveur la lève aussi :
+  /// `ContratLocationService::annuler`).
+  static const String contratDejaAnnule =
+      "Ce contrat est déjà annulé — il n'y a plus rien à archiver.";
+
+  /// Le contrat à annuler ne figure pas au registre de ce poste (la vue
+  /// répond 404 : `findOrFail`).
+  static const String contratInexistant =
+      "Ce contrat n'existe pas dans le registre.";
+
+  /// `vehicules.pwa.archiver_contrat` — la question de la modale d'archivage.
+  static String questionAnnulerContrat(String element) =>
+      'Voulez-vous annuler le contrat $element ?';
+
+  /// `vehicules.pwa.archivage_contrat_fait` — le message de succès.
+  static String contratAnnule(String element) =>
+      'Contrat $element annulé — le véhicule redevient disponible.';
 
   /// `vehicules.validation.vehicule_inexistant`.
   static const String vehiculeInexistant =
@@ -154,6 +181,45 @@ abstract final class MessagesVehicules {
   static String categorieInconnue(String categorie) =>
       'La catégorie « $categorie » n\'existe pas au registre du parc.';
 
+  /// Les libellés de la vue (`vehicules.pwa.champ_*`) que les phrases du serveur
+  /// nomment : `GestionnaireVehicules` et `GestionnaireContratsLocation` les
+  /// passent à la validation comme noms de champ.
+  static const String libelleAnnee = 'Année';
+  static const String libellePlaces = 'Places';
+  static const String libelleTransmission = 'Transmission';
+  static const String libelleRemise = 'Remise (FCFA)';
+  static const String libelleAcompte = 'Acompte reçu (FCFA)';
+
+  /// `validation.required` — « Le champ :attribute est obligatoire. »
+  static String champObligatoire(String champ) =>
+      'Le champ $champ est obligatoire.';
+
+  /// `validation.integer` — la phrase du serveur, accent compris.
+  static String champEntier(String champ) =>
+      'Le champ $champ doit être un entier.';
+
+  /// `validation.min.numeric` — ⚠ le fichier de langue du serveur n'a PAS
+  /// d'accent ici (« etre ») : la phrase est recopiée telle qu'il la rend.
+  static String champMinimum(String champ, int minimum) =>
+      'Le champ $champ doit etre au minimum de $minimum.';
+
+  /// `validation.max.numeric` — sans accent non plus (« etre superieur a »).
+  static String champMaximum(String champ, int maximum) =>
+      'Le champ $champ ne peut pas etre superieur a $maximum.';
+
+  /// `validation.max.string` — la transmission tient en 255 caractères.
+  static const String transmissionTropLongue =
+      'Le champ Transmission ne peut pas contenir plus de 255 caracteres.';
+
+  /// `validation.lte.numeric` — la phrase de la vue quand la remise dépasse le
+  /// montant brut ([brut] : « 75000.00 »).
+  static String remiseSuperieureAuBrut(String brut) =>
+      'Le champ $libelleRemise doit être inférieur ou égal à $brut.';
+
+  /// `validation.lte.numeric` — l'acompte dépasse le montant net ([net]).
+  static String acompteSuperieurAuNet(String net) =>
+      'Le champ $libelleAcompte doit être inférieur ou égal à $net.';
+
   /// `vehicules.verrou` — un élément engagé ne s'archive pas.
   ///
   /// La vue nomme le NOMBRE d'opérations : « 1 contrat » et « 6 contrats » ne
@@ -163,30 +229,117 @@ abstract final class MessagesVehicules {
       'Ce véhicule est engagé dans $contrats contrat(s) de location en cours '
       'ou à venir : il ne peut pas être archivé. La ligne correspondante '
       'deviendrait illisible, et le client a un véhicule réservé.';
+
+  /// `pwa.import_export.purge_refusee_non_archive` — seul un élément archivé se purge.
+  static const String purgeRefuseeNonArchive =
+      'Purge refusée : seul un élément archivé se purge.';
+
+  /// `pwa.import_export.purge_refusee_referencee` — un contrat ou un entretien,
+  /// même passé, cite encore le véhicule.
+  static const String purgeRefuseeReferencee =
+      'Purge refusée : des enregistrements passés référencent encore cet '
+      "élément, et l'effacer les rendrait illisibles.";
+
+  /// `vehicules.verrou` tel que `ParcVehiculeService::messageVerrou` le rend à la
+  /// PURGE : le nombre de contrats engagés puis trois d'entre eux (« Contrat
+  /// :numero du :debut au :fin », séparés par « · », suivis de « … » au-delà).
+  static String purgeVerrouille(
+    List<({String numero, DateTime debut, DateTime fin})> contrats,
+  ) {
+    final apercu = contrats
+        .take(3)
+        .map(
+          (c) =>
+              'Contrat ${c.numero} du ${formaterDate(c.debut)} au '
+              '${formaterDate(c.fin)}',
+        )
+        .join(' · ');
+    return 'Élément engagé dans ${contrats.length} opération(s) : '
+        '$apercu${contrats.length > 3 ? ' …' : ''}. Il ne peut pas être '
+        'archivé — la ligne correspondante deviendrait illisible.';
+  }
 }
 
-/// ⚠ **L'ANNULATION D'UN CONTRAT N'EXISTE PAS — PA-50, lacune assumée.**
+/// L'ANNULATION D'UN CONTRAT existe depuis la v38 (26/10/2026) — PA-50 levé.
 ///
-/// Ce n'est pas un oubli de ce lot, et ce n'est pas rattrapable ici :
-/// `contrats_location_local` **n'a aucune colonne de statut**, pas plus que la
-/// table `contrats_location` du serveur. Il n'y a donc rien à écrire pour
-/// marquer un contrat annulé, et rien à lire pour le distinguer d'un contrat
-/// actif.
-///
-/// Aucune méthode `annuler()` n'est exposée, **délibérément** : « une méthode
-/// qui ne libère rien laisserait croire que le cas est traité ». Un contrat
-/// saisi par erreur bloque son véhicule **définitivement** — c'est la limite
-/// connue, et l'écran la dit à la place du bouton que le maître propose.
-///
-/// La conséquence à ne pas perdre de vue : supprimer la ligne serait la seule
-/// façon de libérer le véhicule, et la suppression est interdite sur une table
-/// transactionnelle. Le jour de l'arbitrage (Architecte + Product Owner), c'est
-/// une **colonne** qu'il faudra ajouter aux deux schémas, pas une méthode ici.
-const String refusAnnulationContrat =
-    // Texte visible : le code PA-50 est retiré (directive du PO, 14/10/2026).
-    'Un contrat de location ne peut pas être annulé sur ce poste. Le véhicule '
-    'reste engagé jusqu\'à la fin de la période saisie. Corriger une erreur '
-    'de saisie suppose une décision qui n\'est pas encore prise.';
+/// `contrats_location_local.statut` (nullable : `null` se lit « actif ») est
+/// écrit par `VehiculeDao.annulerContrat`, seul écrivain de saisie, qui enfile
+/// la modification `{statut: annule}` dans sa transaction. Le serveur la rejoue
+/// par `ContratLocationService::annuler` (le même chemin que la PWA) et
+/// l'annulation d'un autre poste ou de la PWA redescend. Un contrat annulé reste
+/// lisible, ne compte plus dans les chiffres et ne bloque plus son véhicule
+/// (RG-08) : `_contratsEnConflit` l'écarte, comme `ContratLocationService`
+/// depuis la même date.
+
+/// L'année maximale d'un véhicule : l'an prochain (`max:` de
+/// `Locations::enregistrerVehicule`, `(int) date('Y') + 1`).
+int anneeMaximaleVehicule([DateTime? maintenant]) =>
+    (maintenant ?? DateTime.now()).year + 1;
+
+/// L'année minimale d'un véhicule (`min:1950`).
+const int anneeMinimaleVehicule = 1950;
+
+/// Le contrôle d'une « Année » saisie, aux phrases du serveur ; `null` = valide.
+/// Obligatoire, entière, de 1950 à l'an prochain — comme la vue.
+String? refusAnnee(String? saisie, {DateTime? maintenant}) {
+  final texte = (saisie ?? '').trim();
+  if (texte.isEmpty) {
+    return MessagesVehicules.champObligatoire(MessagesVehicules.libelleAnnee);
+  }
+  final valeur = int.tryParse(texte);
+  if (valeur == null) {
+    return MessagesVehicules.champEntier(MessagesVehicules.libelleAnnee);
+  }
+  return refusAnneeEntiere(valeur, maintenant: maintenant);
+}
+
+/// Les bornes seules, pour un entier déjà lu.
+String? refusAnneeEntiere(int valeur, {DateTime? maintenant}) {
+  if (valeur < anneeMinimaleVehicule) {
+    return MessagesVehicules.champMinimum(
+      MessagesVehicules.libelleAnnee,
+      anneeMinimaleVehicule,
+    );
+  }
+  final maximum = anneeMaximaleVehicule(maintenant);
+  if (valeur > maximum) {
+    return MessagesVehicules.champMaximum(
+      MessagesVehicules.libelleAnnee,
+      maximum,
+    );
+  }
+  return null;
+}
+
+/// Le contrôle des « Places » saisies : obligatoires, entières, de 1 à 99.
+String? refusPlaces(String? saisie) {
+  final texte = (saisie ?? '').trim();
+  if (texte.isEmpty) {
+    return MessagesVehicules.champObligatoire(MessagesVehicules.libellePlaces);
+  }
+  final valeur = int.tryParse(texte);
+  if (valeur == null) {
+    return MessagesVehicules.champEntier(MessagesVehicules.libellePlaces);
+  }
+  return refusPlacesEntieres(valeur);
+}
+
+/// Les bornes seules (1 à 99), pour un entier déjà lu.
+String? refusPlacesEntieres(int valeur) {
+  if (valeur < 1) {
+    return MessagesVehicules.champMinimum(MessagesVehicules.libellePlaces, 1);
+  }
+  if (valeur > 99) {
+    return MessagesVehicules.champMaximum(MessagesVehicules.libellePlaces, 99);
+  }
+  return null;
+}
+
+/// La transmission : texte libre, 255 caractères au plus ; `null` = valide.
+String? refusTransmission(String? saisie) =>
+    (saisie ?? '').trim().runes.length > 255
+    ? MessagesVehicules.transmissionTropLongue
+    : null;
 
 /// Le nombre de jours d'une location — bornes demi-ouvertes, `null` si la
 /// plage est vide ou inversée.

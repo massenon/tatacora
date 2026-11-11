@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/format/formats.dart';
+import '../../../core/navigation/trace_svg.dart';
+import '../../../core/navigation/traces_titres.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
@@ -83,11 +85,13 @@ import 'widgets/table_depenses.dart';
 /// l'export, 14/10/2026, en-tête lu des paramètres), pas à l'écran. C'était
 /// déjà l'unique libellé absent de la page à la mesure précédente.
 ///
-/// ## Ce que la vue porte et que cet écran ne peut pas rendre (09/10/2026)
+/// ## Ce que la vue porte et que cet écran ne rend pas (09/10/2026, relu le 27/10/2026)
 ///
-/// - **Lien « reçu »** (l.272-274) : aucune colonne ne porte de pièce jointe
-///   et aucun sélecteur de fichier n'est embarqué. La pastille « sans reçu »
-///   est vraie pour toutes les lignes et son infobulle le dit.
+/// - **Lien « reçu »** (l.272-274) : PORTÉ depuis le lot L4 (27/10/2026,
+///   schéma v42) — la modale joint un reçu en image (règle du web : image, 400
+///   Ko), la colonne « Pièces » rend le lien « reçu » ou la pastille « sans
+///   reçu », et l'ÉTAT du reçu (en attente d'envoi, envoyé, refusé) ne se dit
+///   que de ce que le serveur a accusé.
 /// - **État replié des indicateurs, d'une session à l'autre** (l.152) : la vue
 ///   le retient en `localStorage`. Aucun magasin de préférences n'est embarqué.
 ///
@@ -236,7 +240,31 @@ class _EnTeteState extends ConsumerState<_EnTete> {
               // 1 383 px, pas 18,5 — `lg:text-xl` ne s'applique pas dans
               // `<main>`, où `main .text-lg` l'emporte en spécificité
               // (`app.css`).
-              const Text('Dépense courante', style: TextesRestaurant.titrePage),
+              //
+              // L'icône qui le précède (vue, `depenses.blade.php`, bloc
+              // `flex items-center gap-2.5` : `<svg width="24" height="24"
+              // stroke="var(--navy)">`) manquait au poste — directive du PO du
+              // 26/10/2026. Le tracé est celui de la vue, dessiné par
+              // `IconeTrace` ; `TraceIconesTitre` le porte, la garde le
+              // confronte à la vue.
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconeTrace(
+                    key: Key('depenses-icone-titre'),
+                    trace: TraceIconesTitre.depenses,
+                    taille: AppLayout.iconeTitrePage,
+                    couleur: AppColors.navy,
+                  ),
+                  SizedBox(width: AppSpacing.xsPlus), // gap-2.5
+                  Flexible(
+                    child: Text(
+                      'Dépense courante',
+                      style: TextesRestaurant.titrePage,
+                    ),
+                  ),
+                ],
+              ),
               // `mt-1` — 4 px.
               const SizedBox(height: AppSpacing.unit),
               // Le sous-titre de la vue (l.89-93), en morceaux : son fragment

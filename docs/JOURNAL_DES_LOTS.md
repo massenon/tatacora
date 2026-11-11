@@ -1,0 +1,2163 @@
+# Journal des lots du client Flutter (archive de l'ancien CLAUDE.md)
+
+> Copie INTÉGRALE de l'ancien `tatacora-flutter/CLAUDE.md` au 28/10/2026, déplacée ici pour
+> alléger le contexte chargé à chaque session. À lire À LA DEMANDE (chercher le module ou le
+> lot concerné) ; les nouveaux lots s'ajoutent ICI, jamais dans `CLAUDE.md`.
+
+---
+
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+# Client Flutter TATACORA — guide de travail
+
+Ce fichier ne répète pas le `CLAUDE.md` de la racine : lisez-le d'abord, il porte
+le contexte projet, les six règles sans exception et l'état des 14 modules. Ici,
+seulement ce qui est propre au client Flutter.
+
+## Commandes
+
+```bash
+flutter pub get
+flutter run -d windows                     # le poste cible du Gîte
+flutter analyze                            # `warning` est BLOQUANT, pas seulement `error`
+dart format .                              # avant toute livraison
+flutter test                               # 2 953 tests + 24 ignorés (mesuré le 12/10/2026), ~6 min : les scripts PHP sur tatacora_test sont SÉRIALISÉS (verrou de fichier, D279)
+flutter test test/features/pos/salle_test.dart          # un fichier
+flutter test --plain-name 'un chevauchement est refusé' # un cas, par son nom
+
+# Après TOUTE modification d'une table Drift, d'un `@DriftAccessor` ou d'un `part`
+dart run build_runner build --delete-conflicting-outputs
+
+# Les tests d'intégration tournent sur la VRAIE fenêtre Windows, pas en VM Dart
+flutter test -d windows integration_test/socle_desktop_test.dart
+```
+
+Un test d'intégration **s'ignore lui-même** sans la variable `TATACORA_FIXTURE` :
+c'est le seul mécanisme de filtrage, `dart_test.yaml` ne fait que déclarer le tag.
+
+**Un fichier verrouillé** (`Flutter failed to delete … sqlite3.dll`) veut dire
+qu'un `flutter_tester` d'une exécution précédente tourne encore. Le tuer, puis
+relancer.
+
+## Ce que ce client est
+
+Une application **offline-first**, sur un poste de comptoir à Natitingou, dont la
+connexion tombe. Trois conséquences qui commandent toute l'architecture :
+
+1. **Toutes les lectures viennent de la base locale Drift.** Le poste est zéro
+   réseau : rien ne rafraîchit depuis un serveur. Aucun écran n'a de branche « si connecté ».
+2. **L'UUID naît côté client**, à la création de l'objet, jamais à l'envoi :
+   c'est lui qui rend le rejeu idempotent quand le réseau coupe entre le
+   traitement serveur et la réponse.
+3. **La donnée non synchronisée est la seule copie qui existe.** Une migration
+   qui recrée une table, un panier perdu à la fermeture de la fenêtre, une file
+   qui ne repart jamais : ce sont les trois défauts déjà rencontrés ici.
+
+## Les quatorze pièges de ce dépôt, tous rencontrés pour de vrai
+
+**1. Un indicateur qui affirme un état qu'il n'a pas vérifié.** PA-59/60/61 :
+une migration jamais exécutée, une sauvegarde de 802 octets au nom conforme, un
+badge « certifié » pendant que tout partait en démonstration. Avant d'écrire
+qu'une chose *va* se produire, cherchez l'appelant. **Un commentaire qui décrit
+un déclencheur n'est pas un déclencheur** (PA-63 : les deux moitiés du protocole
+offline-first n'étaient appelées que par des tests).
+
+**2. `onUpgrade` n'est jamais emprunté par un test en mémoire.** `onCreate`
+tourne à chaque test, `onUpgrade` jamais — et c'est pourtant lui, le chemin de la
+mise à jour. Toute migration se prouve sur un **fichier réel portant des
+données**, y compris en sautant des versions (le poste qui a raté une livraison).
+
+**3. Le piège de `createTable`, rencontré deux fois.** `m.createTable` crée la
+définition **courante** de la table : un poste ancien reçoit donc des colonnes
+qu'une migration ultérieure voudra ajouter, et l'`addColumn` échoue sur
+« duplicate column name ». Côté test, le même piège à l'envers : une fixture
+« v3 » fabriquée depuis le schéma courant n'imite pas une v3. Les retraits sont
+centralisés dans **`test/core/database/retour_arriere_schema.dart`** — ajouter
+une version au schéma, c'est ajouter son entrée là, et rien d'autre.
+
+**4. Un caractère de contrôle invisible vide une garde.** ⚠ **Vu naître le
+26/08/2026** (PA-141) : le shell de cet environnement **collapse les antislashs
+doublés**, si bien qu'un `\b` de regex écrit par heredoc devient l'octet 0x08.
+C'est la troisième occurrence documentée. Après tout heredoc, balayez les octets. Un `\b` écrit par un
+script devient l'octet 0x08 et le motif ne correspond plus à rien : le test passe
+**à vide**. `test/core/qualite/caracteres_de_controle_test.dart` relit chaque
+fichier octet par octet et porte un **plancher de fichiers**, sans quoi un dossier
+renommé rendrait le balayage vide, donc vert. Ne jamais écrire un fichier source
+par heredoc sans revérifier ses antislashs.
+
+**5. Un test qui n'emprunte pas le chemin ne protège pas le chemin.** Éprouvé le
+25/08/2026 : une mutation retirant la fiche de `Reservation.copyWith` laissait la
+suite verte, parce que le test passait par `majStatutSync`, qui écrit en SQL
+direct. **Mutez ce que vous venez d'écrire** — c'est la seule preuve qu'une
+assertion n'est pas vide.
+
+**6. Un défaut de SÉQUENCE de rendu ne se voit pas à la relecture.** Deux fois
+en une journée : des boutons calculés avant la donnée qui les active seraient
+restés grisés pour toujours (PA-111), et un catalogue demandé avant le
+pré-remplissage était calculé sur la période par défaut — une chambre déjà
+prise se serait présentée libre (PA-115). Dans les deux cas, tout le reste de
+l'écran était juste. Quand un rendu dépend d'un état posé pendant ce même
+rendu, demandez-vous dans quel ordre les deux ont lieu.
+
+**7. Une borne ne se teste que sur un contenu plus grand qu'elle.** Retirer
+le `maxHeight` d'une modale n'a fait rougir aucun test : celui qui la mesurait
+montait une fiche courte. Il a fallu la remplir jusqu'à déborder. Même
+famille que le piège 5 — l'assertion existait, elle n'atteignait rien.
+
+Corollaire éprouvé le 25/08/2026 (PA-123) : une mutation qui ne mord pas
+accuse parfois le **cas**, pas le code. Remplacer `any` par `every` dans le
+filtre d'activité laissait la suite verte — la facture d'essai ne portait
+qu'une activité, où les deux disent la même chose.
+
+**11. Une table répliquée a DEUX moitiés : qui l'écrit, qui la descend.**
+Les clients montaient depuis PA-116 et ne descendaient pas (PA-127). Comme
+`reservations_local.client_id` est une vraie clé étrangère, la première
+réservation d'un autre poste violait la contrainte et l'exception emportait
+**tout le lot** d'alignement. 726 tests étaient verts. Le défaut n'existe
+qu'à deux postes — c'est-à-dire dans le cas normal.
+
+La même question posée à l'autre clé étrangère a donné PA-128 : le **parc**
+n'était écrit par personne, et un poste neuf ne pouvait prendre aucune
+réservation. Et une troisième fois (PA-129) : **aucun catalogue vendable**
+n'était écrit — le point de vente n'avait rien à vendre. Posez-la à **chaque**
+table que vous lisez.
+
+**12. Un prédicat dérivé du champ qu'il vérifie ne vérifie RIEN.** `aUnEcran`
+se définit par `route != null` ; le test « une destination sans écran n'annonce
+aucune route » comparait donc le champ à lui-même (PA-133). Il n'a jamais pu
+échouer, et trois écrans livrés sont restés inatteignables par un clic. Quand un
+test porte sur une cohérence, ancrez-le sur une source **extérieure** — ici le
+routeur, relu dans son code source.
+
+**9. Une colonne qui existe au schéma n'est pas une valeur qui est écrite.**
+`clients_local.solde` vaut zéro pour tout le monde : aucune ligne de code ne
+l'alimente (PA-126). L'afficher aurait donné un zéro plausible sur la fiche
+d'un débiteur. Avant de lire une colonne, cherchez qui l'écrit — et si
+personne ne l'écrit, calculez, ou refusez d'afficher.
+
+**10. Une `DataRow.key` n'atteint pas l'arbre de widgets.** Rencontré deux
+fois. `find.byKey` ne la trouve jamais : posez la clé sur un widget d'une
+cellule. Une clé introuvable est une clé qui ment.
+
+**8. Un commentaire qui affirme une garantie n'est pas une garantie.** Le
+graphique du tableau de bord portait « l'axe part de ZÉRO, toujours — c'est le
+trucage le plus courant » ; tronquer l'axe ne faisait rougir aucun test
+(PA-122). Quand vous écrivez qu'une propriété est tenue, cherchez le cas qui
+la tient — ou écrivez-le.
+
+**13. Une phrase de la vue sur de l'argent se vérifie en EXÉCUTANT le serveur,
+et se remplace quand elle ment.** Trois phrases de l'écran Approvisionnement
+disaient que la réception « a recalculé le coût moyen pondéré » ; le serveur,
+exécuté, n'y touche pas (D265). Décision du Lead (D276) : un poste n'affiche pas
+une affirmation fausse sur de l'argent — la règle d'honnêteté prévaut sur la
+fidélité littérale à la vue. On met la phrase VRAIE, avec le maximum des mots de
+la vue ; l'écart est NOMMÉ au code (fichier de la vue, ce qu'elle dit, pourquoi
+on s'en écarte) ; un test épingle la fausseté à la source (il rougit le jour où
+la vue est corrigée) et un autre refuse la phrase fausse dans le code RENDU ;
+l'Architecte est saisi. Corollaire de mesure : écrire le chemin
+`pwa/….blade.php` dans un commentaire fait du fichier un PORTEUR de la vue —
+l'écart commenté avait fait baisser la dette (« Point de stockage ») sans qu'un
+pixel change. Écrire « la vue d'approvisionnement ».
+
+**14. Un lecteur câblé n'est pas un lecteur DÉCLARÉ, et une sonde qui s'exclut
+ne voit rien.** `activation_suppression` était lue (règle d'archivage des
+fournisseurs) pendant que Paramètres affichait encore « Aucun module de ce poste
+ne lit encore cette valeur » : l'entrée du registre n'avait pas de `lecteur`
+(D278). Le test censé le détecter excluait tout `features/parametres/` — là où
+vivait le lecteur. Une sonde n'écarte que les fichiers qui DÉFINISSENT les clés,
+et se prouve par mutation (retirer le lecteur doit rougir). Même famille :
+l'aide du serveur (« tous les modules ») sur-promet quand un seul module lit ;
+l'aide, confrontée à la vue, ne se touche pas — l'écart se dit en ligne par la
+`correction` (« Sur ce poste : … »).
+
+## Le maître de mise en page est la VUE BLADE de la PWA — et elle seule
+
+**Décisions du Product Owner du 10/09/2026 (PA-182, PA-183).** Le client
+Flutter se conforme à la **vue Blade** de la PWA — `tatacora-api/resources/views/pwa/`,
+les classes `app/Pwa/` et les libellés `lang/fr/` — écran par écran, onglet par
+onglet, aux mêmes emplacements. Elle porte la dernière version de chaque écran,
+écarts datés du Product Owner compris (bouton « Vente », pastille « Réseau »,
+Journal d'Audit au menu de compte, bascule plein écran, recherche globale,
+masquage `gerant`, style d'onglets unique `Onglets.php`). **`prototype_v2/`
+est une ANCIENNE version** : ne vous y référez plus, même pour départager.
+`docs/DOCTRINE_PORTAGE_FIDELE_FLUTTER.md` et `docs/DIRECTIVE_CONFORMITE_100.md`
+Article 0, à lire avant tout écran. Le code Flutter est une **traduction**, pas
+une réinterprétation. Trois règles :
+
+- **Quand la spécification écrite et la vue Blade se contredisent sur ce qui se
+  voit, la vue gagne.** ⚠ Jusqu'au 10/09/2026, ce fichier disait l'inverse
+  (« Une vue Blade ne fait jamais foi ») et faisait de `prototype_v2/` le
+  maître : ne rétablissez ni l'un ni l'autre. Les citations
+  `prototype_v2/pages/…` et les jetons `maitre-refuse:` qui subsistent dans le
+  code sont l'HISTORIQUE de décisions passées, pas une référence.
+- **Aucune valeur en dur dans un widget.** Couleurs, tailles, espacements et
+  largeurs vivent dans `lib/core/theme/`. **Mesurez sur la vue et sur la
+  feuille de style que sert la PWA**, ne supposez pas : la plupart des tailles
+  de police sont des valeurs entre crochets (`text-[13px]`), pas l'échelle
+  nommée de Tailwind.
+- **Tout écart se documente dans le code** : fichier et ligne de la **vue
+  Blade**, ce qu'elle fait, pourquoi on s'en écarte.
+
+**La garde tourne avec `flutter test`** : `test/core/qualite/conformite_blade_test.dart` lance `tool/conformite_blade/t-blade-flutter.js`. Node et PHP sont requis — sans eux le test ÉCHOUE, il ne saute pas. Le comparateur résout les clés de langue par PHP, puis confronte le titre, les onglets, les libellés de chaque bloc, les modales et le châssis de chaque vue au code Flutter. **Un écran cite sa vue** — `// Vue Blade maîtresse (PA-183) : pwa/<module>/<vue>.blade.php` — et c'est le SEUL ancrage : un écran qui ne la cite pas n'est pas mesuré, et un `ecran_*.dart` sans vue est signalé comme ajout. Ce qu'on ne rend pas se **nomme avec les mots de la vue** ; un bloc entier refusé se déclare par `blade-refuse:<vue>#<bloc>` ; un écran dont les libellés viennent de l'API déclare `libelles-du-serveur:<vue>`. La dette de départ est figée dans `tool/conformite_blade/dette-blade-flutter.json` et ne peut que décroître : un progrès non resserré (`--figer-dette`) fait aussi échouer.
+
+**Cette garde a été verte À VIDE sur les deux cartes jusqu'au 11/09/2026 (PA-187).** Un commentaire PHP `//` dans les arguments d'un `@include` portait une apostrophe (« qu'elle ») ; le comparateur la prenait pour un guillemet, ne dépliait pas `pwa.carte.corps`, et sept modales des cartes bar et restaurant n'étaient jamais mesurées. Deux leçons. (1) **Un chiffre de dette bas n'est pas une preuve de conformité** : quand une vue affiche peu d'absents, vérifiez que ses modales sont comptées (colonne MODALES à `0/0` sur une vue qui en a = suspect). (2) **Citer `pwa/…blade.php` dans un fichier Flutter en fait un PORTEUR de cette vue** : dans un écran signalé comme ajout, une simple mention en commentaire efface le signalement. Écrivez le chemin sans son préfixe quand vous ne portez pas la vue. (3) **La correspondance se fait par SOUS-CHAÎNE** (PA-189) : l'en-tête « Nouveau » d'une modale non portée est compté présent parce que « Nouveau prix de vente (FCFA) » existe ailleurs dans le code. Un libellé court peut faire baisser la dette d'un bloc que personne n'a porté — une baisse inattendue se vérifie avant d'être figée. (4) **Depuis PA-196, titre, onglets et blocs de page se cherchent dans le CODE QUE L'ÉCRAN ATTEINT** — ses porteurs et tout ce qu'ils importent, transitivement — et non plus dans tout `lib/` : quatre faux positifs en une journée venaient d'un fichier sans rapport avec l'écran. Conséquence pratique : **un widget qui rend un libellé doit être IMPORTÉ par l'écran** (directement ou non) pour compter ; un texte posé dans un fichier que l'écran n'atteint pas ne satisfait plus rien. La sous-chaîne, elle, demeure à l'intérieur de ce périmètre (« Magasin » ⊂ « Magasinier »).
+
+**Le maître écrit l'apostrophe DROITE** — 581 fois contre 39 typographiques. C'est aussi la sûre : les polices intégrées des PDF ne couvrent pas U+2019, qui disparaît du papier sans rien signaler.
+
+**Le maître distingue le PLURIEL du SINGULIER**, et ce n'est pas une négligence : une option de filtre désigne un ENSEMBLE (« Terminées »), un badge qualifie UN objet (« Terminée »). Un champ unique servant aux deux met le singulier dans une liste déroulante.
+
+**Une garde peut aussi relire le SERVEUR** : `conformite_stocks_test.dart`
+extrait `CHAMPS_CALCULES` et les types saisissables des `FormRequest` PHP
+(PA-136). Une liste recopiée côté Dart ne vérifierait qu'elle-même et resterait
+verte le jour où l'API changerait. Prouvez l'extraction **non vide**, sinon le
+balayage est vert à vide.
+
+**Les gardes de conformité relisent le maître, elles ne figent pas de
+constantes** — `vocabulaire_pos_test.dart`, `conformite_reservation_test.dart`.
+Un test qui figerait `'Encaisser'` ne vérifierait que lui-même et resterait vert
+le jour où le maître change. Ces tests **échouent** si le prototype est
+introuvable ; ils ne sautent pas.
+
+État mesuré du portage : `docs/AUDIT_CONFORMITE_ECRANS_FLUTTER.md`.
+
+## Architecture
+
+```
+lib/core/{config,database,dev,di,format,impression,navigation,rbac,responsive,router,theme}
+# sync/ et network/ n'existent plus depuis « zéro réseau » (v10) : ne pas les recréer
+lib/features/<module>/{domain,data,presentation}
+    achats(M7) auth bar(M5) caisse comptabilite(M10) crm(M3) depenses etats(M14)
+    facturation(M2) hebergement(M1) notifications(M12) parametres pos restaurant(M4)
+    rh(M13) stocks(M6) tableau_de_bord(M11) tourisme(M9) vehicules(M8) ventes
+```
+
+- **Riverpod exclusivement**, providers déclarés à la main : `riverpod_generator`
+  est retiré (incompatible avec `drift_dev` sur `analyzer`).
+- **Un `Repository` n'expose jamais un modèle Drift ni un DTO à
+  `presentation/`** — toujours une entité de domaine, sans quoi renommer une
+  colonne casse un widget et la bascule offline/online cesse d'être invisible.
+- Un DAO ne rend que des entités. Le contrat de dépôt ne dit **pas** d'où vient
+  la donnée : c'est ce qui interdit les branches « si connecté » dans les écrans.
+- (Historique : `rafraichir()` et `alignementProvider` ont disparu avec « zéro
+  réseau » ; vérifié le 12/10/2026.)
+
+## Encaissement de facture LOCAL (12/10/2026, D227–D237)
+
+`PaiementsFactureDao` est le seul écrivain de `paiements_facture_local` : paiement et pièce (Dr trésorerie / Cr 4111) dans UNE transaction, pièce refusée = rien écrit ; reste dû = TTC − avoirs − paiements actifs − acomptes liés (`creances.dart`, une seule formule) ; balance âgée ancrée sur la date d'émission. Le comptoir écrit `session_encaissement_id` à la clôture d'un panier au comptant (refus sans caisse `bar` ouverte) ; le théorique de clôture est calculé comme le serveur (il ignore les recouvrements en espèces : incohérence D230 répliquée). D237-1 est FERMÉ par le lot 6 (ci-dessous). Onze défauts du serveur répliqués, à remonter à l'Architecte (D233).
+
+## Les mouvements d'argent du poste passent leur PIÈCE (lot 6, 12/10/2026, D238–D248)
+
+`PanierDao.cloturer` (seul écrivain de `cloture`) passe la pièce `VTE` — un débit (trésorerie du mode, ou `4111` pour la note de chambre), un crédit par module (M4 `7061` / Restaurant, M5 `7011` / Bar), la TVA par module (`4432` / `4431`) — dans la même transaction ; `ReservationDao.creer` passe la pièce de l'acompte (Dr trésorerie / Cr `4191`, rien à crédit ou sans mode) ; `annulerAvecConditions` fixe taux, commission (sur le montant GLOBAL) et remboursement (plafonné à l'acompte, Dr `4191` / Cr `5711`) et écrit 8 colonnes (v19). Refus du serveur dans son ordre, rejoués par `tool/ventes/rejouer_ventes.php` et `tool/hebergement/rejouer_annulations.php`. Calculs en entiers (`DecimalBc`, `calcul_tva.dart`). Un DAO sans moteur LÈVE. Écarts du poste : mode absent refusé, prix figé à l'ajout, numéro `V-` reçu du serveur seulement (v38), séjour toujours sur la note de chambre, M8/M9 refusés AU SÉJOUR seulement (encaissables au comptoir depuis le 22/10/2026 : M8 `7073`, M9 `7061`, TVA `4432` — voir la section « Tourisme et location au comptoir »). **NON portés** : sorties de stock de la vente (RG-05, D240), pièces rétroactives des ventes d'avant (D246), mode démo (écrit sans pièce). La clôture de caisse DIT les ventes en espèces sans session (R2). Piège : un fichier de messages qui porte les mots d'une modale doit citer la vue (sinon le comparateur ne les voit pas), et le rendu se prouve par un test ; un commentaire d'un fichier importé peut aussi fournir un libellé par sous-chaîne (gain de mesure, jamais revendiqué).
+
+## Sessions de caisse LOCALES, réplique du serveur (12/10/2026, D219–D226)
+
+Seul `SessionsCaisseDao` écrit `sessions_caisse_local` ; montants en centimes. Ouverture et clôture répliquent `PosComptant` (le serveur n'a pas de service), refus dans l'ordre du serveur, messages relus par PHP (`tool/caisse/rejouer_caisse.php` rejoue le vrai composant). **Aucune pièce comptable** : le serveur n'en passe aucune. Depuis le lot 5 (D231), le panier au comptant porte `session_encaissement_id` et `especesDeLaSessionProvider` rend les espèces de la session : la clôture calcule théorique et écart comme le serveur (D221–D223 dépassés), et DIT les ventes en espèces sans session (lot 6, R2). `sessionOuverteLaPlusRecente` est appelée en production depuis le lot 5 (encaissement de facture et tableau de bord : la caisse « la plus récente tous points confondus », comme le serveur). La trésorerie de caisse de M11 est calculée depuis le lot 5 (D234). Piège : un `abort(403)` rendu par le harnais Livewire est une exception, pas un statut.
+
+## Base locale Drift — schéma **v44, 77 tables** (v43 : CHECK de `operations_sync_local` élargi au type `suppression`, table recréée, aucune table de plus ; v44 : `pieces_saisie_local` + colonne `piece_origine_id`, voir la section « Comptes du plan et pièces saisies à la main ») — l'historique ci-dessous s'arrête à la v40 : **v40, 76 tables** (mesuré le 27/10/2026 ; l'historique ci-dessous commence à la v21 = 53 tables, voir « Le poste fait comme le web » pour la v38) (v21 : colonne `fournisseurs_local.actif`, aucune table ; v20 : `reglements_fournisseur_local` ; v19 : huit colonnes d'annulation sur `reservations_local`, aucune table ; v18 : `paiements_facture_local` + colonne `paniers_local.session_encaissement_id` ; v17 : `sessions_caisse_local` ; v16 : deux colonnes `ecriture_id`/`ecriture_refus` sur `depenses_local`, aucune table ; v15 : six tables du moteur comptable M10 ; v14 : quatre tables du restaurant ; v11 : `parametres_systeme_local` ; v12 : sept colonnes de stock, aucune table neuve ; v13 : cinq tables d'achats)
+
+Historique des versions dans `lib/core/database/app_database.dart`, chacune avec
+sa raison : v2 fiche de réservation (`tarifNuit`, `reference`…), v3 panier,
+v4 registre de facturation, v5 `utilisateurs_local` (authentification locale),
+v6 tables de salle, v7 fiche du maître (canal, mode de paiement, remise),
+v8 `lignes_reservation_local` (les cinq services d'une réservation), **v9 renommage
+des tables du restaurant (préfixe « T » -> « R », PA-130) — une migration de
+DONNÉES, la seule à ce jour : un libellé persisté ne change pas parce qu'on
+change la constante qui l'a produit.**
+
+**v10 (14/09/2026) — « zéro réseau », et c'est la SEULE migration DESTRUCTIVE du
+dépôt.** `sync_queue` et `sync_conflict_local` sont retirées : sans serveur, une
+file d'attente n'annoncerait qu'une attente sans fin (PA-59/60/61). Ses lignes
+sont **irrécupérables**, et le retour arrière les recrée VIDES — c'est écrit dans
+la fixture, pas découvert après coup. S'y ajoutent huit tables pour les quatre
+modules d'exploitation portés en local pur (dépenses ×2, notifications ×2,
+personnel & paie ×4) et `circuits_local.duree`. ⚠ L'ajout de colonne y est
+**conditionnel** (`PRAGMA table_info`) : la fixture de retour arrière recrée
+`circuits_local` depuis sa définition COURANTE, qui porte déjà `duree` — piège 3,
+rencontré pour de vrai en écrivant cette version.
+
+**Toute migration est additive.** Recréer une table effacerait les saisies hors
+ligne. Et **on ne déduit pas de données** : la v8 ne fabrique aucune ligne pour
+les réservations existantes, parce qu'elle vaudrait zéro franc sur celles reprises
+de la v1 — plausible, donc invisible.
+
+`app_database_test.dart` fige le **nombre de tables** délibérément : c'est ce qui
+oblige à rouvrir le test le jour où une table entre au périmètre offline, et donc
+à se demander si elle y a sa place. La taille de la base conditionne la durée de
+la fenêtre hors ligne.
+
+## File d'envoi (lot F1, 15/10/2026) — la synchronisation REVIENT, en tâche de fond
+
+Décisions du PO des 14–15/10/2026 : « zéro réseau » devient une règle d'USAGE (le
+poste marche des jours sans réseau), la synchronisation une tâche de fond qui ne
+bloque jamais un geste (la clôture de caisse d'abord). Le poste pousse des
+documents SOURCES, jamais une écriture (D246) ; il crée ET modifie son catalogue.
+
+- **Schéma v26** : `operations_sync_local` (58 tables), seul auteur
+  `OperationsSyncDao` (`features/synchronisation/`). `enfiler` LÈVE hors d'une
+  transaction Drift : chaque écrivain l'appelle dans SA transaction. `seq`
+  (AUTOINCREMENT) est l'ordre d'envoi ; le payload est FIGÉ au contrat du serveur
+  (`domain/charges_synchronisation.dart`, conversions d'unités en tête).
+- `TableSynchronisee` est relu du registre PHP par un test ; aucune table
+  d'écritures ; une `modification` sur une table que le serveur ne modifie pas est
+  refusée à l'enfilement.
+- **Ancrage extérieur** : `tool/sync/valider_charge.php` pousse la file d'une
+  journée complète au VRAI `SynchronisationService` sur `tatacora_test` (rollback)
+  et relit les lignes écrites (`charges_contre_serveur_test.dart`).
+- Ne partent PAS : la vente sur séjour (phase 2 serveur), les alignements
+  descendants (`aligner*`), le cycle des unités, l'envoi/clôture d'une commande,
+  le rattrapage d'une dépense, le stock d'ouverture, tout ce qui précède la v26.
+  Le mode démo n'enfile rien (`AppDatabase.fileSynchronisationActive`).
+- Depuis F2b, l'écran `/synchronisation` LIT la file (section F2b). Le
+  moteur d'envoi existe depuis F2a. Piège rencontré : `m.createTable` ne crée PAS les
+  index `@TableIndex`, et un `CREATE INDEX` nu échoue sur un fichier rabaissé.
+
+## Moteur d'envoi et appairage (lot F2a, 15/10/2026)
+
+- **Transport** : `package:http` (pur Dart, déjà transitif) derrière
+  `TransportSynchronisation` (`data/transport_synchronisation.dart`) — rend une
+  `IssueHttp` (`ReponseHttp` | `ServeurInjoignable`), ne lève jamais ; 20 s de
+  connexion et de requête ; `Accept: application/json`, Bearer. Tests :
+  `MockClient` ou `FauxTransport` (`test/features/synchronisation/support/`).
+- **Appairage** (Paramètres → onglet « Synchronisation », Administrateurs
+  seulement, `peutAdministrerComptes`) : `POST /login` avec `poste` = nom du
+  poste nettoyé (`nettoyerNomPoste`) ; `poste_id`, `jeton_api`, `serveur`,
+  `appaire_le`, `compte` (+ `appairage_refuse` posé par le moteur sur 401/403)
+  dans `poste.json` À CÔTÉ de `smtp_mot_de_passe`, écrit en E/S SYNCHRONES via
+  `poste.json.tmp` + renommage (une file de `Future` statique s'était bloquée
+  entre deux tests : zone FakeAsync morte). Le mot de passe serveur n'est écrit
+  nulle part ; les refus sont des phrases (`TextesAppairage`), jamais le corps.
+- **`SyncManager.synchroniserMaintenant()`** (`data/sync_manager.dart`) : un
+  futur partagé dans le processus + le bail de `reclamerLot` entre processus ;
+  `libererBauxExpires` puis `reclamerLot(50)` → `POST /sync` → `marquerResultat`
+  en boucle. Politique : injoignable/408/429/5xx = repli 30 s→2 min→5 min→15 min
+  →1 h (ou `Retry-After`) et arrêt ; 401/403 = lot rendu INTACT
+  (`rendreEnAttente`, la tentative ne compte pas), refus consigné, plus rien
+  avant réappairage ou « Tester la connexion » réussi ; 422 = bissection (seule
+  l'opération fautive est `rejete`, et une opération suivante du même élément
+  encore réclamée est rendue puis BLOQUÉE) ; 413 = taille ÷ 2 ; autre 4xx =
+  `rejete` + alerte. Démonstration (`synchronisationInterditeProvider`) et poste
+  non appairé : aucune requête. File vide : aucun `POST` (depuis F2b, chaque passage
+  descend le catalogue : un `GET /referentiels`, sur son propre repli).
+- **Déclencheurs, chacun avec son appelant prouvé** : `main.dart` (après la
+  première image) lit `synchronisationAutomatiqueProvider` (une fois + toutes
+  les 5 min) ; `cloturerLaCaisse` appelle `declencheurSynchronisationProvider`
+  sans l'attendre (un transport qui lève ou ne répond jamais ne change rien à
+  la clôture) ; le bouton « Synchroniser maintenant » de l'onglet. Le dernier
+  bilan : `dernierBilanSynchronisationProvider` (pour l'écran de F2b).
+- **Bout en bout** : `synchronisation_serveur_reel_test.dart` démarre
+  `php artisan serve --no-reload` sur `tatacora_test` (sans `--no-reload`,
+  artisan RETIRE `DB_DATABASE` de l'environnement du serveur, qui relirait
+  `.env` = la base de dev), tient le verrou de `tatacora_test` tout l'essai, et
+  `tool/sync/serveur_reel.php` prend un instantané puis RESTAURE chaque table
+  modifiée (le serveur écrit pour de bon). `HttpOverrides.global = null`.
+- Production : `https://logirestock.digitonpro.com/api/v1`. Un appairage fait
+  vers une autre adresse que celle du build rend `autreServeur`, rien ne part.
+
+## Descente du catalogue et écran de synchronisation (lot F2b, 15/10/2026)
+
+- **Schéma v27** (60 tables) : `etat_synchronisation_local` (clé/valeur :
+  `descente.curseur`, repli propre `descente.echecs`/`prochaine_tentative`,
+  bilan `descente.derniere`, éléments gardés `element_differe:<table>:<id>`,
+  et `operation_remplacee:<uuid>` écrit par `OperationsSyncDao.renvoyer`) et
+  `correspondances_sync_local` (table, id_serveur → id_local, origine
+  `flux`|`file`|`libelle`). Aucune clé primaire locale n'est réécrite.
+- **`DescenteCatalogue`** (`data/descente_catalogue.dart`), appelée par
+  `SyncManager` APRÈS l'envoi, sauf 401/403 ; son PROPRE repli (une descente
+  en échec ne retarde jamais un envoi, un envoi en échec n'empêche pas la
+  descente). `GET /referentiels?poste_id&depuis&limite` page après page ;
+  chaque page dans UNE transaction : correspondances, puis chaque élément dans
+  un point de sauvegarde (une ligne fautive est comptée refusée, la page
+  passe), puis le curseur — jamais avant. 422 = curseur oublié, reprise du
+  début. Les `fusionne_avec` de la file sont retenus en correspondances avant
+  chaque descente (le flux des correspondances n'arrive qu'en fin de
+  catalogue).
+- **`AligneurCatalogue`** : un écrivain par table, n'enfile JAMAIS (balayage
+  du source + compte de la file). Ligne locale avec une opération
+  `en_attente`/`en_cours`/`bloque` → CONSERVÉE, élément gardé ; repris quand
+  plus rien n'attend : appliqué si le serveur a gardé sa version
+  (`version_serveur_conservee`, rejet, fusion), oublié si la modification du
+  poste a été appliquée (la nouvelle version redescend). Homonyme local
+  (clé naturelle) non encore poussé → conservé (pas de doublon avant la
+  fusion). Dépendance absente → gardé, repris en boucle en fin de descente et
+  à la suivante. Conversions inverses de F1 par `entierDepuisDecimal` (chaîne,
+  jamais `double`) ; une fraction de franc est REFUSÉE. Archives : fournisseur
+  `actif`, unité `hors_service` (une unité existante ne reçoit que
+  l'archivage, son statut reste celui du cycle local) ; un ARTICLE archivé est archivé ici aussi (`articles_local.actif`, v35 : `false` archive, `null` ou `true` actif ; la restauration descend de même) — la descente n'écrase jamais un archivage encore en file. Centres de coût :
+  reconnus par id puis libellé normalisé, jamais renommés, créés seulement
+  s'ils manquent. `cree_par` d'une création descendue = compte connecté, à
+  défaut le plus ancien administrateur actif (écart nommé ; sans compte, la
+  ligne attend).
+- **Bail** : `SyncManager` le PROLONGE avant chaque `POST /sync`
+  (`prolongerBail`) — une bissection longue n'est jamais reprise par un autre
+  processus.
+- **Écran `/synchronisation`** (`presentation/ecran_synchronisation.dart`,
+  ajout du PO déclaré dans `classification-exemptions.json`, hors menu, gardé
+  par Paramètres, lien depuis Paramètres → Synchronisation) : état, compteurs
+  par statut, dernière descente, « À traiter » paginé (rejetées, conflits,
+  bloquées ; « Renvoyer » = même document, même horodatage, NOUVEL uuid,
+  l'ancienne reste rejetée et marquée remplacée, la remplaçante passe devant
+  les bloquées ; « Débloquer » seulement quand les antérieures sont abouties ;
+  les deux réservés aux Administrateurs ; conflit = « arbitrage sur le
+  serveur »), signalements du serveur en français (registre relu de
+  `AnomalieSynchronisation`). « Synchronisé » ne se dit que du confirmé.
+- **Bout en bout** : `synchronisation_serveur_reel_test.dart` crée un
+  catalogue AU SERVEUR (`serveur_reel.php creer_catalogue`), le descend, et
+  rejoue le dernier écrit gagnant (`renommer`) contre une modification locale.
+
+## Descente des clients et des réservations, bouton de la barre (lot F3, 16/10/2026)
+
+Décision du PO du 16/10/2026 (« le poste B aura-t-il ce que le poste A a
+enregistré ? ») : le flux `GET /referentiels` porte aussi `clients` puis
+`reservations` (de TOUS les postes, filtrés par M3 / M1), après le parc et
+les fournisseurs, avant les centres de coût. Les ventes, dépenses, caisses,
+commandes et réceptions des autres postes NE descendent PAS (consultées au
+serveur, seul comptable, D246).
+
+- **Client** (`AligneurCatalogue._client`) : dernière saisie gagnante (une
+  fiche en suspens est conservée), aucun contrôle d'homonyme (le serveur ne
+  fusionne jamais deux clients), `solde` ne descend pas, un client archivé
+  reste proposé (compté dans `archivesNonPortees`).
+- **Réservation** (`_reservation`) : NOUVELLE → écrite sans pièce (le
+  serveur a passé celle de l'acompte), référence `SRV-` + 8 caractères,
+  tarif absent = 0 (précédent `ReservationDto`), aucune ligne de service,
+  canal non descendu ; elle occupe la chambre pour `chevauchant` (RG-01).
+  EXISTANTE → seul le STATUT bouge, et seulement vers l'avant
+  (`en_attente` → `confirmee` → `en_cours` → `terminee`) ; annulée ici =
+  intouchable ; annulée au serveur = annulée ici avec ses conditions, sans
+  pièce. Dates, unité, montants d'une réservation existante ne sont PAS
+  réécrits (écart nommé : le poste ne pousse que la création).
+- **Bouton de la barre supérieure** (`presentation/bouton_synchronisation.dart`,
+  AJOUT du PO, à gauche de la cloche) : voyant pur `voyantDe`
+  (`domain/voyant_synchronisation.dart`) — gris / rouge (+ nombre à traiter
+  ou jeton refusé) / orange (+ nombre en attente) / vert (RIEN en attente) ;
+  les comptes sont relus au signal de tables de Drift (`surveillerFile` ; une requête `.watch()` laisse un minuteur que le banc refuse, et le bouton est sur TOUS les écrans), le badge
+  suit une vente enfilée sans attendre le moteur. La modale : compteurs,
+  dernier passage, dernière réception, « Synchroniser maintenant » (TOUS les
+  comptes), « Voir le détail » seulement si `accesRoute('/synchronisation')`
+  l'autorise. La pastille « Réseau » de la vue reste refusée.
+- Piège rencontré : un faux serveur qui reprend APRÈS le curseur ne re-sert
+  pas un élément « modifié » ; sans `effacerCurseur()` entre deux descentes,
+  les cas « rien n'est réécrit » passaient À VIDE. Et la sonde des écrivains
+  ne lisait pas `_db.into(t)` : l'aligneur y échappait jusqu'au F3 (déclaré
+  exception nommée depuis).
+
+## Documents de tous les postes, POS hébergés, factures (lots F4–F5, 17/10/2026)
+
+Décisions du PO du 17/10/2026 (« NE PLUS LIMITER », Q1 = A, Q2 = A,
+« F-AAAA-NNNNN au serveur ») : la section F3 ci-dessus est DÉPASSÉE sur un
+point — ventes, dépenses, caisses, commandes, réceptions, règlements,
+mouvements de stock, tourisme, séjours, factures, avoirs et encaissements de
+TOUS les postes descendent (`aligneur_documents.dart`), schéma **v28**
+(61 tables : `origines_documents_local`, le poste d'origine).
+
+- **Q1** : un document descendu n'a JAMAIS de pièce locale (le journal du
+  poste ne tient que ses pièces) ; le rattrapage d'une dépense descendue est
+  refusé ; les entrées de stock de SA réception ne redescendent pas au poste
+  qui les a écrites (`tablesMiroirs` au serveur).
+- **Facture** : numéro PROVISOIRE `PROV-AAAA-NNNNN` sous synchronisation
+  (l'ancien `F-` en démonstration), imprimé « FACTURE PROVISOIRE » ;
+  émission et annulation s'enfilent (`factures`) ; le numéro du serveur est
+  posé par `FactureDao.regulariserNumeros` — depuis la réponse de l'envoi
+  (`SyncManager`) ET depuis la descente (réponse perdue). Les avoirs
+  désignent leur facture par NUMÉRO (clé étrangère) : réécrits ensemble,
+  contraintes différées. Une pièce d'avant (`non_transmissible`) ne part
+  jamais ; si le serveur attribue son numéro à une autre, elle devient
+  `LOC-<numéro>`.
+- **Encaissement** : part (`paiements`, centimes, caisse du poste) si sa
+  facture part ; au serveur, une facture non certifiée et une caisse
+  inconnue sont ADMISES et signalées (l'argent est reçu). L'annulation d'un
+  paiement régularisé retrouve la pièce passée sous le numéro provisoire
+  par l'UUID du paiement (et dans ce seul cas : la parité serveur tient).
+- **Lot F6 (17/10/2026)** : partent l'annulation d'une réservation (taux et
+  MONTANT remboursé, mode `montant` : même somme au centime), son
+  déplacement (chambre, dates, comparées au JOUR, depuis
+  `ReservationDao.enregistrer`), l'envoi et la clôture d'une commande — et
+  seulement si le serveur détient le document
+  (`DocumentsAutresPostes.connuDuServeur` : descendu, ou création en file non
+  rejetée). **Q3** : un document descendu (réservation, facture,
+  encaissement) ne s'annule ici que par `administrateur`, `super_admin` ou
+  `comptable` (`peutAnnuler`), comme au serveur. Les autres retouches d'une
+  fiche de réservation restent locales ; le poste n'annule qu'un panier
+  OUVERT (aucune annulation de vente ne part). Un document de CE poste
+  annulé AU SERVEUR (vente, encaissement, règlement fournisseur) suit en
+  statut ET sa pièce locale est contre-passée en entier, une seule fois
+  (18/10/2026).
+
+## Tous les modules, bouton « Synchroniser », cohérence (18/10/2026)
+
+Décisions du PO du 18/10/2026 (« tous les modules » ; « le serveur doit
+avoir aussi le bouton synchroniser » ; tables du restaurant « il faut le
+créer »). Schéma **v29** (62 tables : `occupations_tables_local`).
+
+- **Montent en plus** : tables de salle et additions ouvertes (une table
+  occupée ailleurs se refuse, `TableOccupeeAilleurs`), véhicules et
+  contrats (M8), employés et bulletins (M13 ; matricule et numéro du
+  serveur régularisés), règlements fournisseur, mouvements de stock SAISIS
+  (`StocksDao.ajouterMouvement`, `envoyer: false` pour l'entrée d'une
+  réception), paramètres (UN enregistrement de l'écran = une opération,
+  dernier écrit gagnant clé par clé), rôles (libellé + matrice entière),
+  modèles de notification (couple événement × canal), canal d'une
+  réservation (par son NOM). Tout descend aussi, aligné par clé naturelle ;
+  une retouche locale en attente est gardée (`ConserveLocalement`).
+- **Jamais** : comptes et mots de passe (PA-103), messages de notification
+  tracés, pièces du serveur (Q1 = A). Rien ne reste « non porté faute d'écran
+  ou de table » depuis le 21/10/2026 (option B du PO : le poste fait ce que le
+  web fait, avec sa synchronisation) : indisponibilités de la carte (v31),
+  entretiens de véhicules (v32), plannings et congés (v33) — sections suivantes.
+- **Bouton du serveur** : la PWA (menu de compte « Synchroniser les
+  postes ») et l'écran du même nom ici (`/synchronisation-postes`, ouvert à
+  tout compte) enregistrent une DEMANDE ; le poste la lit toutes les 30 s
+  (`SyncManager.suivreDemandeDuServeur`, `GET /sync/demande`) et passe
+  aussitôt (envoi puis descente, repli levé). Le flux reçoit `en_attente`.
+- **Contrôle de cohérence (P1-1)** : écran de synchronisation, « Contrôler
+  maintenant » — `GET /sync/coherence` (par table et par jour MÉTIER,
+  nombre et total en centimes) contre les mêmes comptes locaux
+  (`ControleCoherence.requetes`) ; « Ce poste a tout reçu jusqu'au … ».
+- **Essai de réception** : `essai_cinq_postes_test.dart`, cinq postes contre
+  le vrai serveur avec coupures au hasard (avant envoi, réponse perdue) :
+  rien de perdu ni doublé, cohérence sans écart sur chaque poste, conflit
+  RG-01 réel dans « À traiter ». ⚠ Le flux ne livre qu'au-delà de son
+  HORIZON (5 s) ; un banc qui avance l'horloge du moteur doit la donner
+  AUSSI au DAO de la file (l'échéance d'une reprise se juge sur elle).
+
+## Configurations saisies à l'écran : mot de passe SMTP, appairage (19/10/2026)
+
+Décision du PO du 19/10/2026 (« enregistrer les configurations dans le poste
+et le web » ; serveur : « chiffré en base » ; poste : « onglet Email »).
+
+- **Poste** : Paramètres → Email (SMTP), champ « Mot de passe SMTP »
+  (`widgets/champ_mot_de_passe_smtp.dart`, Administrateurs seulement) →
+  `EcrivainConfigurationPoste.enregistrerMotDePasseSmtp` / `effacer…` dans
+  `poste.json` (+ `smtp_mot_de_passe_le`/`_par`), JAMAIS dans Drift ; l'écran
+  ne relit que l'ÉTAT (`etatMotDePasseSmtp`). Écart nommé : la mention de la
+  vue (« chiffré sur le serveur », repli `.env`) est fausse ici.
+- **Serveur** : `secrets_configuration` (cast `encrypted`, `APP_KEY`), registre
+  fermé `SecretsConfigurationService::CLES`, exclu de l'export, conservé par
+  la réinitialisation, jamais dans le flux ; `ConfigurationMailService`
+  l'applique avant `MAIL_PASSWORD`.
+- **Révocation d'appairage** : « Synchroniser les postes » (PWA et poste),
+  colonne « Appairage », bouton « Révoquer » (Administrateurs, jamais son
+  propre poste) → `POST /sync/postes/{poste}/revocation` supprime les jetons
+  de ce NOM ; le poste révoqué reçoit 401 et garde sa file.
+
+## Essais en production, génération des données (19/10/2026)
+
+Décision du PO du 19/10/2026 (« les essais en production suivis de la
+réinitialisation, sur le web et le poste » ; procédure :
+`docs/ESSAIS_EN_PRODUCTION_ET_REINITIALISATION.md`).
+
+- **Serveur** : la réinitialisation « comme neuf » ouvre une GÉNÉRATION
+  nouvelle (`generations_donnees`, conservée). Les routes `/sync`,
+  `/sync/demande`, `/sync/coherence`, `/referentiels` donnent
+  `X-Tatacora-Generation` (+ `X-Tatacora-Phase-Essais`) et REFUSENT (409,
+  code `generation_perimee`) une `generation` rappelée qui n'est plus la
+  courante. En Production, la réinitialisation n'existe que pendant la phase
+  d'essais (`TATACORA_PHASE_ESSAIS=true` au `.env`).
+- **Poste** : `DescenteCatalogueDao` retient la PREMIÈRE génération vue
+  (`serveur.generation`) et la rappelle (corps du `POST /sync`, paramètre des
+  `GET`) ; sur 409, le lot est rendu INTACT, `serveur.reinitialise_le` est
+  consigné, plus aucune requête (`EtatSynchronisation.serveurReinitialise`,
+  voyant rouge). `ReinitialisationLocale` s'ouvre alors même en build
+  production et bascule fermée (rôle et « VIDER » exigés) ; elle vide
+  `etat_synchronisation_local`, donc le poste réadopte la génération nouvelle.
+- ⚠ Un poste d'une version antérieure ne connaît pas la génération : il doit
+  être mis à jour AVANT la réinitialisation du serveur.
+- **Le catalogue se vide aussi** (correction du PO) : « Quand je VIDE les
+  seeders ou les données de test, PLATS, INGRÉDIENTS, ARTICLES, CARTES BOISSON
+  et leurs AUTRES TABLES LIÉES EN JOINTURE doivent être vidées AUSSI. » Serveur
+  (`ReinitialisationDonneesTestService`) et poste (`ReinitialisationLocale`) ne
+  gardent plus que les LIEUX (`points_stockage`, `tables_salle`) ; articles,
+  plats, menus, recettes, compositions, cartes de boisson, mouvements,
+  inventaires, retraits de la carte et (serveur) `historique_prix_carte` (joint
+  sans clé étrangère par `source_id`) sont vidés. Deux sondes énumèrent les
+  jointures au lieu de recopier une liste : `ReinitialisationCatalogueTest`
+  (PHP, `information_schema`) et `reinitialisation_catalogue_test.dart`
+  (`PRAGMA foreign_key_list` + noms de colonnes `article_id`, `plat_id`…, car
+  `lignes_inventaire_local` et `indisponibilites_carte_local` n'ont pas de FK).
+
+## Stock estimé hors ligne, RG-05 (21/10/2026, schéma v30)
+
+Le serveur sort le stock d'une vente à sa RÉCEPTION et ces sorties redescendent
+à tous les postes (celui qui a vendu compris) : un mouvement LOCAL serait compté
+deux fois. Le poste DIT donc ce que ses ventes encore en file sortiront
+(« −X en attente d'envoi », sous le stock de l'écran Stocks) sans rien écrire ni
+soustraire (`stock_en_attente.dart`, `stockEnAttenteProvider`). Le facteur de
+conversion (`unites_vendables_par_unite_stock`) descend dans la colonne
+`cartes_boisson_local.unites_vendables` (v30, NULLABLE : jamais un 1 inventé ; la
+migration oublie le curseur pour que le catalogue redescende). Seules les
+boissons (M5) sont estimées ; les plats (M4) ne le sont pas.
+
+## Retraits de la carte du jour (21/10/2026, schéma v31)
+
+Décision du PO du 21/10/2026 (option B : « ce que le web fait, le poste le
+fait + synchronisation »). Table `indisponibilites_carte_local` (63 tables) :
+une ligne par retrait (boisson OU plat, motif du registre fermé, commentaire,
+instant, retour), sans clé étrangère. Seul écrivain de saisie :
+`IndisponibilitesCarteDao` (retrait = `creation`, remise = l'unique
+`modification`, tous deux enfilés dans la transaction) ; la descente
+(`AligneurCatalogue._indisponibilite`) n'enfile jamais. Un article déjà retiré
+ne double rien (le serveur fusionne, `fusionne_avec`) ; un retrait local encore
+en file est CONSERVÉ face à celui du serveur. Le droit est celui du rayon
+(boisson M5, plat M4). La carte du bar sait désormais l'état de chaque ligne
+(`disponibiliteConnue`), donc « Rendre indispo. » / « Remettre » sont offerts et
+la modale est un vrai formulaire. **Le restaurant (plats) l'est aussi** :
+`RetraitsPlats` (même DAO), colonne « Disponible » oui/non, motif ambre sous le
+nom, cartes « Articles à la carte » / « Retirés du jour » COMPTÉES (plus de
+« — »), boutons « Rendre indispo. » / « Remettre » (droit M4). « Prix » et « Historique des prix » sont portés depuis la v38 (« Le poste fait comme le web »), « Lier au stock » depuis la v36. Écart nommé : le
+filtre d'état « Retirés du jour » reste non servi, parce que l'API du serveur le
+refuse encore (`CarteRestaurantService::ETATS_SANS_SCHEMA`, relu par un test) ;
+le lever demande de changer le serveur ET ce test ensemble. Piège : la sonde « un SEUL auteur de la file » compte aussi
+les LECTURES de `operationsSyncLocal` ; lire la file par `OperationsSyncDao`.
+
+## « Lier au stock » du restaurant (21/10/2026, schéma v36)
+
+Le PO ne pouvait « ni créer un menu de restaurant ni le lier au stock » : menu,
+fiche (ingrédients = articles de stock) et plat se créaient déjà (prouvé par
+`chaine_reelle_restaurant_test`) ; ce qui manquait était le **lien direct
+plat -> article** (« Lier au stock », refusé faute de colonne). Deux colonnes
+NULLABLES ajoutées à `plats_local` : `article_id` (sans clé étrangère, l'article
+peut descendre après le plat) et `unites_vendables` (texte décimal du serveur,
+« 24.0000 »). Seul écrivain : `RestaurantDao.lierAuStock` / `delierDuStock`
+(les DEUX colonnes partent ensemble ; refus aux phrases du serveur) ; la
+modification du plat part avec `article_id` + `unites_vendables_par_unite_stock`
+(`null` des deux pour délier). Le lien l'emporte sur la fiche : portions =
+solde du point cuisine × conditionnement (`LienDirectCalcule`) ; la carte nomme
+l'article et « 24 par casier » ; « Modifier le lien » / « Délier » (droit M4).
+Serveur : `GestionnairePlats` valide et écrit le lien (sans lui `validated()` le
+jetait en silence). Descente : `AligneurCatalogue._plat` (article absent =
+attente). « Prix » et « Historique des prix » sont portés depuis la v38. Les ventes ne
+décrémentent toujours rien (RG-05 non portée). Preuves :
+`lier_au_stock_plat_test.dart` (mutations éprouvées : retirer l'enfilement, ou
+ignorer le lien dans le calcul, fait rougir), `migration_v36_lien_plat_test.dart`,
+côté serveur `CatalogueRestaurantSynchronisationTest`.
+
+## Entretiens de véhicules (21/10/2026, schéma v32)
+
+Table `entretiens_vehicule_local` (64 tables) : un FAIT daté — type
+(`entretien` | `carburation`), jour, coût en francs entiers, chauffeur
+facultatif, login de l'auteur (`null` pour une ligne descendue : l'écran rend
+« — »). Seul écrivain de saisie : `VehiculeDao.enregistrerEntretien` (une
+`creation`, jamais de modification : `accepteModification: false`), qui enfile
+d'abord le véhicule s'il est inconnu du serveur. « Immobiliser » écrit
+désormais cette ligne et **ne touche plus au statut** du véhicule — comme la
+PWA (statut ≠ disponibilité) ; sortir un véhicule du parc louable se fait depuis
+sa ligne. L'onglet « Immobilisations » lit la table. Descente :
+`AligneurDocuments._entretienVehicule` (n'enfile jamais ; véhicule absent =
+attente ; fraction de franc refusée). « Au » reste inerte : aucune colonne de fin.
+
+## Plannings et congés (21/10/2026, schéma v33)
+
+Écran créé d'abord à la PWA (« Congés & Plannings », `pwa/rh/conges-plannings`,
+libellés dans `lang/fr/rh_conges_pwa.php`), repris ici au mot, route
+`/conges-plannings`, menu « Ressources humaines », droit M13. Deux tables
+(66 tables), sans clé étrangère : `plannings_local` (employé, service, jour,
+heures `HH:MM`) et `conges_local` (nature, bornes incluses, statut, login du
+validateur — `null` pour une ligne descendue, l'écran rend « — »). Seul
+écrivain de saisie : `CongesPlanningsDao` (classe simple, pas d'accesseur
+Drift), qui **rejoue RG-13 et RG-14 aux mots du serveur** (`lang/fr/rh.php`
+exécuté par PHP dans `messages_conges_plannings_test.dart`) et enfile chaque
+geste dans sa transaction.
+
+- **RG-13** : même employé, même jour, `début < autreFin && fin > autreDébut`
+  (une borne commune passe) ; refus avant : employé hors effectif, congé VALIDÉ
+  couvrant la date (bornes incluses).
+- **RG-14** : DEMANDER est toujours accepté ; VALIDER lit
+  `delai_preavis_conge_jours` puis `couverture_minimale_par_service` dans
+  `parametres_systeme_local` et **refuse s'ils manquent** (jamais de valeur
+  devinée ; ce fichier est leur `lecteur` déclaré) ; préavis = jours entre
+  aujourd'hui et le premier jour, couverture = effectif `actif` du service −
+  (absents validés qui se recoupent, sans cette demande, + 1) ≥ minimum ;
+  REFUSER garde la demande. Une demande décidée ne se rouvre pas.
+- **Synchronisation** : `plannings` (création seule) et `conges` (création +
+  l'unique modification `statut_validation`), après `bulletins_paie` au registre
+  PHP comme dans `TableSynchronisee` / `TableDescendue`. Le planning porte le
+  service par identifiant (traduit par la correspondance retenue à la descente)
+  ET par libellé : le serveur retombe sur le libellé tant que le poste n'a rien
+  reçu. Le serveur rejoue RG-13/RG-14 avec SES données et ses paramètres : une
+  décision refusée là-bas revient dans « À traiter ». Descente : un créneau ou
+  une demande d'un autre poste s'écrit sans rien renvoyer ; la décision du
+  serveur descend vers l'avant seulement ; une décision locale encore en file
+  est conservée (règle commune de `AligneurCatalogue.aligner`).
+- **Pièges** : la barre latérale de l'administrateur a gagné 35 px — le banc
+  `barre_laterale_blade_test.dart` monte la fenêtre à 1 500 px de haut, sinon
+  « Paramètres » tombe sous le pied et se compte manquant ; les compteurs
+  figés « vingt-quatre destinations » sont passés à 25 ; une phrase de la vue
+  doit tenir en UN littéral pour que le comparateur la trouve (le sous-titre).
+
+## Postes & Appairage (21/10/2026)
+
+L'écran « Synchroniser les postes » devient **« Postes & Appairage »**, à la PWA
+(`pwa.synchronisation-postes`) et sur le poste (`/synchronisation-postes`),
+inspiré d'une autre application (demande du PO). Neuf colonnes : Poste,
+Utilisateur, Appairé le (premier jeton), Dernier contact (dernier usage du
+jeton), Expiration (jeton le plus durable ; « Sans expiration »), Dernier envoi,
+Dernier contrôle, État, Actions (« Révoquer »), plus « Actualiser » (relit,
+n'écrit rien) et « Demander la synchronisation des postes ». L'**état** est
+calculé par le serveur (`SuiviPostesService::etats()`) : `actif`, `sans
+nouvelles` (jeton valide, silence de plus de 24 h), `expiré`, `non appairé` ;
+un code inconnu se lit « non appairé », jamais « actif ». Le « dernier contrôle »
+est noté quand le poste passe sur `GET /sync/coherence` (colonne
+`dernier_controle_le`, son nom est celui de son jeton). L'entrée de menu
+« Synchronisation » est dans « Pilotage & administration » des deux côtés (droit
+Paramètres, masquée au gérant) en plus de l'entrée du menu de compte ; l'écran
+de la FILE locale du poste (`/synchronisation`) reste atteint par Paramètres →
+Synchronisation et par « Voir le détail » du bouton de la barre supérieure.
+
+## Réception : journal, causes, corrections, relances (26/10/2026, schéma v37)
+
+Demande du PO : « une partie de RÉCEPTION dans la page de synchronisation, avec
+toutes les informations reçues, les ÉCHECS, les RELANCES, les CORRECTIONS :
+identifier la CAUSE des échecs, CORRIGER et RELANCER ». `/synchronisation` a
+désormais DEUX parties (onglets **Envoi** — par défaut — et **Réception**, avec
+le nombre d'éléments à traiter) sous la carte d'état.
+
+- **Schéma v37** (73 tables) : `journal_reception_local`, UNE table neuve, clé
+  (`table_serveur`, `element_id`), migration conditionnelle (fixture
+  `_ajoutsParVersion[37]`, `tablesAjouteesEnV37`, test sur fichier réel
+  `migration_v37_journal_reception_test.dart`). Une ligne par élément reçu : issue
+  (`aligne` / `conserve` / `attente` / `refuse`), cause, motif de l'aligneur,
+  champ fautif, élément lié manquant, nom lisible, poste d'origine, tentatives,
+  dates ; `element_json` garde l'élément TANT QU'IL RESTE À TRAITER (c'est ce
+  que « Relancer » rejoue). Une nouvelle version (autre `modifie_le`) repart à
+  une tentative ; la reprise de fin de descente ne recompte pas un élément que la
+  page vient de consigner (`_vuCetPassage`).
+- **Seul écrivain** : `JournalReceptionDao` (`data/journal_reception_dao.dart`),
+  appelé par `DescenteCatalogue` SEULE (`_consigner`, les éléments illisibles,
+  la version périmée oubliée, les relances) — jamais l'aligneur, jamais la file ;
+  il n'enfile rien. Sonde dans `journal_reception_test.dart`. Rétention bornée :
+  `purger()` en fin de descente — les alignés de plus de 30 jours, puis au-delà
+  de 5 000 lignes les alignés les plus anciens ; un élément à traiter n'est jamais
+  purgé par l'âge. « Réinitialiser comme neuf » le vide (non gardé).
+- **La cause** (`domain/journal_reception.dart`, pur) : l'aligneur ne rend
+  qu'une phrase ; `analyserMotif` en déduit une `CauseReception` (registre
+  fermé : élément lié manquant — avec sa TABLE —, compte local absent, conflit
+  avec une saisie locale, homonyme local, donnée illisible — avec son CHAMP —,
+  valeur inconnue — champ et valeur —, précision non tenue, écriture impossible,
+  règle du poste) et `expliquer` en fait la phrase, la correction et le geste
+  (`ActionCorrection` : ouvrir l'écran de création — `ecranDeCreation` —, voir
+  les éléments liés, voir la file d'envoi). `cause_reception_domaine_test.dart`
+  BALAIE tous les motifs de `aligneur_catalogue.dart` et `aligneur_documents.dart` :
+  un motif nouveau non classé fait rougir l'essai (les règles propres du poste
+  sont nommées une à une). Toute table se dit par `libelleTableServeur`.
+- **« Relancer »** (`DescenteCatalogue.relancerElement`, sans réseau) rejoue
+  l'aligneur sur l'élément gardé (`element_differe:*` ou, pour un refus, l'élément
+  du journal) ; réussi, il reprend aussi les éléments qui le citaient.
+  **« Relancer tout »** (`relancerToutProvider`) : les refusés, puis la reprise
+  de tous les gardés, puis la levée du repli et un PASSAGE COMPLET (envoi, puis
+  descente depuis le curseur). ⚠ Un élément REFUSÉ pour une donnée fausse AU
+  SERVEUR ne change pas en le relançant : la même version est rejugée ; on corrige
+  à la source, puis « Relancer tout » reçoit la version corrigée (le texte de la
+  cause le dit). Les deux gestes, « Corriger » et « Relancer », sont réservés aux
+  Administrateurs.
+- **« Corriger »** (réception) : la cause exacte, comment la corriger, et ce que
+  le poste sait faire pour elle (ouvrir « Comptes utilisateurs » quand aucun compte
+  n'existe pour porter l'écriture, ouvrir l'écran qui crée l'élément lié, filtrer
+  le journal sur sa table, voir la file d'envoi), puis « Relancer ».
+- **Liste** : compteurs (reçus, alignés, conservés, en attente, refusés — un clic
+  filtre), filtres par table, par issue et par date de dernière tentative,
+  pagination commune, détail d'un élément (fiche, cause, correction, tentatives).
+  Providers dans `providers_reception.dart` (relecture au signal de tables de
+  Drift, jamais un `.watch()`) ; modales dans `modales_reception.dart`.
+- **Envoi** (`domain/cause_envoi.dart`, pur) : pour une opération rejetée ou
+  bloquée, la CAUSE lisible vient du `code_motif` du serveur (registre FERMÉ, relu
+  du PHP par `cause_envoi_test.dart`), de sa phrase et de ses `erreurs` par champ
+  (ajoutés au serveur dans `SynchronisationService::rejet`, avec le journal
+  d'envoi du web — aucune autre modification serveur ici). Chaque ligne dit sa
+  cause, les phrases du serveur par champ, le nombre de tentatives et le dernier
+  code HTTP ; « Détail » ajoute l'historique des opérations du même élément.
+  **« Corriger »** = un formulaire GÉNÉRÉ de la charge FIGÉE : seuls les champs du
+  registre (libellés, noms, montants, dates, quantités — jamais un identifiant,
+  un statut ou une ligne) sont proposés, typés comme la charge (entier, décimal
+  à la précision d'origine, `AAAA-MM-JJ`, instant), validés (`corrigerCharge`) ;
+  valide, `OperationsSyncDao.renvoyer(uuid, chargeCorrigee:)` crée la remplaçante
+  sous un NOUVEL uuid avec la charge corrigée, l'ancienne reste rejetée, intacte,
+  marquée remplacée. Le serveur rejuge à l'envoi.
+- **Annonces et cohérence** : la partie Réception range le catalogue reçu
+  (dernier bilan de descente), le contrôle de cohérence — le DERNIER contrôle
+  mesuré est rangé (`coherence.dernier`, `DescenteCatalogueDao`) et relu après un
+  redémarrage, avec ses écarts —, les annonces du serveur (phase d'essais,
+  génération des données, réinitialisation constatée) et le nombre de
+  signalements d'envoi.
+- **Pièges rencontrés** : un `Provider<void>` « signal » ne notifie jamais
+  (sa valeur ne change pas) — chaque provider s'abonne et se relit lui-même
+  (`invalidateSelf`) ; la largeur intrinsèque d'une rangée `Expanded` fait de la
+  plus longue phrase la largeur de TOUTES les colonnes (boutons hors écran) —
+  largeurs fixes par colonne (`MesuresTransverses.colonnesReception`,
+  `colonnesATraiter`) ; un faux serveur qui repart de zéro exige `effacerCurseur()`.
+- **Essai réel** : `reception_serveur_reel_test.dart` — vrai `artisan serve` sur
+  la base d'essai PRIVÉE `tatacora_syncposte_test` (`TATACORA_BASE_ESSAI`, accepté
+  maintenant par `tool/sync/serveur_reel.php`, qui gagne l'action `modifier`) :
+  un client à l'e-mail invalide est refusé, corrigé par le formulaire, renvoyé et
+  ACCEPTÉ ; un point de stockage au type inconnu est refusé (la cascade article →
+  fiche → plat attend), un poste sans compte ne peut pas écrire un menu — compte
+  créé, donnée corrigée à la source, « Relancer tout » : tout est aligné.
+
+## Compte de résultat et bilan sur le poste (21/10/2026, schéma v34)
+
+Décision du PO (« oui » au bilan et au compte de résultat sur le poste ; option B :
+le poste fait ce que le web fait). Le serveur reste le seul comptable (D246) :
+les **écritures VALIDÉES** lui descendent (`TableDescendue.ecrituresComptables`,
+après les exercices ; lecture sous M10 ; brouillons jamais) dans la table
+`ecritures_serveur_local` (67 tables), un **miroir de LECTURE**, immuable (RG-11),
+sans clé étrangère : chaque ligne porte l'année de son exercice, le code du
+journal, le numéro, le libellé et la classe du compte (résolus par le serveur,
+`CatalogueDescendantService::ecrituresDeLaPage`). Seul écrivain :
+`EcrituresServeurDao.ajouterSiAbsente` (insert-if-absent, jamais réécrit, rien
+n'est enfilé ; sonde `ecrivains_ecritures_serveur_test.dart`).
+
+- **Jamais mêlé aux pièces du poste** : `ecritures_local` (journal et balance du
+  poste) est inchangé ; le serveur passe sa propre pièce pour chaque document que
+  ce poste lui envoie, donc additionner les deux compterait chaque vente deux
+  fois. Les états se lisent ICI et disent (encadré « provenance ») combien
+  d'écritures le poste a reçues et combien d'opérations il n'a pas encore
+  envoyées.
+- **Calcul** : `domain/etats_financiers.dart` (centimes entiers) reprend
+  `BalanceGeneraleService` (journal `CL` exclu, à-nouveaux PROVISOIRES récursifs
+  quand l'exercice précédent n'est pas clôturé, 131/139 selon le signe),
+  `CompteResultatService` (cascade `SoldesIntermediairesGestion::CASCADE`, impôt
+  lu de la classe 89, jamais un taux) et `BilanService` (préfixes
+  `RubriquesSyscohada`, comptes hors rubrique). **Confronté au VRAI serveur** :
+  `etats_financiers_contre_serveur_test.dart` (script
+  `tool/etats/rejouer_etats_financiers.php`, quatre exercices dont un clôturé,
+  un en clôture, perte et bénéfice, report en chaîne, compte hors nomenclature)
+  et relit la cascade et les préfixes du serveur. Mutations éprouvées (retirer
+  l'exclusion de `CL`, inverser 131/139).
+- **Écran** : onglets « Compte de résultat » et « Bilan » du hub
+  (`widgets/onglets_etats_financiers.dart`) aux colonnes, totaux et bandeaux des
+  vues, avec la colonne « Exercice N-1 » quand l'exercice précédent existe. Le
+  filtre de statut ne s'y applique pas (seules les validées descendent) — dit à
+  l'écran. Grand livre, Analytique, Immobilisations, Plan comptable et Clôtures
+  sont portés depuis (voir « Clôture annuelle SYSCOHADA »).
+- **Pièges** : le comparateur compte par SOUS-CHAÎNE dans tout le code que
+  l'écran atteint, commentaires compris — un en-tête de commentaire « Seules les
+  … » dans le fichier de la table a fait baisser la dette du journal d'audit
+  sans qu'un pixel change ; reformulé plutôt que figé. Une classe `CompteDuPlan`
+  existait déjà (entité) : celle du report s'appelle `CompteDeReport`.
+
+## Immobilisations sur le poste (21/10/2026, schéma v35)
+
+Onglet « Immobilisations » du hub comptable porté de bout en bout (refus
+`immo_modale_titre` et `modale-titre-calcule` levés). Table
+`immobilisations_local`, seul écrivain de saisie `ImmobilisationsDao`
+(`comptabilite/data/`) : `creer` rejoue `ImmobilisationService::creer` (libellé,
+valeur > 0, durée obligatoire sans défaut, date, compte connu du plan) **aux
+phrases du serveur** et enfile une `creation` dans la même transaction (le
+serveur : `GestionnaireImmobilisations`, M10, création seule, jamais
+« financière »). Le **code** `IMMO-AAAA-NNNNN` est provisoire sur le poste ; celui
+du serveur revient à l'accusé (`SyncManager` → `regulariserCode`) ou à la
+descente. Le **plan est CALCULÉ, jamais stocké** (`domain/immobilisations.dart`,
+centimes, `BigInt` pour les dix décimales de `bcdiv`) et **confronté au vrai
+service** (`plan_amortissement_contre_serveur_test.dart`,
+`tool/comptabilite/rejouer_immobilisations.php` : prorata en mois entamés, dernière
+annuité = solde, annuité nulle sautée, valeurs > 64 bits). Descente
+(`AligneurDocuments._immobilisation`) : insère si absent, ne réécrit qu'un code,
+n'enfile jamais ; fraction de centime, durée absente ou date illisible refusées.
+Écarts nommés : date saisie `JJ/MM/AAAA` (calendrier réel exigé, le serveur ne
+vérifie que la forme) ; aucune écriture de dotation, ici comme au serveur ;
+la phrase « … · N ans · linéaire · mise en service … » de la modale « Plan »
+reste comptée absente par le comparateur (l'interpolation sépare « · » de « ans »).
+
+## Relances, archivage des clients, avoir partiel (21/10/2026, schéma v35)
+
+Option B du PO (« tout au complet ») : le poste fait ce que la PWA fait pour
+`crm/clients-creances` et `facturation`, avec sa synchronisation. Les trois
+refus `blade-refuse:` de l'écran Clients et le refus de l'avoir partiel sont
+LEVÉS.
+
+- **Relances** (`relances_clients_local`, v35, aucune clé étrangère) : un FAIT
+  daté, création seule. Seul écrivain de saisie : `RelancesClientsDao`
+  (`crm/data/`, classe simple) — réplique de `RelanceClientService` aux phrases
+  du serveur (`messages_relance.dart`, confrontées par PHP exécuté, validation
+  Laravel du montant comprise : « Le champ relance montant est obligatoire. »).
+  Montant en CENTIMES, envoyé en chaîne décimale exacte (`"10000.50"`). Un
+  client d'avant la synchronisation (`statut_sync = local`, aucune création en
+  file) est ENVOYÉ avant sa relance (`ClientDao.assurerConnuDuServeur`), sans
+  quoi le serveur répondrait « client inconnu » à chaque essai. « Clients à
+  relancer » = `clientsARelancer` (pur) : débiteurs du registre sans relance
+  depuis 30 jours (`joursAvantRelance`, relu du serveur par un test) ; la borne
+  est incluse (une relance faite il y a 30 jours est récente). Serveur :
+  `GestionnaireRelancesClients` (M3, création seule), après `clients` au
+  registre et dans `COLONNES` ; `RelanceClientService::enregistrer` accepte un
+  `id` (rejeu idempotent). Descente : `AligneurDocuments._relanceClient`
+  (n'enfile jamais ; client absent = attente ; canal inconnu / fraction de centime
+  / date illisible = refusé et compté).
+- **Archivage d'un client** (`clients_local.actif`, nullable : `null`/`true` =
+  actif). Seul écrivain : `ArchivageClients` (`crm/data/`), qui rejoue les
+  QUATRE verrous du serveur sur les données locales (séjour : départ ≥
+  aujourd'hui, non annulé ; location : fin ≥ aujourd'hui, contrat NON annulé (statut local, v38) ; circuit non
+  annulé à venir ; facture non soldée par `CreanceFacture.estImpayee`, jamais une
+  seconde formule). Le verrou est recontrôlé DANS la transaction qui écrit. La
+  règle « qui peut archiver » est `core/rbac/regle_archivage.dart`, exigée à
+  l'ouverture ET à l'exécution ; restaurer n'exige que l'écriture sur M3. La
+  modale est `ModaleArchivageAchats` (le composant est partagé, son fichier cite
+  la vue des clients). Serveur : `GestionnaireClients` accepte `actif` (via
+  `ReferentielClientService` + `DroitArchivageService`, comme les fournisseurs) ;
+  un archivage refusé rejette TOUTE l'opération. L'`AligneurCatalogue._client`
+  applique `actif` (plus d'« archive non portée » pour les clients) et retient
+  l'origine du client (`connuDuServeur`). Comme à la PWA, les sélecteurs de
+  clients proposent encore les archivés.
+- **Avoir partiel** : `FactureDao.emettreAvoirPartiel` — la règle est celle du
+  SERVICE (`emettreAvoir` : jamais plus que le TTC, avoirs non cumulés), le TTC
+  entier reste l'annulation (`annuler`). L'avoir est une pièce à lui, d'UNE ligne
+  « Avoir partiel — motif » (quantité −1), la facture reste émise ; reste dû =
+  `creances.dart`, formule inchangée. Il part en `{montant (francs), motif,
+  avoir_id}` : l'avoir naît au serveur sous l'UUID du poste (`avoir_id`), rend
+  SON numéro (`numero_avoir`, `avoir_id`) que `FactureDao.regulariserAvoir` pose
+  — depuis la réponse d'envoi OU depuis la descente (`_avoir` reconnaît son id).
+  `avoirProvisoireDe` ne sert plus que l'avoir d'une facture ANNULÉE ici. Pas de
+  garde Q3 sur l'avoir partiel (il n'annule rien ; la PWA l'ouvre à tout compte
+  M2) ; l'annulation, elle, la garde.
+- **Ancrages extérieurs** : `charges_relances_archivage_avoir_contre_serveur_test`
+  (le vrai `SynchronisationService`, ce que le serveur a ÉCRIT est relu),
+  `messages_relance_test` (PHP exécuté), et côté serveur
+  `RelancesEtArchivageClientsSynchronisationTest`, `AvoirPartielSynchronisationTest`.
+- **Pièges** : `TestWidgetsFlutterBinding` + deux `monter()` dans un test avec des
+  `ProviderScope` différents réutilise le premier état — un test par rôle ; le
+  message de succès d'un `SnackBar` bloque le suivant 4 s (`pump(5 s)`).
+
+## Inventaire physique et archivage des articles (21/10/2026, schéma v35)
+
+Option B du PO (« tout au complet ») : le poste ouvre un inventaire par point,
+saisit les comptages, le clôture et le régularise ; il archive et restaure les
+articles. Écran `/stocks/inventaires` (cycle, feuille, historique) et `/stocks`
+(cases, « Supprimer », badge « Archivé », « Restaurer »).
+
+- **Inventaire** : le comptage en cours vit EN MÉMOIRE (`inventaireEnCoursProvider`,
+  remis à zéro au changement de compte) jusqu'à la clôture — le schéma serveur ne
+  porte aucun statut (PA-150), une ligne écrite avant ne se distinguerait pas d'un
+  inventaire clos. Fermer la fenêtre avant de clôturer abandonne le comptage ;
+  la feuille le dit. Un comptage FIGE le théorique du point à cet instant
+  (`InventaireService::compter`), un second écrase le premier. `StocksDao.
+  cloturerInventaire` écrit l'inventaire, ses lignes (centièmes) et un mouvement
+  de régularisation par écart dans UNE transaction, enfilés dans cet ordre :
+  l'excédent en `inventaire` NON valorisée, le manquant en `perte` (forcée si le
+  disponible d'aujourd'hui ne le couvre plus), motif `Régularisation inventaire
+  <id> — écart de ±x.xx`. Un seul `INSERT` de mouvement (`_inserer`) pour la
+  saisie et la régularisation. Un écart dont l'article n'a aucune entrée
+  valorisée n'est pas valorisé (« — » + une ligne qui le dit), jamais zéro.
+  Modale « Inventaire incomplet » : quand tout est compté elle devient
+  « Clôturer et régulariser » (la vue y dirait « 0 article(s) n'ont pas été
+  comptés », faux). L'historique liste `inventaires_local` (clôturés ici OU
+  descendus), « — » aux trois montants comme la vue.
+- **Synchronisation** : UN document `inventaires` (point, jour, lignes :
+  théorique figé, constaté, écart en centièmes) — gestionnaire serveur
+  `GestionnaireInventaires`, une transaction, valeurs du poste écrites TELLES
+  QUELLES (écart vérifié contre lui-même seulement) — puis ses mouvements
+  (`mouvements_stock` accepte désormais `inventaire`, l'excédent). Descente : les
+  lignes descendent AVEC l'inventaire (`CatalogueDescendantService::ENFANTS`),
+  `AligneurDocuments._inventaire` l'écrit en entier ou le met en attente
+  (point/article pas reçu), un inventaire détenu n'est jamais réécrit, aucun
+  mouvement n'est réécrit.
+- **Archivage** : `StocksDao.verrousArticle` rejoue les quatre verrous du serveur
+  (`ReferentielArticleService::verrous`) sur les données locales — solde > 0 tous
+  points, LIGNES de commande en cours (un statut inconnu engage), boissons de la
+  carte, compositions de recette — aux phrases de `lang/fr/stocks_pwa.php`,
+  recontrôlés à l'exécution, motifs joints par une espace. La règle est
+  `core/rbac/regle_archivage.dart` (`peutArchiverProvider`, relue à chaque geste
+  par `StocksApi`) ; « Restaurer » n'est pas derrière elle. Le verrou
+  « plat lié au stock » (`plats.article_id`) est rejoué depuis la v36
+  (`plats_local.article_id`), compté avec les boissons dans « vendu à la carte ». L'archivage part en
+  `{'actif': false}`, la restauration en `{'actif': true}`.
+- **Preuves contre le serveur** : `archivage_inventaire_contre_serveur_test.dart`
+  (phrases du `lang/` PHP + six scénarios de verrous rejoués par
+  `tool/stocks/rejouer_archivage.php` sur `ReferentielArticleService`),
+  `inventaire_archivage_contre_serveur_test.dart` (la file poussée à
+  `SynchronisationService`, lignes relues). `TATACORA_BASE_ESSAI=tatacora_<nom>_test`
+  remplace `tatacora_test` dans ces deux scripts quand plusieurs essais tournent
+  ensemble (la base partagée est migrée sous les pieds de l'un ou de l'autre).
+- **Pièges rencontrés** : un `SnackBar` s'EMPILE (le message d'ouverture restait
+  quatre secondes après la clôture) — `clearSnackBars()` avant d'annoncer ; la
+  mesure de conformité cherche les libellés d'une MODALE dans les seuls fichiers
+  qui citent la vue (pas leurs imports) : la phrase du serveur de la modale
+  « Inventaire incomplet » est écrite dans `modales_inventaire.dart` ET dans
+  `MessagesStock`, et un test confronte les deux au fichier de langue PHP ;
+  `ORDER BY type_mouvement` trie un `enum` MySQL par INDEX, pas par ordre
+  alphabétique.
+
+## Exploitation : cron et vérifications (19/10/2026)
+
+`docs/LISTE_DES_CRON_JOBS_CPANEL.md` (une ligne cron `schedule:run`, test
+`ListeCronDocumenteeTest` qui confronte le planning au document) ;
+`php artisan tatacora:verifier-production` et
+`docs/VERIFICATIONS_APRES_MISE_EN_PRODUCTION.md` (liste serveur + postes).
+
+## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
+
+⚠ **Vérifié le 12/10/2026 : `synchroniserMaintenant`, `DeclencheurSynchronisation`,
+`dioProvider` et `dioEnLigneProvider` n'existent plus dans `lib/`** (seules
+subsistent des mentions en commentaire). **Depuis le lot F2a (15/10/2026),
+`synchroniserMaintenant` existe de nouveau** — dans `SyncManager`, voir la
+section F2a ; depuis F2b il pousse la file PUIS descend le catalogue
+(section F2b). La phrase « le poste ne pousse ni ne descend rien » est
+périmée.
+Cette section et les deux suivantes (« socle réseau », « écrans qui exigent le
+réseau ») décrivent l'état d'avant ; elles sont gardées pour leurs leçons, pas
+comme description du code.
+
+`synchroniserMaintenant()` était le point d'entrée **unique** : pousser, aligner,
+recharger, dans cet ordre. Le déclenchement automatique passe par
+`DeclencheurSynchronisation` — trois réveils, aucun bloquant (retour au premier
+plan, événement `connectivity_plus`, repli 30 s → 2 min → 5 min → 15 min).
+
+**`connectivity_plus` est un signal de réveil, jamais une autorisation** : il
+rapporte l'état de l'interface, pas l'accessibilité du serveur — au Gîte, un
+routeur allumé au lien amont coupé annonce « connecté » pendant que rien ne
+passe. L'autorité est la tentative (`BilanSynchronisation.reseauIndisponible`).
+Le paquet n'apparaît **qu'au provider** ; ne l'introduisez pas dans
+`DeclencheurSynchronisation`, qui doit rester testable sans canal de plateforme.
+
+**Une valeur CALCULÉE par le serveur ne descend pas en base** : le stock est
+lu en direct par l'écran Carte du bar, jamais stocké (PA-129) — figé, il
+serait faux à la première vente. ⚠ **La carte lit `stock_vendable`, jamais
+`stock_disponible`** (PA-199) : le second est le solde BRUT en unités de STOCK
+(casiers), le premier le chiffre de la carte PWA en unités VENDABLES
+(bouteilles) — pour un casier de 24, 2 contre 48. Les deux sortent du même
+auteur serveur (`StockDeCarteService`) ; `stock_disponible` n'a gardé son sens
+que pour ne rien casser chez un client qui le lirait. Et « injoignable » se distingue de « vide » :
+un rayon qui rend `null` laisse le catalogue local intact.
+
+**L'ordre de l'alignement descendant est contraint par les clés étrangères** :
+parc (catégories puis unités, PA-128), clients (PA-127), réservations. Chaque
+étage est la clé étrangère du suivant, et l'inverse rejoue la violation.
+**Aucun alignement ne supprime** : une ligne retirée du serveur peut être
+référencée par une saisie locale non encore poussée. Ce qui ne peut pas
+s'écrire est **compté et affiché**, jamais avalé.
+
+**Le référentiel client descend AVANT les réservations**
+(PA-127) : `reservations_local.client_id` est une vraie clé étrangère, et
+l'ordre inverse rejoue la violation. Ce qui ne peut toujours pas s'écrire est
+**compté et affiché**, jamais avalé.
+
+**Ce qui ne part PAS au serveur, et qu'aucun écran ne doit annoncer comme « en
+attente » :** les paniers, les factures, et la fiche de réservation (canal, type
+de client, mode de paiement, remise) — `TABLES_SYNCHRONISABLES` ne connaît que
+`reservations` et `clients`. Les écrans disent « enregistré sur ce poste ».
+
+## Authentification — locale, jamais par l'API
+
+Décision du Product Owner (PA-103). `SessionRepositoryLocal` lit la table Drift
+`utilisateurs_local`, et **un test relit son code source** pour qu'aucun `dio`,
+`http`, `localhost` ni `/api/` n'y entre jamais.
+
+- **Aucun mot de passe stocké** : un dérivé PBKDF2-HMAC-SHA256 seulement (sel
+  aléatoire, 120 000 tours, comparaison à temps constant). **PBKDF2 est écrit à
+  la main** — ne jamais y toucher sans rejouer les trois vecteurs publics de
+  `verificateur_hors_ligne_test.dart`, dont `c=2`, seul à éprouver la boucle de
+  chaînage.
+- **Aucun mot de passe par défaut nulle part**, et il ne doit jamais en entrer :
+  un poste vierge fait créer le compte administrateur.
+- **Aucun message du serveur ne doit atteindre l'écran de connexion**, et un
+  compte inconnu rend le même message qu'un mot de passe faux.
+- Le RBAC vient de `droitsJson`, relu par la **même** fabrique
+  `GardeAcces.depuisJson` que la voie serveur.
+
+## M11 se lit sur le poste, indicateur par indicateur (10/10/2026, D157–D173)
+
+M11 ne possède aucune table (schéma v14 inchangé) : il relit les modules
+sources. Un indicateur n'est calculé que si TOUTES ses sources sont détenues ET
+écrites ici : taux d'occupation, réservations en attente, valeur du stock
+(« hors N article(s) sans coût »), employés actifs, ventilation du CA facturé.
+CA encaissé, trésorerie de caisse et factures non soldées sont calculés depuis
+le lot 5 (12/10/2026, D234 : `PaiementsFactureDao` écrit les paiements, formules
+du serveur répliquées avec leurs incohérences D233). Dépenses cumulées et séries
+mensuelles restent « — » avec leur raison datée. La fenêtre de temps (`FenetreTableauDeBord`) est calculée sur le
+poste et confrontée au vrai `Periode` PHP
+(`tool/tableau_de_bord/exporter_indicateurs.php`). Piège : une clé de
+fournisseur `family` a besoin de `==`/`hashCode`. Pas de cache : un « — » vaut
+mieux que le chiffre d'hier.
+
+**Le pilotage consolidé reprend la BANDE (12/10/2026, D289–D295).** Les cartes
+« Chiffre d'affaires encaissé » et « Trésorerie (caisse) », et les alertes
+« À traiter » factures / réservations, sont les indicateurs M11 de
+`TableauDeBordLocal`, transmis à l'onglet (`EcranPilotageConsolide(tableau:)`)
+et mis en forme par `valeurIndicateurAffichee`, écran et PDF compris. Seul
+« Résultat net » relève de M10 (`PilotageApi` → `SourceAbsente`, raison datée).
+« Exercice entier » règle la période de tout l'écran ; la période personnalisée
+n'est pas portée (dit à l'écran). La carte « Valeur du stock » lit encore M6, pas
+l'indicateur de la bande (écart ouvert). Piège : un `DropdownButton` garde tous
+ses libellés dans sa pile — `find.text` y trouve n'importe quelle option ; lire
+`FormFieldState.value`.
+
+## Le socle réseau — RÉPARÉ et PROUVÉ le 27/08/2026 (PA-154) — ⚠ HISTORIQUE (transports retirés, voir « Synchronisation »)
+
+Deux défauts rendaient **tous** les écrans « en ligne » non fonctionnels contre un vrai
+serveur. Les deux sont corrigés, et la réparation est prouvée contre un Laravel qui
+tourne — c'était la seule preuve recevable, parce qu'**aucune suite ne pouvait voir ces
+défauts** : les tests montent leur propre client HTTP.
+
+**1. Deux transports, deux contrats — ne les confondez plus.**
+
+| Provider | `validateStatus` | Pour qui |
+|---|---|---|
+| `dioProvider` | `statutAccepte` — les 4xx **ne lèvent pas** | Offline-first : `ReservationApi` (409 de conflit RG-01), `FileSynchronisation`, `ParcApi`, `ClientApi`, `CatalogueApi`. **Les cinq lisent `reponse.statusCode` explicitement.** |
+| `dioEnLigneProvider` | `statutAccepteStrict` — tout sauf 2xx **lève** | Écrans en ligne : M5, M8 (Paramètres, M4, M6, M7, M11 et M14 sont locaux depuis le 09/10/2026). **Ces écrans ne lisent `statusCode` que dans `e.response`** — ils sont écrits comme si un 403 levait. |
+
+Le défaut était de **câblage, pas de code client** : un seul `dioProvider` lenient servait
+les deux contrats, si bien que la branche « refusé » des écrans en ligne était un chemin
+que rien n'empruntait. Un droit manquant tombait dans « réponse illisible ».
+⚠ **Avant de brancher un nouveau client, demandez-vous lequel des deux il attend.**
+
+**2. Le jeton est pris À LA CONNEXION** (voie (a), tranchée par le Product Owner).
+`SessionNotifier.connecter` appelle `acquerirJeton()` **en plus** de la connexion locale.
+
+- **PA-103 ne change pas** : `SessionRepositoryLocal` décide seul qui entre, et le test qui
+  relit son code source reste vert — l'acquisition vit dans `SessionRepositoryImpl`.
+- **L'échec est silencieux et n'empêche jamais d'entrer.** Aucun message du serveur
+  n'atteint l'écran de connexion.
+- **Quatre états, pas trois** (`EtatJetonApi`) : le quatrième est celui du Gîte — un compte
+  créé au premier démarrage **n'existe pas côté serveur** et n'aura jamais de jeton. Ce
+  n'est ni une panne, ni un droit manquant.
+- Le jeton ne vit qu'au **coffre sécurisé**, relu à chaque requête ; le mot de passe n'est
+  ni stocké ni journalisé, et un test le vérifie.
+
+**⚠ Le piège rencontré en écrivant la preuve, et qui vaut pour tout essai réseau :**
+`TestWidgetsFlutterBinding` installe un `HttpOverrides` qui **rend 400 à toute requête sans
+jamais l'émettre**. Un « essai contre un vrai serveur » écrit sous ce binding ne touche
+aucun serveur — il mesure le bouchon du framework. `HttpOverrides.global = null` après
+`ensureInitialized()`, sans quoi la preuve ne prouve rien.
+
+```bash
+php artisan serve --port=8123                       # depuis tatacora-api/
+TATACORA_API=http://127.0.0.1:8123/api/v1 TATACORA_MDP='...' flutter test test/integration/socle_reseau_reel_test.dart --tags integration
+```
+
+Les comptes d'essai sont créés par l'opérateur, **jamais par un seeder** : un compte livré
+avec le code est connu de quiconque lit le code.
+
+## Les écrans qui exigent le réseau — ⚠ titre HISTORIQUE : le poste est zéro réseau ; la section décrit surtout les modules devenus LOCAUX
+
+⚠ **Vérifié le 12/10/2026 : aucun écran n'exige plus le réseau.** Véhicules (M8,
+`vehicule_dao.dart`) et le catalogue du bar (`boissons_api.dart`) lisent la base
+locale, comme les autres. La leçon d'avant reste valable : une donnée que le poste
+ne détient pas s'affiche « — » avec sa raison, jamais la dernière réponse en cache
+ni un zéro.
+
+**M14 est LOCAL depuis le 10/10/2026** (aucune table, schéma v14, D175–D187).
+Registre fermé de 12 états relu du code PHP (`tool/etats/exporter_registre.php`) ;
+catalogue filtré par le droit de lecture sur le module SOURCE (éditer l'état des
+stocks exige M6, pas M14). L'aperçu de 10 états est calculé depuis les lecteurs
+des modules sources (`apercus_etats.dart`, cellules au format du serveur).
+Créances clients est calculé depuis le lot 5 (12/10/2026, D234). La balance
+reste listée et refusée, avec la raison réécrite le 12/10/2026 (D282) :
+comptabilité du poste partielle. Aucun export, archive ni PDF (PA-192 ouvert).
+Ce que l'aperçu ne mesure pas est dit dans l'encadré « Sur ce poste », jamais un
+zéro.
+
+**L'écran Paramètres est LOCAL depuis le 09/10/2026** (Drift v11, table
+`parametres_systeme_local`, décisions D104–D114 du ticket) : plus aucun appel
+réseau. Son registre fermé de 46 clés (31 + les 15 `compte_<rôle>` de la correspondance des comptes) est relu du serveur par un test (PHP
+exécuté, `tool/parametres/exporter_registre.php`) ; une clé inconnue est refusée,
+aucune valeur réglementaire n'est posée par défaut, aucun secret n'entre en base.
+Seul `EnregistrerParametres` écrit ; les taux de paie passent par `PaieDao`. Les
+badges (TVA, MECeF jamais « actif ») sont dérivés. Les valeurs saisies que
+aucun module ne lit encore (en-tête des documents) le disent à l'écran :
+`EnteteEtablissement` n'est pas encore branché (lot à part). Une clé lue par UN
+seul module le dit aussi, en ligne : `activation_suppression` n'est honorée que
+par les fournisseurs de M7 (D278, piège 14).
+
+**M4 Restaurant est LOCAL depuis le 09/10/2026** (schéma v14, D144–D156). Seul
+`RestaurantDao` écrit ; fiche et composition en une transaction. Portions, coût
+matière et taux ne sont jamais stockés (rejoués du stock de M6, confrontés au
+VRAI `CarteRestaurantService` par PHP). Un article journalier ne borne aucune
+portion (écart serveur D146). Les ventes ne décrémentent pas ce stock (RG-05
+non portée, D240) ; depuis le lot 6 la vente du rayon passe sa pièce `VTE`
+(crédit `7061`, centre Restaurant, TVA `4432`). ⚠ Catégorie du plat : portée depuis la v41 (27/10/2026), voir « Les champs du web portés : véhicule, contrat, plat, guide » ; la CARTE du restaurant (filtre, groupes de la couverture, impressions), elle, classe encore par TYPE DE MENU, comme `CarteRestaurantService` de l'API.
+
+**M7 Achats est LOCAL depuis le 09/10/2026, complet depuis le lot 7 (12/10/2026,
+D253–D281)** (schéma v13, puis v20 et v21). Trois écrivains, un par table :
+`AchatsDao` (commandes, bons, entrées de stock de la réception, archivage du
+fournisseur — `fournisseurs_local.actif`, v21), `ReglementsFournisseurDao`
+(`reglements_fournisseur_local`, v20). **Le règlement et sa pièce (Dr 4011 /
+Cr trésorerie du mode, au journal de ce mode) s'écrivent dans UNE transaction** ;
+pièce refusée = rien d'écrit ; montant en centimes entiers, tronqué à deux
+décimales comme `bcmath` ; reste dû = montant de la commande − règlements
+ACTIFS ; refus dans l'ordre du serveur (commande, montant, trésorerie). Le DAO
+sait annuler (contre-passation de la pièce ENTIÈRE), aucun écran ne l'offre : le
+serveur n'a aucun appelant (D257). **La réception ne valorise PAS** : le serveur,
+exécuté (`tool/achats/rejouer_receptions.php`), laisse le coût moyen pondéré et
+le dernier prix d'achat inchangés ; l'entrée de stock naît SANS coût, un article
+qui n'entre que par réception reste « — » en M6 et « hors N article(s) sans
+coût » en M11 (D265). Les trois phrases de la vue qui affirment le contraire sont
+remplacées par la vraie, écart nommé, Architecte à saisir (piège 13, D276).
+**L'archivage d'un fournisseur obéit à UNE règle**
+(`core/rbac/regle_archivage.dart`) : droit C sur M7 ET (administrateur /
+super_admin OU bascule `activation_suppression`), relue à chaque geste ; seuls
+les fournisseurs la honorent — la Paie et les autres écrans qui archivent gardent
+leur règle propre (D272, rebranchement = lot à part). La tolérance RG-10 se lit
+des Paramètres, jamais devinée. Parité PHP rejouée : règlements (84 opérations),
+archivage (107), réception. Huit défauts du SERVEUR sont répliqués, non corrigés
+(D257–D263, D271) : à remonter à l'Architecte. Non porté : réécriture
+rétroactive des entrées déjà valorisées (D265), Montant et date de l'onglet
+Commandes non reformatés.
+
+**M6 Stocks est LOCAL depuis le 09/10/2026** (schéma v12, D115–D130 du ticket).
+Les trois tables de stock (`articles_local`, `points_stockage_local`,
+`mouvements_stock_local`) ont un seul auteur de SAISIE, `StocksDao` ; depuis F2b,
+points et articles DESCENDENT aussi (`AligneurCatalogue`, jamais enfilé). Stock, CMP et dernier prix d'achat ne sont jamais stockés : ils sont
+rejoués depuis les mouvements (`domain/calcul_stock.dart`, entiers). Un CMP sans
+entrée valorisée s'affiche « — », jamais 0 ; M11 dit « hors N article(s) sans
+coût ». ⚠ `MouvementsStockLocal.statutSync` a pour défaut
+`en_attente_synchronisation` dans le schéma — piège : `StocksDao` écrit toujours
+`local`, ne l'affichez jamais. Les ventes bar/restaurant ne décrémentent pas ce
+stock (RG-05 non portée) et aucune écriture comptable n'est produite.
+
+**`PageCarte` réserve la gouttière de 8 px de la vue quand la page déborde**
+(`AppLayout.gouttiereDefilement`, D188) : un `Scrollbar` Flutter se pose par-dessus,
+la barre classique du navigateur prend sa place. Filtrer les notifications de
+défilement sur profondeur 0 et axe vertical, sinon les défilements internes font
+osciller la page. Mesure de `rh/paie` : le banc monte l'écran SANS les taux
+(bandeau « non paramétrés »), état inatteignable en production tant que D113 est
+ouvert — gain de mesure pour cet état.
+
+**M10 : moteur comptable LOCAL, réplique du serveur (10/10/2026, D192–D204).**
+Seul `MoteurComptable` écrit `ecritures_local` (balayage de `lib/` en test).
+Montants en centimes entiers. RG-11 = 4 triggers SQLite dont le code est traduit
+en phrase du serveur. Séquence des pièces = compteur persisté (journal, année),
+alloué dans la transaction de la pièce. Plan comptable = le fichier du PO
+(SYSCOHADA révisé, 1332 comptes, 4 chiffres au maximum), asset octet-identique à
+la copie du serveur, installé au démarrage par `installerReferentielComptable`,
+jamais dans la migration. La correspondance rôle → compte (`ComptesSyscohada`)
+est confrontée par PHP à celle du serveur : ses numéros sont les DÉFAUTS d'une
+correspondance modifiable (voir « Correspondance des comptes » plus bas). Les
+refus sont ceux du serveur, relus par PHP. Tout test qui lance PHP porte
+`@Timeout(Duration(minutes: 2))` ; `rejouer_scenario.php` exige MySQL
+`tatacora_test`. L'exercice de l'année courante s'ouvre à chaque démarrage
+(écart assumé avec le serveur, D210) ET, depuis le 20/10/2026, à la première
+pièce de l'année (`MoteurComptable`, règle `ouvertureAutomatiquePermise` :
+année en cours, la suivante en décembre ; date réelle, année sans exercice) —
+un poste laissé allumé au passage d'année n'a plus à redémarrer. Le serveur
+fait de même (`ExerciceComptableService::assurer`, tâche
+`tatacora:ouvrir-exercices`), et ses exercices DESCENDENT avec leur statut
+(`TableDescendue.exercicesComptables`, apparié par l'année).
+
+**Lot 3 Dépenses (D205–D215)** : la dépense écrit sa pièce dans la même
+transaction (`DepenseDao.enregistrer` → `MoteurComptable.passerEtValider` ; le
+moteur arrive par résolveur, sans lui l'écriture lève). `ecriture_id` = ligne de
+trésorerie ; le n° de pièce est lu de l'écriture, jamais recopié. Seul chemin
+d'argent sans pièce : `enregistrerHistoriqueSansPiece` (mode démo). Le
+rattrapage (`comptabiliser(dépense, centreId)`) exige un centre EXPLICITE choisi au
+bandeau (select, départ « Choisir un centre »), passé aux charges ET à la
+trésorerie ; sans centre, refus RG-12 aux mots du serveur (consigné) ; le choix
+n'est stocké nulle part (D216). Le poste tient une comptabilité depuis le
+10/10/2026 ; le règlement fournisseur, lui, est porté depuis le lot 7 (D66 fermé, voir M7). Comptes de charge
+lus du plan (4 chiffres) ; l'ancien registre à 6 chiffres sert seulement à nommer.
+Confrontation : `tool/depenses/rejouer_depenses.php`. Piège : deux tests PHP
+parallèles sur `tatacora_test` s'interbloquent — `executerPhp` les SÉRIALISE par
+un verrou de fichier partagé entre processus (D279) et ne rejoue plus qu'en
+filet, sur contention reconnue (`estContentionMysql`) ; la police de test (Ahem) élargit les tableaux :
+`ensureVisible` avant de cliquer.
+
+## Impression et exports
+
+**L'en-tête et le pied A4 vivent dans `core/impression/entete_a4.dart`** —
+point unique. Les recopier dans un état est la non-conformité n° 1 de
+`RESPECT_TABLEAU_RAPPORT.md` §4.
+
+**Un EXPORT porte la zone de signatures et le pied de rapport ; un document
+REMIS AU CLIENT, jamais** (Directive §6, décision du PO du 11/09/2026 —
+PA-194 serveur, PA-195 ici). `zoneSignaturesA4(visas: Visas.x)` et
+`piedRapportA4(...)` pour un export ; `piedA4` seul pour une confirmation, une
+facture, un ticket, une fiche des prix, le détail d'une vente. Les visas vivent
+dans `core/impression/visas.dart` et sont **relus contre les gabarits serveur**
+(`test/core/impression/pdf_directive_test.dart`) : un nouvel état se CLASSE au
+registre de ce test, sinon il échoue.
+
+Tout document passe par une **action injectable** (`imprimerTicketProvider`,
+`imprimerEtatHistoriqueProvider`…), jamais par un `Printing.layoutPdf` recopié
+dans un écran : un test de widget n'a pas de greffon natif, et il doit exister
+un seul endroit où l'impression est déclenchée.
+
+**Tout texte d'un PDF passe par `texteTicket`.** Les polices intégrées du format
+couvrent Latin-1 et rien de plus : l'apostrophe typographique de « Chiffre
+d'affaires » disparaissait réellement du papier, sans erreur ni trace. La garde
+(`caracteresNonImprimables`) relit les textes **réellement composés**, jamais un
+échantillon écrit à la main.
+
+**Une mention qui BORNE la portée d'un document s'imprime avec lui.** La fiche
+de stock porte un drapeau `coherent` vérifié par le serveur ; à `false`, elle ne
+vaut pas justificatif (PA-135). L'afficher à l'écran sans l'imprimer laisserait
+le document circuler comme pièce probante. Et le défaut par défaut est le
+**refus** : une réponse muette sur ce drapeau est lue comme incohérente.
+
+**Un document imprimé n'affirme jamais un statut fiscal qu'il n'a pas.** Le
+papier remis à la prise de réservation s'appelle « Confirmation de
+réservation », pas « Facture » : sans numéro de séquence continue ni cachet
+MECeF, ce serait un faux document fiscal (PA-113). Et `numeroSuivant()`
+**alloue et persiste** — ne l'appelez jamais pour composer un document.
+
+**Un export porte sur ce qui est AFFICHÉ**, filtre compris, et le document le
+dit. Une liste vide se refuse plutôt que de produire une page blanche. Aucun
+document n'affirme une certification MECeF : la mention se **dérive** des
+pièces, elle n'est jamais figée (PA-119).
+
+**Les exports tableur sont des CSV**, avec BOM UTF-8 et point-virgule : c'est la
+convention du serveur (RG-19) et ce qu'attend un Excel en configuration
+française. Le maître écrit « Excel » sur le bouton ; l'écart est nommé en
+PA-111, pas masqué. Les colonnes de montants partent en **nombres bruts** — un
+tableur ne sait pas additionner « 56 000 FCFA ».
+
+## Conventions
+
+- Identifiants en anglais, **contenu visible en français**. Les entités métier
+  centrales gardent leur nom français : `Reservation`, `Facture`, jamais
+  `Booking`/`Invoice`.
+- Montants en **entiers** (le XOF n'a pas de sous-unité en circulation). La
+  conversion depuis les `REAL` de Drift se fait au DAO, une fois.
+- **Prix ET libellé figés à l'ajout** sur toute ligne (panier, service de
+  réservation) : le catalogue dit ce qu'on vend aujourd'hui, la ligne dit ce qui
+  a été vendu.
+- Un registre fermé (`enum` + `switch` exhaustif) plutôt qu'une chaîne libre —
+  un cas ajouté demain ne doit pas obtenir un comportement par omission.
+- Tout cas d'usage implémentant une RG porte un `///` avec `@see EF-M#-##` /
+  `RG-##`.
+- Ce qui est **calculable** s'affiche en lecture seule, jamais dans un champ.
+
+## Canaux de réservation, composition provisoire, remise du panier (21/10/2026, « tout au complet »)
+
+- **Canaux** : `canaux_reservation_local` (schéma v35), écrivain unique `CanauxReservationDao` (ajout, renommage, désactivation/réactivation, jamais de suppression ; refus aux phrases du serveur, relues par PHP). Un poste vierge reçoit le jeu initial sous des UUID v5 stables (le serveur exige un UUID pour pousser) ; les réservations d'avant la v35 (`can-…`) sont réécrites vers l'id du canal de même NOM, sans rien envoyer. La fiche, la réservation rapide et le filtre des annulations lisent la TABLE (`CanalReservation` n'est plus une énumération). Sync : `canaux_reservation` (création par le nom ; modification = état entier + `ancien_nom` pour retrouver un canal aligné par son nom) ; descente AVANT les réservations, lecture libre. Plus aucun jeton `blade-refuse` pour l'onglet.
+- **Composition provisoire** : colonne lue/écrite ; descend avec la fiche ; levée en réenregistrant la composition (la modification part avec `lignes` même inchangées, sinon le serveur garderait la marque). Compteur, badge, bandeau, marque « P » du comptoir sont alimentés.
+- **Remise** : `paniers_local.remise_type/remise_valeur_centiemes`, formule répliquée en centimes (`pos/domain/remise_panier.dart`), jugée à la saisie ET à l'encaissement ; pièce VTE sur le net (`ventilerAuNet`, dernier module = écart), `montantCloture` = net arrondi au franc (écart nommé : les centimes ne vivent que dans la pièce), vente envoyée avec type + valeur seulement si une remise existe, facture avec lignes négatives par module. Confronté au serveur dans `ventes_contre_serveur_test.dart` et `charges_contre_serveur_test.dart`.
+- Piège : le comparateur de ventes lit le NET de la pièce (débit), pas `montantCloture`.
+
+## Correspondance des comptes — les comptes SE MODIFIENT (26/10/2026, décision du PO)
+
+« ON PEUT IMPÉRATIVEMENT MODIFIER LES COMPTES SUR POSTE ET LE WEB. » Les comptes
+7073 (Locations, M8), 7061 (services vendus, circuits M9) et 4432 (TVA sur
+prestations) sont **validés par le PO le 26/10/2026** ; le comptable peut encore
+changer n'importe quel rôle à l'écran.
+
+- **Les constantes de `ComptesSyscohada` sont des DÉFAUTS.** Quinze RÔLES sont
+  modifiables (`RolesCorrespondance`, relu du serveur par
+  `correspondance_comptes_contre_serveur_test`) : produits restaurant / bar /
+  location / circuits (`PRODUIT_CIRCUITS` est NEUF : M9 ne partage plus M4), TVA
+  facturée biens et prestations, TVA récupérable, caisse / banque / Mobile
+  Money, clients, fournisseurs, avances clients, résultat bénéfice / perte. Les
+  cinq comptes de CHARGE (achats, électricité, eau, location, téléphone) n'en
+  sont PAS : le compte d'une charge se choisit ligne par ligne à la saisie d'une
+  dépense, un réglage sans lecteur serait l'indicateur qui affirme sans vérifier.
+- **Stockage : aucun schéma.** Un rôle = un paramètre `compte_<rôle en
+  minuscules>` de `parametres_systeme_local` (registre fermé, groupe `comptes`,
+  quinze clés de plus : 46 en tout, côté serveur comme côté poste). Dernier
+  écrit gagnant, clé par clé, par le chemin des autres paramètres : le poste
+  enfile UN enregistrement (le Journal d'Audit du poste le relit), le serveur le
+  passe par `EnregistrerParametreService` (audit avec l'ancienne valeur), la
+  descente le pose sans rien renvoyer. Vide / absent = le défaut.
+- **Une règle de validation, DEUX endroits, les mêmes phrases** : format
+  `RegleNumeroCompte` (`PlanComptableService::NUMERO_COMPTE_FORMAT`), compte
+  existant au plan, classe cohérente avec le rôle (produit : 7, TVA collectée :
+  443, TVA récupérable : 445, trésorerie : 5, clients : 411, fournisseurs : 401,
+  avances : 419, résultat : 13), compte imputable (pas une division). Au serveur
+  la validation vit DANS `EnregistrerParametreService` (donc l'écran ET la
+  synchronisation d'un poste) ; au poste dans `EnregistrerParametres`
+  (`verifierCompte`, fermé par défaut : sans vérificateur, une clé de rôle est
+  refusée). `rejouer_correspondance.php` rejoue 1 185 opérations contre le vrai
+  service.
+- **Le moteur lit au moment de passer la pièce.** `LigneDemandee(role: …)` : le
+  moteur résout le rôle (`ComptabiliteDao.compteDuRole`) dans la transaction de
+  la pièce ; une ligne sans rôle garde son numéro. Serveur : `CorrespondanceComptesService`
+  injecté dans VenteService (M4/M5/M8/M9, TVA, clients, trésorerie),
+  ReservationService, AnnulationReservationService, EncaissementFactureService,
+  ReglementFournisseurService, DepenseService, ClotureExerciceService. Un compte
+  choisi sans centre par défaut au plan ne bloque pas la pièce : la ligne qui
+  nomme son rôle retombe sur le centre du compte PAR DÉFAUT du rôle (jamais un
+  centre inventé).
+- **RG-11 : une pièce déjà passée n'est JAMAIS réécrite.** L'écran le DIT en
+  tête. Les états qui relisent un compte sur une période (déclaration de TVA)
+  lisent le compte choisi ET le défaut (`comptesLus`) ; les valeurs
+  intermédiaires d'un rôle changé plusieurs fois ne sont retrouvées que dans le
+  journal d'audit (écart assumé). Le bilan lit tout le groupe 13
+  (`RESULTAT_REPORTE = ['13']`, serveur et poste) : un résultat reporté sur un
+  autre compte de la classe 13 ne le déséquilibre pas.
+- **Écran** : « Correspondance des comptes », lien de l'onglet Plan du hub
+  (`/pwa/comptabilite/correspondance-comptes`, poste
+  `/comptabilite/correspondance-comptes`) ; vue Blade
+  `correspondance-comptes.blade.php`, libellés de `lang/fr/comptes_correspondance.php`
+  repris au mot (les mots de la MODALE sont des littéraux de l'écran : le
+  comparateur ne cherche une modale que dans les fichiers qui portent la vue ;
+  un test les égale à la langue). Droit : M10 (lecture pour voir, écriture
+  pour modifier : administrateurs, gérant, comptable). Les clés `compte_*` ne se
+  montrent PAS dans l'écran Paramètres.
+- **Écart assumé** : TVA récupérable, résultat bénéfice et perte n'ont aucun
+  lecteur sur le POSTE (déclaration de TVA et clôture sont au serveur) : leur
+  ligne le dit (`serveurSeul`), et le registre local les déclare sans lecteur.
+- **Parité prouvée contre le VRAI PHP** (un scénario `_scenarioCorrespondance`
+  par flux, mêmes ops des deux côtés) : ventes (`ventes_contre_serveur_test`),
+  règlement fournisseur, encaissement de facture, acompte et remboursement,
+  dépense. Les cinq outils `tool/*/rejouer_*.php` ont une opération `parametre`.
+
+## Tourisme et location au comptoir (22/10/2026)
+
+> **RETIRÉS DE LA SÉLECTION (26/10/2026, directive du PO)** : « il faut enlever
+> cette catégorie de la sélection dans le poste de vente et dans le POS clients
+> (hébergés) ». Ni le POS au comptant ni celui des hébergés (web ET poste) ne
+> proposent plus « Tourisme » / « Location » : ni famille, ni pastille, ni carte,
+> ni carte grisée (`prestationRefusee`, `CategorieHeberges.prestations` et les
+> clés de langue `famille_tourisme` / `famille_location` n'existent plus). Poste :
+> `rayonsProvider` ne rend que `modulesProposesAuPos` (M4, M5) ; le dépôt de
+> catalogue (`CatalogueDao.rayons`) garde M8/M9, la fiche de réservation en
+> a besoin. Le DOMAINE reste défensif et INCHANGÉ : `PanierDao`, `VenteService`,
+> la pièce (7073 / 7061 / 4432) et la synchronisation acceptent une vente M8/M9
+> déjà faite — ce que prouvent encore `VenteTourismeLocationTest` (PHP),
+> `cloture_vente_piece_test` et `vente_prestations_journal_test`. L'ABSENCE à la
+> sélection se prouve dans `PosComptantPrestationsTest`, `PosPwaTest` et
+> `ecrans_pos_test.dart` (mutation : ne plus filtrer `rayonsProvider` les fait
+> rougir). Le reste de cette section décrit le domaine, pas l'interface.
+
+Directive du PO : « TOURISME et LOCATION sont encaissables au COMPTOIR (POS), au
+poste comme au web. » Le serveur les REFUSAIT aussi (`VenteService::MODULES_ENCAISSABLES
+= ['M4','M5']`) : il a été porté en même temps que le poste.
+
+- **Modules et comptes** (poste `piece_de_la_vente.dart`, serveur `VenteService`,
+  confrontés par `ventes_contre_serveur_test` / `rejouer_ventes.php`) : M8
+  (location de véhicules, `vehicules.tarif_jour`) crédite **7073** « Locations »
+  (nouveau rôle `PRODUIT_LOCATIONS` / `produitLocations`, présent au plan du PO),
+  centre « Véhicules » ; M9 (tourisme, `circuits.prix`) crédite **7061** « services
+  vendus » (le plan du PO n'a pas de compte dédié aux circuits), centre
+  « Tourisme » ; la TVA des deux va sur **4432** (prestations). Ordre de la pièce :
+  M4, M5, M8, M9. Comptes 7073, 7061 et 4432 **validés par le PO le 26/10/2026**
+  (et modifiables : voir « Correspondance des comptes »).
+- **Quantité** : un nombre de places (circuit) ou de jours (véhicule), au prix
+  du catalogue local. Aucune sortie de stock (ni au poste ni au serveur) ;
+  `annuler()` du serveur n'exige plus le point « bar » s'il n'y a pas de boisson.
+- **Vente LIBRE de prestation** : ni `ventes` ni `lignes_vente` n'ont de colonne
+  pour un contrat de location ou une réservation de circuit. Le comptoir ne crée
+  donc, ne règle et ne lie rien : un contrat / une réservation déjà saisi ailleurs
+  se règle par SA facture (M2), jamais ici — l'opérateur ne doit pas encaisser
+  deux fois. Un lien exigerait une colonne `contrat_location_id` /
+  `reservation_tour_id` sur `ventes` (schéma serveur ET poste) : non fait.
+- **Séjour** : le panier d'une note de chambre ne porte toujours que M4 et M5
+  (`modulesEncaissablesAuSejour`, `PosHeberges::MODULES_DU_SEJOUR`) ; la phrase
+  `prestationRefusee` dit désormais « ne se portent pas sur la note de chambre ».
+- **Droits** : le web exige M8 / M9 en écriture EN PLUS de M5 (`encaissementReel`,
+  `GestionnaireVentes::modulesRequis`) ; le poste refuse dès l'ajout au panier
+  plutôt que d'encaisser une vente que la synchronisation rejetterait
+  (`MessagesVentes.moduleSansDroit`, RETIRÉ le 26/10/2026 avec les cartes : plus
+  aucun écran n'ajoute M8/M9).
+
+## Lien au stock des boissons, écrit sur le poste (26/10/2026)
+
+Le PO ne parvenait ni à ENREGISTRER une boisson ni à la LIER AU STOCK. Deux
+causes, une par couche : « Nouvelle boisson » n'offrait aucun sélecteur
+d'article (la boisson naissait sans lien, que le serveur rejetait à l'envoi :
+`article_id` requis) et `BoissonsApi.lierAuStock` refusait TOUJOURS
+(`lienSansColonne`) alors que `cartes_boisson_local.unites_vendables` existe
+depuis la v30.
+
+- **Écriture** : « Nouvelle boisson » (Carte du bar), le formulaire « Ajouter
+  boisson » du catalogue (création) et « Lier au stock » / « Modifier le lien »
+  écrivent l'article ET son conditionnement (`BoissonsApi` -> `CatalogueDao`,
+  seul écrivain, qui enfile `creation` ou `modification` avec `article_id` et
+  `unites_vendables_par_unite_stock`). Les articles proposés viennent de
+  `articles_local` (suivi permanent, non archivés) : `SelecteurArticleStock`.
+  Les modales EXIGENT article et conditionnement ; l'API admet un article sans
+  conditionnement (import, comme `CarteBoissonService::creer`), jamais un
+  conditionnement sans article. Le conditionnement est un TEXTE décimal
+  normalisé (`24`, `66.5`) ; `BoissonDistante.unitesVendables` n'est jamais
+  effacé par une écriture qui ne le connaît pas (`Value.absentIfNull`).
+- **Serveur** : `GestionnaireCartesBoisson` accepte désormais le
+  conditionnement (création ET modification, règle de `LierBoissonAuStockRequest`
+  : `numeric`, `gt:0`). Avant, il était ignoré et le serveur gardait le défaut
+  du schéma (1) : un casier de 24 sortait entier à chaque bouteille vendue.
+  La descente (`AligneurCatalogue._boisson`) le reprenait déjà.
+- **Historique des ventes** : le journal `autoDispose` dépendant de
+  `paniersProvider` est prouvé par `journal_apres_cloture_test.dart` (mutation :
+  retirer l'un ou l'autre rougit) et de bout en bout par
+  `parcours_boisson_vente_test.dart` (carte -> POS -> historique -> « −X en
+  attente d'envoi »). Les autres causes (filtre de date par défaut, poste,
+  session close, vente annulée, veille, fuseau) sont écartées par des cas.
+
+## « Actualiser » : clic droit, F5, Ctrl+R (26/10/2026)
+
+Demande du PO : sur les écrans du poste, le clic droit ouvre un menu à un item,
+« Actualiser », qui relit l'écran courant depuis la base locale. Un seul endroit :
+`core/navigation/actualisation_ecran.dart`, branché dans `CoquilleApplication`
+(`ZoneActualisation` autour de la page ; l'écran de connexion/démarrage n'a pas le menu).
+
+- **Action** : `actualisationEcranProvider.notifier.actualiser()` invalide les
+  lectures (`invaliderLesLectures`) puis incrémente un compteur qui sert de
+  `ValueKey` à la page (`KeyedSubtree`) : l'écran est reconstruit.
+- **Critère des providers invalidés** : tout `FutureProvider` / `StreamProvider`
+  VIVANT du conteneur (famille et `autoDispose` compris), hors `lecturesConservees`
+  (`aucunCompteProvider`, `liberationBauxSyncProvider`). Aucune liste à tenir : un
+  provider de lecture ajouté demain est couvert. Session, base, droit, thème,
+  filtres (`Notifier`) ne sont jamais touchés ; l'utilisateur reste connecté.
+  Le parcours des providers vivants passe par `getAllProviderElements`, interne
+  à Riverpod (import `src/internals.dart`, avertissements levés en ligne) : le test
+  rougit si une montée de version le retire.
+- **Ce qui est perdu** : seule la saisie non enregistrée tenue en mémoire par la
+  page. Une modale ouverte n'est jamais fermée et le menu comme F5 n'agissent
+  pas tant qu'elle est ouverte (`ModalRoute.isCurrent`). Sur un champ de saisie,
+  le clic droit reste celui du champ (détecté par `RenderEditable` sous le curseur).
+- **Preuves** : `test/core/navigation/actualisation_ecran_test.dart` ; une ligne
+  est écrite en base SANS invalider, puis « Actualiser » la fait apparaître.
+  Mutation éprouvée : retirer `invaliderLesLectures` fait rougir 3 cas.
+
+## Journaux de synchronisation du serveur : Réception et Envoi (26/10/2026)
+
+L'écran web « Postes & Appairage » a trois onglets : Postes, **Réception** (ce que
+le serveur a reçu de chaque poste par `POST /sync`) et **Envoi** (ce qu'il a mis à
+disposition par `GET /referentiels`). Tables serveur : `journal_reception_synchronisation`
+(une ligne par `uuid_operation` : issue acceptée / fusionnée / déjà reçue / signalée /
+conservée / conflit / rejetée / erreur, motif structuré, cause en français, tentatives,
+charge reçue, prise en charge ; purge à 90 jours, 365 s'il attend une correction, par
+`NettoyerDeduplicationSyncJob`) et `journal_envoi_synchronisation` (livré par poste et
+par table, tables non livrées faute de droit) ; `etats_postes_synchronisation` gagne le
+dernier curseur rendu, la redescente demandée et le compte des 409 « génération périmée ».
+Contrat pour le poste, rétro-compatible : un résultat `rejete` de `/sync` porte en plus
+`code_motif` (`droit_manquant`, `compte_inactif`, `donnees_invalides`, `chevauchement`,
+`entite_inconnue`, `entite_existante`, `regle_metier`, `stock_insuffisant`…) ; le poste peut
+l'ignorer. « Redescendre depuis le début » pose une demande que `/referentiels` consomme
+au prochain passage du poste : le curseur présenté est ignoré, le poste repart du début.
+Corriger / Relancer rejouent l'opération par `SynchronisationService` sous un nouvel
+`uuid_operation`, avec l'horodatage de saisie d'origine ; la version du poste n'est pas modifiée.
+
+## Le poste est plus privilégié que le serveur (26/10/2026)
+
+Décision du PO : tous les modules fonctionnent sur le poste, synchronisation active ou non. Audit complet, module par module, avec ce qui reste impossible hors ligne : `../docs/AUDIT_POSTE_AUTONOME.md`.
+
+- **Interrupteur « Synchronisation activée »** (Paramètres → Synchronisation, Administrateurs) : clé `synchronisation_activee` de `poste.json` (absente = activée ; PAR POSTE, hors base, survit à la réinitialisation). Éteint, AUCUNE requête : `SyncManager` (envoi, descente, suivi de la demande du serveur), `ControleCoherence`, `ServiceAppairage`, `ServiceSuiviPostes` relisent le fichier avant chaque passage ; la file se remplit, partira dans l'ordre à la réactivation (qui lance un passage). Voyant gris « Synchronisation désactivée ». Preuve : `synchronisation_desactivee_test.dart` (transport qui lève). Un nouveau chemin réseau DOIT appeler `LecteurConfigurationPoste.synchronisationActivee()`. L'envoi SMTP n'est pas de la synchronisation et n'est PAS coupé par l'interrupteur (le courriel part directement du poste au relais SMTP ; hors réseau il reste dans la boîte d'envoi, voir « Envoi réel d'e-mails » plus bas) — testé : `boite_envoi_emails_test.dart`.
+- **Source des états comptables** (`sourceEtatsFinanciersProvider`) : miroir du serveur si la synchronisation est active ET qu'il a reçu des écritures, sinon les écritures validées de CE poste. Jamais mêlées. Compte de résultat, bilan, six indicateurs du hub, Dépenses cumulées et série mensuelle du tableau de bord, Résultat net du pilotage, balance de M14, TAFIRE et notes annexes en dépendent. Grand livre et analytique se lisent toujours sur les pièces du poste. Confrontés au vrai serveur : `grand_livre_analytique_contre_serveur_test`, `etats_financiers_contre_serveur_test` (TAFIRE, notes), `depenses_cumulees_contre_serveur_test`.
+- **Piège Riverpod** : `ref.read(fournisseurAutoDispose.future)` depuis un lecteur qui n'est pas lui-même `autoDispose` libère le `Ref` pendant l'attente (« Cannot use the Ref … after it has been disposed »). Les lecteurs (`lireDonneesEtats`, `lireSourceEtats`, `lireDonneesComptabilite`, `lireChargesDatees`) sont donc des FONCTIONS appelables hors fournisseur.
+- **Piège de banc** : sous `flutter test`, `getApplicationSupportDirectory` ne se termine jamais (horloge simulée) ; `cheminConfigurationPoste()` rend un chemin temporaire quand `FLUTTER_TEST=true`, et `poste.json` se lit en E/S synchrones.
+- **Numéro de compte** : UNE règle, `RegleNumeroCompte` (2 à 4 chiffres, `6056`), relue du serveur (`PlanComptableService::NUMERO_COMPTE_FORMAT`) par `creation_compte_hub_test`. Attention : 6056 existe déjà au plan du PO (invite, pas exemple libre).
+
+## Le poste fait comme le web : prix, annulation de contrat, auteur, N° V- (26/10/2026, schéma v38)
+
+Décision du PO : quatre manques de l'audit (`../docs/AUDIT_POSTE_AUTONOME.md`) sont portés. Schéma **v38**, 74 tables :
+une table neuve (`historique_prix_carte_local`) et six colonnes NULLABLES, migration conditionnelle
+(`PRAGMA table_info`, piège 3), curseur de descente oublié, fixture `_ajoutsParVersion[38]`,
+`tablesAjouteesEnV38`, `migration_v38_poste_comme_le_web_test.dart` sur fichier réel.
+
+- **Historique des prix** (bar ET restaurant) : la trace est un miroir de `historique_prix_carte`. Écrivains :
+  `CatalogueDao.enregistrerBoisson` et `RestaurantDao` (`_enfilerPlat`, `modifierPrix`) via
+  `HistoriquePrixCarteDao.tracer` (exige une transaction). Ce qui se trace (champs `prix_vente`,
+  `prix_corrige_main`, ordre) est la fonction pure `changementsDePrix`, CONFRONTÉE au vrai serveur
+  (`tool/carte/rejouer_historique_prix.php`, observateurs `CarteBoissonObserver`/`PlatObserver`). Le serveur
+  est l'unique auteur de la trace : le poste ne la pousse PAS ; la trace locale (`recu_du_serveur = false`)
+  est ADOPTÉE par la trace serveur équivalente à la descente (jamais doublée). Serveur : `historique_prix_carte`
+  dans `CatalogueDescendantService::COLONNES`, `par` en login, restreint aux modules lisibles.
+  Écran restaurant « Prix » (`modale_prix_plat.dart`) et « Historique des prix » : jetons `blade-refuse` levés.
+  La réinitialisation « comme neuve » vide la table (testé, mutation éprouvée).
+- **Annulation d'un contrat** : `contrats_location_local.statut` (null = actif). Écrivain unique
+  `VehiculeDao.annulerContrat` (refus aux phrases du serveur, relues par PHP) ; part en
+  `modification {statut: annule}` si le serveur détient le contrat (`GestionnaireContratsLocation::modifier`,
+  rejeu accepté, tout autre champ refusé) ; la descente ne va que vers l'avant, et une annulation locale en
+  file n'est jamais écrasée. Un contrat annulé libère RG-08 (défaut SERVEUR corrigé en chemin :
+  `STATUTS_INACTIFS`), l'archivage d'un client et celui d'un véhicule. Pas de restriction Q3 (la PWA n'en a
+  pas). KPI de la vue : calculés sur l'ensemble FILTRÉ par statut, répliqué tel quel (« 0 annulé(s) » avec le
+  filtre par défaut). Signalé, non touché : l'état M14 « Locations » du serveur liste tous les contrats.
+- **Utilisateur et poste du journal d'audit** : `operations_sync_local.auteur_login` / `poste_nom`, posés à
+  l'enfilement par `AppDatabase.auteurEcriture` (câblé sur la session dans `baseLocaleProvider`) et recopiés par
+  `renvoyer`. Poste = nom de la machine (la vue serveur montre une adresse IP : écart nommé). Avant la v38 : « — ».
+- **N° `V-` et auteur d'une vente** : `paniers_local.numero_vente` / `auteur_login`. Le poste n'invente jamais
+  un numéro (séquence du serveur) : il le pose à l'accusé du `POST /sync` (`SyncManager`,
+  `PanierDao.regulariserNumeroVente`) ou à la descente de la vente ; avant, « — ». L'auteur est le login connecté
+  à la clôture, ou le `par` du serveur. Le repli « numéro de facture » des ventes du rayon est supprimé.
+- **Pièges** : l'aligneur CONSERVE un panier dont une opération attend (un test de descente doit marquer
+  l'opération `synchronise`) ; une trace locale adoptée se prouve avec une date serveur ANTÉRIEURE, sinon le
+  filtre `recuDuServeur` ne mord pas ; les libellés d'une modale se mesurent dans les fichiers qui CITENT la vue
+  (les deux modales du bar citent aussi la vue du restaurant).
+
+## Envoi réel d'e-mails (schéma v39, 26/10/2026)
+
+Décision du PO du 26/10/2026 : « l'envoi réel d'e-mails DOIT ÊTRE IMPLÉMENTÉ EN POSTE ET WEB ». Détail et limites : `docs/AUDIT_POSTE_AUTONOME.md` §4 point 2.
+
+- **Table `boite_envoi_emails_local`** (v39, neuve, migration conditionnelle, fixture `_ajoutsParVersion[39]`, `migration_v39_boite_envoi_emails_test.dart` sur fichier réel). **Écrivain unique : `BoiteEnvoiEmailsDao`** (aucune suppression). Clé d'idempotence UNIQUE `notification:<id du message>` ; statuts `en_attente` / `envoye` / `echec` (30 tentatives automatiques, repli ×2 de 5 min à 6 h, la MÊME politique que « Contactez l'éditeur ») / `annule` (message transmis à la main ou abandonné : ne part JAMAIS). `tentatives` ne compte que les connexions réellement tentées ; une configuration absente note la raison sans compter.
+- **Expéditeur unique : `ServiceBoiteEnvoiEmails`** (`mailer`, transport injectable `TransportSmtp`, une instance partagée par le geste et la relance : `serviceBoiteEnvoiEmailsProvider`, relance `relanceBoiteEmailsProvider` démarrée par `main.dart`, pas par `main_demo.dart`). La configuration se lit à CHAQUE envoi par `LecteurSmtp` (clés SMTP de Paramètres + mot de passe de `poste.json`, jamais en base ni dans une cause d'échec : `expurgerSecret`). `envoye` n'est écrit QU'APRÈS l'accusé SMTP, dans la MÊME transaction que le passage du message M12 à « Envoyé par le système » (`NotificationsDao.marquerEnvoyeParLeSysteme`, seul chemin vers ce statut : le test « aucun geste de l'écran ne produit envoyé » reste vrai).
+- **M12** : `NotificationsDao.detecter(emailsClients: …)` met le message ET son e-mail en boîte dans la même transaction (canal e-mail, adresse de `clients_local.email` valide, client non archivé) ; une détection ultérieure RATTRAPE les messages composés sans e-mail en boîte. « Envoyer » / « Renvoyer » (`envoyerMessageNotificationProvider`) résout l'adresse au geste, met en boîte puis tente tout de suite. Le canal e-mail est « branché » (`transportsLocauxProvider`) quand la configuration SMTP est COMPLÈTE (dérivé, relu), jamais écrit en dur. L'écran dit l'état vrai : « Tentatives d'envoi : n · Dernière erreur : … · Relances automatiques épuisées » (mots de la vue).
+- **Piège rencontré** : `insertOrIgnore` de Drift rend le dernier identifiant inséré MÊME quand la ligne est ignorée — il ne dit pas si la clé existait ; lire l'existence avant d'insérer. Piège de test : une lecture de `poste.json` dans un `testWidgets` n'avance que par `tester.runAsync` + `pump` répétés (`laisserLesEntreesSorties`).
+- **Serveur SMTP d'essai** : `test/features/transverse/support/serveur_smtp_essai.dart`, un vrai petit serveur sur socket locale (AUTH PLAIN/LOGIN, DATA, refus 535/554) — le moyen d'éprouver `mailer` de bout en bout sans réseau.
+- **Hors périmètre, dit** : WhatsApp, Android et SMS ne partent pas (aucun contrat) ; seuls les déclencheurs détectés sur le poste (séjour demain, départ) ont une adresse.
+
+## Clôture annuelle SYSCOHADA sur le poste (26/10/2026, schéma v40)
+
+Décision du PO : « la clôture annuelle DOIT ÊTRE IMPLÉMENTÉE EN POSTE ET WEB ». Détail : `docs/AUDIT_POSTE_AUTONOME.md` §4 point 3, `docs/CLOTURE_EXERCICE_SYSCOHADA.md`.
+
+- **Table `clotures_exercices_local`** (v40, 76 tables, migration conditionnelle, fixture `_ajoutsParVersion[40]`, `migration_v40_clotures_exercices_test.dart`). **Seul écrivain : `ClotureExerciceLocale`** (`comptabilite/data/`) : démarrer, reprendre la saisie, clôturer, rouvrir (comptable seul, motif >= 10 caractères). Les pièces `CL` et `AN` passent par `MoteurComptable` (jamais d'écriture directe, RG-11) ; comptes 131/139 via `compteDuRole`. Les journaux `AN`/`CL` sont masqués à la saisie manuelle.
+- **Contrat de synchronisation (D246)** : le poste n'envoie aucune pièce. Chaque geste enfile, dans sa transaction, une demande `demandes_cloture_exercice` (création seule) ; le serveur (`GestionnaireDemandesCloture`, M10) rejoue `ClotureExerciceService` et passe SES pièces. Demande déjà satisfaite = acceptée. `AligneurCatalogue` garde la clôture locale tant que la dernière demande de l'année n'est pas acceptée.
+- **Archive légale** (`ArchiveClotureLocale`) : `ecritures.csv`, `balance.csv`, `etats-cloture.pdf`, `manifeste.json` (empreinte SHA-256 du manifeste), ZIP « stored » en pur Dart (`core/fichiers/zip_stocke.dart`), CSV quoté comme `fputcsv` PHP. Dans `archives/` à côté de `poste.json`.
+- **Preuves** : `cloture_contre_serveur_test` (vrai service, `tool/comptabilite/rejouer_cloture.php`), `demandes_cloture_contre_serveur_test` (vrai `SynchronisationService`, `valider_demandes_cloture.php`) ; ces scripts acceptent `TATACORA_BASE_ESSAI=tatacora_<x>_test`. 25 mutations éprouvées.
+- **Écarts nommés** : résultat de clôture = pièces du poste seules (le serveur peut refuser, refus lu dans « À traiter ») ; pas de relevés bancaires ; PDF par le gabarit tabulaire commun ; archives hors sauvegarde de base ; lien « six étapes » non porté.
+- **Pièges** : après une clôture, l'exercice par défaut devient N+1 — l'onglet épingle l'exercice consulté (`exerciceChoisiProvider`) ; un exercice sans pièce est « connu » par `anneesAvecClotureActive` ; une note « Sur ce poste » dans un littéral affiché est refusée par la garde (« Ici », ou une phrase métier).
+
+## Les champs du web portés : véhicule, contrat, plat, guide (27/10/2026, schéma v41)
+
+Décisions du PO D1 et D2 (« convertir en CRUD, même logique que le web ; le poste fait ce que le web fait + la synchronisation »). Détail : `../docs/INVENTAIRE_POSTE_LECTURE_SEULE.md` (A6, A7, A8, A10). Schéma **v41**, **76 tables** (aucune table neuve) : DIX colonnes NULLABLES, migration conditionnelle (`PRAGMA table_info`, piège 3), curseur de descente oublié, fixture `_ajoutsParVersion[41]`, `migration_v41_champs_du_web_test.dart` sur fichier réel depuis les versions 40, 38, 36, 30, 26 et 14.
+
+- **Véhicule** (`vehicules_local`) : `annee`, `capacite` (les « Places »), `transmission`. Écrivain unique `VehiculeDao.enregistrerVehicule` (bornes et PHRASES du serveur : année de 1950 à l'an prochain, places de 1 à 99, transmission 255 caractères ; un paramètre `null` laisse la colonne, une transmission vide l'efface) ; part en création, ou en modification avec les seuls champs CHANGÉS. Serveur : `GestionnaireVehicules::modifier` accepte les trois champs (le web les saisit à l'édition).
+- **Contrat** (`contrats_location_local`) : `numero` (`LOC-…`), `remise`, `acompte`, `montant`. **Le montant est FIGÉ à la signature** : tarif du jour × jours − remise, écrit une fois par `VehiculeDao.creerContrat`, JAMAIS recalculé au tarif courant ; le reste dû est la différence montant − acompte (jamais une colonne). Refus dans l'ordre du serveur (dates, véhicule, client, remise > brut, acompte > net, puis louable, pièce, permis, chevauchement), aux phrases `lte` de la vue. Le N° est celui de la séquence du serveur : `NULL` jusqu'à l'accusé (`SyncManager` → `VehiculeDao.regulariserNumero`) ou la descente — le poste n'en invente aucun. La remise n'est pas gardée par le serveur (ni par le web : il ne range que le montant net) : un contrat reçu d'ailleurs n'en a pas. **Anciens contrats : les quatre colonnes restent nulles, « — », jamais un chiffre déduit du tarif courant** ; la descente les comble avec les chiffres du serveur (là où la colonne est nulle seulement : le montant figé du poste n'est jamais réécrit). Écran Contrats : N° / Montant / Acompte / Reste dû (rouge si positif, « Soldé » si nul, « — » si inconnu) et ligne TOTAL à trois sommes (`null` si UN contrat actif est inconnu : une somme amputée est plausible et fausse) ; KPI « Reste à encaisser » calculé, « — » avec sa raison s'il manque un chiffre. L'état M14 « Locations » du poste somme le montant figé et NOMME les contrats sans montant.
+- **Plat** (`plats_local.categorie`) : l'une des dix clés de `CategorieCarte` (registre relu de `CarteRestaurant::CATEGORIES`, clés ET libellés, par `champs_location_contre_serveur_test`). Saisie dans « Nouveau plat » (2e champ, comme la vue), colonne et filtre « Toutes les catégories » du CATALOGUE (la catégorie du plat, plus le type du menu), import M4 (colonne « Catégorie »). **Serveur** : `EnregistrerPlatRequest::CHAMPS_REFUSES` garde `categorie` pour l'API ; seul le chemin de synchronisation (`GestionnairePlats`) l'accepte, validée contre le registre fermé, toutes les autres validations gardées. ⚠ **Écart assumé** : la CARTE du restaurant (filtre, couverture, impressions) classe encore par type de menu, comme l'API ; la vue PWA la classe par la catégorie du plat — à porter séparément (les parités contre `CarteRestaurantService` sont à reprendre avec elle).
+- **Guide** (`guides_local`) : `certification`, `tarif_jour` (francs entiers). Ils partaient déjà au serveur sans être rangés ; `TourismeDao.enregistrerGuide` les écrit, la descente les redonne (un tarif à fraction de franc se range inconnu, le guide n'est pas refusé).
+- **Import** : M8 gagne « Année » (obligatoire), « Nombre de places », « Transmission » ; M4 gagne « Catégorie » (liste fermée) — les colonnes du modèle du serveur.
+- **Descente** : `CatalogueDescendantService::COLONNES` gagne `plats.categorie` et `contrats_location.acompte` (véhicules et guides y avaient déjà leurs champs). `AligneurDocuments._vehicule` range une année `0` (poste d'avant, signalée au serveur) à `null`. Aucun aligneur n'enfile (balayage de la file dans `descente_champs_location_test`).
+- **Preuves contre le VRAI serveur** : `tool/vehicules/rejouer_champs_location.php` (modèle de `rejouer_annulation_contrat.php`, `TATACORA_BASE_ESSAI=tatacora_<x>_test` accepté) pousse des documents hors bornes au vrai `SynchronisationService` et rend les phrases ; `champs_location_contre_serveur_test` confronte bornes, phrases, ORDRE des refus, montant net / acompte / reste dû et registre des catégories, puis pousse la FILE du poste (véhicule complet, contrat remisé, plat catégorisé, guide certifié) à `valider_charge.php` et relit ce que le serveur a rangé. Côté PHP : `VehiculesSynchronisationTest`, `CatalogueRestaurantSynchronisationTest`, `TourismeSynchronisationTest`, `ChampsPosteDescendantsTest`.
+- **Pièges** : la descente rend `annee` et `capacite` en CHAÎNES (« 2022 »), à lire par `entierDepuisDecimal` ; `ClientsLocal` n'est pas synchronisé par `insert` direct : un test qui pousse une file doit AUSSI enfiler la création du client, sinon le serveur répond « client inconnu ».
+
+## Le reçu en image d'une dépense (lot L4, 27/10/2026, schéma v42)
+
+Décision D4 du PO (« convertir en CRUD, même logique que le web » ; un transport de fichier est accepté dans la synchronisation). La dépense joint un reçu comme l'écran web, et le fichier voyage.
+
+- **Règle du web, mêmes phrases** : image reconnue à son CONTENU (jpg, png, gif, bmp, webp ; svg refusé), 400 Ko pile (`max:400`), « Le champ photo recu doit être une image. » / « Le fichier photo recu ne peut pas peser plus de 400 kilo-octets. ». Poste : `verifierRecu` (`depenses/domain/recu_depense.dart`) ; serveur : `RecuDepenseService::controler` (le validateur Laravel lui-même). `depenses_recu_contre_serveur_test` juge un corpus de 17 fichiers (dont PNG sans IHDR, « BM » + texte) par le VRAI PHP (`tool/depenses/rejouer_recus.php`) : mêmes verdicts, même empreinte.
+- **Stockage** : jamais le blob dans Drift. Fichier dans `recus_depenses/<id>.<ext>` à côté de `poste.json` (`RecusDepensesLocaux`, écriture atomique `.tmp` + renommage, un nom ne sort pas du dossier). **v42** : six colonnes NULLABLES sur `depenses_local` (`recu_nom`, `recu_sha256`, `recu_taille`, `recu_type`, `recu_statut`, `recu_cause`), migration conditionnelle, fixture `_ajoutsParVersion[42]`, `migration_v42_recus_depenses_test` sur fichier réel. Le dossier est hors de la sauvegarde de la base.
+- **Écrivain unique** : `DepenseDao` (`enregistrer(recu:)`, `accuserRecu`, `refuserRecu`, `retenirReferenceRecu`, `retenirFichierTelecharge`) + le miroir `aligneur_documents.dart` (qui ne fait qu'appeler le DAO). Un fichier dont la dépense n'est pas écrite (pièce refusée, panne) est retiré.
+- **État vrai** (`StatutRecu`) : `en_attente` à la saisie ; `envoye` UNIQUEMENT sur l'accusé du serveur (200 du dépôt) ou la référence redescendue avec la MÊME empreinte ; `refuse` + cause (phrase du serveur) ; `du_serveur` (référence d'un autre poste, fichier non téléchargé). L'écran dit « en attente d'envoi » / « envoyé » / « refusé » (infobulle = cause).
+- **Transport** : interface `TransportFichiers` à part (`/sync` reste du JSON ; les faux transports de la file ne changent pas). `EnvoiRecusDepenses` est branché sur le passage de `SyncManager` (après la file, avant la descente) : même interrupteur `synchronisationActivee()`, même génération, mêmes 401/403/409 consignés. Un reçu ne part qu'après l'accusé de la CRÉATION de sa dépense ; 404 `depense_inconnue`, 5xx, injoignable = il attend ; tout autre refus de fond est définitif. Rejeu : même fichier, même empreinte, le serveur répond `rejeu` et c'est un accusé.
+- **Serveur** : `PUT /api/v1/sync/depenses/{depense}/recu?poste_id=` (corps = fichier brut, `X-Recu-Sha256`), `GET` du même chemin (à la demande, jamais en masse). Droits de la dépense : écriture M10 pour déposer, lecture pour télécharger ; poste du jeton ; la dépense doit venir du même poste (ou, trace purgée, du même compte) ; taille annoncée refusée avant lecture (413) ; idempotent par SHA-256 ; un autre fichier sur une dépense qui a déjà un reçu = 409. Journal de réception : table `recus_depenses`, cause lisible (`synchronisation_journal.motifs.recu_*`), sans « à traiter » (rien à rejouer côté serveur). Migration `2026_10_27_100000` : `recu_sha256`, `recu_taille`, `recu_type` NULLABLES (l'écran web les pose aussi ; un reçu web d'avant garde `null`, l'empreinte est alors calculée au téléchargement). La descente porte `donnees.recu` = `{sha256, taille, type}`, jamais le chemin.
+- **Téléchargement** : `TelechargementRecuDepense`, au clic sur « reçu » seulement ; fichier du poste d'abord, sinon requête (interrupteur relu, démonstration/non appairé/refusé/autre serveur = une phrase, aucune requête) ; vérifie image, 5 Mo, empreinte de la référence ET de l'en-tête avant de ranger.
+- **Écart nommé (piège 13)** : l'aide de la vue (`champ_recu_aide`, « L'image est réduite avant enregistrement… une douzaine… ») promet une réduction que rien ne fait (la vue le dit elle-même en commentaire). Remplacée par la phrase vraie (400 Ko, rangé sur le poste puis envoyé) ; test source (rougit si la vue est corrigée) + test du code rendu. L'export CSV/PDF n'a pas la colonne « Pièces », comme celui du serveur.
+- **Pièges** : `corps?['code']` dans une garde `when` ou un ternaire est lu comme `? :` (calculer avant) ; `Request::call` de Laravel ignore `withToken` (passer `HTTP_AUTHORIZATION`) et le garde Sanctum mémorise l'utilisateur d'un test (`forgetGuards()`) ; l'aligneur CONSERVE la ligne d'une dépense tant qu'une opération l'attend (accuser la création avant de tester la descente) ; ne jamais `dart format` un dossier partagé.
+- **Non fait / assumé** : pas de réduction d'image ; pas d'essai Dart ↔ `artisan serve` de bout en bout (le transport HTTP réel du poste est éprouvé contre `MockClient`/faux, le contrôleur contre le vrai Laravel en PHP) ; reçu non joignable après coup (la dépense est immuable, comme au web).
+
+
+## Lots L0-L2 : verrou, bulletin A4, modales d'ouverture, restauration d'archives (27/10/2026, sans schéma)
+
+Détail : `../docs/INVENTAIRE_POSTE_LECTURE_SEULE.md` §9. Décision du PO : « convertir en CRUD, même logique que le web ».
+
+- **A11** : l'archivage des employés passe par `core/rbac/regle_archivage.dart` (administrateur / super_admin OU bascule), relue à chaque geste (D272).
+- **A1 Verrou de session** : `features/auth/domain/verrou_session.dart` + `voile_verrou_session.dart`, minuteur d'inactivité, limiteur d'essais rejoué contre `VerrouSession` (`tool/session/rejouer_verrou.php`). Horloge, stockage et vérificateur injectables ; un test de widget démonte l'arbre avant la vérification des minuteurs.
+- **A3 Bulletin de paie A4** : `features/rh/impression/bulletin_paie_a4.dart` (gabarit commun `entete_a4.dart`, `texteTicket`) ; « Imprimer » / « PDF » sont des actions injectables. Classé dans `documentsClient` de `pdf_directive_test` (document REMIS, pas de visas).
+- **A2 Modales d'ouverture** : `features/alertes/{domain,presentation}/modales_ouverture.dart`, `HoteModalesOuverture` dans la coquille, déclenché par `ouvertureEnAttenteProvider` (posé à la connexion). Stock critique, puis départs et créances ; check-out via `SejourDao.checkoutDuSejour`, relance tracée ; droits M1/M3. Preuve : `tool/alertes/rejouer_modales_ouverture.php`. Piège : `etapesOuvertureProvider` n'est PAS autoDispose (libéré pendant `.future`).
+- **A4 Restaurer** : `features/transverse/{domain/registre_archives,data/archives_poste}.dart`. Registre DÉRIVÉ (unités `actif=false`, véhicules `hors_service`), « archivé le/par » lu de `operations_sync_local`, aucune table d'archives. Restaurées = restauration précédée d'un archivage connu, plafond 100. Preuve : `tool/transverse/rejouer_archives.php`. Écarts : archives d'un autre poste absentes ; « — » sans opération locale. A5 (purge) : voir « Purge définitive » plus bas.
+- **Pièges** : basenames identiques (domaine/présentation) = sauvegardes de mutation écrasées ; ne pas lancer `dart format` sur de larges dossiers.
+
+## Comptes du plan et pièces saisies à la main : D246 ROUVERT (28/10/2026, schéma v44)
+
+Décision du PO du 28/10/2026 : « OUI » pour rouvrir D246 sur deux points (le poste fait ce que le web fait + synchronisation). Détail : `../docs/INVENTAIRE_POSTE_LECTURE_SEULE.md` §10 (A12, B4, D6). D246 reste vrai pour tout le reste : le poste n'envoie jamais la pièce d'un module (vente, dépense, règlement, clôture) ni une pièce descendue ; le serveur est le seul à passer ces pièces-là.
+
+- **Compte** : `MoteurComptable.creerCompte` enfile (dans sa transaction) une `creation` `plan_comptable` (`chargeCompte` : numéro, libellé, nature). Serveur `GestionnairePlanComptable` (M10, création seule) rejoue `PlanComptableService::creerCompte` (nouveau paramètre `id` optionnel) : même identifiant = rejeu ; numéro déjà pris avec MÊME libellé et MÊME nature = fusion (`fusionne_avec`), sinon refus « Le compte … existe déjà » (À traiter). Le web n'a aucune modification de compte : création seule. Descente `TableDescendue.planComptable` (après `exercicesComptables`, avant `ecrituresComptables`) : `AligneurCatalogue._compteDuPlan` ajoute un compte absent (clé = numéro), n'en réécrit JAMAIS un (`ComptabiliteDao.insererCompteDescendu`, insert-or-ignore), n'enfile rien ; classe ≠ 1er chiffre, nature hors registre, numéro mal formé = refus.
+- **Pièce** : `MoteurComptable.saisirPiece(demande, valider:)` (appelé par la seule modale « Nouvelle écriture ») passe la pièce, l'inscrit dans `pieces_saisie_local` (écrivain unique, identifiant d'origine) et enfile la SOURCE `pieces_saisie` (`chargePieceSaisie` : journal, date, libellé, statut `brouillon|validee`, lignes en centimes, centre par son LIBELLÉ — les identifiants de centre du poste ne sont pas ceux du serveur). `passer` / `passerEtValider` restent ceux des modules et n'enfilent rien. Serveur `GestionnairePiecesSaisie` (M10, création seule, table `pieces_saisie` = document source) rejoue `PasserEcritureService` aux règles de `Hub::enregistrerPiece` (mêmes noms de champ donc mêmes phrases : journal connu et non réservé CL/AN, date, libellé, ≥ 2 lignes, compte du plan, débit XOR crédit, équilibre, exercice ouvert ou en clôture, RG-12) et passe SA pièce ; `ecritures_comptables.piece_origine_id` (migration `2026_10_28_100000`) porte l'identifiant du poste sur chaque ligne (idempotence + reconnaissance).
+- **Pas de double comptage** : les états lisent UNE source (miroir `ecritures_serveur_local` si reçu, sinon les pièces du poste — voir `AUDIT` §2), jamais les deux. La pièce redescendue arrive dans le miroir avec `piece_origine_id` ; `ComptabiliteDao.piecesSaisiesNonReprises` (NOT EXISTS sur l'origine) la reconnaît. Le poste ne renvoie jamais une pièce descendue : celles-ci n'entrent que dans le miroir.
+- **Ordre** : file du poste = ordre d'écriture (le compte est enfilé avant la pièce qui le cite) ; registre serveur `plan_comptable`, `pieces_saisie` avant `immobilisations` ; descente plan avant écritures (tests `plan_pieces_saisie_poste_test`, `RegistreGestionnairesSynchronisationTest`, `EcrituresDescendantesTest`).
+- **Preuves** : `plan_pieces_contre_serveur_test.dart` (vrai PHP par `tool/comptabilite/rejouer_plan_et_pieces.php`, `TATACORA_BASE_ESSAI` : pièce identique au centime, numéros, origine, redescente), `PlanEtPiecesSaisieSynchronisationTest`, `migration_v44_pieces_saisie_test.dart` (fichier réel, `_ajoutsParVersion[44]`). Mutations tuées : saisirPiece sans enfilage / sans validation / sans marquage, rôle admis, aligneur qui réécrit, reconnaissance d'origine, validation serveur, origine non posée, journal réservé, fusion sans nature, doublon fondu, identifiant du poste perdu.
+- **Écarts assumés** : une pièce saisie avant la v44 n'est ni marquée ni envoyée ; un brouillon du poste reste brouillon au serveur (aucune validation différée nulle part) ; une pièce validée non encore reprise n'est dans aucun état synchronisé (le bandeau de provenance compte l'opération en attente) ; interrupteur « Synchronisation activée » éteint : rien n'est enfilé (`enfiler` rend `null`). Les 3 écarts du comparateur Blade (`import-export` restaurer/purge) viennent du lot A5, pas de ce lot : aucun libellé n'a bougé ici.
+- **Pièges** : `SynchronisationService` lit chaque table du registre sous son nom et son `id` : un gestionnaire sans table physique (`pieces_saisie`) plante à la lecture. La fixture `_ajoutsParVersion` exige une entrée par version (43 est celle d'A5). Dans un arbre partagé, ne jamais écrire `open(p,'w').write(f(open(p).read()))` (tronque avant de lire).
+
+## Purge définitive d'une unité ou d'un véhicule archivé : A5 (lot L5-A5, 28/10/2026, schéma v43)
+
+Décision D5 du PO (« OUI »). Détail : `../docs/INVENTAIRE_POSTE_LECTURE_SEULE.md` §11.
+
+- **Protocole** : `TypeOperationSync.suppression`, REGISTRE FERMÉ (`TableSynchronisee.accepteSuppression` : `unites_hebergement`, `vehicules`) ; un test relit les gestionnaires PHP (`accepteSuppression()`). `OperationsSyncDao.enfiler` refuse toute autre table et un corps vide (le serveur exige un tableau non vide : `{libelle}`). Serveur : `SynchronisationService::traiterSuppression` (super_admin puis écriture PARAM, idempotent, `deja_supprime`), `GestionnaireUnitesHebergement/Vehicules::supprimer` -> `purger` des services de parc.
+- **Écrivains uniques** : `ParcDao.purger` / `VehiculeDao.purger` (verrous dans l'ordre et aux phrases du serveur, `delete` + `enfiler` dans UNE transaction) ; descente : `retirerUnitePurgeeAilleurs` / `retirerVehiculePurgeAilleurs` (rendent `false` si une saisie locale cite l'élément ; n'enfilent rien). `AligneurCatalogue._suppression` : opération en attente ou saisie rattachée -> `ConserveLocalement` (dit au journal de réception), sinon retrait. `ElementCatalogue.supprime` (JSON `supprime: true`, `donnees` vide ou `[]`) n'est admis que pour ces deux tables.
+- **Serveur, descente** : `suppressions_synchronisation` (écrite par les DEUX `purger`, donc aussi par l'écran web), curseur `suppressions` de `CatalogueDescendantService`, lue seulement pour les tables dont le poste lit le module.
+- **Écran** : corbeille `ie-archive-purger-<id>` (super_admin seul, `estSuperAdmin` de `regle_archivage.dart`), `_ModalePurge` (`ie-modale-purge`, refus affiché DANS la modale), `purgerArchiveProvider` (rôle, puis droit PARAM, relus au geste). Jeton `#modale:import_export.purge_titre` levé, `classification-exemptions.json` et dette Blade resserrées (`--figer-dette` : progrès réel).
+- **v43** : `elargirTypesOperationsSync` (`lib/core/database/`), conditionnel, copie avant abandon, `seq` reporté, index recréés ; fixture `_ajoutsParVersion[43]` + `_retrecirTypesOperations` (la migration travaille dans chaque fixture qui la traverse) ; `migration_v43_suppression_operations_test`. Piège : ne jamais recréer `operations_sync_local` autrement (donnée non synchronisée = seule copie).
+- **Preuves** : `tool/transverse/rejouer_purge.php` (vrai composant `ImportExport` + `RegistreArchivesService`, 16 éléments, mêmes verdicts et phrases), `tool/sync/valider_charge.php` (paramètre `role`) pour la file du poste, `PurgeSynchronisationTest` (serveur), `archives_purger_test`, `purge_descente_test`. Mutations tuées : verrou « cité », « fin aujourd'hui », super_admin, bouton, libellé, conservation de la saisie locale, registre fermé, report de `seq`, index.
+- **Écart assumé** : purge refusée par le serveur après l'effacement local -> l'élément reste effacé ici jusqu'à « Redescendre depuis le début » ; la ligne rejetée est dans « À traiter ».
+- **Tests d'écran** (même lot) : `modales_champs_location_test` (Places / Année / Transmission, Remise / Acompte / Reste), `modale_plat_categorie_test`, `import_categorie_plat_test` (M4 contre le vrai `ControleImportService`, `rejouer_import_m4.php`).
+
+## Pièces saisies à la main : états, refus, anciennes pièces (lots A1, A2, A3, 28/10/2026, sans schéma)
+
+- **A1** : quand le miroir `ecritures_serveur_local` est la source, `lireDonneesEtats` (compte de résultat, bilan, six indicateurs, équilibre, M14, pilotage) et `lireChargesDatees` (tableau de bord) y AJOUTENT les écritures VALIDÉES des pièces saisies à la main non reprises (`ComptabiliteDao.ecrituresPiecesManuellesNonReprises` / `chargesPiecesManuellesNonReprises`). Source des numéros : pièces marquées dont l'identifiant d'origine n'est pas dans le miroir (NOT EXISTS) ∪ anciennes pièces non marquées. La pièce redescendue est reconnue par son origine : jamais deux fois. Les pièces des modules ne s'ajoutent pas. Bandeau (`compta-etats-pieces-manuelles`) : combien de pièces locales sont comptées en attendant le serveur.
+- **A2** : une pièce refusée (`operations_sync_local` rejetée, table `pieces_saisie`) n'est pas dans le miroir, donc reste comptée ; le bandeau (`compta-etats-piece-refusee-N`) donne le libellé, le motif et dit « validée, immuable et COMPTÉE » ; « À traiter » ajoute `notePieceSaisieRefusee`.
+- **A3** : aucun schéma. La MARQUE est la ligne de `pieces_saisie_local` (écrivain unique : `MoteurComptable.envoyerAnciennesPieces`, une transaction, marque + enfile ; interrupteur éteint = marque et enfile, rien ne part). Sont proposées les pièces des journaux hors `VTE/CAI/BQ` (modules) et `CL/AN`, non marquées, ≥ 2 lignes, équilibrées, un seul journal/exercice/statut/date, sans contre-passation (ni subie), non citées par une dépense ou une réservation, exercice non clôturé ; au moindre doute elle n'est PAS proposée (reste comptée au poste). Libellé de la pièce = celui de sa première ligne (le poste n'a pas gardé le libellé de pièce). Geste dans l'onglet « Passer écriture » du hub (administrateur, super_admin, comptable), confirmation avec nombre et total.
+- **Preuves** : `pieces_manuelles_non_reprises_test.dart` ; mutations tuées : ajout au miroir retiré, reconnaissance d'origine inversée, `VTE` retiré des journaux de modules, exercice clôturé non écarté. Piège : le fixture `etats_financiers_autonomes_test` passait une pièce « Achat » en journal `ACH` par `passerEtValider` ; `ACH` n'est écrit par aucun module, la pièce serait vue comme ancienne saisie manuelle : fixture passée en `CAI`.
+- **Limites assumées** : contre-passer une pièce saisie à la main déjà envoyée n'est pas envoyé (comme avant) ; le test de parité PHP des anciennes pièces réutilise la même charge `pieces_saisie` que `plan_pieces_contre_serveur_test`.
+
+
+## Locations sans annulés, archivage du jour de restitution, carte par catégorie du plat (lots B1, B2, C1, 28/10/2026, sans schéma)
+
+Décision du PO : « OUI, appliquer les deux corrections du PRD et porter la catégorie du plat jusqu'à la carte du restaurant ».
+
+- **B1** : `EtatLocations` (serveur) exclut `statut = annule` des lignes, du nombre et du montant ; son commentaire périmé (« NI statut ») est corrigé. `apercuLocations` (poste) fait de même et dit « N contrat(s) annulé(s) exclu(s) de l'état. » (R5). La case « Inclure les contrats annulés » + colonne Statut (P1/R4) n'est PAS faite : elle changerait les colonnes de l'état, donc la vue et le comparateur. Gardes : `EtatLocationsAnnulesTest` (PHP) ; côté Dart la parité ci-dessous.
+- **B2** : règle unique `date_fin >= aujourd'hui` ET `statut != annule` (le jour de restitution engage encore). `VehiculeDao.archiverVehicule` passe de `isAfter(jour)` à `!jourDe(fin).isBefore(jour)`, message de refus inchangé. Le test `vehicule_dao_test` « un contrat passé n'empêche plus d'archiver » encodait l'ancienne règle (archivage le 15 pour une fin le 15) : il refuse maintenant le 15 et accepte le 16.
+- **Parité contre le vrai PHP** : `tool/vehicules/rejouer_archivage_et_locations.php` (modèle de `rejouer_annulation_contrat.php`, horloge au 21/10/2026, quatre véhicules : fin hier / aujourd'hui / demain / annulé) rend `ParcVehiculeService::contratsEngages` et `EtatLocations` ; `archivage_et_locations_contre_serveur_test.dart` confronte l'archivage (refus et phrase) et l'aperçu (nombre, montant, lignes). Mutations tuées : `isAfter` rétabli, filtre des annulés retiré.
+- **C1** : la carte du restaurant (filtre « Toutes les catégories », couverture, colonne Catégorie, CSV, PDF, fiche des prix) classe par `plats.categorie` (les dix de `CategorieCarte`), plus par `menus.type`. `PlatCalcule.menuType` devient `categorie` (nullable) ; `LigneCarteRestaurant.categorieBrute` vaut la clé du plat, `''` sans catégorie ; le filtre et son fournisseur portent `CategorieCarte`. **Couverture** comme `EcranDeCarte::couverture` : les dix catégories du registre dans son ordre, MÊME VIDES (taux `null`, « — » : un taux de zéro serait une mesure inventée, écart avec le web qui écrit 0 %), puis les clés hors registre triées. **Fiche des prix** (`EtatCarteRestaurant.groupesDeLaFiche`) : ordre du registre, puis hors registre, une catégorie sans plat tarifé n'est pas imprimée. **Plat sans catégorie** : groupe « Autres » (`libelleSansCategorie`) ; le web le range sous la clé vide à l'intitulé VIDE, une cellule sans mot ne se lit pas, et ce mot était déjà celui de la fiche des prix. Jamais une des dix devinée.
+- **Parité C1** (`carte_contre_serveur_test`) : l'API (`CarteRestaurantService`) classe toujours par type de menu. Le test donne au script un menu par catégorie de plat (`type` = `plats.categorie`, vide si absente) : ce que le serveur range sous « type » EST alors la catégorie du plat, et les comptes par catégorie présente, le filtre et la somme des groupes sont confrontés ; l'ordre du registre est vérifié côté poste (le registre lui-même est relu du serveur par `champs_location_contre_serveur_test`). Les plats du balayage portent une catégorie sur quatre sur cinq, une sur cinq n'en a pas. Mutations tuées : registre retiré de la couverture, rang du groupe de la fiche des prix.
+- **Cliquet d'emplacement** `restaurant/carte` figé 42 -> 52 : progrès réel (les dix options de la liste de catégories sont celles de la vue). `--figer-dette` du comparateur non touché (PASS inchangé).
+- **Écarts restants** : la modale de détail d'un plat (`modale_detail_plat`) et la colonne « Menu » du catalogue lisent encore le type du menu porteur (hors périmètre carte) ; l'API du serveur n'est pas modifiée (l'écart « elle classe par type de menu » reste vrai de son côté).
+
+
+## Démarrage résilient (lots E1, E2, E3, 28/10/2026, sans schéma)
+
+- **E1 (R1)** : `lib/core/demarrage/` (`journal_demarrage.dart`, `demarrage_resilient.dart`, `textes_demarrage.dart`) ; mesures dans `core/theme/mesures_ecran_panne.dart` (l'écran n'emploie aucune taille de texte : thème Material, donc rien à classer dans `echelle_contenu_test`). `main()` = `runZonedGuarded` + `FlutterError.onError` + `PlatformDispatcher.onError`, fenêtre d'attente tout de suite, puis `ouvrirBaseDuPoste` (force `SELECT 1` : la migration n'est plus paresseuse) et seulement ensuite l'application, avec la base passée par `baseDemarrageProvider` (null ailleurs : tests et démo inchangés, `main_demo.dart` non touché). Une erreur après l'ouverture est journalisée sans remplacer l'application. Piège : le journal est écrit en SYNCHRONE avec `flush`, sinon un processus tué garde un journal vide. Tests : `test/core/demarrage/` ; mutations tuées : délai de 45 s, affichage de la panne, expurgation.
+- **E2 (R2)** : `lib/core/database/reconcilier_schema.dart` (`reconcilierSchema`, `ecartRapide`), appelée en dernier dans `onUpgrade` et, dans `beforeOpen`, quand la version est courante mais que `ecartRapide` (noms de tables, index, déclencheurs, nombre de colonnes par table, en une requête chacun) trouve un écart. Placée AVANT `PRAGMA foreign_keys = ON` (un `ADD COLUMN ... REFERENCES` est refusé clés actives). Colonne `NOT NULL` sans défaut : `DEFAULT` explicite (`''`, `x''` ou `0`) ajouté à la définition générée. Jamais destructive : table et colonne en trop laissées, journalisées (« LAISSÉS »). Piège : `ecartRapide` appelé sur une base fichier non encore ouverte rend `false`, car son premier accès déclenche l'ouverture, donc la réconciliation ; le test du contrôle rapide travaille sur une base déjà ouverte. Test : `test/core/database/reconciliation_schema_test.dart` ; mutations tuées : appel dans `onUpgrade`, appel dans `beforeOpen`, journal, `creerDeclencheursComptables`.
+- **E3 (R3)** : `tool/migration/extraire_schemas_anciens.dart` (git log -S sur `schemaVersion`, `git archive` de `lib/core/database` + `environnement.dart` dans un dossier temporaire hors dépôt, `build_runner`, dump de `sqlite_master` ; ~1 min 45 par version, `dart run tool/migration/extraire_schemas_anciens.dart [versions]`). Dumps réels dans `test/fixtures/schemas_anciens/v24..v40, v42, v44.sql` (19 fichiers, ~530 Ko). **Le dépôt est né le 14/10/2026 à la v24** : v10, v14, v20 n'ont aucun commit, et aucun commit n'a porté v41 ni v43 (40 -> 42, 42 -> 44) : exceptions NOMMÉES et datées dans le test, qui échoue si un dump apparaît sans que l'exception soit retirée. Test `migration_depuis_anciens_schemas_test.dart` : reconstruit un fichier depuis chaque dump, sème des lignes typées (plus deux opérations de file d'envoi réalistes), ouvre avec le code courant, compare tables/colonnes (nom, type, NOT NULL, défaut, clé)/CHECK/index/déclencheurs à une base neuve, et compte les lignes. **Écart RÉEL trouvé** : la base réelle v44 (commit 9696788, avant que la copie de la v43 existe) gardait l'ancien `CHECK (type IN ('creation','modification'))` de `operations_sync_local` — `from < 43` ne rejoue jamais pour elle, et `suppression` aurait été refusé. Correction : `reconcilierSchema` rejoue `elargirTypesOperationsSync` (conditionnel, copie intégrale) et `ecartRapide` le détecte. Les CHECK n'étant pas dans `table_info`, la comparaison lit aussi le SQL des tables. Mutations tuées : migration `from < 30`, appel de la réconciliation, `elargirTypesOperationsSync` dans la réconciliation. Les paliers sautés (v26 -> courant) et la copie de v43 (depuis v42 et v44 réelles) sont couverts. Piège : `.g.dart` n'est pas versionné, d'où `build_runner` dans l'extraction.
+
+## Case « Inclure les contrats annulés » (R4/R5) et reçu de dépense réduit au lieu d'être refusé (28/10/2026, sans schéma)
+
+Deux décisions du PO ; le schéma Drift ne change pas (v44 inchangée par ce lot).
+
+- **R4/R5, état M14 « Locations »** : filtre `inclure_annules` (web : propriété `EtatsStudio::$inclureAnnules` liée à la case, `#[Url(as: 'annules')]`, pas une action Livewire ; poste : `inclureAnnulesEtatsProvider`, case dans l'en-tête d'aperçu, état « Locations » seul). **Décochée (défaut) : annulés exclus, état inchangé** (6 colonnes). **Cochée** : colonne « Statut » (`Actif`/`Annulé`, `vehicules.pwa.contrat_*`), les annulés sont listés **À PART, après tous les actifs**, avec une cellule « Montant » **vide** (« — ») : un annulé n'entre JAMAIS dans « Contrats » ni « Montant total » (totaux identiques case cochée ou non). La **période dit** « contrats annulés exclus » / « contrats annulés inclus, non comptés dans les totaux » (`etats_m14.locations.annules_*`, la dernière clé du corps de `periode()` reste `periode_toutes` pour `exporter_registre.php`). Libellés : `pwa.etats.inclure_annules`, `etats_m14.locations.col_statut`. Preuves : `EtatLocationsAnnulesTest`, `EtatsPwaTest` (case seulement sur « Locations »), parité contre le vrai PHP `rejouer_archivage_et_locations.php` (cas décoché ET coché, cellule par cellule, base privée `tatacora_recu_test` créée puis DROP). Le poste n'a toujours **aucun export d'état M14** (aperçu seul, directive du 31/08/2026) : « aperçu/export » = aperçu.
+- **Reçu de dépense** : une image de plus de 400 Ko est **réduite, jamais refusée pour son poids**, à la saisie web (`RecuDepenseService::preparer`, GD natif ; Intervention absent) comme sur le poste (`reduction_recu.dart`, package `image` déjà dans l'arbre via `pdf`, déclaré direct dans `pubspec.yaml`, isolat). **Règle commune** (constantes confrontées au PHP) : ≤ 400 Ko = octets d'origine gardés ; sinon décodage, orientation EXIF, fond blanc, grand côté ≤ 2048 px, JPEG à la 1re qualité de `[85,75,65,55,45,35]` qui tient, sinon dimensions × 0,8 jusqu'à 64 px. Reste refusé : vide, non-image (phrase du validateur), **illisible** (`depenses.recu_illisible`). La **porte de dépôt** (`PUT /sync/.../recu`, `controler`, `verifierRecu`) garde sa borne de 400 Ko : le poste dépose l'image déjà réduite, donc ≤ limite serveur. PDF : non concerné (le reçu de dépense n'accepte que des images). Les octets diffèrent d'un encodeur à l'autre ; décision, type, borne et dimensions (plafond) sont confrontés par `depenses_recu_contre_serveur_test`.
+- **Aide du champ** : `champ_recu_aide` devient vraie (« L'image est réduite automatiquement avant enregistrement si elle pèse plus de 400 Ko. ») ; la 2e phrase du prototype (« une douzaine ») est retirée. L'ancien écart du lot L4 (piège 13) est soldé, son test remplacé. Comparateur Blade : progrès réel, `plancher-taux.json` 91,33 -> 91,34.
+- **Tests qui épinglaient le refus, réécrits** : `recu_depense_ecran_test` (fichier lourd réduit et rangé), `ecran_depenses_test` (aide), `depenses_recu_contre_serveur_test` ; ajoutés : `reduction_recu_test`, `recu_depense_dao_test` (réduit / illisible), `RecuDepenseReductionTest`, `DepensesEcritureTest`.
+- **Limites** : transport web (Livewire 12 Mo, `upload_max_filesize`) non relevé ; orientation EXIF éprouvée sur JPEG synthétiques ; WebP animé : première image.
+
+
+## E-mail facultatif des employés et des comptes (28/10/2026, schéma v45)
+
+Décision du PO : un champ « E-mail » FACULTATIF dans la fiche employé (RH) et dans le compte, au web et au poste, puis les notifications e-mail existantes vers ces adresses.
+
+- **Serveur** : migration `2026_10_28_200000_ajouter_email_aux_employes_et_utilisateurs` (`employes.email`, `utilisateurs.email`, NULLABLES, conditionnelle, sans index ni unicité). Règle unique `App\Shared\Mail\Support\AdresseEmailFacultative` (trim + minuscules, `nullable|email:filter|max:255` + `not_regex` guillemets/crochets) ; `EmployeService` normalise ; `GestionnaireEmployes` (création et modification) la rejoue, une charge SANS la clé conserve l'adresse, `null` l'efface ; `CatalogueDescendantService::COLONNES['employes']` descend `email`.
+- **Web** : fiche employé de `Rh\Paie` (champ « Email » = `pwa.profil.email`, sous Poste/Service) ; « Mon profil » : le champ « Email » devient éditable et « Enregistrer les informations » (`pwa.profil.enregistrer_infos`) est rendu (`MonProfil::enregistrerInformations`, compte courant seul, hors module : inscrite dans `PwaActionsReluesTest` et `PwaEcritureAutoriseeTest`). Il n'existe AUCUN écran web de création de compte : « Mon profil » est le seul formulaire de compte. `TransversePwaTest` admet `emailSaisi` sur `mon-profil` (liste fermée relue). Phrases dans `rh_pwa.php` (`email_invalide`, `email_enregistre`) : `pwa.php` non touché.
+- **Poste v45** : `employes_local.email` et `utilisateurs_local.email` (NULLABLES, `from < 45` conditionnelle sur `PRAGMA table_info`, curseur de descente oublié, `_ajoutsParVersion[45]`, 77 tables inchangé). `AdresseEmailFacultative` (Dart, `core/format`) rejoue la règle ; l'e-mail employé part dans `chargeEmploye` (toujours présent, `null` = effacé) et descend par l'aligneur (qui n'enfile pas) ; l'e-mail du compte reste LOCAL (les comptes ne se synchronisent pas). UI : fiche employé (`modales_paie`), « Nouveau compte » (`modales_comptes`), « Mon profil » (champ + bouton, `ComptesUtilisateursDao.enregistrerEmail`).
+- **Notifications** : `bulletin_disponible` vise l'e-mail du salarié (`BulletinDisponibleDetecteur`) ; `echeance_vps` vise le premier compte `comptable` ACTIF, par identifiant, qui a une adresse (`EcheanceVpsDetecteur`, une seule adresse par message). Sans adresse : message composé, aucun envoi, aucune erreur. Les autres déclencheurs (séjours, restitution) restent adressés aux clients. Le poste ne détecte toujours que `sejour_demain`/`sejour_depart` : l'adresse d'un employé monte au serveur, qui compose et envoie (SMTP du serveur).
+- **Preuves** : `EmailFacultatifTest` (PHP : écran, Mon profil, synchronisation, détecteurs, file) ; `email_facultatif_contre_serveur_test` + `tool/rh/rejouer_email_facultatif.php` (39 adresses jugées par le vrai Laravel, phrases relues du fichier de langue) ; `charges_contre_serveur_test` (l'adresse normalisée est écrite par le vrai serveur) ; `migration_v45_email_test` (fichier réel, v44 et v40, rejeu) ; `rh_synchronisation_poste_test`, `email_facultatif_comptes_test`, `email_facultatif_employe_ecran_test`. Mutations tuées : écriture de l'adresse à la création, ligne de l'aligneur, rejet d'un domaine à étiquette numérique, e-mail du détecteur. Pièges : `email:filter` accepte `"a"@b.bj` et `a@[1.2.3.4]` (écartés des deux côtés par `not_regex`) et refuse `a@b.123` ; la limite de 255 est inatteignable avant « invalide » (une seule phrase).
+- **Fixture de retour arrière** (`_ajoutsParVersion[45]`) : retire `employes_local.email` mais CONSERVE `utilisateurs_local.email` — des DAO joignent toute la table des comptes et les tests v13/v14 sèment par les DAO d'aujourd'hui sur la forme ancienne (sans la colonne, quatre tests ne lisaient plus) ; le retrait côté comptes est éprouvé par `migration_v45_email_test` et la vraie base v44.
+- **Limites** : un compte créé avant la v45 n'a d'adresse que si son titulaire la saisit dans « Mon profil » (pas de modale administrateur) ; le poste ne compose pas `bulletin_disponible` ; la dette Blade (`--figer-dette`) n'est pas touchée.
+
+
+## Reçu de location imprimable (28/10/2026, web + poste, schéma inchangé)
+
+Demande du PO : un reçu PDF par contrat de location (M8), même contenu au web et au poste.
+
+- **Web** : bouton « Reçu » (`vehicules.pwa.recu`) sur chaque ligne de l'onglet Contrats (annulés compris) ; action Livewire `Locations::imprimerRecu` (LECTURE, inscrite dans `METHODES_DE_LECTURE` et `PwaActionsReluesTest`), gabarit `pdf/location-recu.blade.php` sous l'en-tête RG-19 (`entete-rapport`), ni visa ni pied de rapport (classé « document client » dans `PdfExportConformiteTest`). Données de plus : `ContratLocationService::donneesRecu`. Libellés `vehicules.pwa.recu_*`.
+- **Poste** : `vehicules/impression/recu_location.dart` (classé `documentsClient` de `pdf_directive_test`), bouton « Reçu » (`imprimerRecuLocationProvider`, `Printing.layoutPdf` : imprimer ou enregistrer en PDF), tout en local, aucune synchronisation requise, aucun numéro alloué.
+- **Contenu** : N° du contrat (tiret s'il n'en a pas), client, véhicule, période, durée, tarif journalier, montant total, acompte, reste dû (ou « Soldé »), statut, émis le / par ; mention « ne vaut pas facture ». **Annulé** : bandeau « ANNULÉ », phrase « aucun montant n'est dû », AUCUNE ligne de montant. Le **tarif n'est écrit que s'il explique le montant figé** (tarif du véhicule x jours = montant), sinon tiret : le montant est figé à la signature, le tarif du véhicule a pu changer.
+- **Preuves** : `RecuLocationTest` (PHP, mutation `@unless` tuée), `recu_location_test` (libellés relus du fichier de langue, Latin-1), `ecran_vehicules_test` (bouton en lecture seule et sur annulé). Comparateur Blade : PASS, dette inchangée (33, non refigée). Limite : le web écrit le client en « prénom nom », le poste en `clientNom` tel que stocké.
+
+
+## Écran de connexion LogiReStock (29/10/2026, web + poste, schéma inchangé)
+
+Demande du PO (`docs/HANDOFF_ECRAN_CONNEXION_LOGIRESTOCK.md`) : carte unique centrée (marque deux tons, slogan, bandeau de 7 pictogrammes, « Bienvenue ! », deux champs, « Se souvenir de moi » · « Mot de passe oublié ? », « SE CONNECTER »), au web (`pwa/livewire/connexion.blade.php`) et au poste (`ecran_connexion.dart`).
+
+- **Web** : plus de panneau image ni de logo téléversé sur cette page (marque = pictogramme SVG monochrome) ; SVG écrits à la main dans `pwa/partials/pictogramme-connexion.blade.php` (aucune dépendance) ; libellés `pwa.connexion.*`, `<h1>` masqué « Connexion » (onglet « Connexion — LogiReStock — TATACORA AFRIQUE »). Couleurs : `--navy` (« Logi »), `--gold` (« ReStock »), slate. Aucune action Livewire ajoutée.
+- **« Se souvenir de moi »** : n'existait pas ; branché sans toucher à l'authentification — web : `localStorage` (identifiant seul, Alpine) ; poste : fichier `…/TATACORA/connexion/identifiant.txt` (`IdentifiantMemorise`). Jamais le mot de passe. **« Mot de passe oublié ? »** : aucune route n'existe ; le lien révèle « Contactez l'administrateur » (web et poste).
+- **Poste** : mêmes tracés que la vue via `IconeTrace` (pas d'`Icons.*`), confrontés au partial Blade par test ; jetons ajoutés avec commentaire : `Tailles.t28`, `AppTextStyles.suiviTresLarge/suiviSlogan`, `MesuresConnexion`. Branche `ReseauIndisponible` de l'écran retirée (plus rien ne la lève). Bouton non désactivé à vide (comme la vue).
+- **Gardes** : tests PHP de la page réécrits (`ConformiteMaquettePwaTest`, `AucunLogiRestockAfficheTest`, `PwaActionsReluesTest` : 3 boutons, `LogoEtablissementTest` : plancher 9 → 7) ; comparateur re-figé (STRICT 91,35 %) ; emplacement figé 8/8 → 12/20 (la vue compte 7 libellés réservés aux lecteurs d'écran qu'un poste dit en infobulle, + le `<h1>` masqué : changement voulu, 0 déplacé) ; `ecran_connexion_test` réécrit (ordre, libellés relus de la langue, tracés, tabulation, mémoire, 320 → 2560 px).
+- **Limite** : le relevé navigateur de géométrie (`geometrie/livewire__connexion.json`, `--dart-define=ENV=production`) date de l'ancienne vue et n'a pas été refait (pas de navigateur ici) : le cas rougit dans ce mode jusqu'à un nouveau relevé.
+
+**Addendum connexion (29/10/2026, décisions du PO)** : le logo téléversé de l'établissement coiffe de nouveau la carte (web : `ApparenceEtablissementService::fichierDe('logo')`, `h-16 object-contain`, alt `pwa.alt_logo` ; poste : `logoTeleverseProvider`, 64 px) ; absent, repli sur le pictogramme. « LogiReStock » navy/or validé, inchangé. Onglet web « Connexion — LogiReStock » (exception limitée à `/pwa/connexion` dans `BaliseTitrePwaTest`). `LogoEtablissementTest` : plancher 8 (une seule image au lieu de deux sur la connexion, 9 → 8). Cliquet d'emplacement inchangé (12/20 : le logo n'apparaît pas dans le relevé, aucun logo téléversé).
+
+## Mot de passe perdu SANS e-mail (29/10/2026, web + poste, schéma poste v46)
+
+Décision du PO (option A) : aucun « mot de passe oublié » automatique ; le lien de la connexion reste « Contactez l'administrateur » et propose en dessous « J'ai perdu mon mot de passe administrateur ». Les comptes du web et du poste restent DISTINCTS : aucun dérivé de mot de passe ne se synchronise, la file d'envoi n'est pas touchée.
+
+- **Réinitialisation par un administrateur** : écran « Comptes utilisateurs » (web : `Transverse\ComptesUtilisateurs`, route `pwa.comptes-utilisateurs` sous `module:ROLES,L`, entrée de menu après « Rôles & Permissions » ; poste : l'écran existant, bouton « Réinitialiser le mot de passe »). Mot de passe TEMPORAIRE de 14 caractères (majuscule, minuscule, chiffre, sans `0 O 1 l I`), tiré de `random_int` / `Random.secure`, affiché UNE fois avec « Copier », valable 24 h, compte marqué « changement obligatoire ». L'administrateur ne réinitialise pas son propre compte (phrase lisible ; il passe par « Mon profil ») ; un simple administrateur ne réinitialise pas un super_admin (il lirait le temporaire et se connecterait avant lui).
+- **Changement forcé** : web, middleware `ExigerChangementMotDePasse` (tout renvoie vers `pwa.changement-mot-de-passe`) ; poste, garde du routeur (`Session.changementObligatoire`, tout chemin servi renvoie vers `/changement-mot-de-passe`). Règles : 8 caractères (règle existante), différent du temporaire ET de l'ancien (dérivé gardé le temps du changement, puis effacé). Expiration à 24 h pile (connexion refusée, session restaurée fermée). Après le changement : session fermée, jetons Sanctum supprimés, `remember_token` régénéré, sessions du compte fermées (web : `EmpreinteMotDePasseEnSession` + `FermerLesSessionsPerimees`, quel que soit le pilote de session ; l'API refuse tout jeton tant que le changement n'est pas fait).
+- **Code de secours** : 25 caractères en 5 groupes (`XXXXX-…`), usage unique, seul le HASH est stocké. Web : commande `php artisan tatacora:code-secours [login]` (aucun écran d'amorçage n'existe), « Mon profil → Code de secours » (mot de passe demandé, 5 essais par quart d'heure), écran public `pwa.code-secours`. Poste : posé au premier compte (`formulaire_premier_compte`, fenêtre Copier / Imprimer / « J'ai rangé ce code »), « Mon profil », écran `/mot-de-passe-administrateur-perdu` (route ouverte hors session). Le succès consomme le code et en remet un NOUVEAU, une fois. Essais : 5 puis 15 min, par compte ET par adresse (web : `RateLimiter`) / par compte ET par poste (poste : colonnes du compte + refus du journal de sécurité) ; refus IDENTIQUE (compte inconnu, non-administrateur, désactivé, sans code, mauvais code) ; une vérification de hash est toujours faite. Les anciens comptes n'ont pas de code : l'administrateur en génère un.
+- **Audit** : web, `journal_audit` (`reinitialisation_mot_de_passe`, `code_secours_genere|utilise|refuse|bloque`, entité `utilisateurs`) ; poste, NOUVELLE table locale `journal_securite_local` (78 tables) lue par le Journal d'Audit avec la file (auteur = compte connecté + machine). Jamais le mot de passe, le code ni un hash (tests qui balaient le journal entier).
+- **Schéma** : serveur, migration additive `2026_10_29_120000_…` (`must_change_password`, `temp_expires_at`, `previous_password_hash`, `recovery_code_hash`, `recovery_code_generated_at`) ; poste v46, onze colonnes sur `utilisateurs_local` + `journal_securite_local`, conditionnelles sur `PRAGMA table_info`. Fixture de retour arrière (`_ajoutsParVersion[46]`) : retire la table, CONSERVE les colonnes des comptes (même raison que `email` en v45). Nouveau dump de vraie base `v45.sql` (extracteur git), `migration_depuis_anciens_schemas_test` passe à 46, `migration_v46_mot_de_passe_perdu_test` éprouve v45 -> v46 et v40 -> v46 sur fichier avec de vrais comptes, puis réinitialisation et code de secours sur le fichier migré.
+- **Gardes touchées** : `PwaActionsReluesTest` (3 composants, 1 lien autorisé sur la connexion), `PwaEcritureAutoriseeTest` (écritures hors module nommées), `SessionSansDonneeMetierTest` (clé `empreintes_mots_de_passe`), `routes/web.php` (groupes imbriqués, indentation reprise par pint), comparateur Blade (3 nouvelles vues citées, dette inchangée, ajout « comptes » retiré), emplacement (`transverse/comptes-utilisateurs` 5/11, `mon-profil` 22/33 refigé : la structure Blade de référence était périmée), menu (27 destinations, plus aucun ajout du poste), `echelle_contenu_test`, `pdf_directive_test` (feuille du code classée document interne).
+- **Preuves** : PHP `MotDePassePerduTest` (24 cas, 23 mutations dont une survivante renforcée : rate-limit par compte ; empreinte de session) ; Flutter `mot_de_passe_perdu_test` (26 cas, 20 mutations, deux survivantes renforcées puis mordues), `ecrans_mot_de_passe_perdu_test`, `garde_mot_de_passe_perdu_test`, `mon_profil_code_secours_test`, `ecran_comptes_utilisateurs_test`. Libellés confrontés à `lang/fr/pwa.php` par PHP.
+- **Limites** : le poste n'a AUCUNE limitation d'essais sur la connexion par mot de passe (le web : 5 par identifiant+IP, 300 s) — non ajoutée ici, à décider ; relevé de géométrie navigateur des trois nouvelles vues non pris ; les sessions web ouvertes AVANT ce déploiement ne sont fermées qu'à leur première requête suivant une réinitialisation (l'empreinte n'était pas encore rangée) ; un mot de passe temporaire est rendu dans le snapshot Livewire de l'administrateur qui le génère (vidé à la fermeture de la fenêtre).
+
+**En-tête de marque de la connexion (29/10/2026, PO)** : sur une ligne, pictogramme « F — maison et cloche » (viewBox 64, fil 3,2 ; maison navy, cloche et plateau or ; coordonnées de la cloche calculées, `pictogramme-marque.blade.php` ↔ `MesuresConnexion.traceMarqueMaison/Cloche`, confrontés par test) + « LogiReStock » et dessous « TATACORA AFRIQUE » (15 px, gras) dont l'interlettrage est CALCULÉ pour épouser la largeur du nom (web : script Alpine léger sous `wire:ignore` ; poste : `TextPainter`, dernière lettre sans interlettrage). Toujours affiché ; le logo téléversé s'ajoute au-dessus. `IconeTrace` accepte désormais une `viewBox` (24 par défaut, inchangé ailleurs). Cliquet d'emplacement inchangé ; structure Blade re-générée (sous-titre `p` → `span`).
+
+**Connexion à deux panneaux (29/10/2026, PO)** : dès 1024 px (`lg`), panneau gauche = photo `gite-cover.jpg` (déjà dans la PWA `public/assets/img/` ET embarquée au poste `assets/img/`, 119 Ko, identiques, déclarée au pubspec : ni retrait ni réduction nécessaires) + voile dérivé du navy + logo téléversé 64×64 (anneau doré) + titre et accroche (clés `pwa.connexion.titre_panneau/accroche_panneau/alt_couverture` rétablies ; titre en `<h2>` car le `<h1>` reste « Connexion ») ; panneau droit = la carte. Là, le logo n'est PAS répété en haut de la carte ; dessous, comportement précédent. Poste : `CadreInvite(deuxPanneaux: true)` (connexion seule), seuil mesuré par `LayoutBuilder`, `PanneauImageConnexion`, `PanneauxConnexion` (InheritedWidget). Gardes : `LogoEtablissementTest` plancher 9 (deux images du logo), `AucunLogiRestockAfficheTest` (mention du panneau rétablie), comparateur STRICT 91,46 % re-figé (progrès), emplacement inchangé (panneau masqué dans le relevé web), géométrie navigateur toujours à refaire.
+
+**Connexion : panneau droit blanc, sans carte (29/10/2026, PO)** : fond BLANC uni (web : `styleBody` + `bg-white`, `min-h-screen flex items-center`, plus de `overflow-y-auto`), contenu nu (ni bordure, ni ombre, ni rayon, ni marge verticale), retrait horizontal `px-6 md:px-8`, largeur `max-w-[520px]`. Espacements verticaux internes resserrés (jetons `MesuresConnexion` : filets, slogan, bandeau, pied, `space-y-3`) : aucun ascenseur à 1280×768 ni 1024×700. Poste : `CadreInvite(deuxPanneaux: true)` seul est concerné (fond `neutre0`, contenu sans `Container`) ; les écrans code de secours / changement de mot de passe gardent leur carte. Bordure de repos des deux champs : identique (classes web et `InputDecoration` poste, test) — aucun défaut trouvé dans le code, l'impression de la capture venait du gris du fond (slate-300 sur gris). Gardes : aucun cliquet modifié.
+
+## Blueprint de la synchronisation multi-postes (29/10/2026, documentation seule)
+
+Demande du PO : un guide de référence réutilisable dans un autre projet, écrit à partir du code réel. Livré : `BLUEPRINT_SYNCHRONISATION_MULTI_POSTES.md` (architecture, appairage, envoi, réception, « Synchroniser » vers tous les postes, réinitialisation, installateur et démarrage résilient, recette et pièges, gabarit indépendant de la pile, prompt d'implémentation). Aucun code ni test modifié. Constats consignés dans le guide (§1.5) : pas de push ni de WebSocket (polling 5 min et 30 s), pas d'expiration de jeton configurée, pas d'écran d'arbitrage des conflits financiers, pas de sauvegarde automatique avant migration du poste (R4 non livré).
+
+## Spécification synchronisation et installation V2 (29/10/2026, documentation seule)
+
+Demande du PO : spécification produit des écarts constatés (temps réel, code d appairage web, table postes et expiration des jetons, arbitrage des conflits financiers, suppression synchronisée, sauvegarde avant migration, runtime VC++, sauvegarde à la désinstallation, garde-fous de build_windows.bat). Livré : `SPEC_SYNCHRONISATION_ET_INSTALLATION_V2.md` (9 exigences EX-1 à EX-9 en P0/P1/P2 avec critères Étant donné/Quand/Alors, 7 lots, 12 questions ouvertes). Aucun code ni test modifié.
+
+## Session expirée, recherche à 125 px, bandeaux des cartes retirés (30/10/2026)
+
+Trois demandes du PO. (1) Livewire 4.4 affichait `confirm("This page has expired…")` sur tout HTTP 419 : `pwa.partials.session-expiree` (inclus par `layouts/pwa` ET `layouts/pwa-invite`, en ligne, sans CDN) l'intercepte (`Livewire.interceptRequest` + `onError` + `preventDefault`, repli `hook('request')`), recharge la page, et la connexion affiche « Votre session a expiré, reconnectez-vous. » (drapeau `sessionStorage`, ou flash `session_expiree` pour un 419 hors Livewire, rendu par `bootstrap/app.php` : `HttpException` 419 → redirection vers la connexion, sauf Livewire/API). Causes évitables : `trustProxies` n'existait pas (ajouté, `TRUSTED_PROXIES`), table `sessions` déjà créée par `0001_01_01_000003`, connexion en `navigate: true` donc `regenerateToken()` y est volontairement évité (le jeton resterait celui de la page de connexion). Pas de keep-alive. Variables `.env` dans `VERIFICATIONS_APRES_MISE_EN_PRODUCTION.md` ; `LOG_LEVEL=error` en production. (2) Recherche globale : `w-64` → `w-[125px]` (web), `MesuresBarreSuperieure.champRecherche` 256 → 125 (poste), invite tronquée par `text-ellipsis`. Les JSON de géométrie du navigateur (relevés en vrai navigateur) ne sont pas rejoués ici. (3) Bandeaux jaune (restaurant) et gris (bar) retirés web et poste, clés `bandeau_*` supprimées ; structure JSON régénérée, dette Blade inchangée mais plancher STRICT 91,46 → 91,43 % (dénominateur : des libellés présents ont disparu de la vue, aucun recul de portage).
+
+## Adresse du serveur et fréquence de synchronisation modifiables sur le poste (30/10/2026)
+
+Demande du PO (capture d'un autre produit) : changer l'adresse web du serveur sans recompiler. Paramètres → Synchronisation (Administrateurs seulement) gagne deux cartes. **Adresse du serveur** : champ prérempli, « Actuelle : … », « Enregistrer », « Tester la connexion » (`GET <racine>/up`, route de santé publique de Laravel, sans jeton, rien d'écrit ; interrupteur éteint : aucune requête). L'adresse vit dans `poste.json`, clé EXISTANTE `serveur` (format API `<racine>/api/v1`, l'écran montre la racine) ; `serveur_modifie_le`/`_par` disent qu'elle est un choix de l'opérateur ; la valeur livrée reste dans `installer/poste.example.json` et l'adresse du build sert tant qu'aucune n'est choisie. Validation unique (`adresse_serveur.dart`) : http(s) obligatoire, https sauf localhost/127.0.0.1/10.x/192.168.x, ni espace ni identifiants ni paramètres, `/` final et `/api[/v1]` retirés, tout autre chemin refusé, 255 caractères. Poste appairé : avertissement (le jeton appartient à l'ancien serveur), « Garder le jeton » / « Effacer le jeton et réappairer » (confirmation). Ni file d'envoi ni curseurs touchés ; seul le repli de la descente du catalogue est levé ; les délais propres à chaque opération en file (30 s à 1 h) ne sont volontairement pas remis à zéro. Audit : action locale « Adresse du serveur modifiée » dans `journal_securite_local` (ancienne → nouvelle en `cible_login`, auteur, machine, jamais le jeton ; aucun changement de schéma). Les gardes « autre serveur » du moteur (`sync_manager`, passage court, téléchargement des reçus) ne s'appliquent plus à une adresse choisie à l'écran. **Synchronisation automatique** : la période de 5 min est désormais lue dans `poste.json` (`synchronisation_frequence_minutes`, absent = 5) par le planificateur, qui se réarme sans nouvelle synchronisation : 1, 2, 5 (défaut), 10, 15, 30 min, 1 h, « Manuelle seulement » (plus de réveil périodique ; démarrage, clôture de caisse, réactivation, « Synchroniser maintenant » et le passage de 30 s demeurent). Le texte d'aide ne cite que les déclencheurs réels (le modèle citait retour du réseau, vente et ouverture de session : absents du code). Correctif au passage : `_nomPoste` de l'onglet lisait `ref` au `dispose` pour un non-administrateur. Écart assumé : le bouton « Enregistrer » prend la variante primaire du thème (marine, pas vert : le thème de TATACORA n'a pas de primaire vert).
+
+## Modèles d'import en vrai .xlsx, carte du Gîte Chez Noël prérenseignée (30/10/2026)
+
+Cause du « tout dans une colonne » : les modèles étaient des CSV au point-virgule (`fputcsv(…, ';')`, `text/csv`, BOM UTF-8) ; un Excel dont le séparateur de liste est la virgule les ouvre en UNE colonne. Désormais : modèles `.xlsx` (feuilles « Modèle » en-têtes gras + exemple, « Aide » par colonne) pour Import & Export (8 modules) et Stocks, web (`TableurService`, PhpSpreadsheet déjà présent via maatwebsite/excel, aucune dépendance ajoutée) ET poste (`ecriture_xlsx.dart`/`lecture_tableur.dart`, `archive`+`xml` déjà dans le lock, déclarés directs). L'import lit `.xlsx` par nom d'en-tête, CSV en secours (`;` `,` tabulation, BOM, UTF-16, Windows-1252, `sep=`) ; ligne d'exemple laissée telle quelle ignorée. M4 : prix, menu et fiche facultatifs (prix vide = 0 provisoire, menu « Carte du restaurant », fiche vide provisoire). Fichiers `docs/data/modele_import_{m6-stocks,m5-bar,m4-restaurant}.xlsx` (ordre d'import m6 → m5 → m4), bouton « Carte du Gîte Chez Noël (exemple) », commande `import:generer-carte-gite`. Tests : `ImportXlsxTest`, `tableur_xlsx_test.dart`.
+
+## Description facultative d'un plat (web + poste v47) et un plat sans fiche se vend (30/10/2026)
+
+Deux décisions du PO du 30/10/2026.
+
+**(A) Description facultative.** `plats.description` (`string(500)` nullable, migration conditionnelle `2026_10_30_100000_ajouter_description_aux_plats`), règle unique `DescriptionPlat` (trim, vide = NULL, 500 caractères mesurés sur le texte rogné) partagée par `EnregistrerPlatRequest`, `Restauration::enregistrerPlat` (champ « Description », clé `carte_pwa.restauration.label_description`, textarea de 3 lignes), `CartePlatMenuService` et `GestionnairePlats`. Affichée en ligne secondaire sous le nom dans la liste des plats et dans la carte du restaurant (web `corps.blade.php`, poste `_NomPlat` et `_Article`). Synchronisation dans les deux sens : `CatalogueDescendantService::COLONNES['plats']`, charge `chargePlat` (absente si vide ; effacement en `null` explicite), aligneur du poste. Poste v47 : `plats_local.description` nullable, migration additive conditionnelle (`PRAGMA table_info`), curseur de descente oublié, entrée `_ajoutsParVersion[47]`, `migration_v47_description_plat_test`. Import : colonne facultative « Description » au modèle m4 (web et poste, feuille Aide comprise ; borne `longueurMax` 500), `docs/data/modele_import_m4-restaurant.xlsx` et `assets/import` régénérés (86 lignes, 9 descriptions). Parité : `tool/restaurant/rejouer_description_plat.php` contre le vrai `DescriptionPlat`.
+
+**(B) Un plat sans fiche se vend.** Règle levée : `DeductionStockCuisineService::deduireLignes` levait `RecetteManquanteException` sur une nomenclature vide, ce qui refusait la transmission en cuisine ET la vente au comptoir en ligne (la vente synchronisée, déjà servie, était gardée et signalée en anomalie `plat_sans_composition`). Décision : le stock s'ajoute après. Désormais le plat sans composition (fiche sans ligne, aucun lien direct) se vend partout, la vente n'écrit AUCUN mouvement de stock pour lui et le dit (`stock_non_impacte`, cause `plat_sans_composition`, via `VenteService::deduireStock` pour les trois chemins) ; plus d'anomalie de synchronisation (le type reste pour lire l'historique) ; le point « cuisine » n'est exigé qu'à la première sortie réelle. Un plat dont la fiche a des lignes décrémente exactement comme avant (RG-05). `plats.recette_id` reste NOT NULL (l'import crée une fiche vide au nom du plat). `RecetteManquanteException` n'est plus levée (classe conservée : la cause `recette_manquante` figure au registre des causes d'envoi des anciens journaux). Libellés web et poste rendus neutres : « Fiches vides — sans sortie de stock », bandeau, infobulle, filtre, messages d'enregistrement d'une fiche sans ingrédient ; compteur et pastille « Vide » en gris (ils étaient rouges). Écart nommé en code (fichier de la règle, ce qu'elle disait, pourquoi) dans `DeductionStockCuisineService`, `VenteService`, `RecetteManquanteException`, `GestionnaireVentes`, `Restauration`. Le point orange du POS (« vendable, mais ne décrémente aucun stock ») reste : il était déjà vrai. Aucune phrase n'affirme qu'une vente « décrémente » quand il n'y a pas de fiche (piège 13). Tests réécrits : « un plat sans fiche se vend, sans mouvement de stock » (`FichesTechniquesPwaTest`, `Rg05SortieStockAutomatiqueTest`, `ApiRestaurantTest`, `VentesSynchronisationTest`, `cloture_vente_piece_test`, parité `ventes_contre_serveur_test` avec `rejouer_ventes.php`, qui accepte maintenant `TATACORA_BASE_ESSAI`) et « un plat avec fiche décrémente toujours ».
+
+## Supprimer un compte utilisateur (web + poste v48, synchronisé) et ÉPOQUE de propagation (03/11/2026)
+
+Deux demandes du PO. **(1) Supprimer un compte.** Règle levée pour la seule suppression : « un compte ne se supprime jamais » (RG-15) ; « jamais un mot de passe ni un hash » reste. Suppression LOGIQUE : serveur `utilisateurs.supprime_le` (migration conditionnelle `2026_11_03_100000_…`, `SoftDeletes` sur `User` avec `DELETED_AT`, relations `belongsTo(User)` en `withTrashed()`, auteurs affichés « login (compte supprimé) ») ; poste v48 `utilisateurs_local.supprime_le` (+ `actif` faux, donc les gardes de connexion des comptes désactivés s'appliquent), `_ajoutsParVersion[48]`, test `migration_v48_compte_supprime_test` (4 départs réels, rejeu). Autorité : seul un `super_admin` supprime, seul un non-administrateur est supprimable, jamais soi-même, un administrateur se désactive (`User::peutSupprimerDesComptes/estSupprimable`, `peutSupprimerDesComptes/compteSupprimable` côté poste). Web : bouton « Supprimer » + confirmation sur « Comptes utilisateurs » (le web n'a pas de bouton « Désactiver ») ; poste : à côté de « Désactiver ». Synchronisation par le LOGIN : descente `utilisateurs` (login + supprime_le, `NON_NULS`, `LECTURE_LIBRE`) alignée sans jamais créer ni toucher autre chose ; envoi `suppression` de la table `utilisateurs` (registre fermé étendu, `GestionnaireUtilisateurs`), autorité du JETON D'APPAIRAGE vérifiée par le moteur (sinon `droit_manquant`), no-op journalisé pour un compte inconnu, rejeu idempotent. Audit : `compte_supprime` / `compte_supprime_inconnu` (web), `compte_supprime` (journal de sécurité du poste).
+
+**(2) Propagation.** Constat : envoi + descente à chaque passage complet ; 5 min (réglable), clôture de caisse, « Synchroniser maintenant », bouton web ET bouton du poste « Demander la synchronisation des postes » (déjà là), battement de 30 s ; le battement tourne aussi en « Manuelle seulement ». Nouveau : l'ÉPOQUE (`EpoqueSynchronisation`, cache, `<nonce>.<n>`), incrémentée quand une opération est acceptée (ni rejeu ni refus) et à chaque suppression de compte web, rendue par `GET /sync/demande` (`data.epoque`) ; le poste lance une DESCENTE SEULE (`synchroniserDescenteSeule`) quand elle change, ne la retient qu'après une descente « à jour », respecte l'interrupteur et le repli (pas de martèlement), jamais bloquante. Preuves : `epoque_serveur_test` (A envoie / B reçoit, rejeu, coupure, repli, interrupteur, serveur d'avant, 3 mutations).
+
+**Décisions à valider par le PO** : (a) le « droit explicite » est le rôle `super_admin` (ROLES = C), pas une colonne de matrice ; (b) l'autorité d'une suppression envoyée par un poste est celle du compte qui a APPAIRÉ le poste ; (c) pas de liste « comptes supprimés » en lecture seule (plus, non fait) ; (d) la latence restante vient de l'ENVOI de A (≤ 5 min) : l'époque n'accélère que la réception. **Gardes touchées** : `PwaActionsReluesTest`, `PwaEcritureAutoriseeTest`, `RegistreGestionnairesSynchronisationTest`, `ReferentielsDescendantsTest`, `SynchronisationOfflineTest` (l'exemple « table hors registre » devient les jetons), comparateur Blade (dette resserrée), `cause_reception_domaine_test` (règle nommée), parité `rejouer_suppression_compte.php`.
+
+## Cliquet d'emplacement sensible à la date : horloge de référence figée (03/11/2026)
+
+Le 03/11/2026, `emplacement_blade_test` a échoué sur `hebergement/hebergement` (46/47), `livewire/accueil` (140/141) et `rh/paie` (120/127) après avoir passé les 28-31/10 sur le même code. Cause commune : le relevé Blade (`structure/*.json`) a été rendu le 26/10/2026 et porte « octobre 2026 » (calendrier d'hébergement, « Effectif/Bulletins/Livre de paie — octobre 2026 », « Du 01/10/2026 au 31/10/2026 ») et « Récapitulatif de la journée — lundi 26 octobre » ; l'écran Flutter rendait le mois COURANT. Correctif : `test/support/horloge_reference.dart` fige `horlogeHebergementProvider`, `horlogeAnnulationProvider` et `horlogeExerciceConsulteProvider` (accueil, paie) sur 26/10/2026 12:00, dans `emplacement_blade_test` et `geometrie_blade_test` ; le générateur PHP fige le même instant (`Carbon::setTestNow`) et reproduit les relevés à l'identique (sauf `journal-audit`, dont les lignes d'audit portent l'horodatage réel : à surveiller). Chiffres à la date figée : hébergement 47 et paie 127 INCHANGÉS (donc la dérive était bien la date) ; accueil 141 → 142 (progrès, resserré) : le libellé « lundi 26 octobre » ne correspond qu'au 26/10 (à 15/10 : 141). Mutation : déplacer « Période » après « Exporter » dans `ecran_paie` fait rougir paie (126/127). Autres tests lisant `DateTime.now()` (34 fichiers sous `test/features`, `test/core/database`) : non réécrits, signalés ; aucun test de `test/core/qualite` ni `test/support` ne lit l'horloge réelle. La géométrie en pixels (`--dart-define=ENV=production`) échoue déjà sur 17 vues sans lien avec ce lot.
+
+## 03/11/2026 — Icône de synchronisation au web ; « Mon profil » modifiable sous droit
+
+- **Icône de synchronisation (web)** : elle n'a JAMAIS existé au web (git log -S : lot F3b, 17/10, poste seul ; le web n'a reçu que l'entrée de menu le 18/10). Composant Livewire `SynchronisationBarre` entre « Vente » et la cloche : modale (postes appairés, dernier contact, état, révoqué, dernière demande, « Demander la synchronisation des postes », même service que Postes & Appairage). Voyant `SuiviPostesService::voyant()` : gris = aucun poste appairé, orange = un poste appairé sans contact depuis plus de 15 min, vert sinon. Structure et cliquet de la barre refigés ; refus de châssis déclaré côté poste.
+- **Mon profil** : « Fonction » = fiche RH ou rôle RBAC (lecture seule) ; nouveaux champs `utilisateurs.nom_complet/telephone/intitule_poste` (web), `telephone/intitule_de_poste` (poste, v49 ; le nom complet du poste reste `nom`). Droits `PROFIL_NOM`, `PROFIL_TELEPHONE` (tous les rôles), `PROFIL_INTITULE` (rôles d'administration) : matrice, seeder additif (`completerModulesNouveaux`), login, rôles synchronisés, écran Rôles & Permissions (section Profil). Droit relu côté serveur/DAO (403 / `RefusProfil` sur action forgée), audit « Profil modifié » (ancien → nouveau). Le profil reste LOCAL à chaque côté (les comptes ne se synchronisent pas, sauf suppression).
+
+## 07/11/2026 — Facturation normalisée du Bénin : trois modes, boîtier CC300 au poste, e-MECeF au serveur (schéma poste v50)
+
+Spécification : `docs/SPEC_FACTURATION_NORMALISEE_MECEF.md`. **Mode** `facturation_mode` (désactivé / e-MECeF / boîtier CC300), réglé au serveur par un administrateur (Paramètres → Identité & Légal → « Facturation normalisée (MECeF) », avec IFU 13 chiffres, adresse https de l'API, opérateur) et reçu au poste en LECTURE ; surcharge locale « ce poste certifie par » (`poste.json`) car le boîtier n'existe que sur ce poste ; aucune requête au pilote hors mode « boîtier ». **Jeton JWT e-MECeF** : chiffré (`secrets_configuration`), saisi dans une modale, jamais rendu ni journalisé ni descendu (gardes lues : `ReglageFacturationNormaliseeTest`, `reglage_facturation_poste_test`). **Boîtier** : `ClientMecefBoitier` contre un FAUX pilote HTTP (dart:io) — corps validé (le pilote répond 200 sur un échec), montants entiers ≤ 2^24−1, jamais deux `POST /bill`, compteur lu avant/après et noté sur la pièce AVANT l'envoi (réponse perdue + compteur avancé = « à vérifier », jamais rejouée) ; pièce normalisée FIGÉE (`FactureDejaNormalisee`), avoir par le boîtier (`rt=FA`, `rn=NIM-TC`) ; le résultat part au serveur qui le RANGE sans certifier (`GestionnaireFactures::normaliser`) et redescend aux autres postes ; QR et mentions seulement si `estNormalisee` (statut + numéro réel + QR), sinon bandeau DEMO. **e-MECeF** (serveur) : `MecefClientEmecef` contre un faux serveur DGI (`Http::fake`) — création puis confirmation dans la foulée, `uid` conservé (expire à 2 min), 401/403 (jeton), 429 (`Retry-After` respecté), réseau, refus ; jamais retransmise si normalisée ; avoirs ; `MecefServiceProvider` choisit par le mode (config incomplète : refus clair en français) ; job de rejeu mode-aware (ne touche ni « à vérifier » ni le mode boîtier). **Gardes touchées** : comparateur Blade (plancher STRICT 91,47 → 91,03 : le jeton se saisit au serveur seul, refus classés (a)), structures `transverse__parametres`, `echelle_contenu_test`, `registre_parametres_local_test`, parité `tool/facturation/rejouer_regles_communes.php`. **Écart nommé** : l'IFU est désormais validé à 13 chiffres (clé `entreprise_ifu`, web et poste).
+
+## 07/11/2026 — Facturation normalisée, lot 4 : décisions du PO (IFU client, facture simple sans mention, bouton, avoir en ligne, schéma poste v51)
+
+Spécification §10. **Bouton, jamais automatique** : le rejeu ne reprend que les demandes déjà faites ; « Normaliser maintenant » décochée ; un échec ne bloque ni la facture ni l'encaissement (mutations éprouvées : (a) l'avoir hors ligne qui écrirait localement, (b) la normalisation à l'émission, (c) la vente bloquée par un échec — chacune rougit). **Mode désactivé = facture SIMPLE** : émise et figée (`statut` `certifiee` = « émise »), sans numéro MECeF, sans QR, SANS AUCUNE mention (PDF A4 serveur, ticket thermique web, ticket et A4 du poste, registre, bandeau de l'écran : plus de « démonstration », ni bandeau, ni filigrane, ni cachet réservé) ; « en attente de normalisation » seulement en e-MECeF/boîtier. **IFU du client** facultatif/13 chiffres (`IfuClient`, parité PHP/Dart rejouée), nom, « Retenir pour ce client » (fiche), saisi à la clôture d'un séjour (web et poste) et par le lien « IFU du client » au comptoir du poste ; descend avec la facture (`acheteur_*`) et la fiche (`clients.ifu`) ; schéma poste **v51** (3 colonnes nullables, migration conditionnelle, `_ajoutsParVersion[51]`, test sur fichier réel depuis v50/v49/v44/v40). **Avoir en ligne** : routes `POST /sync/factures/{id}/avoir` et `/normalisation` (jeton d'appairage, droit M2, idempotentes), avoir créé au serveur sous son identifiant, la file du poste refuse un avoir sur facture normalisée, le DAO poste lève `AvoirEnLigneRequis` avant toute écriture ; la charge d'annulation ne porte plus d'`avoir_id`. **Défaut trouvé au passage** : `FactureObserver` refusait toute écriture d'une facture figée dès que l'horloge avançait (`date_modification` posée par `Auditable`) — invisible tant que les tests figeaient l'heure ; sans correctif, une facture simple figée n'aurait jamais pu être normalisée. **Preuves** : `FacturationEnLigneTest` (PHP, jetons réels, DGI fausse), `service_facturation_en_ligne_test`, `facturation_en_ligne_contre_serveur_test` (vrai `php artisan serve`, base privée créée puis supprimée), comparateur Blade resserré (91,04 %), cliquet d'emplacement de la vue Facturation (−1 : la vue a perdu la mention du bandeau). **Écarts nommés** : le POS vente web et la location/tourisme n'émettent aucune facture enregistrée (pas de champ IFU tant qu'il n'y a pas de facture) ; le POS vente web imprime un « ticket de vente » sous un bouton « Facture » (mélange reçu/facture signalé, non réécrit) ; la fiche client web n'a pas de champ IFU (seul « Retenir pour ce client » l'alimente).
+
+## 07/11/2026 — Dossier `presentation/` : échantillons de factures et kit d'essai du boîtier
+
+Documents FICTIFS et filigranés « ÉCHANTILLON — SANS VALEUR FISCALE », régénérables par une commande (`bash presentation/regenerer.sh` : `php artisan tatacora:generer-echantillons` + `flutter test tool/generer_echantillons_poste_test.dart`). Serveur : vrai gabarit `pdf.facture-mecef` (facture simple sans QR, normalisée avec QR dessiné) et ticket web 80 mm en HTML ; poste : `TicketFacture` et `FactureA4` (simple et normalisée). Le filigrane est injecté par le générateur dans le document rendu (gabarits de production NON modifiés, vérifié par test), la commande est refusée en production, aucune base n'est lue (`ParametresEchantillon`), IFU `0000000000000`. Kit `05_essai_boitier/` : trois JSON produits par `construireJsonPilote` et validés contre `bill.spec.json` (copie du schéma) par un validateur lui-même éprouvé sur des documents invalides ; procédure technicien, fiche de résultats (inconnues §8), essai du poste pas à pas, faux pilote `tool/faux_pilote_boitier.dart`. Tests : `EchantillonsPresentationTest` (PHP), `echantillons_presentation_test` et `kit_essai_boitier_test` (Dart). Écarts de rendu relevés, non corrigés : le A4 du poste n'imprime pas l'IFU du client ni ne formate les quantités comme le serveur.
+
+## 07/11/2026 — Facture proforma (document non fiscal) : serveur complet, poste partiel (schéma poste v52)
+
+Spécification : `docs/SPEC_FACTURE_PROFORMA.md`. **Serveur** : tables `proformas`/`lignes_proforma` + `factures.proforma_id` ; `ProformaService` (création, modification auditée, émission = numéro `N°0045 FP-GCN/2026` par année sous verrou, annulation avec motif, conversion par `EmissionFactureService`, idempotente) ; PDF A4 `pdf.proforma` fidèle au modèle papier (vert = jeton `AppColors.vert700`) ; `MontantEnLettres` ; réglages « Identité & Légal » (activités, Facebook, ville, référence facture GCN, signataire, interrupteur signature/cachet, validité Oui/Non + jours) et images signature/cachet réduites à 400 Ko (règle des reçus) ; écran Facturation > Proformas et bouton « Créer une proforma » (location, tourisme, hébergement ; événement : proforma vide, aucun module événement n'existe) ; synchronisation `GestionnaireProformas` + descente (lignes avec l'en-tête). L'interrupteur de signature s'applique aussi aux FACTURES A4 serveur. **Poste** : v52 (trois tables), `ProformaDao` (écrivain unique, hors ligne, file dans la transaction, numéro provisoire, conversion par `FactureDao`), montant en lettres / date longue / numéro en Dart confrontés au PHP (`rejouer_proforma.php`, 2 600 montants), synchronisation prouvée contre le vrai moteur PHP. **Restent au poste** : descente des proformas reçues (autres postes/web) et des réglages d'image, écran, PDF A4 par `pdf`, impression, boutons des modules, signature sur la facture A4 du poste. Mutations éprouvées : conversion sans idempotence, séquence figée à 1, `cent` toujours accordé, régularisation sans garde de doublon. Écart noté : `TourismePwaTest::chaque_action_rendue_existe_sur_le_composant_m9` (et M8) rouge AVANT ce lot.
+
+## 07/11/2026 — Facture proforma : le poste est complet (G1 à G4) et deux gardes M8/M9 réparées
+
+Régularisation du numéro à l'accusé, descente des proformas et des images signature/cachet (`GET /sync/apparence-documents`, empreinte courte), écran « Proformas » du poste (libellés du web relus par `proforma_textes_test`), PDF A4 jumeau du rendu serveur (`proforma_a4.dart`), bloc signature/cachet commun (`core/impression/bloc_signature_a4.dart`) sur proformas ET factures A4, boutons dans les modules. Comparateur Blade : dette resserrée (strict 91,15 %). Gardes éprouvées : un QR ou un numéro MECeF posé sur une proforma rougit le test serveur ET poste. **Cause réelle des deux rouges** `TourismePwaTest` / `VehiculesPwaTest::chaque_action_rendue_existe…` : la barre supérieure rend l'icône de synchronisation (`wire:click="ouvrir"`, composant imbriqué `SynchronisationBarre`) sur CHAQUE page, et ces deux gardes ne connaissaient comme composants imbriqués que la cloche et la recherche ; `SynchronisationBarre` y est ajouté (les autres écrans l'avaient déjà).
+
+## 09/11/2026 — Deux mensonges comptables corrigés : bilan déséquilibré par la TVA, phrases de la réception d'achat
+
+**Bilan** : `RubriquesSyscohada::DETTES_CIRCULANTES` n'avait pas `443` ; une vente avec TVA créditait 4431/4432 dans AUCUNE rubrique, le bilan affichait un écart égal à la TVA collectée et le bandeau « hors nomenclature ». Ajoutés : `443` et `4441` au passif circulant ; `445` (TVA récupérable) et `4449` (crédit de TVA à reporter) aux créances de l'actif circulant (le TAFIRE et les notes annexes lisent les mêmes listes). Même règle au poste (`RubriquesBilan`). Test `BilanTvaEquilibreTest` (vente avec TVA réelle ; balayage des constantes de `ComptesSyscohada` et des défauts de `RolesCorrespondance`, lus à l'exécution ; mutation : retirer `443` fait rougir les trois cas). Les jeux de parité (`etats_financiers_contre_serveur_test`) portent maintenant 4432, 4441, 4452, 4449 ; le cas « hors nomenclature » utilise 4811.
+
+**Réception d'achat (D265/D276 soldé)** : quatre phrases du web affirmaient que la réception met à jour le coût moyen pondéré (aide de la modale, message de succès, sous-titre de l'onglet Réceptions, message « prix obligatoire »). Le serveur exécuté n'y touche pas (`entree()` sans coût). Corrigées à la source, identiques au poste ; les tests épinglent la même phrase vraie des deux côtés. Manuel §7.4 et figure 7.5 : avertissement d'écart retiré ; la capture `x-appro-reception.png` est à refaire (elle montre l'ancienne phrase).
+
+## 09/11/2026 — Affectation du résultat d'un exercice clôturé (web ET poste)
+
+Demande du PO : « ajoute l'affectation du résultat » (le résultat de N-1 restait en 131/139 et se cumulait avec celui de N). **Serveur** : `AffectationResultatService` (`affecter`, `contrepasser`, `etat`, `proposer`), table `affectations_resultat` (historique, une seule affectation ACTIVE par exercice sous verrou de la ligne d'exercice, une contre-passée peut être refaite), pièce OD datée dans N (date d'approbation), passée par `PasserEcritureService` donc validée et immuable (RG-11), audit `affectation_resultat` / `affectation_resultat_contrepassee` (qui, quand, montants, motif). Comptable seul. Cinq rôles ajoutés à la correspondance PARAMÉTRABLE : 111, 1181, 465, 121, 1291 par défaut (1181 et 1291 et non 118/129 : divisions du plan, refusées à l'écriture). Bilan : réserves (11), report à nouveau (12) en capitaux propres, 465 en rubrique `DETTES_ASSOCIES` (à part du BFR, pour le TAFIRE), sans quoi le bilan de N se disait déséquilibré. Réouverture de N-1 refusée tant que l'affectation est active. **Web** : carte « Affectation du résultat de l'exercice N-1 » de l'onglet Clôtures (résultat en lecture seule, date, ventilation, report à nouveau = le reste, contrôle en direct, confirmation, état « passée le … par … », contre-passation avec motif). **Poste** : même carte, `AffectationResultatLocale` ; la pièce part comme PIÈCE SAISIE (`pieces_saisie` + bloc `affectation`), le serveur la passe par son service et confronte les lignes (`affectation_piece_divergente`) ; la contre-passation part comme demande `annuler_affectation`. Preuve : `AffectationResultatTest`, `AffectationResultatSynchronisationTest`, `affectation_contre_serveur_test` (script `rejouer_affectation.php`), `hub_affectation_test`, `affectation_sans_serveur_test`. Mutations : retirer « somme = résultat » et retirer l'unicité font rougir les tests serveur. Écarts nommés : le poste reconnaît « son » affectation par le libellé de la pièce (pas de table, pas de schéma v53) ; la note annexe 4 (créances et dettes) ne liste pas encore 465.
+
+## 09/11/2026 — Une affectation du résultat passée au web APPARAÎT sur les postes (descente, schéma poste v53)
+
+Demande du PO : « Le poste ne reconnaît que ses propres affectations : une affectation passée au web n'y apparaît pas — ÇA DOIT APPARAÎTRE ». **Mécanisme retenu : (a), une DESCENTE de l'entité `affectations_resultat`**, pas la reconnaissance depuis le miroir `ecritures_serveur_local` (b) : le miroir porte les lignes de la pièce mais ni l'auteur, ni la date de passation, ni la ventilation par poste, ni le statut « contre-passée » de l'affectation (la contre-passation y est une pièce de plus, sans lien), et le libellé est une langue, pas un marqueur — une pièce saisie à la main du même nom aurait passé pour l'affectation. **Serveur** : `CatalogueDescendantService::COLONNES['affectations_resultat']` (exercice rendu en ANNÉE, résultat signé, ventilation, numéro de pièce du serveur, `piece_origine_id`, `affectee_le`, `contrepassee_le` ; auteur en LOGIN par `AUTEURS`, jamais un identifiant de compte ; `cloture_id`, motifs et colonnes d'audit non descendus), module M10 par `MODULES_HORS_REGISTRE` (droit de lecture comptabilité comme les écritures), active ET contre-passée (le poste doit apprendre qu'on peut refaire). **Poste** : schéma **v53, 82 tables** — UNE table neuve `affectations_resultat_local`, migration conditionnelle + `_ajoutsParVersion[53]` + `tablesAjouteesEnV53` (ajouté aux tests de migration qui énumèrent les tables) + curseur de descente oublié ; écrivain unique `AffectationsRecuesDao` (appelé par `AligneurCatalogue._affectationRecue`, qui n'enfile jamais) ; `AffectationResultatLocale.active()` lit deux sources sans jamais afficher deux fois : la pièce de CE poste (journal) et la ligne reçue, reliées par l'identifiant d'origine de la pièce ; contre-passée au web, une affectation de ce poste n'est plus active même si son journal n'a pas bougé ; clôture faite ailleurs : le résultat est lu sur la ligne reçue (l'active, ou la contre-passée si elle date de la clôture en cours) ; carte : « Affectation passée le … par … (pièce n° …) » + montants, « Passer » remplacé, mention « se contre-passe là où elle a été passée » pour une affectation d'ailleurs ; lecture seule depuis la base locale, aucun réseau. **Preuves** : `AffectationsDescendantesTest` (PHP : une affectation du web est dans le flux, une contre-passée change de statut et redescend depuis le curseur, une refaite donne deux lignes, le droit M10), `affectation_recue_du_serveur_test` (chemin réel descente -> aligneur -> carte), `hub_affectation_du_web_test` (widget), `affectation_du_web_contre_serveur_test` (PHP exécuté : événement `flux_affectations` de `rejouer_affectation.php`, base privée `tatacora_affect2_test`), `migration_v53_affectations_test` (fichiers réels avec données, depuis v52, v51, v44, v40, et un fichier déjà en forme v53 marqué v52), `ecrivains_affectations_recues_test`. **Mutations** : aligneur sans effet, lecture qui ne distingue plus sa propre pièce, statut « contre-passée » ignoré, table retirée de `COLONNES`, oubli du curseur, entrée v53 retirée du fichier de retour arrière — chacune fait rougir. Piège rencontré : la classe Drift doit finir par `Local` (sinon la table s'appelle `…_locale`) ; et l'ajout de la table par la migration est AUSSI rattrapé par la réconciliation finale, d'où une preuve de migration portée par le curseur oublié et le fichier de retour arrière plutôt que par `createTable` seul. **Écarts restants** : une affectation passée ailleurs ne se contre-passe pas depuis ce poste (il n'en détient pas la pièce ; elle se contre-passe là où elle a été passée, puis redescend) ; une pièce saisie à la main au libellé exact de l'affectation reste prise pour celle de ce poste tant que le serveur ne l'a pas reprise comme affectation ; pas de fixture d'ancien schéma v53 (aucune n'existe au-delà de la v49 pour les ajouts de tables).
+
+## 09/11/2026 — Affectation du résultat selon la FORME JURIDIQUE : le Gîte est une entreprise individuelle (web ET poste, schéma poste v53 inchangé)
+
+Décision du PO : « le Gîte est une ENTREPRISE INDIVIDUELLE (pas une SARL) » ; avis révisé de l'expert-comptable SYSCOHADA. **Réglage** `forme_juridique` (`entreprise_individuelle` DÉFAUT, `sarl`, `sa`) : administrateur seul, au serveur, refusé tant qu'une affectation est active ; descendu au poste en lecture seule (`serveurSeulement`, comme `facturation_mode`) ; absent ou inconnu = entreprise individuelle. **Rôle `COMPTE_EXPLOITANT`** (21e de la correspondance), défaut **1041** : le plan porte 104 « Compte de l'exploitant » avec ses sous-comptes, 104 est une division jamais imputée. **Entreprise individuelle** : ni réserve légale ni dividendes (refus, y compris pour la pièce d'un poste), date « de la décision de l'exploitant », bénéfice ventilé entre 1041 / 121 / 1181 (le reste à l'exploitant), perte au 1041 (défaut), au 1291 ou imputée sur 121/1181 dans la limite du solde. **SARL/SA** : réserve légale obligatoire bloquante (10 % de bénéfice − pertes antérieures, plafond 20 % du capital 101x ; capital inconnu = avertissement), dividendes refusés sous capital + réserves non distribuables, ALERTE sous la moitié du capital (carte + audit, art. 664), ordre d'imputation d'une perte 121 → 1181 → 1291, jamais la réserve légale. **Contre-passation** : date du jour dans N OUVERT, jamais avant la pièce, référence de la décision facultative (audit), refusée si un dividende est réglé. **Poste** : mêmes règles et mêmes phrases en Dart ; la part du compte de l'exploitant d'une affectation du web se déduit (somme = résultat) : aucune colonne ajoutée. Migration serveur additive (`compte_exploitant`, `forme_juridique`, `reference_decision_contrepassation`).
+
+Pièges : (1) la part « exploitant » ne descend pas, elle se déduit ; (2) `RubriquesSyscohada::CAPITAL` couvre désormais tout le groupe 10 (bilan) : l'affectation lit le capital SOCIAL dans sa propre constante (101 seul) ; (3) aucun littéral `10` (le plan n'a pas de compte 10) : capitaux propres écrits compte par compte ; (4) la contre-passation exige que le jour tombe dans N : en janvier N+1, tant que N reste ouvert, elle est refusée (à arbitrer avec le comptable) ; (5) tout test de société pose la forme (`ParametreSysteme` / `poserFormeJuridique` / clé d'entrée `forme_juridique` du script) — sans elle, c'est l'entreprise individuelle.
+
+**Mutations prouvées** — PHP (`AffectationFormeJuridiqueTest`, 23/23 rouges) : EI accepte dividende, EI accepte réserve légale, société accepte le compte de l'exploitant, reste EI au report, proposition EI au report, réserve légale non bloquante, plafond 20 % ignoré, pertes antérieures ignorées, plancher des dividendes ignoré, seuil d'alerte abaissé, ordre d'imputation inversé, contre-passation datée de l'origine, contre-passation avant la pièce admise, dividende réglé ignoré, changement de forme avec affectation active, exercice en clôture admis, référence non conservée, jour hors de N admis, rôle administrateur retiré, alertes non tracées, reste du web au report, libellé de date unique, défaut société. Poste, contre le vrai PHP (`affectation_forme_contre_serveur_test`, `hub_affectation_forme_test`, `affectation_sans_serveur_test`, 18/18 rouges) : mêmes familles côté Dart, plus la référence non transmise à la demande et l'alerte absente de la carte. Le scénario Dart « petite perte » a été ajouté parce que la mutation « ordre inversé » restait verte (121 et 1181 y étaient épuisés dans les deux ordres). Gardes tenues : `PwaActionsReluesTest`, `PwaEcritureAutoriseeTest`, comparateur Blade, `echelle_contenu_test`, caractères de contrôle, registre et compteurs de paramètres (66 définitions, 21 rôles), comptes sans numéro en dur.
+
+## 09/11/2026 — Réglages MECeF et forme juridique MODIFIABLES AU POSTE (administrateur) ; aide sous l'échec du test d'e-mail (web ET poste, schéma poste v53 inchangé)
+
+Demande du PO (capture de l'onglet Paramètres du poste) : « ces options doivent être MODIFIABLES dans le poste ». **Audit des 14 clés `serveurSeulement`** : toutes deviennent modifiables, le champ disparaît du registre (remplacé par `reserveAdministrateur`, 5 clés : `facturation_mode`, `mecef_api_url`, `mecef_operateur_id`, `mecef_operateur_nom`, `forme_juridique`). Les 9 réglages des documents (activités, Facebook, ville, référence facture, signataire nom/fonction, signature affichée, validité affichée/jours) : droit `PARAM` seul, comme au web (leur bouton « Modifier » existait déjà mais l'écriture était refusée : défaut corrigé). Restent hors poste, par raison de sécurité : le JETON e-MECeF (jamais au registre, ni charge, ni descente, ni journal : « Géré au serveur » inchangé) et le mot de passe SMTP (`poste.json`).
+
+**Poste** : `EnregistrerParametres.executer(estAdministrateur:)` (même phrases que le serveur : `MessagesReglagesAdministrateur`), forme juridique refusée sous une affectation active (`AffectationResultatLocale.existeUneActive`, fermé par défaut si non câblé), cohérence du mode (IFU 13 chiffres + opérateur) sans le jeton, libellés des choix (`choixLibelles`, confrontés au PHP) à l'écran et dans la liste, « Modifier » réservé à l'administrateur pour les 5 clés. L'écriture est enfilée (`parametres_systeme`) comme tout paramètre. **Serveur** : `GestionnaireSynchronisation::refusDeDroit` (nouveau, défaut `null`) appelé par le moteur après le droit de module : `GestionnaireParametres` rejette `droit_manquant` + trace `acces_refuse_rbac` si le compte du jeton n'est pas administrateur ; `ControleValeurParametre` rejoue la FORME (choix, https, longueur, alphanumérique, bornes, interrupteur) des 14 clés ouvertes, phrases `parametres.valeur_*` ; plus aucune clé écartée d'un envoi de poste.
+
+**Écarts nommés** : (1) mode e-MECeF sans jeton : le serveur refuse (`mecef_manque_jeton`), le poste ne peut pas le juger ; (2) un non-administrateur ne voit pas « Modifier » sur `forme_juridique` (le web le montre puis refuse) ; (3) les phrases de FORME du poste restent celles d'avant, le serveur les reprend mot pour mot pour les 14 clés ouvertes seulement.
+
+**Test d'e-mail** : le message du transport reste intact ; une aide fixe dessous (`AideEchecEmail`, `pwa.parametres.email_test_aide_*`, copie Dart `aide_echec_email.dart`) : nom introuvable, identifiants refusés, connexion refusée/expirée, ordre d'examen figé, jamais de secret (le web masque aussi le mot de passe SMTP cité par le transport). Le libellé d'onglet dit « Email (SMTP) ».
+
+**Preuves** : PHP `ReglagesFacturationPosteSynchronisationTest` (10), `AideEchecEmailTest`, `ParametresMecanismesPwaTest` ; Dart `reglages_facturation_contre_serveur_test` (script `tool/parametres/rejouer_reglages_facturation.php`, 37 cas, base privée), `aide_email_contre_serveur_test` (`rejouer_aide_email.php`), `reglages_facturation_modifiables_test` (enfilé, hors ligne, synchronisation désactivée = zéro requête, `droit_manquant` lisible, descente retour, jeton exclu, aucune normalisation), `forme_juridique_affectation_active_test`, écran (administrateur / non-administrateur). Mutations rouges : hook de droit neutralisé, contrôle de forme neutralisé, ordre des cas d'aide inversé, code `droit_manquant` changé ; Dart : droit administrateur, garde d'affectation, cohérence du mode, gating de l'écran, comparaison forme inchangée, fragment « Failed host lookup ». Piège : écrire un littéral de clé dans `regles_parametres.dart` le fait voir par la sonde des lecteurs (exemptions nommées, 18).
+
+
+## 09/11/2026 — « Synchronisation » devient « Appairage Postes » (web ET poste)
+
+Demande du PO (capture des Paramètres du poste, dernier onglet) : « changer le nom de l'onglet Synchronisation en « Appairage Postes » ». **Renommés, au mot près des deux côtés** : (1) l'onglet des Paramètres du POSTE (`_ongletSynchronisation`, libellé seul ; jeton interne `synchronisation` et clé `param-onglet-synchronisation` inchangés) ; (2) l'entrée de menu latéral « Synchronisation » (`MenuLateral::NAVIGATION`, `navigation_tatacora.dart`, liste des entrées masquées au gérant) qui mène à la page d'appairage ; (3) la page elle-même, ex-« Postes & Appairage » : `pwa.synchronisation_postes.titre`, `titre_page` (onglet du navigateur « Appairage Postes — LogiReStock — TATACORA AFRIQUE », attribut `#[Title]`), lien « Voir Appairage Postes » de la barre supérieure, titre de `ecran_synchronisation_postes.dart` ; (4) les phrases qui désignent l'onglet par son chemin (« Paramètres → Appairage Postes » : `pwa.php` révocation, `sync.php`, textes de `ecran_synchronisation.dart`, `telechargement_recu_depense.dart`, `cartes_adresse_serveur.dart`).
+
+**Laissés tels quels** : l'icône de la barre supérieure (« Synchronisation » / « Synchronisation des postes » : l'état, pas l'appairage), « Synchronisation activée », « Demander la synchronisation des postes », l'écran des échecs (`/synchronisation`, titre « Synchronisation »), les journaux, les modes automatique/manuelle, et l'entrée du MENU DE COMPTE « Synchroniser les postes » (`pwa.coquille.synchronisation_postes` / `LibellesCoquille.synchronisationPostes`, même page : à trancher par le PO). Les lignes historiques de ce journal gardent les anciens noms.
+
+**Fixtures** : `barre-laterale.json` (3 occurrences du nom, éditées à la main : une régénération complète ramenait aussi l'entrée « Comptes utilisateurs », dérive antérieure sans rapport) et `transverse__synchronisation-postes.json` (régénérée, h1). Aucune dette figée touchée.
+
+
+## 09/11/2026 — Les trois boutons de fenêtre (réduire, agrandir/restaurer, fermer) au niveau du poste ; barre de titre native masquée
+
+**Demande du PO** : « mettre les trois boutons au niveau du poste » (capture « — ❐ ✕ »).
+
+**Diagnostic.** Le runner créait la fenêtre avec `WS_OVERLAPPEDWINDOW & ~(WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)` (demande du PO du 24/08/2026 : ne pas fermer l'application par mégarde). Il y avait donc une barre de titre NATIVE visible (titre « LogiReStock — TATACORA AFRIQUE »), SANS aucun bouton, sur une fenêtre ouverte AGRANDIE (`SW_MAXIMIZE`) ; elle n'était pas masquée, il n'y avait ni plein écran réel, ni `TitleBarStyle.hidden`, ni touche F11 (la « bascule plein écran » du poste est celle du menu latéral). Le PO ne pouvait ni réduire, ni restaurer, ni fermer d'un clic ; seul Alt+F4 (rétabli à la main dans le runner) fermait. Aucune garde de fermeture n'existe côté Dart (le commentaire du runner le disait déjà) : la file d'envoi et les paniers sont dans SQLite, rien à vider.
+
+**Choix : barre native MASQUÉE, boutons permanents dans la barre supérieure.** Garder la barre native et n'afficher les boutons que lors d'un masquage aurait laissé deux barres superposées (64 px + ~32 px perdus) sans bouton natif : la barre native n'apportait que le titre et la zone de déplacement. `ControleFenetreWindows.preparer()` (avant `runApp`, fenêtre encore cachée) pose `TitleBarStyle.hidden` ; la barre supérieure de la coquille porte `BoutonsFenetre` à l'extrême droite (après le menu de compte, sans marge droite) et une `ZoneDeplacementFenetre` sur son espace libre (glisser = déplacer, double-clic = agrandir/restaurer). Redimensionnement par les bords gauche, droit et bas conservé (cadre `WS_THICKFRAME` ; le bord HAUT n'est plus saisissable, limite connue du plugin). Si le plugin ne se charge pas, `preparer()` ne lève jamais : la barre native reste et porte alors, elle, les trois boutons (le style du runner les porte de nouveau) : le poste n'est jamais coincé. `controleFenetreProvider` rend `null` hors Windows et tant que la barre native n'est pas masquée : aucun bouton en double, barre identique à la vue.
+
+**Écart nommé** (« poste Windows seulement ») : `partials/barre-superieure` l.112 (`<header>`), l.299 (fin, après le menu de compte) de la vue : le web n'a pas ces boutons (le navigateur porte les siens). Écart déclaré dans `boutons_fenetre.dart`. Comparateur Blade : aucun fichier de vue touché, aucune dette retouchée ; libellés dans `core/fenetre/libelles_fenetre.dart` (pas dans `LibellesCoquille`, que `coquille_rendu_test` confronte aux clés PHP) ; mesures dans `core/theme/mesures_fenetre.dart`.
+
+**Paquet ajouté : `window_manager ^0.5.2`** (MIT, Windows). 0.5.2 et non 0.6.0 (01/11/2026) : la 0.6.0 se réécrit sur `nativeapi`/`cnativeapi` (pile native de plus, non éprouvée) et relève l'exigence à Flutter 3.47. `flutter pub get` : seuls `window_manager` et `screen_retriever` (+ 3 variantes de plate-forme) s'ajoutent, aucune version existante ne bouge. `windows/flutter/generated_plugin_registrant.cc` et `generated_plugins.cmake` sont régénérés (versionnés).
+
+**Seam** : `ControleFenetre` (interface : `agrandie`, `reduire`, `basculerAgrandissement`, `fermer`, `deplacer`) ; réalisation Windows `ControleFenetreWindows` ; faux dans `test/core/fenetre/boutons_fenetre_test.dart`. Fermer = `windowManager.close()` = `WM_SYSCOMMAND/SC_CLOSE` = le même chemin que la croix native (puis `WM_CLOSE`, comme Alt+F4).
+
+**Runner (`windows/runner`)** : (1) le style redevient `WS_OVERLAPPEDWINDOW` : le plugin commande la fenêtre par `WM_SYSCOMMAND` et `DefWindowProc` n'y répond que si `WS_SYSMENU`/`MINIMIZEBOX`/`MAXIMIZEBOX` sont dans le style (le retrait du 24/08/2026 est renversé par le PO ; Alt+F4 et Alt+Espace redeviennent natifs) ; (2) `FlutterWindow::MessageHandler` traite `WM_GETMINMAXINFO` AVANT les greffons : le plugin y répond `0` même sans taille posée et aurait court-circuité le minimum 1024 x 640 et l'agrandissement borné à la zone de travail (sinon la fenêtre agrandie passait sous la barre des tâches, défaut du 14/10/2026).
+
+**Défaut trouvé en chemin (barre supérieure, ANTÉRIEUR)** : la barre seule déborde entre 800 et 1040 px (34 à 178 px ; 6 px à 1040) — le portable 1366 x 768 à 125 % (1093 px) tenait de justesse. Avec 138 px de boutons, la croix aurait été coupée jusqu'à 1100 px. Parade : sous `MesuresFenetre.seuilBarreCompacte` (1160 px), mode compact (boutons de 32 px, login et rôle masqués à côté de l'avatar ; le menu de compte les porte toujours). Mesuré : aucun débordement de 1000 à 2560 px. Entre 800 et 1000 px (hors poste : le runner interdit < 1024) le débordement antérieur demeure.
+
+**Tests** : `test/core/fenetre/boutons_fenetre_test.dart` (19 cas : absents hors Windows, présents et à l'extrême droite dans l'ordre, cibles ≥ 32 px, bonne action par clic, Agrandir ↔ Restaurer (libellé ET tracé), infobulles, `Semantics` bouton nommé, pas de débordement 1024-2560 et 560-740, compacte/large, zone de glisser et double-clic, zone qui ne couvre ni boutons ni recherche, relecture du source natif : style, ordre `WM_GETMINMAXINFO`, préparation avant `runApp`). Mutations éprouvées (croix → réduire, tracé fixe, glisser retiré) : chacune rougit. **Ne peut être vérifié que sur Windows** (`flutter build windows` non lancé ici) : boutons réels, glisser, double-clic, absence de bande blanche en haut (Windows 10), agrandissement sans passer sous la barre des tâches, Alt+F4, redimensionnement aux bords, installateur.
+
+**À documenter au manuel d'utilisation (non édité ici)** : les trois boutons de la barre supérieure (réduire, agrandir/restaurer, fermer) ; glisser la barre pour déplacer la fenêtre, double-clic pour agrandir/restaurer ; fenêtre étroite (< 1160 px) : identité du compte masquée, visible dans le menu de compte ; le bord haut de la fenêtre ne se saisit plus pour redimensionner ; fermer la fenêtre ne perd rien (tout est dans la base du poste).
+
+## 09/11/2026 — Boutons de fenêtre : « corriger les limites » (bord haut redimensionnable, barre jamais en débordement de 320 à 2560 px)
+
+**Demande du PO** : (1) « le bord supérieur de la fenêtre ne permet plus de la redimensionner (bords gauche, droit, bas OK) » ; (2) « la barre entière déborde déjà à 320 px et à 400 px ». Lève les deux limites listées par le lot précédent.
+
+**1. Redimensionnement par le haut.** Diagnostic (source du plugin `window_manager` 0.5.2, `window_manager_plugin.cpp`) : avec `TitleBarStyle.hidden`, `WM_NCCALCSIZE` retire 8 px à GAUCHE, à DROITE et en BAS de la zone client (ce sont les cadres natifs, `WS_THICKFRAME` ; leurs coins bas aussi) mais RIEN en haut : plus de cadre au bord haut ni aux deux coins hauts. Les quatre autres bords et les coins bas restent donc natifs ; je n'y ajoute rien. Ajouts : `ControleFenetre.redimensionner(BordFenetre)` (`haut`, `hautGauche`, `hautDroite`, type du seam, aucun plugin dans l'interface) ; réalisation Windows = `windowManager.startResizing(ResizeEdge.top / topLeft / topRight)` ; `ZonesRedimensionnementFenetre` (`core/fenetre/boutons_fenetre.dart`), posée en dernier dans la pile de `CoquilleApplication` : trois zones invisibles, 4 px pour le bord, 6 x 6 px pour les coins (jetons `MesuresFenetre.epaisseurBordRedimensionnement`, `tailleCoinRedimensionnement`), curseurs `resizeUpDown`, `resizeUpLeftDownRight`, `resizeUpRightDownLeft`, appel dès l'appui du bouton principal (comme le cadre natif ; le clic droit ne fait rien). Le bord haut s'arrête à gauche des trois boutons : réduire / agrandir / fermer restent cliquables jusqu'au pixel du haut ; SEUL l'angle haut-droit de la croix (6 x 6 px) redimensionne au lieu de fermer. Inactives fenêtre agrandie (`agrandie`), absentes hors Windows (aucun contrôle).
+
+**2. Barre sans débordement de 320 à 2560 px.** Mesure : débordement de 193 px à 320 px, 113 à 400, 33 à 480 ; de 62 px à 800 ; en plus, le pire cas (caisse « Clôturer la caisse », exercice consulté autre que le défaut, login long) débordait aussi à 1600 px (la pastille « Vous consultez … » et « Revenir » font ~520 px). Fonction pure `DispositionBarre.pour(largeur)` (`core/router/disposition_barre.dart`), seuils dans `MesuresFenetre` (aucune valeur en dur), repli par priorité, monotone : recherche → icône 32 px (le champ s'ouvre par-dessus la barre, mêmes résultats ; < 1560) ; indicateur de caisse → sa pastille seule, libellé en infobulle (< 1560) ; sélecteur d'exercice → sans libellé ni « Revenir » (< 1800), puis masqué (< 1000, sûreté : le runner interdit < 1024) ; barre compacte (boutons de 32 px, login/rôle masqués) sous 1300 px au lieu de 1160 ; « Vente » → icône seule (< 1160) ; logo masqué (< 1000) ; synchronisation masquée (< 360). JAMAIS repliés : les trois boutons de fenêtre, le menu de compte, le bouton de menu (menu mobile ou bascule). Plafonds : login/rôle du menu 160 px avec ellipse ; sélecteur d'exercice 20 % de la largeur (au moins 240 px) avec ellipse sur la pastille. Cibles ≥ 32 px : bouton de menu et bascule (en barre compacte) passent de 22 à 32 px de zone cliquable (tracé inchangé), icône « Vente » et pastille de caisse 32 px ; sync et cloche en font déjà 36. À 1600 px, sur les écrans sans sélecteur d'exercice, la barre est strictement celle d'avant (comparateur Blade, dette figée, `echelle_contenu_test`, emplacement et géométrie : verts, sans toucher aux fixtures ni aux cliquets).
+
+**Écarts nommés** : tous au poste Flutter (la vue Blade n'a ni ces boutons ni ces replis, `partials/barre-superieure`) ; `LibellesFenetre.fermerRecherche` (« Fermer la recherche ») est un ajout du poste, hors `LibellesCoquille`.
+
+**Tests / mutations** : `test/core/fenetre/boutons_fenetre_test.dart` (32 cas) : balayage 320 → 2560 par pas de 24 px plus chaque seuil ±1, sur deux scénarios (caisse fermée ; caisse à clôturer + exercice autre + login long), sans débordement, avec les trois boutons, la croix collée au bord droit, le menu de compte et le bouton de menu toujours présents ; cibles ≥ 32 px ; ordre du repli ; recherche en icône (ouvre, saisit, se referme) ; `DispositionBarre` (large = rien de replié, monotone, pas de « compacte » sans boutons) ; zones de redimensionnement (géométrie, bon bord et bon curseur, boutons cliquables au pixel du haut, inactives agrandi, clic droit, mapping `ResizeEdge` relu dans le source). Mutations éprouvées (chacune rougit, puis rétablie) : seuils vente / logo / synchro à 0 ; seuils recherche / caisse à 0 ; garde « agrandie » retirée ; bord haut étendu sur les boutons ; `hautDroite` → `ResizeEdge.topLeft`. Non vérifiable ici : rendu réel Windows.
+
+**À essayer sur Windows (PO)** : saisir le bord haut et les deux coins hauts (curseur double-flèche, la fenêtre se redimensionne, y compris vers le bas) ; vérifier que le clic sur réduire / agrandir / fermer fonctionne tout en haut du bouton ; fenêtre agrandie : le bord haut ne redimensionne pas ; rétrécir la fenêtre jusqu'au minimum (1024 px) : icône de recherche (clic = champ déplié par-dessus la barre), caisse en pastille, « Vente » en icône, trois boutons et menu de compte toujours visibles ; sur Comptabilité avec un exercice ancien choisi, la pastille se coupe sans pousser les boutons.
+
+**À documenter au manuel d'utilisation (non édité ici)** : le redimensionnement par TOUS les bords et coins (le haut compris) ; le repli de la barre en fenêtre étroite (recherche et caisse en icônes, « Vente » en icône, identité du compte dans le menu) ; la recherche en icône qui déplie un champ par-dessus la barre ; le sélecteur d'exercice abrégé en fenêtre étroite ; infobulles des icônes ; la fenêtre ne descend pas sous 1024 px.
+
+## 09/11/2026 — « Synchronisation », « Appairage Postes » et « Import & Export » au menu de TOUS les rôles ; « Réinitialiser les données de test » revient dans Paramètres (web ET poste)
+
+Quatre demandes du PO, un seul lot. **(1)** « La page Synchronisation du sidebar : tous les users RBAC doivent l'avoir PAR DÉFAUT (poste et web) » ; **(2)** « Déplace l'onglet Appairage Postes de Paramètres dans le sidebar, et tous les users RBAC doivent l'avoir par défaut » ; **(3)** « Ramène le bouton RÉINITIALISER LES DONNÉES DE TEST dans PARAMÈTRES » ; **(4)** « La page Import & Export du sidebar : tous les users RBAC doivent l'avoir PAR DÉFAUT ».
+
+**Droits.** Trois droits TRANSVERSES, HORS ÉCRAN comme `ANNULATIONS` (la matrice de « Rôles & Permissions » ne les affiche pas) : `SYNCHRO`, `APPAIRAGE`, `IMPORT_EXPORT`. `L` pour les douze rôles du socle (dont le gérant), `C` pour `administrateur` et `super_admin` ; un rôle créé à l'écran reçoit `L` (`RolePermissionService::creerRole`, `roles_dao._droitsRoleNeuf`). Serveur : `RolePermissionSeeder::MATRICE` + `DROITS_OUVERTS_A_TOUS`, migration `2026_11_09_180000_poser_droits_synchro_appairage_import_export` (rappelle `completerModulesNouveaux()` : ADDITIF, un module déjà connu n'est jamais réécrit), `AuthController::MODULES` (la réponse de connexion porte 22 droits). Poste : `ModuleTatacora.synchro/appairage/importExport`, `socleRbacCdcf`, `droitsOuvertsATous`, **schéma v54 sans table ni colonne** (`droits_ouverts_a_tous_migration.dart`, pose les clés dans `roles_local` et `utilisateurs_local` là où elles manquent, jamais réécrites ni retirées ; `54: []` dans `retour_arriere_schema.dart`), premier compte (`formulaire_premier_compte`). **Le droit ne gouverne que la VISIBILITÉ de l'entrée et de la page** : chaque geste sensible garde sa garde. Choix assumé : des droits CACHÉS (pas de nouvelle section dans la matrice) pour ne pas rouvrir le comparateur Blade de « Rôles & Permissions » ; un administrateur ne peut donc les retirer à un rôle que par la base (à trancher par le PO : section « Menu » dans la matrice ?).
+
+**Menu final (web = poste, au mot près).** Groupe « Pilotage & administration » : États & Rapports, Notifications, **Import & Export**, Rôles & Permissions, Comptes utilisateurs, Paramètres, **Synchronisation**, **Appairage Postes**. `ROUTES_MASQUEES_PAR_ROLE['gerant']` et `nomsMasquesParRole['gerant']` ne portent plus Import & Export ni Appairage Postes (le gérant voit désormais ces trois entrées ; le masquage du 03/09/2026 reste pour Paramètres, Rôles, États…). Visibilité : `MenuLateral` (`module` = `SYNCHRO` / `IMPORT_EXPORT` / `APPAIRAGE`), `navigation_tatacora.dart` (`ModuleTatacora.synchro/importExport/appairage`). Les routes suivent le droit : `/pwa/synchronisation` (`module:SYNCHRO,L`), `/pwa/synchronisation-postes` (`module:APPAIRAGE,L`, elle n'exigeait aucun module), `/pwa/import-export` (`module:IMPORT_EXPORT,L`, elle exigeait `PARAM`) ; au poste `/synchronisation-postes` quitte `routesOuvertesATousLesComptes` et `/synchronisation` quitte `modulesDesRoutesHorsMenu` (la garde du routeur relit `routes/web.php` : 4 routes ouvertes à tout compte, plus 5).
+
+**« Synchronisation » au web : page CRÉÉE** (`Synchronisation`, `transverse/synchronisation.blade.php`), par extraction, pas par invention : les journaux de Réception et d'Envoi (composants imbriqués inchangés) étaient les onglets « Réception » et « Envoi » de la page des postes ; le poste sépare l'appairage et l'état depuis le 15/10/2026. Justification : sans page web, l'entrée « Synchronisation » ne pouvait pas être « identique web/poste » et `ecran_synchronisation.dart` restait un ajout sans vue. La page des postes ne garde que le tableau des postes. Rôles : administrateurs et comptable voient les deux journaux (corrections et relances inchangées, redescente : administrateurs) ; **tout autre rôle voit la page en lecture et SES PROPRES échecs** (opérations rejetées, en conflit ou en erreur reçues sous son compte), sans bouton d'action ni composant de journal. `ecran_synchronisation.dart` cite désormais cette vue (l'exemption (d) « ajout du PO » est retirée), mêmes mots : titre, sous-titre, « À traiter », colonnes « Date / Poste / Table / Statut / Motif ».
+
+**« Appairage Postes » au poste.** Le contenu de l'ex-onglet des Paramètres (adresse du serveur, interrupteur « Synchronisation activée », fréquence, appairer, dissocier, tester la connexion : `onglet_synchronisation.dart`, `cartes_adresse_serveur.dart`) est la section « Appairage du poste » de l'écran « Appairage Postes » (`ecran_synchronisation_postes.dart`, route `/synchronisation-postes`), sous le tableau des postes ; l'onglet a disparu de `ecran_parametres.dart`. Au lieu d'une route dédiée de plus, UNE entrée de menu (« identique au mot près » avec le web) mène à un écran qui porte les deux. Gestes inchangés : appairer / dissocier / adresse / « Révoquer » = administrateurs (la section le vérifie ; un autre rôle lit « L'appairage du poste est réservé aux Administrateurs. »). « Demander la synchronisation des postes » reste ouverte à tout compte, comme la décision du PO du 18/10/2026 et comme aujourd'hui (le brief la croyait réservée : elle ne l'est pas).
+
+**Phrases « Paramètres → Appairage Postes » remplacées** par « menu Appairage Postes » : `pwa.php` (`revocation_texte`), `sync.php`, `ecran_synchronisation.dart` (deux textes), `ecran_synchronisation_postes.dart`, `telechargement_recu_depense.dart`, `cartes_adresse_serveur.dart` (déjà cohérent), docs (`ESSAIS_EN_PRODUCTION…`, `VERIFICATIONS_APRES_MISE_EN_PRODUCTION`, `BLUEPRINT_SYNCHRONISATION_MULTI_POSTES`).
+
+**« Import & Export » ouverte à tous, sans ouvrir ses gestes.** Un rôle sans `PARAM` voit la page et l'onglet « Importer » seulement : fiche des colonnes et historique, **aucun bouton** (l'import web exige `exigerEcriture(PARAM)` — garde figée par `PwaEcritureAutoriseeTest` ; le poste, lui, exige l'écriture sur le module choisi). Les onglets « Sauvegardes de la base » et « Restaurer » et leurs gestes de lecture (téléchargement d'une sauvegarde, export d'une table : désormais gardés, `exigerRoleAdministration`) exigent la lecture de `PARAM` ; toute écriture son écriture ; la purge reste `super_admin`. Doute NOMMÉ : le gérant (`PARAM = L`) garde la lecture des sauvegardes et l'export de table comme avant (PA-119), sans quoi on retirait un droit existant ; si le PO veut « sauvegardes = administrateurs » strictement, c'est une ligne (`accesSauvegardes()` → `estAdministrateur()`) et un test à inverser. L'export « des modules qu'il peut lire » n'est PAS offert aux autres rôles : aucune table de correspondance table → module n'existe (exporter `ventes` ou `ecritures_comptables` à un guide serait une fuite) ; à décider.
+
+**« Réinitialiser les données de test » revient dans Paramètres › Activation & Sécurité** (même place que dans la vue : avant le rappel de la suppression), bouton MARINE « Réinitialiser les données de test », logique INCHANGÉE (administrateur, environnement hors Production sauf phase d'essais, bascule `reinitialisation_seeders`, phrase « VIDER » à retaper, sauvegarde préalable, journal d'audit, chaque poste à réinitialiser ensuite). Web : `Parametres::ouvrirReinitialisation/reinitialiserDonneesTest/fermerReinitialisation` + `partials/reinitialisation-donnees-test` et `-modale` ; poste : `section_reinitialisation.dart` (`SectionReinitialisation`, textes `TextesReinitialisation`, clés `param-reinit-*`). Elle est RETIRÉE d'Import & Export (le web l'y avait comme unique emplacement et la doctrine du PO est « elle revient dans Paramètres ») : onglet, panneau, modale, méthodes, variante `seeders` du générateur ; le sous-titre de la page ne parle plus de « réinitialisation des jeux de test » (web et poste). Un ancien lien `?onglet=seeders` retombe sur « Importer ».
+
+**Tests.** PHP : `EntreesMenuOuvertesATousTest` (9 cas : matrice L/C pour les douze rôles et en base ; chaque rôle voit ET ouvre les trois pages ; le gérant n'est plus masqué ; **mutation** : retirer le droit d'un rôle lui retire entrée et page, 403 ; un rôle créé à l'écran reçoit L ; non-admin sans « Révoquer » ni 403 manquant ; non-admin voit ses propres échecs et seulement eux ; non-admin sans sauvegarde, restauration, export, génération, ni réinitialisation — chaque action appelée à la main refuse ; l'administrateur garde tout et le bouton aux Paramètres). Mutation éprouvée sur la matrice (`barman` sans `SYNCHRO` : trois cas rougissent) puis restaurée. Adaptés : `BoutonSynchroniserServeurTest`, `ReceptionSynchronisationTest` (onglets → page Synchronisation), `ImportExportActionsTest`, `ReinitialisationCommeNeufTest` et `ReinitialisationPhaseEssaisTest` (montent `Parametres`, onglet `activation`), `TransversePwaTest`, `ConnexionApiTest` (22 droits), `PwaActionsReluesTest`, `PwaEcritureAutoriseeTest`, `ExtraireStructureBladeTest` / `ExtraireBarreLateraleTest` (générateurs). Dart : `entrees_ouvertes_a_tous_test` (chaque rôle voit les trois entrées et ouvre les trois routes ; **mutation** par clé retirée pour chaque rôle × entrée ; le droit retiré ne retire que son entrée ; non-admin sans « Révoquer », « Appairer », « Dissocier », « Tester la connexion »), `migration_v54_droits_ouverts_a_tous_test` (4 versions de départ, réglage d'écran qui prime, matrice illisible intacte, idempotence, parité du socle), `ecran_import_export_test` (plus d'onglet de réinitialisation ; rôle sans `PARAM` : « Importer » seul ; sans `IMPORT_EXPORT` : refus), `onglet_synchronisation_test` (la section vit sur l'écran, l'onglet a quitté les Paramètres), `onglets_vue_parametres_test` (la section de réinitialisation), `garde_routes_test` (4 routes ouvertes), `app_database_test` et `migration_depuis_anciens_schemas_test` (v54).
+
+**Fixtures et cliquets.** `barre-laterale.json` régénéré par le générateur (les trois entrées et les trois droits ajoutés par rôle ; l'entrée « Comptes utilisateurs », dérive antérieure sans rapport, retirée à la main pour ne pas la figer) ; `transverse__import-export.json` (onglet et variante `seeders` retirés, sous-titre : édition ciblée, le compte de tables du relevé dépend de la base et n'est pas repris), `transverse__parametres.json` (variante `activation` : trois lignes), `transverse__synchronisation-postes.json` (onglets retirés), `transverse__synchronisation.json` (nouvelle). `table-vue-ecran.json`, `plancher-taux.json` (91 → 91,01 : un progrès), `dette-barre-laterale.json` (les trois entrées ajoutées, toutes ordonnées), `dette-emplacement.json` : `import-export` 65 → 60 vues / 38 → 34 ordonnés (RECUL MÉCANIQUE : le panneau de réinitialisation et son onglet, quatre éléments bien placés, ont quitté la vue), `parametres` 161/115 → 164/118, `synchronisation-postes` 19 → 16, nouvelle entrée `synchronisation` 39 / 5 (le relevé web d'un administrateur porte le contenu du composant imbriqué « Réception », que l'écran du poste ne reproduit pas : à porter, c'est de la dette d'emplacement assumée, pas masquée), et deux `blade -1` (`bar/carte`, `restaurant/carte`) que mes fixtures ne touchent pas (dérive antérieure du cliquet, figée au passage). `dette-blade-flutter.json` : INCHANGÉE (aucun recul de libellés). `classification-exemptions.json` : l'ajout (d) de `ecran_synchronisation.dart` est retiré.
+
+**Barre supérieure (menu de compte).** Le menu de compte du web pointe désormais « Import & Export » et « Synchroniser les postes » vers `IMPORT_EXPORT` / `APPAIRAGE` (`liensChassis()`), et le poste fait de même (`_moduleExige` de `coquille_application.dart` — **UNE modification minimale de ce fichier**, que l'autre lot (boutons de fenêtre) modifie par ailleurs : deux lignes de `switch`, aucun recouvrement attendu). Fixture `barre-superieure.json` régénérée (rôles sans `PARAM` : le lien remplace la ligne grisée « Votre profil n'a pas accès à cet écran ») ; cliquet `dette-barre-superieure.json` re-figé : −1 jeton et −1 ordonné par rôle concerné (l'info-bulle retirée), le guide −1 / −3 (le tri d'ordre n'est pas transitif, voir le commentaire du test) — RECUL MÉCANIQUE d'une mesure d'emplacement, pas de libellé perdu.
+
+**À documenter au manuel d'utilisation (non édité ici)** : chapitre 16 (synchronisation : la page « Synchronisation » du menu et sa lecture par tout rôle ; « Appairage Postes » au menu, section « Appairage du poste » ; fin de « Paramètres → Appairage Postes »), sommaire, annexe A (menu latéral : trois entrées ouvertes à tous, matrice des droits cachés `SYNCHRO` / `APPAIRAGE` / `IMPORT_EXPORT`), figures `c16-*` (captures de l'ancien onglet des Paramètres et de la page des postes à refaire), figure `x-reinitialiser` (le bouton est dans Paramètres › Activation & Sécurité, plus dans Import & Export), chapitre 13 (Import & Export : trois onglets, rôle sans droit de gestion = « Importer » en lecture ; la réinitialisation renvoie aux Paramètres).
+
+## 09/11/2026 — « Valeur d'achat », CMP et « Valeur stock » vides sur un SECOND poste : le coût des entrées de stock descend (web ET poste, schéma poste inchangé, version v56)
+
+**Le bug du PO.** Écran Stocks, 9 articles de la carte du bar, importés SANS prix ni quantité. Le poste A (barman) renseigne prix et stocks (modales « Modifier l'article » et « Mouvement de stock ») : Café double 15,00 en stock, 500 / 500 / 7 500 FCFA. Le poste B (gérant), après « Demander la synchronisation » puis « Actualiser », affiche les mêmes stocks et seuils mais « — » en Valeur d'achat, CMP et Valeur stock ; le web (super_admin) affiche 500 / 500 / 7 500.
+
+**Cause PROUVÉE : (c) + (d), piège 11 (« qui l'écrit, qui la descend »).** (a) et (b) sont écartées : l'envoi de A porte déjà `cout_unitaire` (`chargeMouvementStock`) et le serveur l'accepte (`MouvementStockService::entree` pose `prix_achat` et le CMP : `MouvementsStockSynchronisationTest`, et le web affiche 500 / 500 / 7 500). (e) est écartée : le gérant est en `M6 = C`, aucune vue web ni poste ne masque ces colonnes à un rôle (aucun `@can`, aucun test de rôle dans `table_stocks.dart` ni `stocks.blade.php`). (f) existe en plus (voir plus bas). La cause : un poste ne reçoit AUCUNE valeur calculée (PA-129) — il RECALCULE le CMP en rejouant les mouvements ; or le COÛT d'une entrée n'existait au serveur qu'en deux valeurs dérivées (`articles.prix_achat`, `articles.cout_moyen_pondere`), jamais sur le mouvement, donc `COLONNES['mouvements_stock']` ne pouvait pas le porter, et l'aligneur du poste B écrivait chaque mouvement descendu SANS coût : stock juste (des quantités), CMP = 0, valeur d'achat absente, valeur de stock 0, tout rendu « — ». Preuve par test rouge AVANT correction : `ValeursDeStockDescendantesTest` (le serveur a 500,00 / 500,0000 et la descente d'un gérant n'a pas de `cout_unitaire`) et, côté poste, `valeurs_stock_contre_serveur_test` (cas « REDESCENTE » : la descente de l'ancien format laisse « valeur d'achat — » et valeur 0).
+
+**Correction à la racine.**
+- Serveur : colonne `mouvements_stock.cout_unitaire DECIMAL(15,4) NULL` (migration `2026_11_09_200000_ajouter_cout_unitaire_mouvements_stock`), écrite par `MouvementStockService::entree` — le point d'écriture unique, donc le web, l'API et l'envoi d'un poste en profitent ensemble — et descendue (`COLONNES['mouvements_stock']` + `cout_unitaire`). Rattrapage de l'existant : seulement ce qui se PROUVE — le coût des entrées déjà acceptées d'un poste est relu du journal de réception (`journal_reception_synchronisation.payload`, dix-millièmes) ; une entrée saisie au web ou par l'API avant la migration n'a conservé son coût nulle part et reste `NULL` (jamais déduite du CMP).
+- Poste : l'aligneur (`aligneur_documents.dart`, `_mouvement`) écrit `cout_unitaire_dix_milliemes` (colonne existante depuis la v12) et COMPLÈTE le coût d'une ligne déjà reçue sans coût (jamais l'inverse : un mouvement est en ajout seul, un coût présent n'est pas réécrit). Un coût illisible est refusé par le poste (`RefuseParLePoste`).
+- (f) Curseur : les mouvements déjà passés par un curseur ne redescendraient jamais — la migration poste **v56** (aucune table, aucune colonne, aucune ligne fabriquée) oublie `descente.curseur`. v55 est réservée à un autre chantier.
+
+**Parité.** Le CMP et la valeur sont recalculés à l'identique : le CMP au dix-millième (`moyennePonderee`, déjà confronté au PHP), la valeur au franc (écart nommé et inchangé : le poste arrondit par ligne, le serveur tronque au centime, l'écran web formate au franc — mêmes francs hors cas négatif). `tool/stocks/rejouer_valeurs_stock.php` rejoue la suite sur le VRAI `MouvementStockService` et livre la descente réelle ; `valeurs_stock_contre_serveur_test` exige trois valeurs égales (serveur, poste A par `StocksApi`, poste B par la descente), dont un CMP à décimales (95,2381) et un article sans prix.
+
+**Mutations prouvées.** Retirer `cout_unitaire` de `COLONNES` (PHP) : `ValeursDeStockDescendantesTest` et `valeurs_stock_contre_serveur_test` rougissent ; retirer la lecture du coût de l'aligneur : le test poste B et la redescente rougissent ; retirer le `cout_unitaire` de `enregistrer()` : le test PHP rougit ; retirer l'oubli du curseur de la v56 : `migration_v56_cout_stock_test` rougit.
+
+**Limites.** (1) Une entrée valorisée saisie au web ou par l'API AVANT cette livraison n'a pas de coût rattrapable : le web affiche toujours son CMP (colonne de l'article), le poste B le recalcule sans elle — l'écart disparaît dès qu'un nouveau mouvement valorisé est saisi, ou si l'on ressaisit le stock d'ouverture. (2) Le CMP dépend de l'ORDRE des entrées : un poste rejoue dans l'ordre où la descente lui livre les lignes (ordre d'écriture du serveur), égal à celui du serveur tant que les entrées sont acceptées dans l'ordre de leur saisie ; deux postes qui saisissent des entrées valorisées d'un même article hors ligne peuvent voir leur CMP différer de quelques millièmes jusqu'à la descente complète.
+
+**À documenter au manuel d'utilisation (non édité ici)** : chapitre Stocks — un second poste voit désormais Valeur d'achat, CMP et Valeur stock comme le web ; un article importé sans prix n'a ni valeur d'achat ni CMP tant qu'une entrée VALORISÉE (modale « Mouvement de stock », champ coût) n'a pas été saisie.
+
+## 09/11/2026 — Poste : « Client (facultatif) » du comptoir se saisit enfin (bug du PO)
+
+**Constat.** Au poste, le champ « Client (facultatif) — Nom à imprimer sur le ticket » était un faux champ : le toucher affichait « La mention client n'est pas encore enregistrée sur ce poste… » (écart nommé dans `vue_panier.dart`). Or tout le reste existait : `paniers_local.client_nom`, la charge de la vente (`client_nom` → `ventes.client_mention`, `GestionnaireVentes`), la descente (`aligneur_documents`), la ligne « Client : » du ticket 80 mm, et la facture du comptoir (`panier.clientNom`). **Aucun schéma touché** : la v55 réservée est rendue (la v56 du lot Stocks reste telle quelle).
+
+**Mécanisme.** `ChampClientComptant` (vrai `TextField`, 255 caractères, même `placeholder` que le web) → `PanierDao.definirMentionClient` (écrivain unique, comptant ouvert seulement, rien en file) → recopiée à la clôture dans la charge de la vente et sur la vente du journal/ticket. Règle unique des deux côtés : `MentionClient.normaliser` (poste) = `VenteService::normaliserMentionClient` (serveur, ajouté ici : le web ne bornait ni ne nettoyait rien et une mention > 255 caractères faisait échouer l'encaissement) ; le web reçoit aussi `maxlength="255"`. Panier abandonné/annulé : aucune vente, rien ne part ; client suivant : champ vide ; séjour : refusé (son `client_nom` est le client de la réservation).
+
+**Preuves et mutations.** `mention_client_test` (règle, panier, clôture, charge, ticket texte ET octets du PDF décompressés, sans mention, contrôles, 255, abandon, panier suivant), `mention_client_contre_serveur_test` (27 saisies hostiles, PHP réel = Dart, longueur de la vraie colonne), `charges_contre_serveur_test` (le vrai moteur de synchro range la mention telle quelle, `null` sans mention), `ecrans_pos_test` (saisie puis « Encaisser » sans quitter le champ), `PosPwaTest`. Treize mutations toutes rouges : DAO qui n'écrit pas, charge sans `client_nom`, normalisation sans contrôles, ticket sans ligne, longueur 256, clôture qui perd la mention, UI qui ne pose rien, séjour accepté, PHP sans troncature, PHP sans contrôles, champ qui garde le texte d'un autre panier (un premier essai survivait : l'écran se reconstruisait entre deux paniers, d'où un test sur le même widget), serveur qui ne range pas, champ sans limite.
+
+**Limites.** (1) La mention se pose à chaque frappe mais l'écran ne relit les paniers qu'à la perte du focus (comme la remise) : quitter l'écran en pleine frappe laisse la base juste et le cache un instant en retard. (2) Les polices du PDF sont Latin-1 : un nom avec des lettres hors Latin-1 s'imprime normalisé (`texteTicket`). (3) Le web ne conserve pas la mention sur le panier (propriété d'écran) : le poste la garde, c'est un plus.
+
+**À documenter au manuel d'utilisation (non édité ici)** : au comptoir, le champ « Client (facultatif) » imprime le nom sur le ticket et la facture (255 caractères, jamais une fiche client) ; il se vide à chaque nouveau panier ; il fonctionne sans serveur et arrive sur la vente du serveur à la synchronisation.
+
+
+## 09/11/2026 — Réservations à plusieurs postes : le badge dit la vérité, toute modification se propage, le POS hébergés dit pourquoi il est vide (web ET poste, schéma poste inchangé)
+
+**Le bug (PO, captures de deux postes réels, A = barman, B = gérant, et du web).** Chaque poste voyait SA réservation « En attente d'envoi » alors que l'autre l'avait reçue (« Robert ISSA » Synchronisée en A, En attente en B ; « Pierre COMLAN » l'inverse) ; une même réservation valait 75 000 en A, 80 000 en B (tag Tourisme d'un côté seulement, reste 35 000 / 40 000) ; le POS clients hébergés disait « Aucun séjour en cours » face à des réservations « En cours ».
+
+**Causes PROUVÉES** (test rouge avant correction : `reservations_deux_postes_serveur_reel_test`, deux postes, vrai serveur).
+1. **Rien ne posait « Synchronisée » en production.** `ReservationDao.majStatutSync` n'avait d'appelant que des tests (piège 1) : l'accusé marquait l'OPÉRATION `synchronise`, jamais la LIGNE. Toute réservation créée sur un poste restait « En attente d'envoi » à vie ; seule la copie descendue sur l'autre poste s'écrivait `synchronise`. D'où les statuts inversés.
+2. **Une modification ne partait pas.** Seuls la création, le déplacement (chambre, dates) et l'annulation étaient enfilés ; le serveur refusait tout autre champ (`champ_non_modifiable`). Le cas d'usage `ModifierReservation` remettait pourtant la ligne `local` « pour qu'elle reparte » : aucune opération n'était en file, le badge mentait à jamais. Un service ajouté ou un prix changé restait sur ce poste.
+3. **La création ne portait pas ses services** (`chargeReservation` sans `lignes`) : même une réservation créée avec Tourisme arrivait sans service ailleurs.
+4. **La descente ne reprenait que le statut** d'une réservation déjà connue (écart nommé « les dates, l'unité, le client et les montants ne sont pas réécrits ») : aucune modification venue d'ailleurs n'arrivait.
+5. **Une réservation reçue n'avait pas la ligne d'hébergement** : le total d'une fiche se calcule en SOMMANT ses lignes dès qu'elle en a — des services sans la chambre auraient donné 5 000 au lieu de 80 000.
+6. **Côté web, la fiche ne redescendait pas** quand SEULS les services changeaient : la descente ne livre une réservation qu'à son `updated_at`, et `remplacerLignes` n'y touchait pas.
+7. **POS hébergés** : la règle est la MÊME au web et au poste (statut `confirmee` ou `en_cours`, `PosHeberges::STATUTS_EN_SEJOUR` / `estSejourAuPos`), pas les dates ; une réservation créée est `en_attente`, seul le CHECK-IN la passe `en_cours` (`SejourService`). L'écran Réservations affiche « En cours » d'après les DATES — d'où un POS vide. La propagation poste A → check-in → POS du poste B fonctionne (test 6, vert dès avant la correction).
+
+**Corrections.**
+- Poste : `ReservationDao.reconcilierStatutSync` (le badge lu de la FILE : refusé/conflit/bloqué non remplacé → « Refusée » + motif, `en_cours` → « Envoi en cours », `en_attente` → « En attente d'envoi », sinon accepté → « Synchronisée », aucune opération → ligne intacte), appelée à chaque accusé (`SyncManager._consigner`) et au début de chaque passage (`reconcilierTout`). `enregistrer` enfile les champs CHANGÉS de la fiche (comparaison `_ficheEnvoyable` avant/après) ; sans changement, ni opération ni retour « en attente ». La création envoie ses `lignes`. Rattrapage des lignes d'avant la correction : la DIFFÉRENCE avec ce que le serveur a reçu de ce poste (opérations acceptées), ou toute la fiche pour une ligne descendue ; clé par clé, dernier écrit gagnant.
+- Serveur : `GestionnaireReservations` accepte la fiche (`client_id`, `tarif_nuit`, `acompte`, `remise_*`, `mode_paiement`, `canal`, `lignes`) en plus du déplacement et de l'annulation, et la création porte ses services ; `ReservationService::remplacerLignesFigees` (prix et libellé FIGÉS par le poste, source qui doit exister) ; `touch()` dans les deux remplacements de lignes. Comme à la PWA, la modification ne repasse PAS la pièce de l'acompte.
+- Descente : une réservation existante SANS opération en attente et non refusée reprend la fiche du serveur, ligne d'hébergement comprise, et devient « Synchronisée » ; une opération en attente (ou un refus) la protège (`aligner` / `ConserveLocalement`).
+- POS hébergés (web ET poste, `pos_pwa.heberges.sejours_vide`) : l'état vide ajoute « Faites le check-in d'une réservation depuis Hébergement/Réservations : le séjour apparaît ici. » ; règle extraite en `estSejourAuPos`, relue par le test.
+
+**Preuves et mutations.** `reservations_deux_postes_serveur_reel_test` (six cas, base privée `TATACORA_BASE_ESSAI`), `badge_synchronisation_verite_test`, `descente_tiers_test` (fiche reprise, opération en attente et refus protégés), PHP `ReservationsCycleDeVieSynchronisationTest` (fiche, services figés, descente quand seuls les services changent, création avec services, source fantôme refusée sans rien écrire) et `ReservationsEcritureTest` (le web fait avancer la fiche). Mutations toutes rouges : accusé sans réconciliation (tests 1 à 5), aucune modification enfilée, descente sans statut / sans garde du refus / sans chambre, statut non conservé sans changement, refus non remplacé par le renvoi, rattrapage coupé ou sans les lignes de création, envoi de tous les champs, règle du POS élargie à `en_attente`, `touch()` retiré (web ET synchro), services de la création ignorés.
+
+**Limites.** (1) La modification ne repasse pas la pièce de l'acompte (défaut du serveur et du web, répliqué, déjà nommé : relever un acompte déplace de l'argent sans écriture). (2) Un poste qui modifie une fiche pendant qu'un autre poste modifie le MÊME champ : le dernier arrivé au serveur gagne (règle du serveur) ; le rejet d'une modification (chevauchement) n'est pas rejoué automatiquement : « À traiter » (« Renvoyer »). (3) Une ligne refusée n'est pas réécrite par la descente tant qu'elle n'est pas résolue. (4) Le badge des CLIENTS (`clients_local.statut_sync`) a le même défaut d'accusé que celui des réservations et n'est pas traité ici. (5) Une réservation d'avant la file (v26), ni envoyée ni reçue, n'est pas rattrapée. (6) `remise_type` « aucune » vaut `null` sur la fiche saisie ici et `aucune` sur la fiche reçue : même sens, deux écritures.
+
+**À documenter au manuel d'utilisation (non édité ici)** : le badge d'une réservation (« En attente d'envoi » seulement tant qu'un envoi attend vraiment ; « Synchronisée » ; « Refusée par le serveur » + « À traiter ») ; une modification de réservation (service, prix, acompte, dates) arrive aux autres postes et au web ; une réservation ne paraît au POS clients hébergés qu'après son CHECK-IN (Hébergement/Réservations), pas parce que ses dates couvrent aujourd'hui.
+
+## 09/11/2026 — « J'ai activé MECeF, enregistré une réservation, et je ne vois ni proforma ni facture » : l'écran dit pourquoi et où aller, rien ne se masque en silence (web ET poste, schéma poste inchangé)
+
+**Le bug (PO, capture web, compte administrateur, Facturation & Caisse MECeF).** Registre « Pièces 0, Avoirs 0, Montant 0 FCFA — Aucun résultat », le PO attendait une proforma et une facture après sa réservation.
+
+**Cause PROUVÉE : ce n'est ni la synchronisation, ni le mode, ni un filtre.** (a) Une réservation ne crée NI facture NI proforma, au web comme au poste (la facture naît à la clôture du séjour, à l'encaissement du point de vente ou à la conversion d'une proforma ; la proforma, par le bouton « Proforma » de la carte de réservation ou la page Proformas) : `VisibiliteFacturesProformasTest::une_reservation_ne_cree_ni_facture_ni_proforma…` (web, trois modes) et `visibilite_facturation_contre_serveur_test` (poste). Or l'état vide du registre ne disait que « Encaissez au point de vente ou clôturez un séjour » : rien sur la réservation, rien vers les proformas. Test ROUGE avant correction : les trois cas « l'écran le dit » (désactivé, e-MECeF, boîtier) échouent sur l'ancienne phrase. (b) Ce qui est VISIBLE l'était déjà : 60 combinaisons mode × statut du cycle × statut de normalisation (absente, en attente, refusée, à vérifier, normalisée) restent toutes au registre web, avec leur statut ; 15 combinaisons de proformas (mode × brouillon / émise / expirée / convertie / annulée) restent toutes listées ; le poste de même (trois modes × cinq états, indicateur de normalisation affiché). Aucune source de défaut dans le mode : `ModeFacturation::courant()` relit la base à chaque appel, sans cache. (c) Synchronisation, les DEUX moitiés (piège 11) contre le vrai serveur en mode e-MECeF : proformas (brouillon, émise) et facture du poste A arrivent au serveur ET s'affichent aux deux écrans web (rendus par les vrais composants Livewire) ; ce que A a écrit descend au poste B, et ce que le web a créé descend à A et B. Verte dès avant toute correction : pas de défaut à corriger ici.
+
+**Deux masquages silencieux trouvés en chemin, corrigés.** (1) La page Proformas du web plafonnait à 100 lignes sans le dire (103 proformas : 3 introuvables) : elle PAGINE (10 par page, `pageCourante`, « Affichage de X-Y sur Z »), comme le registre et comme le poste (`ListePaginee`, liens masqués sans page). (2) Une facture hors de l'exercice consulté disparaissait sans un mot : le registre vide dit maintenant « N facture(s) émise(s) en dehors de l'exercice consulté (AAAA) : choisissez un autre exercice dans la barre supérieure » (web `Facturation::render`, poste `facturesHorsExerciceProvider`). Et la recherche du registre web ne portait que sur le numéro FISCAL (nul tant que la facture n'est pas normalisée) : elle porte aussi sur le numéro de facture.
+
+**Corrections (mêmes mots web / poste, `lang/fr`).** `pwa.facturation.registre_vide_aide` (« Une réservation ne crée pas de facture : clôturez le séjour pour facturer, ou créez une proforma depuis la réservation. »), `registre_vide_lien` (« Voir les proformas », bouton), `registre_hors_exercice`, `proforma.ui.vide_aide` (page Proformas vide) ; poste : `TextesRegistreFacture` (relu du serveur par `textes_registre_facture_test`) et `TextesProforma.ui['vide_aide']`. Les aides ne s'affichent que SANS filtre (« aucune facture » et « aucun résultat pour ce filtre » appellent des gestes opposés). Aucune règle écrite touchée : facture normalisée immuable, avoir, jeton jamais au poste, normalisation par bouton.
+
+**Preuves et mutations.** PHP `VisibiliteFacturesProformasTest` (85 cas) ; Dart `visibilite_registre_poste_test`, `textes_registre_facture_test`, `visibilite_facturation_contre_serveur_test` (script `tool/facturation/rejouer_visibilite_facturation.php`, base privée `TATACORA_BASE_ESSAI=tatacora_factvis_test`). Mutations toutes ROUGES : web (recherche sans le numéro de facture, hors-exercice forcé à 0, registre qui masque les non normalisées — 10 cas rouges, aide retirée, page de la pagination figée) ; poste (registre qui masque les non normalisées, hors-exercice à 0, aide retirée, brouillons masqués, pagination coupée, mot changé dans la phrase) ; contre le vrai serveur (page web sans brouillon, descente des proformas retirée). Gardes : comparateur Blade (aucun recul sur facturation/facturation et facturation/proformas : 0 libellé absent ; les reculs mesurés viennent des cartes bar/restaurant d'un autre lot), fixture de structure `facturation__facturation.json` régénérée seule (elle ne contenait pas le lien « Proformas », déjà en retard), cliquet d'emplacement de cette vue resserré 18 → 20.
+
+**Limites.** (1) Au web, la colonne « N° » du registre reste le numéro FISCAL (« — » tant que la facture n'est pas normalisée), comme le maître : une facture simple se reconnaît à sa date, son client et son montant ; la changer est une décision du PO. (2) Le pied de pagination des proformas du poste déborde sous 320 px quand il y a plus de dix lignes (poste de bureau). (3) Aucun essai n'est possible sans savoir si la réservation du PO est partie d'un poste ou du web : les deux sont couverts, aucun ne crée de facture.
+
+**À documenter au manuel d'utilisation (non édité ici)** : ce qui crée une facture (clôture de séjour, encaissement du point de vente, conversion d'une proforma) et ce qui n'en crée pas (une réservation) ; le bouton « Proforma » de la carte de réservation et la page « Proformas » ; le message « factures en dehors de l'exercice consulté » et le sélecteur d'exercice ; la pagination des proformas.
+
+## 09/11/2026 — « Lier au stock » vide, « Stock vendable : non suivi » sur les 81 plats importés : l'import relie enfin le restaurant au stock de la cuisine (web ET poste, schéma poste v57)
+
+**Le bug (PO, capture de la carte du restaurant).** Après l'import des trois modèles sans prix ni quantités, les 81 plats affichaient « Article de stock » vide, « Stock vendable : non suivi », « Réserve — », et « Lier au stock » ne proposait aucun article utile.
+
+**Cause PROUVÉE (test rouge `RapprochementPlatsStockTest` / `rapprochement_plats_stock_test`).** Le PO avait raison : rien pour la cuisine. (1) m6 ne créait que les NEUF articles de boisson, tous sans point de stockage ; (2) m4 créait 81 plats + 81 fiches VIDES et ne posait aucun lien (`plats.article_id` n'est obligatoire nulle part, contrairement à `cartes_boisson.article_id` NOT NULL, qui explique que le bar soit « rapproché ») ; (3) le modèle m6 avait bien une colonne « Point de stockage » mais aucun exemple « Cuisine » ; (4) la modale ne proposait que des boissons (suivi permanent, tous points) et, avec zéro article, aucun mot sur la marche à suivre. Le web proposait aussi des articles ARCHIVÉS (le poste les filtrait).
+
+**Corrections (mêmes mots web / poste).**
+- m6 (`CarteGiteChezNoelService`) : 9 boissons + 81 articles de cuisine (même nom que le plat, « Denrées », « unité », seuil 0, point « Cuisine », sans prix ni quantité). Le point « Cuisine » est créé par l'import s'il manque (`POINT_CUISINE_A_CREER`).
+- m4 relie chaque plat à l'article de même nom (créé s'il manque) : « N plats rapprochés du stock », conversion 1, solde 0 tant qu'aucune entrée. `RapprochementPlatsStockService` (web) / `RapprochementPlatsStock` (poste). Un plat à fiche composée n'est jamais relié, un lien existant jamais remplacé.
+- Demande du 09/11 « templates d'import » : colonnes facultatives « Point de stockage » (lu aussi « Point Stock »), « Seuil d'alerte » (« Seuil »), « Valeur d'achat » sur m4, m5 et m6 ; m5 : « Article de stock lié » devient facultatif (rapprochement par nom, création sinon, au Bar par défaut). La valeur d'achat est une valeur de RÉFÉRENCE (`articles.prix_achat`, posée seulement si vide ; poste : `articles_local.prix_achat_reference`, **v57**), jamais un mouvement ; vide = « — ». Le CMP et la valeur de stock restent calculés des entrées valorisées ; la dérive n'est plus calculée sans CMP (« -100 % » inventé).
+- Ré-import idempotent : m4/m5/m6 IGNORENT une ligne existante (le poste le faisait déjà ; le web ajoutait en doublon), un fichier déjà importé répond « Aucune ligne ajoutée ».
+- « Lier au stock » : web sans article archivé, état vide « Aucun article de stock en cuisine : importez le modèle Stocks (point Cuisine) ou créez l'article dans Stocks. ».
+- Rattrapage : bouton « Rapprocher les plats du stock » (Carte du restaurant, web et poste) et `php artisan restaurant:rapprocher-plats-stock [--simuler]`.
+- Apostrophes typographiques d'Excel tolérées dans les en-têtes (PHP `TableurService::normaliser`, Dart `normaliserImport`).
+- Schéma poste **v57** : UNE colonne nullable `articles_local.prix_achat_reference` (dix-millièmes), curseur de descente oublié, `retour_arriere_schema` entrée 57, `migration_v57_valeur_achat_test`. La descente du web porte `prix_achat` (jamais d'écrasement d'une valeur locale).
+
+**Preuves et mutations.** PHP `RapprochementPlatsStockTest` (15 cas), `ImportXlsxTest`, `ValeursDeStockDescendantesTest` ; Dart `rapprochement_plats_stock_test`, `lier_au_stock_plat_test`, `tableur_xlsx_test`, `migration_v57_valeur_achat_test`, gardes `importeurs_locaux_test` / `ecran_import_export_test` / `import_categorie_plat_test` (en-têtes). Mutations (voir le compte rendu du lot) : retirer les lignes de cuisine de m6, retirer le rapprochement de m4, retirer le filtre « ignorer l'existant », retirer le garde « jamais écraser », retirer `prix_achat` de la descente, retirer la colonne v57 — chacune fait rougir au moins un test.
+
+**Limites.** (1) **Chaque plat lié à 0 se vend en RUPTURE** (RG-06) tant qu'une entrée n'est pas saisie : la décision du PO du 30/10 « le plat se vend sans stock » ne tient plus pour un plat relié — saisir les entrées, ou délier le plat. (2) La valeur d'achat importée AU POSTE ne remonte pas au serveur (la fiche d'article créée au poste n'en porte pas la colonne). (3) Deux points « Cuisine » créés chacun de leur côté (web et poste hors ligne) seraient deux points : lancer le rattrapage d'un seul côté d'abord. (4) Les articles du bar importés restent sans point si la colonne est vide et si aucun point « Bar » n'existe.
+
+**À documenter au manuel d'utilisation (non édité ici)** : chapitre Import — ordre m6 → m5 → m4, les trois colonnes de stock (« Point Stock », « Seuil », « Valeur d'achat »), « N plats rapprochés du stock », l'idempotence (« Aucune ligne ajoutée »), le bouton « Rapprocher les plats du stock » ; chapitre Restaurant — « Stock vendable » à zéro = rupture tant qu'aucune entrée, « Lier au stock » (état vide) ; chapitre Stocks — « Valeur d'achat » de référence vs dernière entrée valorisée, CMP « — » sans entrée.
+
+---
+
+## 09/11/2026 — « Droit manquant » sur les tables de salle : le barman qui prend une table (bug du PO, poste A)
+
+**Symptôme.** Écran « À traiter » du poste A (rôle barman) : trois lignes « Tables de salle — Rejetée — Droit manquant — Vous n'avez pas accès à ce module — dernier code 200 ». Le barman prend des tables au POS (R1…R6, J1…J4, P1…P3) ; elles ne se synchronisaient pas.
+
+**Cause prouvée.** (1) Le poste enfile une `creation` de `tables_salle` (`TablesPosDao.assurerConnueDuServeur`, appelé par `PanierDao.ouvrir`) au PREMIER geste d'usage qui cite une table que le serveur n'a pas encore descendue : la table, l'ouverture du panier, puis sa fermeture partent ensemble. (2) `GestionnaireTablesSalle::modulesRequis` exigeait M5 ET `PARAM` en écriture pour TOUTE opération de la table — or la `creation` d'une table qui existe déjà ne fait que FUSIONNER (`fusionne_avec`), elle n'écrit rien. (3) `SynchronisationService::utilisateurAutorise` juge le compte du JETON D'APPAIRAGE (`$request->user()`, seul compte serveur d'un poste ; les connexions locales du poste n'en sont pas) : barman = M5 `C`, `PARAM` `-` ; gérant = M5 `C`, `PARAM` `L` (≠ `C`) → refus définitif `droit_manquant`, mémorisé sous l'uuid d'opération, jamais rejoué. Le gérant était touché aussi. Rouge avant correction : `TablesSalleUsageDroitsTest` (barman et gérant) et `tables_droits_contre_serveur_test.dart`.
+
+**Correction (serveur, commune au web et au poste — le web n'a pas de chemin d'usage qui crée une table : il ouvre le panier sur le plan du serveur).** Usage vs configuration : `modulesRequis` rend `[M5]` quand (espace, numéro) existe déjà au serveur (citer une table = usage, droit du POS), `[M5, PARAM]` sinon (table NOUVELLE) et pour toute `modification` (numéro, places, activation : jamais d'`espace` dans leur charge). Aucune autre table ni module élargi ; compte inactif toujours refusé ; trace `journal_securite` inchangée. Rôles qui écrivent sur M5 dans la matrice : super_admin, administrateur, gérant, barman ; réceptionniste/magasinier/comptable (M5 `L`) et cuisine/achats/rh/… (M5 `-`) restent refusés — comme au web (`module:M5,L` sur la route, `exigerEcriture(M5)` sur chaque geste).
+
+**Poste.** « Renvoyer » (écran « À traiter ») était réservé aux administrateurs : le barman ne pouvait pas relancer SES refus. `renvoiOuvertATous(o)` (`cause_envoi.dart`) l'ouvre à tout compte pour un refus REJETÉ de code `droit_manquant` seulement : même élément, même charge, NOUVEL uuid d'opération (le serveur a mémorisé le rejet sous l'ancien), l'ancienne ligne reste l'historique ; le serveur rejuge avec le droit du compte d'appairage, donc rien à escalader. « Corriger », « Débloquer » et les autres codes restent aux administrateurs. Pas de schéma (v56 inchangée).
+
+**Preuves.** PHP `TablesSalleUsageDroitsTest` (17 cas : barman/gérant/administrateur/super_admin prennent et libèrent, la fusion ne crée aucune seconde table ; configuration refusée à barman/gérant, acceptée aux administrateurs ; six rôles sans M5 en écriture refusés ; compte désactivé ; rejeu idempotent ; relance sous nouvel uuid acceptée une fois le droit accordé). Dart : `tables_droits_contre_serveur_test.dart` (la file écrite par les vrais écrivains du poste, poussée au vrai moteur par `tool/pos/rejouer_tables_salle.php`, salle semée par le vrai seeder, base privée `TATACORA_BASE_ESSAI` ; les trois lignes rejetées, « Renvoyer », acceptées), `ecran_synchronisation_test` (barman voit « Renvoyer » sur un `droit_manquant`, ni « Corriger » ni « Renvoyer » sur `regle_metier`), `cause_envoi_test`. Mutations éprouvées : ancienne règle M5+PARAM (4 rouges), « existe » toujours vrai (3), aucun module requis (7) ; `renvoiOuvertATous` toujours faux (2 fichiers rouges), tous rejets (3), écran sans `renvoiOuvertATous` (1).
+
+**Autres « droit manquant » probables (matrice rôle × table, relue dans `RolePermissionSeeder::MATRICE` et les `modulesRequis` des gestionnaires).** `paniers` (M5), `ventes` (M5, + M4 par plat, + M8/M9 par ligne de location/tourisme, comme `PosComptant::encaissementReel`), `sessions_caisse` (M5), `mouvements_stock` (M6) : barman, gérant, administrateurs passent ; un barman qui vend un PLAT est refusé (M4 `-`) AU WEB COMME AU POSTE — règle voulue (« un barman ne doit pas obtenir par la synchronisation ce que l'écran M4 lui refuse »), pas un défaut à corriger ici. Cuisine : M5 `-`, elle n'accède pas au POS (ni web ni poste) — rien d'envoyable. Réceptionniste : M5 `L`, ne vend pas au comptoir (ses séjours : `sejours` M1 `C`). Annulation d'une vente : droit `ANNULATIONS` (barman `-`) comme au web. Client du comptoir : simple mention sur le panier (aucune écriture `clients`, M3). Aucun autre refus d'usage évident trouvé ; pas de droit de configuration élargi.
+
+**À faire par le PO.** Mettre le serveur à jour, puis, au poste A, « Synchronisation » › « À traiter » : « Renvoyer » sur les trois lignes « Tables de salle » (le barman peut le faire lui-même). Elles repartent à la prochaine synchronisation sous un nouvel identifiant ; si des lignes « Paniers » (« table pas encore reçue ») ont été rejetées derrière, un administrateur les renvoie ensuite.
+
+## 09/11/2026 — Registre des factures : la colonne « N° » ne reste plus « — » avant la normalisation (web ET poste, schéma poste inchangé)
+
+**Décision du PO.** « Voulez-vous afficher le numéro de facture quand il n'y a pas de numéro fiscal ? OUI, et au poste aussi. » La colonne « N° » portait le seul numéro fiscal au web (« — » tant que la facture n'était pas normalisée : une facture simple ne se reconnaissait qu'à sa date, son client, son montant) ; le poste, lui, n'affichait que le numéro interne.
+
+**Règle (une seule, deux implémentations confrontées).** Numéro FISCAL (NIM / numéro MECeF) quand la pièce porte une certification RÉELLE ; SINON le numéro INTERNE de la séquence du dépôt, jamais « — ». Web : `App\Pwa\Support\NumeroRegistre::pour()` (séquence serveur `F-AAAA-NNNNN`, `AV-AAAA-NNNNN` pour un avoir). Poste : `PieceFacturation.numeroRegistre` (provisoire `PROV-AAAA-NNNNN` tant que le serveur n'a pas régularisé, puis `F-…` ; `aNumeroFiscal` = `CertificationMecef.estReelle`). Distinction visuelle : le numéro fiscal s'affiche seul, le numéro interne est suivi de la légende discrète « n° interne » (`pwa.facturation.numero_interne`, mêmes mots au poste : `TextesRegistreFacture.numeroInterne`, relus du fichier PHP par test), avec infobulle. La légende ne dit que la NATURE du numéro : facture simple (mode désactivé) = aucune mention de normalisation ; refusée / « à vérifier » = numéro interne + sa pastille de statut. Écran, registre imprimé (`hidden print:block`), PDF (`facturation-registre`), tableur (`FacturationExport`) et export du poste (CSV, PDF) portent la même valeur, SANS la légende (une cellule d'export reste un numéro exploitable). Recherche : web par `numero_mecef` OU `numero` (déjà depuis 94cb14d) ; poste désormais par `numero` ET `numero_mecef`.
+
+**Écarts (la vue web gagne).** (1) Le registre imprimé du web titrait « N° MECeF » (maître) ; il porte maintenant le titre « N° » de l'écran, la colonne pouvant contenir un numéro interne (clé `registre_col_numero_mecef` laissée en place, plus lue). (2) Le web ne liste pas les avoirs en lignes du registre (pastille « N avoir(s) » sur la facture) : la règle `NumeroRegistre` couvre l'avoir (testé) mais seul le poste les affiche en ligne. (3) « Démonstration » : le web reconnaît le préfixe `MECEF-DEMO-`, le poste les marqueurs DEMO/DEMONSTRATION/NON-CERTIFIE(E) (`CertificationMecef`) ; la parité ne balaie que le préfixe commun. (4) La modale « Émettre un avoir » du web citait `numero_mecef ?? —` : elle cite maintenant le numéro de la même règle.
+
+**Preuves.** PHP `NumeroRegistreFactureTest` (12 cas : fiscal seul si normalisée, interne + légende pour simple / en attente / refusée / à vérifier / démonstration, aucune mention de normalisation sur une facture simple, statut « normalisation refusée » avec le numéro interne, recherche par les deux numéros, tableur, PDF et registre imprimé, avoir). Dart `numero_registre_poste_test` (6 cas : fiscal, simple provisoire, refusée / à vérifier, régularisation `PROV-…` → `F-…`, recherche par les deux, CSV/PDF/avoir), parité `parite_regles_communes_test` contre le vrai PHP (`rejouer_regles_communes.php`, `NumeroRegistre::pour` sur factures ET avoirs), `textes_registre_facture_test` (légende). Mutations éprouvées : voir le compte rendu du lot.
+
+**À documenter (manuel d'utilisation, chapitre facturation — non touché ici).** La colonne « N° » du registre : numéro fiscal (NIM) une fois la facture normalisée, sinon le numéro interne de la facture avec la légende « n° interne » ; au poste, `PROV-…` tant que le serveur n'a pas attribué `F-…` ; la recherche accepte les deux ; un export porte la même valeur ; une facture simple n'affiche aucun mot sur la normalisation.
+
+## 09/11/2026 — « Le serveur ne juge plus les droits du compte d'appairage » et « aucune opération ne bloque la synchronisation » (décision du PO, web ET poste, schéma poste inchangé)
+
+**Décision du PO (capture + texte).** « Le jeton du poste porte un seul compte. Tout ce qui sort d'un poste appairé par le barman est jugé sur les droits du barman. NON, ÇA NE DOIT PAS JUGER » ; « corrige pour TOUS LES AUTRES POSTES aussi » ; « AUCUNE OPÉRATION NE DOIT BLOQUER LA SYNCHRONISATION ». Le barman de sa configuration a de plein droit Restaurant, Bar, Stock, Réservations, Hébergement, création de clients, Facturation en lecture, Tourisme, Véhicules & Locations, Import & Export (il édite la matrice des rôles à l'écran) ; pourtant des opérations de son poste étaient rejetées « Droit manquant — Vous n'avez pas accès à ce module » : le serveur jugeait le compte du JETON (celui qui a appairé le poste), pas l'utilisateur connecté. Le correctif de tables de salle (a85db45 : usage M5 / configuration M5 + PARAM) soignait un seul symptôme ; il est REMPLACÉ.
+
+**Règle (une seule, écrite une fois).** Le droit se juge AU POSTE (RBAC local, sur l'utilisateur connecté — inchangé). Le serveur accepte d'un poste appairé par un administrateur : jeton valide non révoqué, poste concordant, génération des données, compte ACTIF (désactivé = `compte_inactif`, inchangé), idempotence, journal ; et garde la COHÉRENCE métier (référence inconnue, chevauchement, montant, statut, ordre). `GestionnaireAbstrait::modulesRequis()` rend `[]` ; `utilisateurAutorise` n'exige un module que d'un gestionnaire qui en déclare. **Le web garde le RBAC par module et par action** (la page de réception juge l'utilisateur web par la méthode NOUVELLE `modulesDeLaCorrection()`, qui reprend exactement l'ancienne règle : ventes M5 + M4/M8/M9, indisponibilités M4/M5, tables de salle M5 + PARAM pour la configuration).
+
+**Inventaire (a) droit du compte d'appairage → retiré ; (b) cohérence → gardée ; (c) décision explicite du PO → gardée.**
+
+| Endroit | Ce qu'il jugeait | Verdict |
+|---|---|---|
+| `utilisateurAutorise` + `modulesRequis` de TOUS les `Gestionnaire*` (M1…M14, PARAM, ROLES : ventes, paniers, sessions de caisse, tables de salle, réservations, séjours, clients, factures, proformas, avoirs, règlements, dépenses, achats, bons de réception, mouvements, inventaires, véhicules, contrats, entretiens, circuits, tourisme, RH, plan comptable, pièces ordinaires, immobilisations, canaux, rôles, réglages ordinaires, notifications…) | écriture `C` sur le module du compte du jeton (+ M4 par plat, M8, M9 sur une vente, M4 sur une indisponibilité de plat, PARAM sur une table nouvelle) | **(a) retiré** |
+| `modulesRequis` de `demandes_cloture_exercice` (démarrer, reprendre, clôturer, rouvrir, contre-passer) | écriture M10 ; rôle `comptable` pour rouvrir / contre-passer (services) | **(c) gardé** (20/10 et 09/11/2026) |
+| `modulesRequis` de `pieces_saisie` quand la pièce porte une `affectation` | écriture M10 + rôle `comptable` (`AffectationResultatService`) | **(c) gardé** ; une pièce ordinaire est une saisie courante : **(a) retiré** |
+| `refusDeDroit` de `parametres_systeme` (mode MECeF, API, opérateur ×2, forme juridique) | administrateur | **(c) gardé** (b5d2405) ; les réglages ordinaires : **(a) retiré** |
+| `traiterSuppressionDeCompte` | `super_admin` (`peutSupprimerDesComptes`) | **(c) gardé** (03/11/2026) |
+| `traiterSuppression` (purge unités d'hébergement / véhicules) | `super_admin` + écriture PARAM | **(c) gardé** (A5) |
+| `DroitArchivageService` dans `GestionnaireClients`, `GestionnaireFournisseurs`, `GestionnaireReferentielAbstrait` (articles, unités…) | administration, ou bascule `activation_suppression` (message `pwa.archivage.refus_bascule`) | **(a) retiré** pour le serveur (la règle reste celle du web et du poste) ; les verrous d'engagement du service restent **(b)** |
+| `DocumentsDesAutresPostes` (ex-Q3) dans ventes, factures, paiements, règlements fournisseur, `FacturesEnLigneController::avoir` | administration ou comptable pour annuler le document d'un autre poste | **(a) retiré** (le droit `ANNULATIONS` se juge au poste). Les réservations suivent le chantier « annulations multi-postes » (non touché ici) |
+| `RecuDepenseController` (dépôt PUT, téléchargement GET) et `FacturesEnLigneController::garde` (avoir, normalisation) | M10 `C` / non `-` ; M2 `C` du compte du jeton | **(a) retiré** (jeton, poste concordant, taille, origine, règles : gardés) |
+| `EnregistrerParametreService` (administrateur pour forme juridique / MECeF) | `auth()->user()->estAdministrateur()` | **(c) gardé**, même règle que `refusDeDroit` |
+| `SuiviPostesService::revoquer` / `JournalEnvoiService::demanderRedescente` | administrateur | gesture d'administration, **gardé** (hors « opération d'usage ») |
+| `CorrectionReceptionService` (corriger / relancer / ignorer) | administrateur ou comptable ET module(s) de la donnée | **web, gardé** (`modulesDeLaCorrection`) |
+| `CatalogueDescendantService::lisible`, `CoherenceService` (la DESCENTE et le contrôle de cohérence) | modules LUS du compte du jeton | **non touché — décision à prendre** (voir « Risques ») |
+| Références inconnues (« pas encore reçue, ou refusée », 22 sites), chevauchement, montant, statut, idempotence, `entite_existante` / `entite_inconnue` | cohérence | **(b) gardé** — mais une référence inconnue est désormais DIFFÉRÉE, plus définitive |
+
+**« Aucune opération ne bloque » : ce qui bloquait, et ce qui est corrigé.** (1) Serveur : une erreur IMPRÉVUE sur UNE opération levait un 500 pour tout le lot ; le poste renvoyait le même lot, le même 500, à chaque passage — une opération « poison » retenait toute la file derrière elle. `traiterLot` l'attrape désormais PAR OPÉRATION (`erreur_serveur`, journalisée, jamais mémorisée) ; les autres opérations passent. (2) Serveur : une référence pas encore reçue (réservation, table, client, commande, véhicule, facture, employé, article…) était un rejet DÉFINITIF mémorisé — jamais relancé. `DependanceManquanteException` (22 sites) la rend `dependance_manquante`, NON mémorisée (rejugée pour de bon sous le même uuid) ; les opérations suivantes du MÊME élément dans le lot attendent (`operation_differee`) au lieu d'être rejetées « élément inconnu ». (3) Poste : `reclamerLot` s'ARRÊTAIT (`break`) à la première opération en repli — une seule opération en erreur retardait tout le reste jusqu'à une heure ; seul son élément attend maintenant. (4) Poste : un rejet différé remet l'opération `en_attente` avec le repli 30 s → 2 → 5 → 15 min → 1 h (8 essais, environ cinq heures, `BilanSynchronisation.differees`, jamais en alerte), puis un rejet lisible, « Renvoyer » ouvert à tous (`codesRenvoiOuvertATous` : `droit_manquant`, `dependance_manquante`, `erreur_serveur`). (5) Poste : les opérations BLOQUÉES derrière un rejet se débloquent d'elles-mêmes quand leurs antérieures aboutissent (typiquement la remplaçante d'un « Renvoyer »), sans geste d'administrateur (`_debloquerSuivantes`). (6) Les lots déjà rejetés « Droit manquant » de « À traiter » : « Renvoyer » (ouvert à tous) les remet en file ; le serveur actuel les accepte (preuve contre le vrai PHP).
+
+**Messages.** `droit_manquant` s'affiche « Opération réservée » (suppression de compte, réglages de facturation / forme juridique, clôture, affectation, purge) avec le conseil « faites-la depuis le web avec un compte autorisé… Les autres opérations ne sont pas bloquées » ; plus jamais pour une opération d'usage. Journal de réception : phrases `droit_manquant`, `dependance_manquante` mises à jour (`synchronisation_journal.php`).
+
+**Preuves.** PHP `JugementDuCompteDAppairageTest` (55 cas : liste fermée relue du registre, un rôle SANS AUCUN droit passe, toute la matrice, compte désactivé refusé, clôture refusée SEULE dans un lot, dépendance différée → non mémorisée → acceptée dans l'ordre, erreur imprévue isolée, RBAC du web inchangé) ; `TablesSalleUsageDroitsTest` réécrit ; ~35 tests de gestionnaires réécrits pour la nouvelle règle (ventes, achats, dépenses, stock, parc, restaurant, RH, véhicules, clients, fournisseurs, rôles, proformas, reçus, canaux, immobilisations…). Dart `aucune_operation_ne_bloque_test` (un refus au milieu du lot, une opération réservée, différée, l'opération en repli qui ne retient pas la suivante, dépendantes dans l'ordre, huit essais puis rejet lisible puis « Renvoyer », déblocage automatique), `operations_sync_dao_test` et `cause_envoi_test` réécrits, `tables_droits_contre_serveur_test` (vrai PHP, base privée `TATACORA_BASE_ESSAI`) : tous les rôles, compte désactivé, lot déjà rejeté « Droit manquant » relancé. **Mutations prouvées (chacune rougit, puis est restaurée).** PHP : `modulesRequis()` de `GestionnaireAbstrait` rendant de nouveau `[module()]` (le jugement par module réintroduit) → 50 échecs sur 66 ; `modulesRequis` de la clôture d'exercice vidé (l'exception sensible retirée) → 3 ; `pieces_saisie` sans l'exception « affectation » → 1 ; un compte désactivé accepté (`estActif` ôté) → 1 ; une dépendance MÉMORISÉE (rejet définitif) → 1 ; l'attrape par opération retirée (un 500 pour le lot) → 1 ; les suivantes du même élément traitées au lieu d'attendre → 1. Dart : le `break` de `reclamerLot` restauré → 2 ; le report des rejets différés retiré → 5 ; le déblocage automatique retiré → 1 ; `dependance_manquante` retiré des codes différés / du renvoi ouvert → 5.
+
+**Risques à connaître (le PO doit les connaître).** (1) La sécurité du serveur repose sur l'APPAIRAGE : qui détient un jeton valide écrit ce qu'il veut, dans les limites de la cohérence et hors liste fermée. Un poste volé se neutralise par la RÉVOCATION du jeton. (2) Le journal du serveur trace le POSTE et le compte du jeton, pas l'utilisateur local, sauf là où la charge le porte (suppression de compte) ; l'auteur local est tracé dans le journal d'audit du poste (v38). (3) Un poste peut écrire la matrice des RÔLES du serveur (le verrou de l'administrateur tient). (4) La DESCENTE reste filtrée par les modules LUS du compte du jeton : un poste appairé par le barman ne reçoit ni la comptabilité ni ce que son compte ne lit pas, même quand un comptable s'y connecte — même cause racine, non traitée ici (décision de confidentialité à prendre). (5) Avec un compte d'appairage administrateur, les gestes réservés au rôle `comptable` (rouvrir, affecter, contre-passer) sont refusés au serveur : ils se font au web.
+
+**À documenter (manuel d'utilisation — non touché ici).** Chapitre 16 (Appairage / Synchronisation) : le serveur ne juge plus les droits du compte d'appairage, qui appaire (un administrateur), la révocation d'un poste volé, le titre « Opération réservée » et la liste des opérations réservées, les nouvelles lignes de « À traiter » (« Élément cité pas encore reçu », « Erreur imprévue du serveur »), « Renvoyer » ouvert à tous, l'envoi qui ne bloque plus.
+
+---
+
+## 09/11/2026 — Annulations de réservation à plusieurs postes : remboursé, descente complète, plus aucun refus « autre poste », unités de l'historique (web ET poste, schéma poste v58)
+
+**Constats du PO (captures réelles, poste A = barman, poste B = gérant).** (1) Onglet Annulations du poste A : « Robert ISSA » (80 000, 50 %, commission 40 000, acompte 40 000) et « Pierre COMLAN » (90 000, 20 %, commission 18 000, acompte 0) affichent « Remboursé 0 FCFA » : « le remboursé n'est pas calculé (total − commission retenue) ». (2) Poste B : une seule ligne « Robert ISSA » dont TOUTES les colonnes sont « — » ; « Pierre COMLAN » n'apparaît pas. (3) Poste B : « Pierre COMLAN » encore « En attente d'envoi » alors que A l'a annulée. (4) Historique des réservations de B : unité « — », services vides, total 75 000 au lieu de 80 000, et un UUID brut dans la colonne « Unités ». (5) « À traiter » : « Annulation refusée : ce document a été saisi sur un autre poste (ou au serveur). Seuls l'administration et le comptable peuvent l'annuler. » Décision du PO : « AUCUNE OPÉRATION NE DOIT BLOQUER LA SYNCHRONISATION » ; le serveur ne juge plus le compte d'appairage, le contrôle « qui peut annuler » est fait AU POSTE par le droit local `ANNULATIONS`.
+
+**Causes prouvées (essai à deux postes contre le vrai serveur, base privée `tatacora_annul_test`, rouge avant correction).**
+1. **Le « 0 » n'est pas un défaut de calcul : c'est la règle du web.** Le web (`AnnulationReservationService`, modale `Reservations::confirmerAnnulation`) ne calcule PAS un remboursé « total − commission » : la commission est `total × taux` (sur le MONTANT GLOBAL) ; le remboursé est ce que l'OPÉRATEUR rend au client, saisi en % de l'acompte ou en FCFA, **plafonné à l'acompte versé** ; la valeur PROPOSÉE est `acompte − commission` (0 si l'acompte ne couvre pas la commission). Robert : 40 000 − 40 000 = **0**. Pierre : acompte 0 → **0** (« total − commission » lui rendrait 72 000 qu'il n'a jamais versés). Le poste applique la même règle, champ à champ confronté au vrai PHP par `annulation_contre_serveur_test`. Aucun calcul faux n'a été trouvé ; ce qui manquait, c'est que l'écran ne DISAIT pas la règle (corrigé ci-dessous). ⚠ **Si le PO veut vraiment un remboursé « total − commission », c'est un AUTRE métier** (rendre au client plus que son acompte) : à trancher, voir plus bas.
+2. **Ligne toute en « — » au poste B** : `ReservationDao._annulationDe` exigeait `mode_saisie_remboursement` non nul ; la descente ne portait ni ce mode ni l'auteur, et l'aligneur n'écrivait pas le mode → une annulation REÇUE n'était JAMAIS complète, donc rendue « — » partout (taux, commission, remboursé, date, auteur). Preuve : `annulations_deux_postes_serveur_reel_test` (B relit R1 annulée par A : `annulation == null`).
+3. **R2 (saisie sur B, annulée par A) restait active et « En attente d'envoi »** : l'annulation de A partait au serveur, qui la REFUSAIT (`DocumentsDesAutresPostes::verifierAnnulation` : le compte d'appairage, gérant, n'est ni administrateur ni comptable, et R2 n'a pas été saisie par le poste de A) ; B ne recevait donc jamais l'annulation. Preuve : opération rejetée `regle_metier` avec la phrase du constat 5, dans « À traiter » de A.
+4. **Historique incomplet au poste B** : (a) une annulation reçue pour une réservation DÉJÀ présente n'écrivait que les colonnes d'annulation et ignorait le reste de la fiche (la branche « annulée au serveur » retournait avant la mise à jour des services) : R1 gardait 75 000 sans son service (80 000 chez A) ; (b) la colonne « Unités » était dérivée des LIGNES d'hébergement (absentes d'une réservation reçue sans service → « — ») et imprimait l'IDENTIFIANT de l'unité (`l.unites.join`) ; (c) « Services » dérivait aussi des lignes (vide sans ligne).
+5. **Règle Q3** (17/10/2026, lot F6) appliquée DEUX fois : au serveur (`GestionnaireReservations` → `DocumentsDesAutresPostes`) et au poste (`ReservationDao.annulerAvecConditions` → `DocumentsAutresPostes.peutAnnuler`). Et ⚠ le poste n'exigeait PAS le droit `ANNULATIONS` sur l'écran (seulement M1 en écriture, alors que le web exige M1 ET `ANNULATIONS`).
+
+**Règle du remboursé (web = poste, chiffres).** Commission = total × taux. Remboursé = valeur saisie par l'opérateur (en % de l'acompte ou en FCFA), `0 ≤ remboursé ≤ acompte`. Proposé par défaut : `acompte − commission` ramené en % de l'acompte, 0 si négatif. Robert : acompte 40 000, commission 40 000 → proposé 0 % → remboursé 0. Pierre : acompte 0 → 0. Un acompte de 40 000 à 20 % sur 80 000 : commission 16 000, proposé 60 % → remboursé 24 000. Plus que l'acompte : refusé (« … ne peut dépasser l'acompte »). La règle est DITE sous l'onglet Annulations (web `hebergement_pwa.reservations.annulations_regle`, poste `TextesAnnulations.regle`, au mot près).
+
+**Corrections.**
+- *Serveur.* `GestionnaireReservations` n'appelle plus `verifierAnnulation` : une annulation envoyée par un poste appairé est ACCEPTÉE (cohérence métier gardée : réservation inconnue, déjà annulée = rendue telle quelle, taux/remboursement invalides, total inconnu ; chevauchement inchangé). Traçabilité : migration `2026_11_09_210000` (`reservations.annulee_par_login`, `annulee_depuis_poste`, nullables), la charge porte `auteur` (login LOCAL), le poste et l'instant de saisie (`horodatage_client`) sont posés par `AnnulationReservationService::annuler` (`date`, `auteur_login`, `poste`) — jamais le moment de réception ni le seul compte d'appairage ; `Auditable` les journalise. La descente porte `mode_saisie_remboursement` et `par` (= `annulee_par_login`, sinon le compte du web) ; le web affiche le même « Par ». Web : le nom de l'unité de l'historique est `numéro — catégorie`, comme la carte.
+- *Poste.* Schéma **v58** : UNE colonne nullable `reservations_local.auteur_annulation_login`, curseur de descente oublié, entrée `58` de `retour_arriere_schema.dart`, `migration_v58_auteur_annulation_test`. `AligneurCatalogue._reservation` : une annulation reçue écrit TOUT (taux, montants, mode, date à l'heure locale, auteur) ET reprend la fiche du serveur (services, total) ; elle se RÉPARE à la redescente (annulée sans conditions) ; une annulation faite ICI n'est jamais réécrite ; le statut ne recule jamais. `_annulationDe` n'exige plus le mode et lit l'auteur reçu. Règle Q3 retirée du DAO ; l'écran exige M1 ET `ANNULATIONS` (`ModuleTatacora.annulations`, `peutAnnulerReservationProvider` : carte, détail, historique). La charge d'annulation porte `auteur`. Les annulations déjà rejetées par l'ancienne règle sont RENVOYÉES d'elles-mêmes au passage complet (`_relancerLesRefusDeLAncienneRegle`, une seule fois, même charge + `auteur`) : aucun clic « Relancer » à faire (un administrateur peut aussi le faire à la main). Historique : l'unité vient de la réservation (`uniteId`), le NOM `numéro — catégorie` s'affiche (jamais un UUID : « Unité inconnue » si le parc du poste ne la porte pas), le service « Hébergement » est toujours dit ; même correction pour « Unité(s) réservée(s) » de la vue « en cours ».
+
+**Preuves et mutations.** Dart : `annulations_deux_postes_serveur_reel_test` (A crée R1 acompte 40 000, B crée R2 90 000, A ajoute un service à R1 puis annule R1 et R2, synchronisation complète : aucune opération rejetée, annulations complètes et IDENTIQUES chez A et B — taux, total, commission, remboursé, date, auteur sans compte local —, R2 inactive chez B et « Synchronisée », fiche de R1 identique), `descente_tiers_test` (annulation complète, mode absent, fiche avec l'annulation, réparation, annulation locale intacte), `badge_synchronisation_verite_test` (renvoi automatique, une seule fois), `historique_test`, `panneau_historique_test`, `cartes_reservation_test` (M1 sans `ANNULATIONS` : ni « Annuler » ni pied du détail), `ecrans_test`, `annulation_reservation_test` (Robert, Pierre, acompte couvrant), `cycle_de_vie_poste_test`, `migration_v58_auteur_annulation_test`. PHP : `ReservationsCycleDeVieSynchronisationTest` (annulation d'un autre poste par un réceptionniste ACCEPTÉE, réservation du web annulée depuis un poste, auteur local + poste + date + descente complète), `ReservationsEcritureTest::le_rembourse_est_acompte_moins_commission…`. **Mutations prouvées (chacune rougit, restaurée ensuite).** Serveur : règle « autre poste » réintroduite dans `GestionnaireReservations` → 3 cas PHP et l'essai à deux postes rouges (« Annulation refusée … ») ; `mode_saisie_remboursement` / `annulee_par_login` retirés de la descente → cas PHP et essai à deux postes rouges ; remboursé proposé = total − commission (web) → cas PHP rouge. Poste : auteur reçu non lu (`_annulationDe`) ou non écrit (aligneur) → `descente_tiers_test` rouge ; mode de nouveau exigé → rouge ; retour anticipé d'une annulation reçue (plus de réparation) → rouge ; fiche non reprise avec l'annulation → rouge ; unité dérivée des seules lignes → `historique_test` et `panneau_historique_test` rouges ; droit `ANNULATIONS` non exigé → `cartes_reservation_test` et `panneau_historique_test` rouges ; renvoi automatique retiré → `badge_synchronisation_verite_test` rouge ; proposé = total − commission (poste) ou plafond à l'acompte retiré → `annulation_reservation_test` rouge. Gardes vertes : comparateur Blade (`conformite_blade_test`), `echelle_contenu_test`, `caracteres_de_controle_test`, écrivains (`demarrage_et_ecrivains_test`, `ecrivains_file_envoi_test`), `PwaActionsReluesTest`, `PwaEcritureAutoriseeTest`, matrice des droits (`roles_dao_test`, `parametres_roles_poste_test`). Déjà rouges AVANT ce lot et hors périmètre : `ReferentielsDescendantsTest::seules_les_definitions…` (`prix_achat` de la v57) et deux cas de `JugementDuCompteDAppairageTest` (autre chantier en cours).
+
+**À trancher par le PO.** (1) **Le remboursé.** Aujourd'hui = ce que l'opérateur rend, au plus l'acompte, proposé `acompte − commission`. Pour Robert cela donne 0 ; « total − commission » (40 000) rendrait au client l'acompte déjà consommé par la commission, et pour Pierre 72 000 sur un acompte de 0. Dites si vous voulez un autre calcul. (2) **La même règle « Annulation refusée : ce document a été saisi sur un autre poste » existe encore pour les ventes, factures, paiements et règlements fournisseur** (`DocumentsDesAutresPostes`, côté serveur ET `DocumentsAutresPostes.peutAnnuler` au poste) : elle n'a été retirée que pour les RÉSERVATIONS (périmètre de ce lot). La décision « aucune opération ne doit bloquer » les concerne aussi. (3) Le web affiche l'heure d'annulation en UTC (fuseau de l'application) alors que le poste l'affiche à son heure locale ; l'historique du web montre « — » pour le total et le reste dû (« non porté » depuis le 02/09/2026) alors que le poste les calcule.
+
+**À documenter au manuel d'utilisation (non édité ici).** Annulation d'une réservation : commission = total × taux ; remboursé saisi, jamais plus que l'acompte, proposé `acompte − commission` ; la phrase d'aide de l'onglet Annulations ; qui peut annuler (droit « Annulations » de l'utilisateur connecté, au poste comme au web) ; une annulation faite sur un poste apparaît complète (taux, commission, remboursé, date, auteur) sur tous les autres ; l'historique nomme l'unité (« numéro — catégorie »).
+
+## 10/11/2026 — La vente d'un plat n'est jamais refusée (RG-06 levée pour les plats)
+
+Décision du PO (« ça ne doit pas refuser à la vente ») : après « un plat n'est jamais en rupture » (09/11), un INGRÉDIENT manquant ou insuffisant dans la fiche technique ne refuse plus ni la transmission en cuisine ni la vente au comptoir. `DeductionStockCuisineService::deduireLignes` sort les ingrédients avec `validationRupture: true` (même règle que le lien direct au stock) : le stock de l'ingrédient peut passer sous zéro, l'inventaire le corrige. Les BOISSONS restent refusées en rupture (`VenteBarService`), et une vente de boisson en rupture reçue d'un poste est forcée puis signalée (`vente_en_rupture`) — aucune opération de file n'est rejetée. Poste : rien à changer (il ne déduit aucun stock de plat et n'estime la rupture que pour le bar). Tests réécrits : `RestaurationTest`, `ApiRestaurantTest`, `Rg05SortieStockAutomatiqueTest` (transmission acceptée, poulet à −0,40 / −4,00). Note RG-06 de `tatacora-flutter/CLAUDE.md` mise à jour.
+
+## 10/11/2026 — Rôles : comptable = gérant, barman au socle, commande `roles:realigner-socle`
+
+**Décision du PO.** (1) Le COMPTABLE a les mêmes droits que le GÉRANT. (2) Le BARMAN doit être conforme au socle du CdCF : M3 L, M5 C, M6 C, M11 L, M14 L, tout le reste « - » (profil : nom et téléphone autorisés, intitulé non). La fiche collée par le PO (Hébergement C, Facturation L, CRM C, Restaurant C, Bar C, Stocks C, Achats L, Véhicules C, Tourisme C, Tab. de bord C, États L, Paramètres L) n'est PAS le socle : un rôle modifié à l'écran Rôles & Permissions (le seeder ne réécrit jamais un rôle existant). Le seeder porte le barman du socle depuis le premier commit ; aucun fichier du CdCF n'existe dans le dépôt (la source citée par le seeder est le prototype `rbac.js`), la matrice codée fait donc foi.
+
+**Code.** `RolePermissionSeeder::MATRICE['comptable']` = celle du `gerant` (ROLES L, PARAM L, ANNULATIONS C, SYNCHRO/APPAIRAGE/IMPORT_EXPORT L, PROFIL_INTITULE -) ; même matrice dans `roles_du_poste.dart` (`socleRbacCdcf`). Les actions réservées par NOM de rôle (affectation du résultat, réouverture, contre-passation : rôle `comptable`) ne changent pas : le gérant, lui, ne les exécute toujours pas.
+
+**Appliquer sur une base existante.** Le seeder ne touche pas les rôles déjà semés : `php artisan roles:realigner-socle --role=barman --dry-run` montre l'écart module par module sans rien écrire, puis `php artisan roles:realigner-socle --role=barman` (et `--role=comptable`) l'applique. Sans `--role`, tous les rôles du socle ; un rôle créé à l'écran est refusé/jamais touché ; idempotent (un rôle conforme n'est pas réécrit ni tracé) ; chaque rôle réécrit est tracé au journal d'audit (`roles:realigner-socle`, avant/après) ; la mise à jour du rôle le fait redescendre aux postes (`roles` → `roles_local`). Le bouton « Rétablir le socle » de l'écran fait la même chose pour TOUS les rôles à la fois.
+
+**Tests.** `RealignerSocleRolesTest` (comptable = gérant, barman = socle, simulation sans écriture, ciblage + idempotence + rôle hors socle intact). Les ~40 cas qui prenaient le comptable pour « le rôle en lecture seule » utilisent le rôle d'ESSAI `lecteur` (ancienne matrice du comptable), posé par `Tests\TestCase::seed()` et jamais semé en production.
+
+## 10/11/2026 — Un rôle modifié est pris en compte tout de suite ; la redescente est automatique et ouverte à tous
+
+**Décision du PO.** « Si l'admin modifie le RBAC, l'application doit prendre en compte le rôle modifié et le synchroniser » ; « la redescente doit être automatique et accessible ».
+
+**Serveur.** `RolePermissionService` (`creerRole`, `definirNiveau`, `retablirSocle`, donc aussi `roles:realigner-socle`) fait avancer l'ÉPOQUE de synchronisation : les postes la lisent au battement de 30 s et redescendent le rôle dans la minute, sans attendre le passage complet de 5 minutes. Une modification faite AU POSTE (écran Rôles) était déjà enfilée, acceptée (`GestionnaireRoles`) et annoncée aux autres postes par l'époque d'une opération acceptée.
+
+**Poste.** `SessionNotifier.relireDroitsSiChange()` est appelé après chaque bilan de synchronisation : le rôle reçu est recopié sur les comptes (`RolesDao.inscrireDescendu`) et la session OUVERTE relit ses droits (menu, gardes) sans reconnexion ; l'état ne change que si le rôle ou les droits changent, et la session n'est jamais fermée par ce chemin.
+
+**Redescente.** Automatique (époque + passage complet de 5 minutes). Le bouton « Redescendre depuis le début » du web est ouvert à TOUS les rôles (`EnvoiSynchronisation`) ; révoquer, appairer, dissocier et l'adresse du serveur restent aux administrateurs.
+
+**Tests.** PHP `RolesModifiesDescendentTest` (l'époque avance à chaque écriture d'un rôle), `ReceptionSynchronisationTest` (barman, gérant, lecteur redescendent), `EntreesMenuOuvertesATousTest` ; Flutter `droits_relus_apres_descente_test` (rôle descendu → droits de la session ouverte, aucune reconstruction sans changement).
+
+## 10/11/2026 — POS clients hébergés : aucune règle de période (PO)
+
+**Constat du PO** : « Aucun séjour en cours… pourtant il y a des réservations en cours ». Cause : le POS n'offrait que les statuts `confirmee`/`en_cours` ; une réservation créée est `en_attente` et seul le check-in la passe `en_cours`, alors que l'écran Réservations dit « En cours » d'après les dates.
+
+**Décision (corrigée le même jour)** : aucune condition sur les dates — un séjour peut être rallongé, raccourci ou décalé. Toute réservation ni `annulee` ni `terminee` est offerte, web (`PosHeberges::STATUTS_EN_SEJOUR` = en_attente, confirmee, en_cours) ET poste (`estSejourAuPos`). État vide réécrit (`pos_pwa.heberges.sejours_vide`, même phrase au poste). Preuve : `PosPwaTest` (dates passées, futures, annulée, terminée), `sejour_au_pos_test`, essai 6 à deux postes.
+
+## 10/11/2026 — Historique client, refus lisibles (tâche L, constats du PO)
+
+- **Historique d'un client vide** (DOSSOU Nice, 30 000 dus) : l'historique ne listait que les encaissements et les relances ; un client qui doit une facture sans avoir payé ni été relancé voyait « Aucun mouvement ». La facture émise (`certifiee`) est désormais un mouvement de type « Facture » (le débit), web (`ClientsCreances::historiqueClient`, clé `pwa.clients.historique_type_facture`) ET poste (`composerHistoriqueClient(avecFactures: true)`). Le relevé PDF remis au client reste celui des encaissements et relances. Preuve : `CrmPwaTest::l_historique_d_un_client_montre_sa_facture_emise…`, `historique_et_avances_client_test`.
+- **Refus « Vous n avez pas acces a ce module »** : phrase corrigée (accents, apostrophe droite) à la source (`auth.module_refuse`) et dans les trois constantes du poste qui la rejouent. Les refus « Rôles et permissions » et « Paramètres — Opération réservée » de la capture du PO portent cette ancienne phrase : ils viennent d'un serveur qui n'a pas encore la décision du 09/11/2026 (le serveur ne juge plus les modules du compte d'appairage) ; ils se relancent d'eux-mêmes (« Renvoyer ») une fois le serveur déployé.
+- **« Le montant dépasse le reste dû (29999.99 F) »** : le serveur a 0,01 F d'encaissement sur cette facture ; l'écran arrondit au franc et affiche « 30 000 FCFA », d'où l'apparence d'un reste dû de 30 000 des deux côtés.
+
+## 10/11/2026 — Argent : TTC = somme des prix vendus, créances, centimes (tâche N, constats du PO)
+
+- **« Le montant dépasse le reste dû (29999.99 F) » — CAUSE PROUVÉE** : tous les prix sont TTC, mais `EmissionFactureService::recalculerTotaux` reconstituait le TTC depuis le HT total, chaque HT de ligne étant arrondi au centime. Deux lignes de 15 000 donnaient 29 999,99 ; trois lignes de 10 000 donnaient 30 000,01 (`TotalFactureEgalePrixVendusTest`, rouge avant, vert après). Le poste, qui compte en francs entiers, encaissait 30 000 et le serveur refusait. **Règle** : en convention TTC, le TTC de la facture est la SOMME des prix vendus (`prix_catalogue × quantité`), la TVA est le complément (TTC − HT). Les factures déjà émises avec un centime d'écart : un encaissement qui dépasse le reste dû de 0,01 F AU PLUS est PLAFONNÉ au reste dû et signalé (`paiement_arrondi_plafonne`), jamais refusé ; au-delà de 0,01 F, le refus garde sa phrase (`PaiementsSynchronisationTest`).
+- **Créances web 35 850 / poste 30 000 — CAUSE PROUVÉE** : le poste envoie le ticket d'une vente au comptant comme facture d'origine `pos_comptant`, SANS paiement (il est encaissé à la vente, dans la session de caisse ; le poste ne le compte jamais en créance, `estUneCreance`, D228). Le serveur le comptait en dette du « Client de passage ». `SoldeClientService::appliquerPredicatImpayee` (source unique du solde, du tableau de bord et des alertes) exclut désormais l'origine `pos_comptant` (`SoldeClientServiceTest`). Le serveur ne crée volontairement pas de paiement pour ces tickets : la vente a déjà passé sa pièce de recette, un encaissement de facture la doublerait.
+- **Registre web « — » en Origine et Mode de paiement** : l'origine est une colonne de `factures` (numérotation du 17/10/2026) que le registre ne lisait plus ; le mode n'est écrit nulle part sur la facture, il est LU là où il vit (`OrigineEtModeFacture` : le paiement actif, ou la vente du ticket du comptoir) ; sans source : « — ». Registre imprimé compris.
+- **Centimes** : `MontantFcfa::format` et `formaterCentimesEnFcfa` arrondissent au franc (parité gardée). Les montants DÛS (solde, créance, reste dû, montant réclamé) passent par `MontantFcfa::formatExact` (web) et `formaterCentimesExact` (poste) : « 29 999,99 FCFA », un franc entier garde sa forme.
+- **Audit des colonnes « — » au poste (hors stock)** : relevé statique des 51 tables de `CatalogueDescendantService::COLONNES` contre ce que les aligneurs écrivent : aucune colonne serveur oubliée à l'exception des justificatifs de dépense (`recu_*`, fichiers qui ne descendent pas, par conception). Les « — » des captures venaient de quatre causes distinctes : valeurs de stock (tâche J), historique client (tâche L), registre web (ci-dessus), créances (ci-dessus). Non couvert : une comparaison poste/web écran par écran sur un scénario complet.
+
+## Réservation MULTI-CHAMBRES (10/11/2026)
+
+**Décision du PO** (capture : « Une réservation ne peut porter qu'une seule chambre… ») : « pour UNE SEULE réservation un client peut réserver UNE ou PLUSIEURS chambres ».
+
+**Choix de modèle (écart assumé avec la consigne d'une table `reservation_unites`).** La première chambre reste `reservations.unite_id` ; les suivantes sont des lignes `lignes_reservation` de service `hebergement` (`source_id` = unité, quantité = nuitées, prix et libellé figés). Raisons : la descente et l'envoi transportent DÉJÀ les lignes avec la fiche (aucun nouveau flux), un poste ancien qui n'envoie qu'une unité reste accepté, le total (somme des lignes) est juste sans formule de plus, et AUCUNE migration poste (`service` est un texte libre) : le schéma poste ne bouge pas. Serveur : une migration additive ouvre le CHECK du service.
+
+**Ce qui change.** Serveur : anti-double-réservation PAR CHAMBRE sous verrou (`refuserSiChambreOccupee`, le message nomme la chambre), disponibilités/planning/plan, arrivée (toutes `occupee`) / départ (toutes `nettoyage`) / annulation, facture à toutes les chambres, écran web « + Ajouter une chambre ». Poste : refus retirés (`CreerReservation`, `ModifierReservation`, fiche), `Reservation.uniteIds` / `tarifNuitTotal`, contrôle de chevauchement et catalogue sur chaque chambre, séjour, plan du jour, verrou d'archivage, facture de séjour.
+
+**Preuves.** PHP `ReservationMultiChambresTest` (9 cas : total, refus nommé, doublon, disponibilité/planning, arrivée/départ, annulation, modification, écran) ; Flutter `reservation_multi_chambres_test`, `modifier_reservation_test`, `ecrans_test`, et le cas 7 de `reservations_deux_postes_serveur_reel_test` contre le VRAI serveur. **À appliquer en production : `php artisan migrate --force`** (migration `2026_11_10_100000`).
+
+
+## 10/11/2026 — Tâche Q : cartes multi-chambres, occupation, test de réouverture
+
+- **Cartes de réservation** (poste `carte_reservation.dart`, web `reservations.blade.php` carte + détail) : toutes les chambres d'une réservation multi-chambres sont dites (« Unité : BNG-01 — Bungalow + Bungalow (BNG-02) » au poste ; `numerosDesChambres()` au web).
+- **Taux d'occupation du serveur** (`TableauDeBordService::tauxOccupation`) : chaque chambre SUPPLÉMENTAIRE (ligne `hebergement` ≠ `unite_id`) compte ses nuits, comme le poste (`nuiteesVendues`).
+- **« Voir le détail »** : déjà inconditionnel (jamais sous droit d'écriture) sur carte de réservation, plats, boissons, commandes d'achat, fournisseurs ; seuls Modifier/Supprimer suivent `peutEcrire`.
+- **Réouverture d'une réservation** : test `ecrans_test` « DEBUG PO 10/11/2026 » (deux chambres + une boisson, réouverture puis enregistrement sans rien toucher : aucune ligne perdue). Il passe : la perte constatée par le PO n'est PAS reproduite par la relecture locale d'une réservation créée au poste.

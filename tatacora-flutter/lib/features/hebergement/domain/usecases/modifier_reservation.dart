@@ -84,27 +84,27 @@ final class ModifierReservation {
         .where((l) => l.service == ServiceReservation.hebergement)
         .toList();
 
-    // Les deux mêmes refus qu'à la création, et pour la même raison : le
-    // schéma serveur ne porte qu'une `unite_id`, NOT NULL. Les recopier ici
-    // plutôt que de les partager est un choix — ils tiennent en six lignes, et
-    // une fabrique commune masquerait qu'ils s'appliquent à deux gestes
-    // distincts, dont l'un pourrait être arbitré autrement.
+    // Les mêmes règles qu'à la création (multi-chambres, décision du PO du 10/11/2026) : au moins
+    // une chambre, jamais deux fois la même. Recopiées plutôt que partagées : elles tiennent en
+    // quelques lignes et s'appliquent à deux gestes distincts.
     if (renseignees.isNotEmpty && chambres.isEmpty) {
       throw ArgumentError.value(
         0,
         'lignes',
-        'Une réservation doit porter exactement une chambre : le serveur '
+        'Une réservation doit porter au moins une chambre : le serveur '
             'l’enregistre sur une unité d’hébergement.',
       );
     }
-    if (chambres.length > 1) {
-      throw ArgumentError.value(
-        chambres.length,
-        'lignes',
-        'Une réservation ne peut porter qu’une seule chambre : le serveur '
-            'n’en enregistre qu’une, et les suivantes seraient perdues sans '
-            'que rien ne le signale. Créez une réservation par chambre.',
-      );
+    final vues = <String>{};
+    for (final chambre in chambres) {
+      if (!vues.add(chambre.itemId)) {
+        throw ArgumentError.value(
+          chambre.itemId,
+          'lignes',
+          'La chambre « ${chambre.libelle} » figure deux fois dans la '
+              'réservation : une chambre ne se réserve qu’une fois.',
+        );
+      }
     }
 
     if (acompte < 0) {
@@ -130,20 +130,26 @@ final class ModifierReservation {
       periode,
       exclureReservationId: existante.id,
     );
-    final surCetteUnite = conflits
-        .where((d) => d.unite.id == unite.id)
-        .toList();
-    if (surCetteUnite.isNotEmpty && !surCetteUnite.first.disponible) {
-      final conflit = surCetteUnite.first.reservationEnConflit;
-      if (conflit != null) {
-        throw ChevauchementDetecte(
-          uniteId: unite.id,
-          reservationEnConflit: conflit,
+    for (final uniteId in <String>{
+      unite.id,
+      ...chambres.map((l) => l.itemId),
+    }) {
+      final surCetteUnite = conflits
+          .where((d) => d.unite.id == uniteId)
+          .toList();
+      if (surCetteUnite.isNotEmpty && !surCetteUnite.first.disponible) {
+        final conflit = surCetteUnite.first.reservationEnConflit;
+        if (conflit != null) {
+          throw ChevauchementDetecte(
+            uniteId: uniteId,
+            reservationEnConflit: conflit,
+          );
+        }
+        throw UniteIndisponible(
+          'L’unité ${surCetteUnite.first.unite.numero} n’est pas disponible '
+          'sur cette période.',
         );
       }
-      throw UniteIndisponible(
-        'L’unité ${unite.numero} n’est pas disponible sur cette période.',
-      );
     }
 
     final modifiee = Reservation(
@@ -161,7 +167,12 @@ final class ModifierReservation {
       // compris quand l'utilisateur n'a fait que corriger un acompte.
       tarifNuit: chambres.isEmpty
           ? existante.tarifNuit
-          : chambres.single.prixUnitaire,
+          : chambres
+                .firstWhere(
+                  (l) => l.itemId == unite.id,
+                  orElse: () => chambres.first,
+                )
+                .prixUnitaire,
       // Le statut métier est conservé : modifier une fiche ne confirme pas un
       // séjour, et ne le déconfirme pas non plus.
       statut: existante.statut,

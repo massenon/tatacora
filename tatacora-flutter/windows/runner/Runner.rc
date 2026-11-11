@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "bj.faguezsarl" "\0"
-            VALUE "FileDescription", "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)" "\0"
+            VALUE "CompanyName", "Dr MASSENON Rhodes" "\0"
+            VALUE "FileDescription", "LogiReStock — TATACORA AFRIQUE" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "tatacora_flutter" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 bj.faguezsarl. All rights reserved." "\0"
             VALUE "OriginalFilename", "tatacora_flutter.exe" "\0"
-            VALUE "ProductName", "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)" "\0"
+            VALUE "ProductName", "LogiReStock — TATACORA AFRIQUE" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

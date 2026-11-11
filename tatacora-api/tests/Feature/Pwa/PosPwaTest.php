@@ -22,6 +22,7 @@ use App\Domain\Stocks\Services\MouvementStockService;
 use App\Domain\Stocks\Services\StockTheoriqueService;
 use App\Domain\Ventes\Models\Panier;
 use App\Domain\Ventes\Models\Vente;
+use App\Domain\Ventes\Services\VenteService;
 use App\Exports\VentesExport;
 use App\Models\User;
 use App\Pwa\Livewire\Pos\HistoriqueVentes;
@@ -272,9 +273,9 @@ final class PosPwaTest extends TestCase
     public function les_trois_ecrans_repondent_200_et_portent_leur_propre_titre(): void
     {
         $attendus = [
-            '/pwa/pos/comptant' => 'Point de vente comptant — TATACORA AFRIQUE',
-            '/pwa/pos/heberges' => 'Point de vente — clients hébergés — TATACORA AFRIQUE',
-            '/pwa/historique-ventes' => 'Historique des ventes — TATACORA AFRIQUE',
+            '/pwa/pos/comptant' => 'Point de vente comptant — LogiReStock — TATACORA AFRIQUE',
+            '/pwa/pos/heberges' => 'Point de vente — clients hébergés — LogiReStock — TATACORA AFRIQUE',
+            '/pwa/historique-ventes' => 'Historique des ventes — LogiReStock — TATACORA AFRIQUE',
         ];
 
         foreach ($attendus as $url => $titre) {
@@ -667,6 +668,41 @@ final class PosPwaTest extends TestCase
      * instances de `Livewire::test` ne partagent aucun etat. Ce qui reste
      * visible ne peut donc venir que de la base.
      */
+    /**
+     * 10/11/2026 (PO : « aucun séjour en cours, pourtant il y a des réservations en cours »).
+     * AUCUNE règle de période : toute réservation ni annulée ni terminée est offerte, quel que soit
+     * le rapport de ses dates avec aujourd'hui (un séjour peut être rallongé, raccourci, décalé).
+     */
+    #[Test]
+    public function un_sejour_est_offert_quelles_que_soient_ses_dates_sauf_annule_ou_termine(): void
+    {
+        $reservation = $this->reservationEnCours();
+        $reservation->update(['statut' => 'en_attente']);
+        $aujourdhui = \App\Shared\Support\HeureLocale::maintenant();
+
+        $this->actingAs($this->gerant);
+
+        // En attente : offerte, sans check-in.
+        Livewire::test(PosHeberges::class)->assertSet('selectedReservationId', $reservation->id);
+
+        // Arrivée demain : offerte aussi (décalée) ; passée : offerte (rallongée).
+        foreach ([[1, 3], [-9, -5]] as [$du, $au]) {
+            $reservation->update([
+                'date_arrivee' => $aujourdhui->addDays($du)->toDateString(),
+                'date_depart' => $aujourdhui->addDays($au)->toDateString(),
+            ]);
+            Livewire::test(PosHeberges::class)->assertSet('selectedReservationId', $reservation->id);
+        }
+
+        // Annulée ou terminée : jamais — et l'état vide DIT pourquoi.
+        foreach (['annulee', 'terminee'] as $statut) {
+            $reservation->update(['statut' => $statut]);
+            Livewire::test(PosHeberges::class)
+                ->assertSet('selectedReservationId', null)
+                ->assertSee(__('pos_pwa.heberges.sejours_vide'));
+        }
+    }
+
     #[Test]
     public function le_panier_d_un_sejour_survit_a_une_nouvelle_session_et_a_un_autre_poste(): void
     {
@@ -777,7 +813,7 @@ final class PosPwaTest extends TestCase
     public function afficher_les_deux_ecrans_n_ouvre_aucun_panier(): void
     {
         $reservation = $this->reservationEnCours();
-        $comptable = $this->utilisateur('comptable');   // M5 = 'L'
+        $comptable = $this->utilisateur('lecteur');   // M5 = 'L'
 
         $this->actingAs($comptable)->get('/pwa/pos/comptant')->assertOk();
         $this->actingAs($comptable)->get('/pwa/pos/heberges')->assertOk();
@@ -877,7 +913,7 @@ final class PosPwaTest extends TestCase
     #[Test]
     public function un_role_sans_droit_d_ecriture_sur_m5_ne_peut_rien_porter_au_panier(): void
     {
-        $comptable = $this->utilisateur('comptable');   // M5 = 'L'
+        $comptable = $this->utilisateur('lecteur');   // M5 = 'L'
 
         $this->actingAs($comptable);
 
@@ -943,7 +979,7 @@ final class PosPwaTest extends TestCase
             ->call('encaisser');
 
         $vente = Vente::firstOrFail();
-        $comptable = $this->utilisateur('comptable');   // M5 = 'L'
+        $comptable = $this->utilisateur('lecteur');   // M5 = 'L'
 
         // 1. Il ATTEINT l'ecran, et le bouton d'export unique y est rendu.
         //
@@ -1200,7 +1236,31 @@ final class PosPwaTest extends TestCase
     }
 
     #[Test]
-    public function le_tourisme_et_la_location_sont_refuses_a_l_encaissement_et_le_disent(): void
+    public function le_pos_des_clients_heberges_ne_propose_ni_circuit_ni_vehicule_ni_rayon_prestations(): void
+    {
+        \App\Domain\Tourisme\Models\Circuit::create([
+            'nom' => 'Cascades de Kota', 'theme' => 'nature', 'zone' => 'Atacora',
+            'duree' => '1 jour', 'prix' => '15000.00', 'capacite_max' => 12,
+        ]);
+        \App\Domain\Vehicules\Models\Vehicule::create([
+            'categorie' => '4x4', 'immatriculation' => 'AB-123-CD', 'annee' => 2022,
+            'transmission' => 'automatique', 'capacite' => 5, 'tarif_jour' => '65000.00',
+            'statut' => 'disponible',
+        ]);
+        $reservation = $this->reservationEnCours();
+
+        $this->actingAs($this->gerant);
+
+        Livewire::test(PosHeberges::class)
+            ->set('selectedReservationId', $reservation->id)
+            ->assertDontSee('Cascades de Kota')
+            ->assertDontSee('AB-123-CD')
+            ->assertDontSee('Tourisme')
+            ->assertDontSee('Location');
+    }
+
+    #[Test]
+    public function une_action_forgee_sur_le_tourisme_ou_la_location_n_ouvre_aucun_panier_de_sejour(): void
     {
         $reservation = $this->reservationEnCours();
 
@@ -1210,12 +1270,10 @@ final class PosPwaTest extends TestCase
             ->set('selectedReservationId', $reservation->id)
             ->call('ajouterAuPanier', 'M9', (string) Str::uuid());
 
-        // Nomme a l'ecran, jamais un echec silencieux (PA-24).
+        // Plus aucune carte ne les propose (PO, 26/10/2026) : une action
+        // forgee est refusee, jamais un echec silencieux.
         $composant->assertSet('toastType', 'error');
-        $this->assertStringContainsString(
-            'Tourisme et location',
-            (string) $composant->get('toastMessage'),
-        );
+        $composant->assertSet('toastMessage', __('pos_pwa.commun.reference_inconnue'));
         /*
          * Et AUCUN panier n'a ete ouvert : un refus qui laisserait derriere lui
          * un panier vide ferait passer le sejour a « PANIER OUVERT » sur la
@@ -1310,6 +1368,202 @@ final class PosPwaTest extends TestCase
 
         // Le libellé français de la boisson, jamais le code brut de l'enum.
         $this->assertStringContainsString(CarteBoisson::CATEGORIES['locale'], $html);
+    }
+
+    // =====================================================================
+    // Facturation normalisée (07/11/2026) : l'acheteur et le comportement par mode
+    // =====================================================================
+
+    private function modeFacturation(string $mode): void
+    {
+        ParametreSysteme::updateOrCreate(
+            ['cle' => \App\Domain\Facturation\Services\ModeFacturation::CLE],
+            ['valeur' => $mode],
+        );
+    }
+
+    /** Un séjour avec une consommation, prêt à clôturer. */
+    private function sejourPretACloturer(): \Livewire\Features\SupportTesting\Testable
+    {
+        $reservation = $this->reservationEnCours();
+        $this->actingAs($this->gerant);
+
+        return Livewire::test(PosHeberges::class)
+            ->set('selectedReservationId', $reservation->id)
+            ->call('ajouterAuPanier', 'M5', $this->biere->id)
+            ->call('ouvrirClotureSejour');
+    }
+
+    #[Test]
+    public function l_ifu_du_client_est_facultatif_et_la_facture_simple_n_a_ni_numero_mecef_ni_demo(): void
+    {
+        $this->modeFacturation('desactive');
+
+        $this->sejourPretACloturer()
+            ->assertSet('acheteurIfu', '')
+            ->call('cloturerEtFacturer')
+            ->assertHasNoErrors()
+            ->assertSet('toastType', 'success');
+
+        $facture = Facture::firstOrFail();
+        $this->assertSame('certifiee', $facture->statut, 'la facture est ÉMISE (figée)');
+        $this->assertNull($facture->acheteur_ifu, 'vide = client sans IFU');
+        $this->assertNull($facture->numero_mecef, 'aucun numéro fictif');
+        $this->assertNull($facture->qr_code_fiscal);
+        $this->assertNull($facture->normalisation_statut, 'mode désactivé : rien à normaliser');
+        $this->assertTrue($facture->estSimple());
+    }
+
+    #[Test]
+    public function un_ifu_client_de_13_chiffres_est_rangé_sur_la_facture_et_un_ifu_invalide_ne_cree_rien(): void
+    {
+        $this->modeFacturation('desactive');
+
+        $composant = $this->sejourPretACloturer()
+            ->set('acheteurIfu', '12345')
+            ->call('cloturerEtFacturer')
+            ->assertHasErrors('acheteurIfu');
+
+        // Rien n'est émis ni clôturé : la saisie se corrige.
+        $this->assertSame(0, Facture::count());
+        $this->assertSame(0, Vente::count());
+        $this->assertSame(__('facturation.ifu_client.invalide'), $composant->errors()->first('acheteurIfu'));
+
+        $composant
+            ->set('acheteurIfu', '3201910768821')
+            ->set('acheteurNom', 'SARL Atacora')
+            ->call('cloturerEtFacturer')
+            ->assertHasNoErrors();
+
+        $facture = Facture::firstOrFail();
+        $this->assertSame('3201910768821', $facture->acheteur_ifu);
+        $this->assertSame('SARL Atacora', $facture->acheteur_nom);
+    }
+
+    #[Test]
+    public function retenir_pour_ce_client_range_l_ifu_sur_la_fiche_seulement_si_la_case_est_cochee(): void
+    {
+        $this->modeFacturation('desactive');
+
+        // Case décochée (défaut) : la fiche ne bouge pas.
+        $this->sejourPretACloturer()
+            ->assertSet('retenirIfu', false)
+            ->set('acheteurIfu', '3201910768821')
+            ->call('cloturerEtFacturer')
+            ->assertHasNoErrors();
+        $this->assertNull($this->client->refresh()->ifu);
+    }
+
+    #[Test]
+    public function la_fiche_client_prerempli_l_ifu_et_la_case_retenir_la_range(): void
+    {
+        $this->modeFacturation('desactive');
+        $this->client->update(['ifu' => '0202011344660']);
+
+        $composant = $this->sejourPretACloturer()->assertSet('acheteurIfu', '0202011344660');
+
+        $composant->set('acheteurIfu', '3201910768821')->set('retenirIfu', true)
+            ->call('cloturerEtFacturer')->assertHasNoErrors();
+
+        $this->assertSame('3201910768821', $this->client->refresh()->ifu);
+        $this->assertSame('3201910768821', Facture::firstOrFail()->acheteur_ifu);
+    }
+
+    #[Test]
+    public function la_normalisation_n_est_jamais_automatique_a_l_emission(): void
+    {
+        $this->configurerEmecef();
+        \Illuminate\Support\Facades\Http::fake();
+
+        $this->sejourPretACloturer()
+            ->assertSet('normaliserMaintenant', false)
+            ->call('cloturerEtFacturer')
+            ->assertHasNoErrors();
+
+        $facture = Facture::firstOrFail();
+        $this->assertNull($facture->normalisation_statut, 'ni tentée ni en attente : le bouton la déclenchera');
+        $this->assertNull($facture->numero_mecef);
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+    }
+
+    #[Test]
+    public function un_echec_de_normalisation_ne_bloque_ni_la_facture_ni_le_sejour(): void
+    {
+        $this->configurerEmecef();
+        \Illuminate\Support\Facades\Http::fake([
+            '*' => \Illuminate\Support\Facades\Http::response(['errorDesc' => 'Jeton invalide'], 401),
+        ]);
+
+        $this->sejourPretACloturer()
+            ->set('normaliserMaintenant', true)
+            ->call('cloturerEtFacturer');
+
+        // La vente et la facture existent, le séjour est clos : la normalisation a échoué sans rien bloquer.
+        $this->assertSame(1, Vente::count());
+        $facture = Facture::firstOrFail();
+        $this->assertSame('certifiee', $facture->statut, 'la facture reste émise');
+        $this->assertFalse($facture->estNormalisee());
+        // Le jeton refusé (401) se range sur la facture, en français : elle reste rejouable.
+        $this->assertContains($facture->normalisation_statut, ['en_attente', 'refusee']);
+        $this->assertNotEmpty($facture->normalisation_motif);
+        $this->assertTrue(Panier::firstOrFail()->estCloture());
+    }
+
+    #[Test]
+    public function normaliser_maintenant_normalise_la_facture_en_mode_emecef(): void
+    {
+        $this->configurerEmecef();
+        \Illuminate\Support\Facades\Http::fake([
+            '*/invoice' => \Illuminate\Support\Facades\Http::response(['uid' => 'u1'], 200),
+            '*/invoice/u1/confirm' => \Illuminate\Support\Facades\Http::response([
+                'codeMECeFDGI' => 'ABCD-EFGH', 'qrCode' => 'F;ED04000999;ABCD-EFGH;0202011344660;20261107100000',
+                'dateTime' => '2026-11-07T10:00:03+01:00', 'counters' => '12/45 FV', 'nim' => 'ED04000999',
+            ], 200),
+        ]);
+
+        $this->sejourPretACloturer()
+            ->set('acheteurIfu', '3201910768821')
+            ->set('normaliserMaintenant', true)
+            ->call('cloturerEtFacturer');
+
+        $facture = Facture::firstOrFail();
+        $this->assertTrue($facture->estNormalisee());
+        $this->assertSame('ED04000999-12', $facture->numero_mecef);
+
+        // L'IFU du client part à la DGI, avec le nom.
+        $creation = \Illuminate\Support\Facades\Http::recorded()[0][0]->data();
+        $this->assertSame('3201910768821', $creation['client']['ifu']);
+    }
+
+    #[Test]
+    public function la_case_normaliser_maintenant_n_existe_qu_en_mode_emecef(): void
+    {
+        $this->modeFacturation('desactive');
+        $this->assertStringNotContainsString('normaliserMaintenant', $this->sejourPretACloturer()->html());
+
+        $this->modeFacturation('boitier');
+        $this->assertStringNotContainsString('normaliserMaintenant', $this->sejourPretACloturer()->html());
+
+        $this->configurerEmecef();
+        $this->assertStringContainsString('normaliserMaintenant', $this->sejourPretACloturer()->html());
+    }
+
+    private function configurerEmecef(): void
+    {
+        foreach ([
+            'entreprise_ifu' => '0202011344660',
+            'mecef_operateur_id' => 'RECEPTION01',
+            'mecef_operateur_nom' => 'Réception',
+            'mecef_api_url' => 'https://developper.impots.bj/sygmef-emcf/api',
+            \App\Domain\Facturation\Services\ModeFacturation::CLE => 'emecef',
+        ] as $cle => $valeur) {
+            ParametreSysteme::updateOrCreate(['cle' => $cle], ['valeur' => $valeur]);
+        }
+        app(\App\Shared\Secrets\Services\SecretsConfigurationService::class)->enregistrer(
+            \App\Shared\Secrets\Services\SecretsConfigurationService::MECEF_JETON,
+            'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.c2ln',
+            $this->utilisateur('administrateur'),
+        );
     }
 
     // =====================================================================
@@ -1417,6 +1671,33 @@ final class PosPwaTest extends TestCase
     }
 
     /**
+     * La mention est NORMALISEE a l'enregistrement (aucun caractere de controle,
+     * 255 au plus, vide = aucune) : meme regle que le poste
+     * (`MentionClient.normaliser`). Mutation : retirer le remplacement des
+     * controles ou la troncature dans `normaliserMentionClient` → ROUGE.
+     */
+    #[Test]
+    public function la_mention_client_est_normalisee_comme_au_poste(): void
+    {
+        $this->ouvrirLaCaisse();
+        $this->actingAs($this->gerant);
+
+        Livewire::test(PosComptant::class)
+            ->set('comptoirChoisi', true)
+            ->call('ajouterAuPanier', 'M5', $this->biere->id)
+            ->set('clientMention', "  Jean\nDupont\x00\x1B ".str_repeat('x', 300))
+            ->call('encaisser')
+            ->assertSet('toastType', 'success');
+
+        $mention = Vente::firstOrFail()->client_mention;
+
+        $this->assertSame(255, mb_strlen($mention));
+        $this->assertStringStartsWith('Jean Dupont', $mention);
+        $this->assertSame(0, preg_match('/[\x00-\x1F\x7F]/', $mention));
+        $this->assertNull(VenteService::normaliserMentionClient("  \n\t "));
+    }
+
+    /**
      * La MENTION client du comptoir (texte libre, PO 02/09/2026) est ecrite
      * sur la vente — jamais une FK — et imprimee sur le ticket 80 mm ET la
      * facture A4 de la vente.
@@ -1454,13 +1735,21 @@ final class PosPwaTest extends TestCase
             ->assertOk()
             ->assertSee('M. HOUNSOU')
             ->assertDontSee('Emplacement réservé au cachet fiscal MECeF')
+            // Décision du PO du 07/11/2026 : mode désactivé (défaut) = AUCUNE mention MECeF sur le papier.
+            ->assertDontSee('en attente d');
+
+        $this->modeFacturation('boitier');
+        $this->actingAs($this->gerant)
+            ->get(route('pwa.pos.ticket-thermique', $vente->id))
+            ->assertOk()
             ->assertSee('en attente d');
+        $this->modeFacturation('desactive');
 
         // La facture A4 de la vente — la MEME vue que `imprimerTicketA4()`,
         // rendue avec exactement les variables que le composant lui passe.
         $html = view('pdf.facture-ticket', [
             'vente' => $vente->load('lignes'),
-            'quand' => now()->format('d/m/Y H:i'),
+            'quand' => \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i'),
             'auteur' => $this->gerant->login,
             'entete' => app(\App\Shared\ReportEngine\Services\ReportHeaderService::class)->genererEnTete(
                 typeRapport: (string) __('pos_pwa.document.ticket_titre'),
@@ -1470,10 +1759,10 @@ final class PosPwaTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('M. HOUNSOU', $html);
-        // L'en-tete de TOUS les documents (PO 02/09/2026) : raison sociale
-        // puis enseigne EN MINUSCULES, derivees par l'auteur unique.
+        // L'en-tete de TOUS les documents (PO 10/11/2026) : l'identite UNE fois, sans
+        // enseigne repetee, derivee par l'auteur unique.
         $this->assertStringContainsString('TATACORA AFRIQUE', $html);
-        $this->assertStringContainsString('gîte chez noël', $html);
+        $this->assertStringNotContainsString('gîte chez noël', $html);
         // Meme regle que le 80 mm : ni emplacement de cachet, ni « Ne vaut
         // pas facture normalisee » tant que MECeF n'est pas configuree.
         $this->assertStringNotContainsString('Emplacement réservé au cachet fiscal MECeF', $html);

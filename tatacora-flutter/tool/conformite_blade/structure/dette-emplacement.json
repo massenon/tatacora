@@ -1,8 +1,8 @@
 {
   "_lisez-moi": "PRODUIT par FIGER_EMPLACEMENT=1 flutter test test/core/qualite/emplacement_blade_test.dart. Éléments de la vue bien placés, par écran. Le test échoue sur un recul et sur un progrès non resserré.",
   "crm/clients-creances": {
-    "blade": 79,
-    "ordonnes": 59,
+    "blade": 127,
+    "ordonnes": 103,
     "ongletsNonCliquables": 0
   },
   "hebergement/hebergement": {
@@ -16,23 +16,23 @@
     "ongletsNonCliquables": 0
   },
   "pos/comptant": {
-    "blade": 43,
-    "ordonnes": 11,
+    "blade": 41,
+    "ordonnes": 13,
     "ongletsNonCliquables": 0
   },
   "pos/heberges": {
-    "blade": 20,
+    "blade": 19,
     "ordonnes": 14,
     "ongletsNonCliquables": 0
   },
   "pos/historique-ventes": {
-    "blade": 32,
-    "ordonnes": 15,
+    "blade": 36,
+    "ordonnes": 18,
     "ongletsNonCliquables": 0
   },
   "facturation/facturation": {
-    "blade": 26,
-    "ordonnes": 19,
+    "blade": 27,
+    "ordonnes": 20,
     "ongletsNonCliquables": 0
   },
   "depenses/depenses": {
@@ -41,18 +41,18 @@
     "ongletsNonCliquables": 0
   },
   "notifications/hub": {
-    "blade": 136,
+    "blade": 134,
     "ordonnes": 106,
     "ongletsNonCliquables": 0
   },
   "rh/paie": {
     "blade": 145,
-    "ordonnes": 126,
+    "ordonnes": 127,
     "ongletsNonCliquables": 0
   },
   "livewire/connexion": {
-    "blade": 8,
-    "ordonnes": 8,
+    "blade": 20,
+    "ordonnes": 12,
     "ongletsNonCliquables": 0
   },
   "demarrage": {
@@ -67,12 +67,12 @@
   },
   "tourisme/departs": {
     "blade": 36,
-    "ordonnes": 24,
+    "ordonnes": 23,
     "ongletsNonCliquables": 0
   },
   "achats/approvisionnement": {
     "blade": 97,
-    "ordonnes": 70,
+    "ordonnes": 71,
     "ongletsNonCliquables": 0
   },
   "achats/achats": {
@@ -87,37 +87,37 @@
   },
   "stocks/inventaires": {
     "blade": 51,
-    "ordonnes": 43,
+    "ordonnes": 49,
     "ongletsNonCliquables": 0
   },
   "restaurant/restauration": {
     "blade": 54,
-    "ordonnes": 37,
+    "ordonnes": 38,
     "ongletsNonCliquables": 0
   },
   "bar/carte": {
-    "blade": 63,
-    "ordonnes": 46,
+    "blade": 62,
+    "ordonnes": 48,
     "ongletsNonCliquables": 0
   },
   "restaurant/carte": {
-    "blade": 84,
-    "ordonnes": 40,
+    "blade": 83,
+    "ordonnes": 52,
     "ongletsNonCliquables": 0
   },
   "etats/studio": {
-    "blade": 29,
+    "blade": 28,
     "ordonnes": 27,
     "ongletsNonCliquables": 0
   },
   "transverse/parametres": {
-    "blade": 150,
-    "ordonnes": 82,
+    "blade": 164,
+    "ordonnes": 118,
     "ongletsNonCliquables": 1
   },
   "livewire/accueil": {
-    "blade": 301,
-    "ordonnes": 138,
+    "blade": 300,
+    "ordonnes": 142,
     "ongletsNonCliquables": 0
   },
   "comptabilite/hub": {
@@ -126,28 +126,28 @@
     "ongletsNonCliquables": 0
   },
   "transverse/aide-a-propos": {
-    "blade": 100,
-    "ordonnes": 67,
+    "blade": 98,
+    "ordonnes": 64,
     "ongletsNonCliquables": 0
   },
   "transverse/contact-editeur": {
     "blade": 18,
-    "ordonnes": 11,
+    "ordonnes": 10,
     "ongletsNonCliquables": 0
   },
   "transverse/import-export": {
-    "blade": 64,
-    "ordonnes": 37,
+    "blade": 60,
+    "ordonnes": 34,
     "ongletsNonCliquables": 0
   },
   "transverse/journal-audit": {
     "blade": 35,
-    "ordonnes": 11,
+    "ordonnes": 10,
     "ongletsNonCliquables": 0
   },
   "transverse/mon-profil": {
-    "blade": 31,
-    "ordonnes": 23,
+    "blade": 33,
+    "ordonnes": 22,
     "ongletsNonCliquables": 0
   },
   "transverse/roles-permissions": {
@@ -156,8 +156,34 @@
     "ongletsNonCliquables": 0
   },
   "transverse/synchronisation-postes": {
-    "blade": 13,
+    "blade": 16,
     "ordonnes": 13,
+    "ongletsNonCliquables": 0
+  },
+  "rh/conges-plannings": {
+    "blade": 34,
+    "ordonnes": 29,
+    "ongletsNonCliquables": 0
+  },
+  "comptabilite/correspondance-comptes": {
+    "blade": 134,
+    "ordonnes": 77,
+    "ongletsNonCliquables": 0
+  },
+  "transverse/comptes-utilisateurs": {
+    "blade": 11,
+    "ordonnes": 5,
+    "ongletsNonCliquables": 0
+  },
+  "facturation/proformas": {
+    "blade": 0,
+    "ordonnes": 0,
+    "ongletsNonCliquables": 0,
+    "nonMesure": "capture navigateur de la vue web indisponible (07/11/2026) : emplacement à mesurer, voir RESTE_A_FAIRE"
+  },
+  "transverse/synchronisation": {
+    "blade": 39,
+    "ordonnes": 5,
     "ongletsNonCliquables": 0
   }
 }

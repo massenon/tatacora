@@ -251,11 +251,11 @@ final class RhPaiePwaTest extends TestCase
     public function un_role_en_lecture_voit_l_ecran_mais_n_ouvre_aucun_formulaire(): void
     {
         // `comptable` : M13 = 'L'.
-        $this->actingAs($this->compte('comptable'))
+        $this->actingAs($this->compte('lecteur'))
             ->get('/pwa/paie')
             ->assertOk();
 
-        $this->actingAs($this->compte('comptable'));
+        $this->actingAs($this->compte('lecteur'));
 
         Livewire::test(Paie::class)
             ->call('ouvrirFormulaireEmploye')
@@ -268,7 +268,7 @@ final class RhPaiePwaTest extends TestCase
         $this->poserLeReferentielDePaie();
         $this->employe();
 
-        $this->actingAs($this->compte('comptable'));
+        $this->actingAs($this->compte('lecteur'));
 
         Livewire::test(Paie::class)
             ->set('periode', self::PERIODE)
@@ -288,7 +288,7 @@ final class RhPaiePwaTest extends TestCase
         $this->poserLeReferentielDePaie();
         $bulletin = app(BulletinPaieService::class)->etablirBulletin($this->employe(), self::PERIODE);
 
-        $this->actingAs($this->compte('comptable'));
+        $this->actingAs($this->compte('lecteur'));
 
         Livewire::test(Paie::class)
             ->set('periode', self::PERIODE)
@@ -636,7 +636,7 @@ final class RhPaiePwaTest extends TestCase
         $this->ouvrirLaSuppression();
         $employe = $this->employe();
 
-        $this->actingAs($this->compte('comptable'));
+        $this->actingAs($this->compte('lecteur'));
         $composant = Livewire::test(Paie::class);
         $composant->assertDontSeeHtml('ouvrirArchivageEmployes');
 

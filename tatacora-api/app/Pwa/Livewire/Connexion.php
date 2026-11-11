@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Pwa\Livewire;
 
+use App\Pwa\Support\EmpreinteMotDePasseEnSession;
 use App\Shared\Auth\Http\Controllers\AuthController;
 use App\Shared\Rbac\Models\JournalSecurite;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,7 @@ use Livewire\Component;
 // langue : `pwa.connexion.titre_page`, passé par `render()` sous `titre`,
 // que `layouts/pwa-invite` lit AVANT `$title`.
 //
-// L'attribut `#[Title('LogiRestock TATACORA AFRIQUE — TATACORA AFRIQUE')]`
+// L'attribut `#[Title('LogiRestock TATACORA AFRIQUE — LogiReStock — TATACORA AFRIQUE')]`
 // qui figurait ici a été RETIRÉ le 13/10/2026 (PA-209, ticket D390) : il
 // n'était jamais lu — `$titre ?? $title` s'arrête au premier — et portait
 // encore le nom d'un autre produit (décision du PO, PA-208). Le titre rendu
@@ -70,8 +71,31 @@ class Connexion extends Component
             return null;
         }
 
+        // Mot de passe TEMPORAIRE posé par un administrateur (29/10/2026) : expiré
+        // (24 h), il n'ouvre rien ; valide, il n'ouvre QUE « Définissez votre
+        // nouveau mot de passe » (`ExigerChangementMotDePasse` ferme le reste).
+        if ($utilisateur->motDePasseTemporaireExpire()) {
+            Auth::logout();
+            $this->reset('motDePasse');
+            $this->addError('identifiants', __('pwa.changement_mdp.expire'));
+
+            return null;
+        }
+
         RateLimiter::clear($cle);
         session()->regenerate();
+
+        // L'empreinte du mot de passe est rangée dans la session : si un
+        // administrateur réinitialise ce compte, `FermerLesSessionsPerimees` la
+        // voit changer et ferme cette session. Sans cela, elle ne serait rangée
+        // qu'à la requête suivante — APRÈS une réinitialisation éventuelle.
+        EmpreinteMotDePasseEnSession::poser($utilisateur);
+
+        if ($utilisateur->must_change_password) {
+            $utilisateur->forceFill(['derniere_connexion' => now()])->save();
+
+            return $this->redirectRoute('pwa.changement-mot-de-passe', navigate: true);
+        }
 
         // Les modales d'ouverture (alertes-ouverture.js du maitre) se
         // montrent UNE fois par connexion : le drapeau est pose ici,
@@ -100,6 +124,10 @@ class Connexion extends Component
     {
         return view('pwa.livewire.connexion')->layout('layouts.pwa-invite', [
             'titre' => __('pwa.connexion.titre_page'),
+            // Fond BLANC uni (decision du PO du 29/10/2026) et page qui s'etire
+            // au lieu d'une hauteur figee : pas d'ascenseur a hauteur normale.
+            'classeBody' => 'min-h-screen flex',
+            'styleBody' => 'background:white',
         ]);
     }
 }

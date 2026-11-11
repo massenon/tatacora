@@ -131,15 +131,21 @@ final class SoldesIntermediairesGestion
         ['code' => 'RK', 'libelle' => 'Charges de personnel', 'sens' => self::SENS_CHARGE, 'prefixes' => ['66']],
         ['code' => 'XD', 'libelle' => "EXCÉDENT BRUT D'EXPLOITATION", 'sens' => self::SENS_SOLDE, 'composants' => ['XC', 'RK']],
 
-        ['code' => 'TJ', 'libelle' => "Reprises d'amortissements, provisions et dépréciations", 'sens' => self::SENS_PRODUIT, 'prefixes' => ['791', '798']],
+        // 799 : quote-part des subventions d'investissement virée au resultat
+        // (« Reprises de subventions d'investissement », plan revise).
+        ['code' => 'TJ', 'libelle' => "Reprises d'amortissements, provisions et dépréciations", 'sens' => self::SENS_PRODUIT, 'prefixes' => ['791', '798', '799']],
         ['code' => 'RL', 'libelle' => 'Dotations aux amortissements, provisions et dépréciations', 'sens' => self::SENS_CHARGE, 'prefixes' => ['681', '691']],
         ['code' => 'XE', 'libelle' => "RÉSULTAT D'EXPLOITATION", 'sens' => self::SENS_SOLDE, 'composants' => ['XD', 'TJ', 'RL']],
 
         ['code' => 'TK', 'libelle' => 'Revenus financiers et assimilés', 'sens' => self::SENS_PRODUIT, 'prefixes' => ['77']],
         ['code' => 'TM', 'libelle' => 'Transferts de charges financières', 'sens' => self::SENS_PRODUIT, 'prefixes' => ['787']],
         ['code' => 'RM', 'libelle' => 'Frais financiers et charges assimilées', 'sens' => self::SENS_CHARGE, 'prefixes' => ['67']],
-        ['code' => 'RN', 'libelle' => 'Dotations aux provisions et dépréciations financières', 'sens' => self::SENS_CHARGE, 'prefixes' => ['697']],
-        ['code' => 'XF', 'libelle' => 'RÉSULTAT FINANCIER', 'sens' => self::SENS_SOLDE, 'composants' => ['TK', 'TM', 'RM', 'RN']],
+        // 797 (reprises financieres) et 687 (dotations aux amortissements a
+        // caractere financier) etaient hors cascade : leur solde manquait au
+        // resultat et au bilan, et le TAFIRE les lit (10/11/2026).
+        ['code' => 'TL', 'libelle' => 'Reprises de provisions et dépréciations financières', 'sens' => self::SENS_PRODUIT, 'prefixes' => ['797']],
+        ['code' => 'RN', 'libelle' => 'Dotations aux provisions et dépréciations financières', 'sens' => self::SENS_CHARGE, 'prefixes' => ['687', '697']],
+        ['code' => 'XF', 'libelle' => 'RÉSULTAT FINANCIER', 'sens' => self::SENS_SOLDE, 'composants' => ['TK', 'TL', 'TM', 'RM', 'RN']],
 
         ['code' => 'XG', 'libelle' => 'RÉSULTAT DES ACTIVITÉS ORDINAIRES', 'sens' => self::SENS_SOLDE, 'composants' => ['XE', 'XF']],
 

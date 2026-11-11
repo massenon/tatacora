@@ -130,6 +130,9 @@ foreach ([
     'CREATE TABLE unites_hebergement (id TEXT PRIMARY KEY, statut TEXT, numero TEXT, categorie_id TEXT)',
     'CREATE TABLE categories_hebergement (id TEXT PRIMARY KEY, libelle TEXT, tarif_base NUMERIC)',
     'CREATE TABLE reservations (id TEXT PRIMARY KEY, statut TEXT, date_arrivee TEXT, date_depart TEXT, date_creation TEXT, unite_id TEXT)',
+    // Multi-chambres (10/11/2026) : `DisponibiliteService::chambresSupplementairesOccupees` lit les
+    // lignes de service « hebergement » (chambres supplementaires d'une reservation) — table vide ici.
+    'CREATE TABLE lignes_reservation (id TEXT PRIMARY KEY, reservation_id TEXT, service TEXT, source_id TEXT)',
     // Les colonnes que lit `Accueil::recapDuJour` sur `ventes` — et elles seules.
     'CREATE TABLE ventes (id INTEGER PRIMARY KEY AUTOINCREMENT, statut TEXT, encaisse INTEGER, created_at TEXT, montant_total NUMERIC)',
     'CREATE TABLE employes (id INTEGER PRIMARY KEY AUTOINCREMENT, statut TEXT)',
@@ -138,6 +141,11 @@ foreach ([
     // Les colonnes que lit `Accueil::articlesCritiques` — et elles seules.
     'CREATE TABLE articles (id TEXT PRIMARY KEY, libelle TEXT, unite_mesure TEXT, seuil_alerte NUMERIC)',
     'CREATE TABLE mouvements_stock (id INTEGER PRIMARY KEY AUTOINCREMENT, article_id TEXT, type_mouvement TEXT, quantite NUMERIC)',
+    // « Depenses cumulees » et la serie mensuelle (26/10/2026) : les colonnes
+    // que lisent `depensesCumulees()` et `chiffreAffairesEncaisse()`.
+    'CREATE TABLE plan_comptable (id TEXT PRIMARY KEY, classe TEXT)',
+    'CREATE TABLE ecritures_comptables (id INTEGER PRIMARY KEY AUTOINCREMENT, compte_id TEXT, statut TEXT, date_ecriture TEXT, debit NUMERIC, credit NUMERIC)',
+    'CREATE TABLE paiements (id INTEGER PRIMARY KEY AUTOINCREMENT, date_paiement TEXT, montant NUMERIC)',
 ] as $ddl) {
     $pdo->exec($ddl);
 }
@@ -180,6 +188,17 @@ foreach ($scenario['factures'] ?? [] as $f) {
     }
 }
 
+foreach ($scenario['ecritures'] ?? [] as $i => $e) {
+    $db->table('plan_comptable')->insertOrIgnore(['id' => 'c' . $e['classe'], 'classe' => (string) $e['classe']]);
+    $db->table('ecritures_comptables')->insert([
+        'compte_id' => 'c' . $e['classe'], 'statut' => $e['statut'],
+        'date_ecriture' => $e['date'], 'debit' => $e['debit'], 'credit' => $e['credit'],
+    ]);
+}
+foreach ($scenario['paiements'] ?? [] as $p) {
+    $db->table('paiements')->insert(['date_paiement' => $p['date'], 'montant' => $p['montant']]);
+}
+
 $service = new TableauDeBordService();
 
 // `variation()` est privee : on appelle la VRAIE methode, pas une copie.
@@ -207,6 +226,7 @@ $mesures = static function (Periode $p) use ($service): array {
         'taux_occupation' => $service->tauxOccupation($p),
         'reservations_en_attente' => $service->reservationsEnAttente($p),
         'ventilation' => $service->ventilationParActivite($p),
+        'depenses_cumulees' => $service->depensesCumulees($p),
     ];
 };
 
@@ -248,6 +268,19 @@ foreach ($scenario['requetes'] ?? [] as $requete) {
         'courant' => $courant,
         'avant' => $avant,
         'variations' => $variations,
+    ];
+}
+
+// --- La serie mensuelle (26/10/2026) : la VRAIE methode, sur les memes tables.
+$series = [];
+foreach ($scenario['series'] ?? [] as $q) {
+    $series[] = [
+        'reference' => $q['reference'],
+        'mois' => (int) $q['mois'],
+        'points' => $service->serieMensuelle(
+            (int) $q['mois'],
+            CarbonImmutable::parse($q['reference']),
+        ),
     ];
 }
 
@@ -312,6 +345,7 @@ foreach ($scenario['journees'] ?? [] as $jour) {
 $accueil = require $api . '/lang/fr/accueil_pwa.php';
 
 echo json_encode([
+    'series' => $series,
     'resultats' => $sortie,
     'stocks' => $stocks,
     'journees' => $journees,

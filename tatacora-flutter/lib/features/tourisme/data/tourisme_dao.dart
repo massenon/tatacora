@@ -12,41 +12,35 @@ import '../domain/entities/reservation_tour.dart';
 
 /// M9 — l'accès aux trois tables locales du Tourisme.
 ///
-/// ## Tout est LOCAL, et rien ne part — ce qui se dit, jamais ne se masque
+/// ## Tout se lit en LOCAL, et tout part avec la synchronisation (relu le 27/10/2026)
 ///
-/// `circuits`, `guides` et `reservations_tour` ne sont **pas** au registre
-/// `TABLES_SYNCHRONISABLES` du serveur, qui ne connaît que `reservations` et
-/// `clients`. Une opération poussée depuis ces tables serait rejetée à chaque
-/// tentative. Trois conséquences, toutes tenues ici :
+/// ⚠ Cet en-tête disait « rien ne part » et que ces tables n'avaient « aucune
+/// descente » : c'est FAUX depuis le lot F4 (17/10/2026). `circuits`, `guides`
+/// et `reservations_tour` sont au registre [TableSynchronisee] ET descendent
+/// (`AligneurDocuments._circuit`, `_guide`, `_reservationTour`). Chaque geste
+/// d'écriture ci-dessous enfile son opération DANS sa transaction. Deux
+/// conséquences restent tenues :
 ///
-/// 1. **aucune entrée de file** n'est écrite — un badge « en attente de
-///    synchronisation » sur ce qui ne partira jamais serait exactement
-///    PA-59/60/61 ;
-/// 2. `statutSync` est écrit à [statutSyncLocal] et **jamais affiché**. Le
+/// 1. `statutSync` est écrit à [statutSyncLocal] et **jamais affiché**. Le
 ///    schéma lui donne pour défaut `en_attente_synchronisation` : c'est le
 ///    piège de `MouvementsStockLocal` (PA-134), un statut qui décrirait une
-///    attente sans fin. On l'écrase à l'insertion plutôt que de le laisser
-///    mentir en base ;
-/// 3. l'écran dit « enregistré sur ce poste ».
+///    attente sans fin. Ce qui attend, c'est la FILE d'envoi qui le dit ;
+/// 2. « Synchronisé » ne se dit que du confirmé : l'écran dit « enregistré sur
+///    ce poste ».
 ///
 /// ## Qui écrit ces tables — la question des deux moitiés (piège 11)
 ///
-/// `circuits_local` est **descendue** du serveur par
-/// `CatalogueDao.alignerCatalogue()` (PA-129). `guides_local` et
-/// `reservations_tour_local` n'avaient, elles, **aucun écrivain dans tout le
-/// dépôt** avant ce lot — vérifié par balayage le 14/09/2026, et non supposé.
-/// Ce DAO est leur premier. Elles n'ont toujours **aucune descente** : aucune
-/// route de l'API n'expose le référentiel des guides, et un poste neuf n'a
-/// donc pas de guide tant qu'on n'en saisit pas. L'écran le dit avec les mots
-/// du maître (« Aucun guide au référentiel »), il ne laisse pas un formulaire
-/// vide pour seule explication.
+/// Écriture de saisie : ce DAO, seul. Descente : `AligneurCatalogue` /
+/// `AligneurDocuments`, qui n'enfilent jamais. Un guide saisi ici part au
+/// serveur (`GestionnaireGuides`) ; un guide du serveur descend ici.
 ///
 /// ## Le verrou pessimiste est au SERVEUR, pas ici
 ///
 /// RG-13 se tranche sous `lockForUpdate()` côté Laravel. SQLite n'a qu'un seul
 /// écrivain à la fois, et la vérification est faite **dans la transaction qui
 /// insère** : cela protège ce poste. Cela ne protège pas deux postes hors
-/// ligne l'un de l'autre — même famille que RG-01, et c'est nommé à l'écran.
+/// ligne l'un de l'autre : le serveur arbitre à la réception
+/// (`GestionnaireReservationsTour`), même famille que RG-01.
 ///
 /// @see EF-M9-01 Catalogue de circuits
 /// @see EF-M9-03 Réservation avec affectation de guide
@@ -80,7 +74,13 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
     )..orderBy([(g) => OrderingTerm.asc(g.nom)])).get();
     return lignes
         .map(
-          (g) => Guide(id: g.id, nom: g.nom, zoneCompetence: g.zoneCompetence),
+          (g) => Guide(
+            id: g.id,
+            nom: g.nom,
+            zoneCompetence: g.zoneCompetence,
+            certification: g.certification,
+            tarifJourFrancs: g.tarifJour,
+          ),
         )
         .toList(growable: false);
   }
@@ -439,11 +439,9 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
 
   /// Crée ou met à jour une prestation du catalogue (EF-M9-01).
   ///
-  /// ⚠ **La prestation reste sur ce poste.** `circuits_local` DESCEND du
-  /// serveur (`CatalogueDao.alignerCatalogue`) et ne remonte jamais : une
-  /// prestation saisie ici ne sera connue d'aucun autre poste, et n'apparaîtra
-  /// pas au catalogue de la PWA. L'écran le dit. Aucune suppression n'est
-  /// exposée : une prestation ne se supprime pas (RG-02), elle cesse d'être
+  /// La prestation PART au serveur (lot F4 : catalogue fusionné sur le nom,
+  /// dernier écrit gagnant) et descend aux autres postes. Aucune suppression
+  /// n'est exposée : une prestation ne se supprime pas (RG-02), elle cesse d'être
   /// proposée.
   ///
   /// La capacité est celle de la fiche : c'est elle que RG-13 contrôlera.
@@ -459,6 +457,15 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
     if (nom.trim().isEmpty) {
       throw const RefusTourisme(
         'L\'intitulé de la prestation est obligatoire.',
+      );
+    }
+    // Le registre du serveur est en minuscules : « Nature » saisi ici serait
+    // rejeté à la synchronisation. La casse est donc ramenée à la sienne.
+    final themeNet = theme.trim().toLowerCase();
+    if (!themesCircuit.contains(themeNet)) {
+      throw RefusTourisme(
+        'Le thème « $theme » n\'est pas un thème du catalogue : '
+        '${themesCircuit.map(libelleTheme).join(', ')}.',
       );
     }
     if (capaciteMax < 1) {
@@ -489,7 +496,7 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
         CircuitsLocalCompanion.insert(
           id: identifiant,
           nom: nom.trim(),
-          theme: theme,
+          theme: themeNet,
           zone: zone.trim(),
           // La colonne est un `REAL` au schéma ; le domaine ne manipule que
           // des entiers. La conversion a lieu ici, une fois, dans les deux
@@ -509,7 +516,7 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
             : TypeOperationSync.creation,
         payload: chargeCircuit(
           nom: nom.trim(),
-          theme: theme,
+          theme: themeNet,
           zone: zone.trim(),
           prixFrancs: prix,
           capaciteMax: capaciteMax,
@@ -521,7 +528,7 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
     return Circuit(
       id: identifiant,
       nom: nom.trim(),
-      theme: theme,
+      theme: themeNet,
       zone: zone.trim(),
       prix: prix,
       capaciteMax: capaciteMax,
@@ -538,20 +545,55 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
     String? id,
     required String nom,
     String? zoneCompetence,
+    String? certification,
+    int? tarifJourFrancs,
   }) async {
     if (nom.trim().isEmpty) {
       throw const RefusTourisme('Le nom du guide est obligatoire.');
     }
+    if (tarifJourFrancs != null && tarifJourFrancs < 0) {
+      throw const RefusTourisme(
+        'Le tarif journalier ne peut pas être négatif.',
+      );
+    }
 
     final identifiant = id ?? _uuid.v4();
+    final zone = _texteOuNull(zoneCompetence);
+    final certif = _texteOuNull(certification);
 
     await transaction(() async {
       final existant = await _guideExiste(identifiant);
+
+      // Un homonyme est refusé comme au serveur : la synchronisation fusionne
+      // les guides sur le nom, deux fiches de même nom y seraient confondues.
+      if (!existant) {
+        final homonymes = await (select(
+          attachedDatabase.guidesLocal,
+        )..where((g) => g.nom.lower().equals(nom.trim().toLowerCase()))).get();
+        if (homonymes.isNotEmpty) {
+          throw RefusTourisme(
+            'Un guide nommé « ${nom.trim()} » existe déjà au référentiel.',
+          );
+        }
+      }
+
+      // Depuis la v41 la certification et le tarif journalier sont RANGÉS ici (ils
+      // partaient déjà au serveur sans l'être sur le poste). `null` : champ non
+      // soumis, la colonne reste telle quelle ; la certification vide l'efface.
+      final avant = existant
+          ? await (select(
+              attachedDatabase.guidesLocal,
+            )..where((g) => g.id.equals(identifiant))).getSingleOrNull()
+          : null;
       await into(attachedDatabase.guidesLocal).insertOnConflictUpdate(
         GuidesLocalCompanion.insert(
           id: identifiant,
           nom: nom.trim(),
-          zoneCompetence: Value(zoneCompetence),
+          zoneCompetence: Value(zone),
+          certification: Value(
+            certification == null ? avant?.certification : certif,
+          ),
+          tarifJour: Value(tarifJourFrancs ?? avant?.tarifJour),
         ),
       );
       await _file.enfiler(
@@ -560,15 +602,32 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
         type: existant
             ? TypeOperationSync.modification
             : TypeOperationSync.creation,
-        payload: chargeGuide(nom: nom.trim(), zoneCompetence: zoneCompetence),
+        payload: chargeGuide(
+          nom: nom.trim(),
+          zoneCompetence: zone,
+          certification: certif,
+          tarifJourFrancs: tarifJourFrancs,
+        ),
       );
     });
 
+    final range = await (select(
+      attachedDatabase.guidesLocal,
+    )..where((g) => g.id.equals(identifiant))).getSingle();
     return Guide(
       id: identifiant,
       nom: nom.trim(),
-      zoneCompetence: zoneCompetence,
+      zoneCompetence: zone,
+      certification: range.certification,
+      tarifJourFrancs: range.tarifJour,
     );
+  }
+
+  /// Une saisie vide devient `null` : deux façons d'écrire « rien » finissent
+  /// par diverger.
+  String? _texteOuNull(String? valeur) {
+    final net = valeur?.trim();
+    return (net == null || net.isEmpty) ? null : net;
   }
 
   /* --------------------------------------------------------------- privé */

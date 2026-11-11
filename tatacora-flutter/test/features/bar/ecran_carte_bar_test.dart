@@ -6,12 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
-import 'package:tatacora_flutter/core/donnees_absentes.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/bar/domain/entities/boisson.dart';
 import 'package:tatacora_flutter/features/bar/domain/entities/carte_bar.dart';
 import 'package:tatacora_flutter/features/bar/presentation/ecran_carte_bar.dart';
+import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
+import 'package:tatacora_flutter/features/pos/data/dto/catalogue_dto.dart';
 import 'package:tatacora_flutter/features/restaurant/presentation/widgets/cadre_ventes_carte.dart';
 
 import '../../support/vue_blade.dart';
@@ -29,9 +30,11 @@ void main() {
   Future<AppDatabase> monter(
     WidgetTester tester, {
     Map<String, String> droits = const {'M5': 'C', 'M6': 'C'},
+    Future<void> Function(AppDatabase db)? avant,
   }) async {
     final db = AppDatabase.enMemoire();
     addTearDown(db.close);
+    if (avant != null) await avant(db);
     tester.view
       ..physicalSize = const Size(1383, 1400)
       ..devicePixelRatio = 1.0;
@@ -93,20 +96,17 @@ void main() {
     expect(find.byKey(const Key('carte-lien-pos')), findsOneWidget);
   });
 
-  testWidgets('le bandeau est SOUS les filtres, pas au-dessus des onglets', (
-    tester,
-  ) async {
-    await monter(tester);
+  testWidgets(
+    "le bandeau d'information du rayon n'existe plus (PO, 30/10/2026)",
+    (tester) async {
+      await monter(tester);
 
-    final onglets = tester.getRect(
-      find.byKey(const Key('onglet-carte-bar-carte')),
-    );
-    final filtres = tester.getRect(find.byKey(const Key('carte-recherche')));
-    final bandeau = tester.getRect(find.byKey(const Key('carte-bandeau')));
-
-    expect(onglets.top, lessThan(filtres.top));
-    expect(filtres.bottom, lessThan(bandeau.top));
-  });
+      expect(find.byKey(const Key('carte-bandeau')), findsNothing);
+      expect(find.textContaining('désignent la même chose'), findsNothing);
+      expect(find.textContaining('Couverture actuelle'), findsNothing);
+      expect(find.textContaining('articles rattachés'), findsNothing);
+    },
+  );
 
   testWidgets(
     'la bande compte SIX cartes, sur une seule rangée en grand écran',
@@ -183,13 +183,10 @@ void main() {
       await tester.tap(find.byKey(const Key('onglet-carte-bar-ventes')));
       await tester.pumpAndSettle();
 
-      // Aucune vente n'existe sur ce poste : le refus est dit dans l'état vide
-      // du tableau, avec la phrase UNIQUE des données absentes.
-      expect(
-        tester.widget<Text>(find.byKey(const Key('ventes-bar-refuse'))).data,
-        donneeNonDisponible('Les ventes du bar (module M5)'),
-      );
-      // Mais le cadre de la vue est là : ses neuf colonnes, sa ligne de total.
+      // Les ventes se calculent sur ce poste : sans vente, la vue dit « aucune
+      // ligne », avec son cadre — jamais « information non disponible ».
+      expect(find.byKey(const Key('ventes-bar-refuse')), findsNothing);
+      expect(find.byKey(const Key('ventes-bar-vide')), findsOneWidget);
       for (final c in colonnesVentesCarte) {
         expect(
           find.text(c.titre.toUpperCase()),
@@ -198,10 +195,7 @@ void main() {
         );
       }
       expect(find.text('TOTAL DE LA PAGE'), findsOneWidget);
-      // Et il n'affirme rien : ni « 0 ligne(s) », ni « 0 FCFA ».
-      expect(find.text('— ligne(s) · Total validé : —'), findsOneWidget);
-      expect(find.textContaining('0 ligne(s)'), findsNothing);
-      expect(find.text('0 FCFA'), findsNothing);
+      expect(find.textContaining('0 ligne(s)'), findsOneWidget);
     },
   );
 
@@ -261,6 +255,88 @@ void main() {
       findsOneWidget,
     );
     expect(find.descendant(of: carte, matching: find.text('0')), findsNothing);
+  });
+
+  testWidgets('« Rendre indispo. » écrit le retrait, la ligne passe en '
+      '« retirée », « Remettre » la rend à la carte', (tester) async {
+    await monter(
+      tester,
+      avant: (db) => CatalogueDao(db).enregistrerBoisson(
+        const BoissonDistante(
+          id: 'b-1',
+          articleId: null,
+          libelle: 'Béninoise 33 cl',
+          categorie: 'locale',
+          prixVente: 500,
+          stockDisponible: null,
+        ),
+      ),
+    );
+
+    // Le tableau défile à l'horizontale : l'action peut être hors fenêtre.
+    await tester.ensureVisible(find.byKey(const Key('carte-retirer-b-1')));
+    await tester.tap(find.byKey(const Key('carte-retirer-b-1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('modale-retrait-carte')), findsOneWidget);
+    // Plus aucun refus « faute de colonne » : un formulaire, qui écrit.
+    expect(find.byKey(const Key('retrait-carte-sans-colonne')), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('retrait-carte-commentaire')),
+      'livraison jeudi',
+    );
+    await tester.tap(find.byKey(const Key('retrait-carte-confirmer')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('modale-retrait-carte')), findsNothing);
+    expect(find.byKey(const Key('carte-remettre-b-1')), findsOneWidget);
+    expect(find.byKey(const Key('carte-retirer-b-1')), findsNothing);
+
+    // Le tableau défile à l'horizontale : l'action peut être hors fenêtre.
+    await tester.ensureVisible(find.byKey(const Key('carte-remettre-b-1')));
+    await tester.tap(find.byKey(const Key('carte-remettre-b-1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('carte-retirer-b-1')), findsOneWidget);
+    expect(find.byKey(const Key('carte-remettre-b-1')), findsNothing);
+  });
+
+  testWidgets('« Modifier » ouvre la modale de la vue, change le libellé '
+      'sans toucher au prix, et dit « est à jour »', (tester) async {
+    final db = await monter(
+      tester,
+      avant: (db) => CatalogueDao(db).enregistrerBoisson(
+        const BoissonDistante(
+          id: 'b-1',
+          articleId: null,
+          libelle: 'Béninoise 33 cl',
+          categorie: 'locale',
+          prixVente: 500,
+          stockDisponible: null,
+        ),
+      ),
+    );
+
+    await tester.ensureVisible(find.byKey(const Key('carte-modifier-b-1')));
+    await tester.tap(find.byKey(const Key('carte-modifier-b-1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('modale-modifier-boisson')), findsOneWidget);
+    expect(find.text('Modifier la boisson — Béninoise 33 cl'), findsOneWidget);
+    expect(find.text('Enregistrer la boisson'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('modifier-boisson-libelle')),
+      'Béninoise 50 cl',
+    );
+    await tester.tap(find.byKey(const Key('modifier-boisson-confirmer')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('modale-modifier-boisson')), findsNothing);
+    expect(find.text('« Béninoise 50 cl » est à jour.'), findsOneWidget);
+    final ligne = await (db.select(
+      db.cartesBoissonLocal,
+    )..where((b) => b.id.equals('b-1'))).getSingle();
+    expect(ligne.libelle, 'Béninoise 50 cl');
+    expect(ligne.prixVente, 500, reason: 'le prix reste celui de la boisson');
   });
 
   test('le registre des catégories est celui de la base, dans son ordre', () {

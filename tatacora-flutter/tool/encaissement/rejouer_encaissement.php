@@ -43,6 +43,7 @@ declare(strict_types=1);
 |   {"op":"vente_pos","user":"g","mode":"especes"}
 |   {"op":"cloturer","user":"g","constate":"11000"}
 |   {"op":"theorique_propose","user":"g"}
+|   {"op":"parametre","cle":"compte_clients","valeur":"4112"|null}
 |   {"op":"etat"}  {"op":"soldes"}  {"op":"kpis","periode":"mois"}
 |   {"op":"etat_creances"}  {"op":"libelles"}
 | Sortie (stdout, JSON) : { "resultats": [ ... un par operation ... ] }
@@ -407,6 +408,24 @@ try {
                         'date_cloture' => ($op['ouverte'] ?? true) ? null : now(),
                         'created_at' => now(), 'updated_at' => now(),
                     ]);
+                    $resultats[] = ['ok' => true];
+                    break;
+
+                case 'parametre':
+                    // La correspondance des comptes (26/10/2026) : une cle
+                    // `compte_<role>` posee DIRECTEMENT en base — c'est la LECTURE
+                    // au moment d'encaisser qu'on mesure, pas l'ecran. `null`
+                    // retire la ligne : le defaut.
+                    DB::table('parametres_systeme')->where('cle', $op['cle'])->delete();
+                    if ($op['valeur'] !== null) {
+                        DB::table('parametres_systeme')->insert([
+                            'id' => (string) Str::uuid(),
+                            'cle' => $op['cle'],
+                            'valeur' => $op['valeur'],
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
                     $resultats[] = ['ok' => true];
                     break;
 

@@ -84,6 +84,16 @@ void main() {
       // Le maître écrit la mention en minuscules et la met en capitales par
       // CSS (`uppercase`). Le résultat affiché est ce qui compte.
       expect(find.text('RÉALISÉ DANS LE CADRE DU'), findsOneWidget);
+      // Le logo porte son `alt` (`pwa.alt_logo`), rendu en sémantique.
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Semantics &&
+              w.properties.label == 'Logo TATACORA AFRIQUE' &&
+              w.properties.image == true,
+        ),
+        findsOneWidget,
+      );
 
       // Deux images : la photo de fond et le logo.
       expect(
@@ -148,8 +158,13 @@ void main() {
 
         final valeur = VueBlade.libelle('rapports.entete.localisation');
         expect(valeur, localisationDemarrage);
-        // Un seul texte pour la barre supérieure et le démarrage, comme la vue.
-        expect(valeur, LibellesCoquille.localisation);
+        // La barre supérieure rend sa propre ligne (`pwa.barre_localisation`,
+        // décision du PO du 28/10/2026 : sans « Gîte Chez Noël, Natitingou
+        // (Bénin) »), le démarrage garde la localisation des états.
+        expect(
+          VueBlade.libelle('pwa.barre_localisation'),
+          LibellesCoquille.localisation,
+        );
 
         await monter(tester);
         expect(find.text(valeur!), findsOneWidget);

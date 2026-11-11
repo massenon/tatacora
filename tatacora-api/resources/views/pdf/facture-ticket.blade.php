@@ -43,8 +43,8 @@
   }
   {{-- En-tête établissement — markup partagé, `pdf.partials.entete-etablissement`. --}}
   .tc-entete { display: table; width: 100%; border-bottom: 3px solid #14213D; padding-bottom: 12px; margin-bottom: 16px; }
-  .tc-logo-cell { display: table-cell; width: 60px; vertical-align: top; }
-  .tc-logo-cell img { width: 50px; height: auto; }
+  .tc-logo-cell { display: table-cell; width: {{ \App\Shared\ReportEngine\Services\ReportHeaderService::LOGO_FACTURE_TICKET_LARGEUR_PX + 10 }}px; vertical-align: top; }
+  .tc-logo-cell img { width: {{ \App\Shared\ReportEngine\Services\ReportHeaderService::LOGO_FACTURE_TICKET_LARGEUR_PX }}px; height: auto; }
   .tc-identite-cell { display: table-cell; vertical-align: top; }
   .tc-meta-cell { display: table-cell; vertical-align: top; text-align: right; }
   .tc-raison-sociale { color: #14213D; font-size: 16pt; font-weight: bold; }

@@ -164,6 +164,13 @@ class ReservationsLocal extends Table {
   TextColumn get utilisateurAnnulationId =>
       text().nullable().references(UtilisateursLocal, #id)();
 
+  /// Le LOGIN de qui a annulé, pour une annulation REÇUE du serveur (v58, 09/11/2026) : le
+  /// poste qui reçoit n'a pas forcément le compte de l'auteur (`utilisateurAnnulationId` est
+  /// une clé étrangère vers les comptes DE CE POSTE) ; sans ce login la colonne « Par » de
+  /// l'onglet Annulations restait « — ». Écrit par la seule descente (`AligneurCatalogue`),
+  /// jamais par une annulation faite ici (l'auteur est alors le compte local).
+  TextColumn get auteurAnnulationLogin => text().nullable()();
+
   /// La ligne DÉBIT (4191) de la pièce du remboursement, ou `NULL` quand aucun
   /// argent n'est sorti de la caisse. Écrite, lue par aucun écran.
   TextColumn get ecritureRemboursementId =>

@@ -1,0 +1,439 @@
+<!-- ============================ CHAPITRE 16 ============================ -->
+<section class="chapitre" id="ch16">
+  <h1 class="chapitre"><span class="numero">Chapitre 16</span>Configuration du poste, appairage et synchronisation</h1>
+
+  <p class="chapeau">
+    Plusieurs postes peuvent travailler en même temps au Gîte, chacun avec sa propre base. La
+    <strong>synchronisation</strong> est ce qui leur permet de se transmettre leurs saisies, par l'intermédiaire
+    d'un serveur sur Internet. Ce chapitre explique comment <strong>régler</strong> un poste, l'<strong>appairer</strong>
+    au serveur, suivre ce qui part et ce qui arrive, et corriger ce qui a été refusé.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">À retenir avant de commencer</span>
+    La synchronisation est un <strong>plus</strong>. Le poste fait tout sans elle (chapitre 15, section 15.8) :
+    elle ne bloque jamais un écran, une vente ou une clôture de caisse. Si elle s'arrête, vous continuez à
+    travailler ; vos saisies attendent et partent plus tard, dans l'ordre.
+  </span>
+
+  <h2>16.1 Le principe en cinq mots</h2>
+  <table>
+    <thead><tr><th>Mot</th><th>Ce que cela veut dire</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Poste</strong></td><td>Un ordinateur Windows où LogiRestock est installé. Chaque poste a un <strong>nom</strong>, par exemple « RECEPTION » : c'est sous ce nom que le serveur le reconnaît.</td></tr>
+      <tr><td><strong>Serveur</strong></td><td>L'espace web de LogiRestock, sur Internet. Il rassemble ce que les postes lui envoient et le redistribue.</td></tr>
+      <tr><td><strong>Appairage</strong></td><td>L'opération, faite une seule fois par un administrateur, qui relie un poste au serveur.</td></tr>
+      <tr><td><strong>Jeton</strong></td><td>Le laissez-passer électronique que le serveur remet au poste lors de l'appairage. Le poste le range dans sa configuration et s'en sert pour chaque échange : ni vous ni lui n'avez à retaper un mot de passe.</td></tr>
+      <tr><td><strong>File d'envoi</strong></td><td>La liste, dans l'ordre, de ce que le poste a saisi et n'a pas encore pu remettre au serveur.</td></tr>
+    </tbody>
+  </table>
+
+  <p>Deux sens d'échange, chacun avec son nom à l'écran :</p>
+  <ul class="puces">
+    <li><strong>Envoi</strong> : le poste remet ses saisies au serveur, une par une, dans l'ordre où il les a faites. Le serveur les accepte, les refuse ou les met en conflit.</li>
+    <li><strong>Réception</strong> : le poste reçoit du serveur ce que les autres postes (ou le web) ont saisi — catalogue, clients, réservations, ventes, dépenses, factures, achats, mouvements de stock.</li>
+  </ul>
+
+  <h2>16.2 Les réglages du poste (Paramètres)</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Paramètres
+  </span>
+  <p>
+    L'écran <strong>Paramètres</strong> regroupe les réglages en onglets. Un champ s'affiche d'abord en lecture ;
+    le bouton <strong>Modifier</strong> ouvre une fenêtre qui n'enregistre que ce champ, ce qui évite d'écraser
+    sans le savoir le changement d'un autre administrateur.
+  </p>
+
+  <figure>
+    <img src="../captures/parametres.png" alt="L'écran Paramètres et sa barre d'onglets.">
+    <figcaption><b>Figure 16.1</b> — Les sept onglets de Paramètres. Sur le poste Windows, un <b>huitième onglet,
+    « Synchronisation »</b>, s'ajoute à droite pour les administrateurs (capture prise sur l'espace web).</figcaption>
+  </figure>
+
+  <table>
+    <thead><tr><th>Onglet</th><th>Ce que vous y réglez</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Identité &amp; Légal</strong></td><td>Raison sociale, adresse, téléphone, <strong>IFU</strong> (13 chiffres), RCCM, régime fiscal ; la section « État réel de la configuration » ; la section <strong>Facturation normalisée (MECeF)</strong> (chapitre 17) ; les réglages de la proforma (chapitre 18).</td></tr>
+      <tr><td><strong>Communication</strong></td><td>Numéro WhatsApp, site web. L'envoi de messages WhatsApp n'est pas actif (chapitre 12).</td></tr>
+      <tr><td><strong>Email (SMTP)</strong></td><td>Serveur SMTP, port, sécurité, utilisateur ; le <strong>Mot de passe SMTP</strong> (saisi ici, bouton <em>Enregistrer le mot de passe</em> ; <em>Effacer</em> le retire) et <em>Envoyer un email de test</em>. Le mot de passe n'est <strong>jamais</strong> rangé dans la base : il vit dans la configuration du poste et n'est jamais réaffiché.</td></tr>
+      <tr><td><strong>Logo &amp; Apparence</strong></td><td>Le logo et l'icône de l'entreprise.</td></tr>
+      <tr><td><strong>Canaux de réservation</strong></td><td>Les canaux par lesquels arrivent les réservations.</td></tr>
+      <tr><td><strong>Espaces &amp; tables</strong></td><td>Le plan de salle du restaurant et du bar.</td></tr>
+      <tr><td><strong>Activation &amp; Sécurité</strong></td><td>Les actions sensibles (Supprimer, Dupliquer…), les charges sociales, l'exploitation.</td></tr>
+      <tr><td><strong>Synchronisation</strong> <span class="pastille or">poste</span></td><td>L'appairage, l'adresse du serveur, la fréquence, l'interrupteur. <strong>Réservé aux administrateurs</strong> (section 16.3 et suivantes).</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Quelques réglages se font <strong>sur le web seulement</strong> (par un administrateur) et arrivent sur le
+    poste <strong>en lecture seule</strong> : le mode de facturation normalisée, l'adresse de l'API de la DGI,
+    l'identifiant et le nom de l'opérateur, la référence des factures proforma, la validité des proformas,
+    l'affichage de la signature et du cachet, le signataire, les activités de l'en-tête. Le poste n'a pas à les
+    modifier : il les reçoit à la synchronisation.
+  </span>
+
+  <h2>16.3 Appairer un poste</h2>
+
+  <h3>Avant de commencer</h3>
+  <ul class="puces">
+    <li>Vous êtes connecté sur le poste avec un compte <strong>administrateur</strong> du poste.</li>
+    <li>Le poste a <strong>Internet</strong> pendant l'opération, et l'interrupteur <strong>Synchronisation activée</strong> est en position active.</li>
+    <li>Vous disposez de l'<strong>identifiant</strong> et du <strong>mot de passe d'un compte du serveur</strong> (un compte gérant ou administrateur créé sur le web). Ce n'est <strong>pas</strong> le compte du poste : les deux comptes sont distincts.</li>
+  </ul>
+
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Paramètres <span class="fleche">➔</span> onglet Synchronisation
+  </span>
+
+  <ol class="etapes">
+    <li>Saisissez l'<strong>Identifiant (compte serveur)</strong> et le <strong>Mot de passe (compte serveur)</strong>. Ce mot de passe sert uniquement à obtenir le jeton : <strong>il n'est enregistré nulle part</strong>.</li>
+    <li>Vérifiez le <strong>Nom du poste</strong>. Il est prérempli avec le nom Windows de l'ordinateur ; seuls les lettres, chiffres, « - », « _ » et « . » sont admis. <strong>Deux postes doivent avoir deux noms différents.</strong></li>
+    <li>Cliquez sur <strong>Appairer le poste</strong>. En cas de succès : « Poste « … » appairé (compte « … »). » L'état affiche alors le serveur, le nom du poste, le compte et la date.</li>
+    <li>Cliquez sur <strong>Tester la connexion</strong> : « Connexion établie : le serveur reconnaît le jeton de ce poste. »</li>
+  </ol>
+
+  <figure>
+    <img src="../captures/c16-parametres-synchronisation.png" alt="Paramètres, onglet « Synchronisation » d'un poste appairé : interrupteur, adresse du serveur, fréquence, état d'appairage et boutons.">
+    <figcaption><b>Figure 16.2</b> — L'onglet « Synchronisation » d'un poste appairé. <i>Rendu de l’écran du poste (serveur et poste fictifs).</i></figcaption>
+  </figure>
+
+  <h3>Si l'appairage échoue</h3>
+  <table>
+    <thead><tr><th>Message affiché</th><th>Que faire</th></tr></thead>
+    <tbody>
+      <tr><td>Identifiants refusés par le serveur…</td><td>Vérifiez l'identifiant et le mot de passe du compte <strong>serveur</strong> (casse, touche Verr. Maj).</td></tr>
+      <tr><td>Ce compte est désactivé sur le serveur…</td><td>Demandez à un administrateur du serveur de le réactiver, ou utilisez un autre compte.</td></tr>
+      <tr><td>Trop de tentatives…</td><td>Le serveur bloque ce compte quelques minutes (après cinq échecs). Attendez, puis recommencez.</td></tr>
+      <tr><td>Serveur injoignable…</td><td>Vérifiez la connexion Internet du poste, puis réessayez.</td></tr>
+      <tr><td>La synchronisation est désactivée sur ce poste…</td><td>Activez l'interrupteur <strong>Synchronisation activée</strong>, puis recommencez.</td></tr>
+      <tr><td>Nom du poste invalide…</td><td>Corrigez le nom : lettres, chiffres, « - », « _ » ou « . » seulement.</td></tr>
+      <tr><td>Saisissez l'identifiant, le mot de passe et le nom du poste.</td><td>Un des trois champs est vide.</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Un poste de <strong>démonstration</strong> ne se synchronise jamais : l'onglet l'écrit (« La démonstration ne se
+    synchronise jamais : aucun appairage possible »).
+  </span>
+
+  <h3>Changer l'adresse du serveur</h3>
+  <p>
+    La carte <strong>ADRESSE DU SERVEUR</strong> permet de changer l'adresse web du serveur sans réinstaller le logiciel
+    (par exemple si l'hébergement change). Saisissez la nouvelle adresse dans <strong>Adresse du serveur</strong> — elle
+    doit commencer par <code>https://</code> — puis cliquez sur <strong>Enregistrer</strong> ; <strong>Tester la
+    connexion</strong> vérifie que le serveur répond. Si le poste est déjà appairé, une fenêtre prévient que <em>le jeton
+    d'appairage appartient à l'ancien serveur</em> et propose deux choix : <strong>Garder le jeton</strong> (le nouveau
+    serveur le refusera s'il ne le connaît pas, et il faudra alors réappairer) ou <strong>Effacer le jeton et
+    réappairer</strong> (après confirmation). Dans les deux cas, la file d'envoi est conservée.
+  </p>
+
+  <h3>Dissocier, réappairer, révoquer</h3>
+  <ul class="puces">
+    <li><strong>Dissocier</strong> (onglet Synchronisation du poste) : retire le jeton du poste, et le révoque au serveur si le réseau est là. Les saisies en attente <strong>restent sur le poste</strong> et partiront après un nouvel appairage.</li>
+    <li><strong>Réappairer le poste</strong> : le bouton « Appairer le poste » devient « Réappairer le poste » quand le poste est déjà relié. À utiliser quand le jeton est refusé.</li>
+    <li><strong>Révoquer</strong> (écran Postes &amp; Appairage, section 16.8) : un administrateur coupe l'accès d'un <strong>autre</strong> poste perdu, volé ou remplacé. Le poste révoqué ne peut plus ni envoyer ni recevoir ; ce qu'il a enregistré reste dans sa file et partira après un réappairage. Un poste ne révoque pas son propre appairage : il se dissocie.</li>
+  </ul>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Si le jeton est refusé (révoqué, ou le compte appairé une seconde fois sous le même nom de poste), le poste le
+    dit en rouge : <em>« Le serveur refuse le jeton de ce poste (401) : la synchronisation est suspendue —
+    réappairer le poste. »</em> Rien n'est perdu : refaites l'appairage (étapes 1 à 3). Ne modifiez jamais à la main le
+    fichier de configuration du poste.
+  </span>
+
+  <h2>16.4 L'interrupteur et les deux modes : automatique ou manuelle</h2>
+
+  <h3>L'interrupteur « Synchronisation activée »</h3>
+  <p>
+    En haut de l'onglet Synchronisation, une bascule <strong>Synchronisation activée</strong> (réservée aux
+    administrateurs) coupe ou rétablit <strong>tout</strong> échange avec le serveur.
+  </p>
+  <table>
+    <thead><tr><th>Position</th><th>Ce que dit le poste</th><th>Effet</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille vert">Activée</span></td><td>« Le poste envoie ses opérations au serveur et reçoit le catalogue en tâche de fond. »</td><td>Fonctionnement normal.</td></tr>
+      <tr><td><span class="pastille gris">Désactivée</span></td><td>« Désactivée : ce poste travaille seul, sans aucune connexion au serveur. Tout reste enregistré ici ; les opérations en attente partiront à la réactivation, dans l'ordre. »</td><td>Aucune requête n'est faite, même pour appairer ou tester. Le voyant est gris.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>La fréquence : carte « Synchronisation automatique »</h3>
+  <p>
+    La carte <strong>SYNCHRONISATION AUTOMATIQUE</strong> règle le <strong>passage complet périodique</strong> du poste
+    (envoi de sa file, puis réception). Le champ <strong>Fréquence</strong> propose : toutes les minutes, 2, 5
+    <em>(par défaut)</em>, 10, 15 ou 30 minutes, toutes les heures, ou <strong>Manuelle seulement</strong>. Le choix est
+    propre à chaque poste.
+  </p>
+
+  <table>
+    <thead><tr><th>Mode</th><th>Quand le poste se synchronise</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Automatique</strong> (toutes les <em>n</em> minutes)</td><td>À chaque échéance, <strong>et</strong> aux événements ci-dessous.</td></tr>
+      <tr><td><strong>Manuelle seulement</strong></td><td>Plus de passage périodique : le poste ne se synchronise que <strong>aux événements ci-dessous</strong>.</td></tr>
+    </tbody>
+  </table>
+
+  <p>Dans les deux modes, la synchronisation part aussi :</p>
+  <ul class="puces">
+    <li>au <strong>démarrage</strong> du logiciel ;</li>
+    <li>après chaque <strong>clôture de caisse</strong> ;</li>
+    <li>à la <strong>réactivation</strong> de l'interrupteur ;</li>
+    <li>quand vous cliquez sur <strong>Synchroniser maintenant</strong> ;</li>
+    <li>quand le serveur la <strong>demande</strong> (section 16.5).</li>
+  </ul>
+
+  <h2>16.5 Ce que font l'envoi et la réception</h2>
+
+  <h3>L'envoi</h3>
+  <p>
+    Chaque saisie du poste (une réservation, une vente, une dépense, une facture…) est d'abord rangée sur le
+    poste, puis ajoutée à la <strong>file d'envoi</strong>. À chaque passage, le poste envoie les éléments
+    <strong>dans l'ordre où ils ont été saisis</strong> : une facture ne part jamais avant la vente qu'elle porte.
+    Chaque élément reçoit du serveur l'une de ces réponses :
+  </p>
+  <table>
+    <thead><tr><th>État dans la file</th><th>Sens</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille or">En attente d'envoi</span></td><td>Saisi, pas encore parti (ou revenu en file après un incident de réseau).</td></tr>
+      <tr><td><span class="pastille or">En cours d'envoi</span></td><td>Pris en charge par un passage en ce moment.</td></tr>
+      <tr><td><span class="pastille vert">Synchronisées</span></td><td>Le serveur a <strong>confirmé</strong> : c'est le seul état qui prouve qu'une saisie est arrivée.</td></tr>
+      <tr><td><span class="pastille rouge">Rejetées par le serveur</span></td><td>Refusées définitivement, avec un motif (section 16.7).</td></tr>
+      <tr><td><span class="pastille rouge">En conflit (arbitrage au serveur)</span></td><td>Conflit financier : un responsable tranche au serveur.</td></tr>
+      <tr><td><span class="pastille rouge">Bloquées</span></td><td>Jamais envoyées parce qu'une saisie antérieure sur le même élément a été rejetée.</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Après un échec réseau ou une erreur du serveur, chaque opération est <strong>réessayée</strong> après 30 secondes,
+    puis 2 minutes, 5 minutes, 15 minutes, puis <strong>toutes les heures</strong>. Rien n'est jamais supprimé.
+    Un jeton ou un poste refusé par le serveur arrête les envois jusqu'au réappairage.
+  </p>
+
+  <h3>La réception</h3>
+  <p>
+    Après l'envoi, le poste <strong>reçoit</strong> ce que le serveur détient et qu'il n'a pas : les saisies des autres
+    postes et du web. Si vous avez modifié sur ce poste un élément dont la modification n'est pas encore partie,
+    le poste le <strong>conserve</strong> (« conservé localement ») ; le serveur tranche — la dernière saisie
+    l'emporte — et sa version redescend. Les <strong>archivages</strong> faits au serveur (un article, un client)
+    sont signalés à l'écran.
+  </p>
+
+  <h3>Le battement de 30 secondes, et le délai de propagation</h3>
+  <p>
+    Toutes les <strong>30 secondes</strong>, chaque poste allumé et connecté pose une question légère au serveur :
+    <em>« Y a-t-il du nouveau pour moi ? »</em> Le serveur répond, entre autres, par un compteur de changements
+    acceptés. Si ce compteur a bougé depuis la dernière fois — ou si un administrateur a demandé la synchronisation —
+    le poste <strong>descend aussitôt</strong> ce qui est nouveau, sans attendre son passage complet. Ce battement
+    tourne <strong>même en mode « Manuelle seulement »</strong>, et il respecte l'interrupteur.
+  </p>
+
+  <table>
+    <thead><tr><th>Étape</th><th>Délai</th></tr></thead>
+    <tbody>
+      <tr><td>Une saisie est faite sur le poste A</td><td>Elle attend le prochain passage de A : jusqu'à <strong>5 minutes</strong> par défaut (ou la fréquence choisie), moins si vous cliquez sur <strong>Synchroniser maintenant</strong>, ou à la clôture de caisse.</td></tr>
+      <tr><td>La saisie est arrivée au serveur</td><td>Les autres postes la reçoivent <strong>en 30 secondes environ, au plus</strong>.</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention : un délai annoncé, pas mesuré</span>
+    Ce « 30 secondes au plus » est la valeur de conception. Il n'a <strong>pas encore été mesuré</strong> sur l'hébergement réel
+    du Gîte, et il suppose un poste allumé et connecté. Il n'existe <strong>pas de notification instantanée</strong> :
+    pour qu'une saisie du poste A apparaisse tout de suite sur le poste B, faites <strong>Synchroniser maintenant</strong>
+    sur A, puis laissez B passer (ou demandez la synchronisation de tous les postes, section 16.8).
+  </span>
+
+  <h2>16.6 Suivre l'état de la synchronisation</h2>
+
+  <h3>Le voyant de la barre supérieure</h3>
+  <p>
+    Dans la barre supérieure, le bouton <strong>Synchronisation</strong> porte un voyant coloré. Un clic ouvre une fenêtre
+    qui montre <strong>Envoyées au serveur</strong>, <strong>En attente d'envoi</strong> et <strong>À traiter</strong>, le résultat du dernier
+    passage, ce qui a été reçu, et deux boutons : <strong>Synchroniser maintenant</strong> et <strong>Voir le détail</strong>.
+  </p>
+  <table>
+    <thead><tr><th>Couleur</th><th>Ce que le poste affirme</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille vert">Vert</span></td><td>« Tout ce que ce poste a saisi est au serveur. » Cela ne garantit pas que le poste a <em>reçu</em> tout ce que les autres ont saisi depuis.</td></tr>
+      <tr><td><span class="pastille or">Orange</span></td><td>« N opération(s) en attente d'envoi au serveur », ou « Synchronisation en cours… ». Avec « serveur injoignable » : nouvel essai automatique plus tard.</td></tr>
+      <tr><td><span class="pastille rouge">Rouge</span></td><td>Quelque chose attend un humain : opérations refusées, en conflit ou bloquées ; jeton refusé ; serveur réinitialisé.</td></tr>
+      <tr><td><span class="pastille gris">Gris</span></td><td>Rien ne part : synchronisation désactivée, poste non appairé (« rien ne part, rien ne descend »), démonstration, ou serveur injoignable sans rien en attente.</td></tr>
+    </tbody>
+  </table>
+
+  <figure class="compact">
+    <img src="../captures/c16-bouton-barre.png" alt="La fenêtre ouverte par le bouton « Synchronisation » de la barre supérieure : 57 envoyées, 3 en attente, 0 à traiter.">
+    <figcaption><b>Figure 16.3</b> — Le voyant et la fenêtre de synchronisation. <i>Rendu de l’écran du poste.</i></figcaption>
+  </figure>
+
+  <h3>L'écran Synchronisation</h3>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Paramètres <span class="fleche">➔</span> onglet Synchronisation <span class="fleche">➔</span> Voir la synchronisation &nbsp;·&nbsp; ou fenêtre du voyant <span class="fleche">➔</span> Voir le détail
+  </span>
+  <p>
+    Cet écran se <strong>lit</strong> avec le droit de lecture sur Paramètres ; ses gestes de correction sont
+    réservés aux administrateurs. Il comporte :
+  </p>
+  <ul class="puces">
+    <li>la carte <strong>État</strong> : serveur, nom du poste, dernier passage de la session, bouton <strong>Synchroniser maintenant</strong> ;</li>
+    <li>la <strong>File d'envoi</strong> : un compteur par état (section 16.5) ;</li>
+    <li>deux onglets, <strong>Envoi</strong> et <strong>Réception</strong> (le second affiche entre parenthèses le nombre d'éléments à traiter) ;</li>
+    <li>dans <strong>Envoi</strong> : la liste <strong>À traiter</strong> et les <strong>Signalements du serveur</strong> (envois acceptés mais accompagnés d'une remarque) ;</li>
+    <li>dans <strong>Réception</strong> : <strong>Éléments reçus du serveur</strong>, le <strong>Journal de réception</strong>, <strong>Annonces du serveur</strong>, la carte <strong>Catalogue reçu du serveur</strong> et le <strong>Contrôle de cohérence</strong>.</li>
+  </ul>
+
+  <figure>
+    <img src="../captures/c16-ecran-synchronisation-envoi.png" alt="L'écran Synchronisation, onglet Envoi, avec une ligne « À traiter » : « Chevauchement avec un autre enregistrement ».">
+    <figcaption><b>Figure 16.4</b> — L'écran Synchronisation, onglet Envoi. <i>Rendu de l’écran du poste ; le refus a été injecté dans la file pour l’exemple.</i></figcaption>
+  </figure>
+
+  <h2>16.7 Les échecs : « À traiter », causes et corrections</h2>
+  <p>
+    Quand le serveur refuse une saisie, elle ne disparaît pas : elle apparaît dans la liste <strong>À traiter</strong>
+    (colonnes Table, Document, Date, Statut, Motif, Actions), avec la <strong>cause</strong> en français et le
+    <strong>conseil</strong> pour s'en sortir. Si la liste est vide, l'écran dit « Aucune opération rejetée, en
+    conflit ou bloquée. »
+  </p>
+
+  <table>
+    <thead><tr><th>Cause affichée</th><th>Que faire</th></tr></thead>
+    <tbody>
+      <tr><td>Donnée refusée par le serveur</td><td>Corrigez les champs signalés (bouton <strong>Corriger</strong>), puis renvoyez.</td></tr>
+      <tr><td>Chevauchement avec un autre enregistrement</td><td>Deux réservations sur la même chambre aux mêmes dates, par exemple : changez les dates ou l'unité, ou annulez l'autre enregistrement, puis renvoyez.</td></tr>
+      <tr><td>Élément absent du serveur</td><td>Traitez d'abord l'opération de <em>création</em> du même élément dans cette liste, puis renvoyez celle-ci.</td></tr>
+      <tr><td>Stock insuffisant au serveur</td><td>Enregistrez d'abord l'approvisionnement manquant (il part avant), puis renvoyez.</td></tr>
+      <tr><td>Fiche technique manquante</td><td>Composez la fiche technique du plat, puis renvoyez.</td></tr>
+      <tr><td>Règle de caisse</td><td>Vérifiez l'état de la caisse concernée (ouverte, clôturée) et les montants, puis renvoyez.</td></tr>
+      <tr><td>Pièce comptable validée</td><td>Une pièce validée ne se modifie plus : faites passer une écriture corrective au serveur.</td></tr>
+      <tr><td>Droit manquant</td><td>Le compte qui a appairé le poste n'a pas le droit d'écrire dans ce module au serveur : demandez-le à un administrateur, puis renvoyez.</td></tr>
+      <tr><td>Compte désactivé</td><td>Réactivez le compte au serveur, puis renvoyez.</td></tr>
+      <tr><td>Date du document invalide</td><td>Corrigez la date (bouton <strong>Corriger</strong>), puis renvoyez.</td></tr>
+      <tr><td>Modification non admise hors connexion</td><td>Cet enregistrement ne se modifie pas depuis un poste : faites la modification sur l'écran en ligne.</td></tr>
+      <tr><td>Refusé par une règle de gestion</td><td>Lisez le motif donné par le serveur, corrigez ce qu'il demande, puis renvoyez.</td></tr>
+      <tr><td>Identifiant déjà utilisé</td><td>Rien à corriger : le serveur détient déjà ce document.</td></tr>
+      <tr><td>Suppression non admise</td><td>Rien à renvoyer : l'élément reste sur le serveur. Seuls les unités d'hébergement et les véhicules archivés se purgent.</td></tr>
+      <tr><td>Document non pris en charge</td><td>Signalez-le à l'éditeur (« Contactez l'éditeur »).</td></tr>
+      <tr><td>Conflit financier</td><td>Un responsable tranche au serveur : aucune action possible sur ce poste.</td></tr>
+      <tr><td>Bloquée derrière une opération refusée</td><td>Traitez d'abord l'opération refusée du même élément ; celle-ci pourra repartir ensuite.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Les trois gestes de correction</h3>
+  <p>Ouverts à TOUS les rôles (décision du 10/11/2026) : chacun peut relancer, corriger ou débloquer les opérations de son poste. Seuls l'appairage (appairer, dissocier, révoquer, adresse du serveur) reste réservé aux Administrateurs.</p>
+  <ul class="puces">
+    <li><strong>Corriger</strong> — ouvre un formulaire qui permet de modifier les champs corrigibles de la saisie refusée (libellés, noms, montants, dates, quantités — jamais un identifiant ni une ligne de document). Les phrases du serveur s'affichent à côté des champs. La saisie corrigée repart sous un nouvel identifiant à la prochaine synchronisation ; l'opération refusée reste dans l'historique.</li>
+    <li><strong>Renvoyer</strong> — renvoie la saisie telle quelle, sous un nouvel identifiant, quand la cause est réglée ailleurs (un stock approvisionné, une caisse rouverte).</li>
+    <li><strong>Débloquer</strong> — remet en route une saisie « bloquée » une fois l'opération refusée qui la précède traitée.</li>
+  </ul>
+
+  <h3>Du côté de la réception</h3>
+  <p>
+    Le <strong>Journal de réception</strong> garde, pour chaque élément reçu, son issue et, s'il n'a pas pu être écrit sur
+    le poste, la cause exacte (30 jours d'éléments alignés, 5 000 lignes au plus). Il se filtre par <strong>Table</strong>,
+    <strong>Issue</strong> et dates. Un administrateur peut <strong>Corriger</strong> et <strong>Relancer</strong> un élément, ou
+    <strong>Relancer tout</strong> : cela rejoue les éléments refusés ou gardés, puis reprend la réception depuis le dernier
+    point acquis. Le message « Tout est aligné sur ce poste » confirme qu'il ne reste rien.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Il n'existe <strong>pas encore d'écran d'arbitrage</strong> des conflits financiers, ni au poste ni sur le web : une
+    saisie « en conflit » reste telle quelle jusqu'à ce que l'éditeur la traite. Ce qui est « rejeté » ou « en
+    conflit » reste <strong>enregistré et comptabilisé sur le poste</strong> ; seul le serveur ne l'a pas encore accepté.
+  </span>
+
+  <h2>16.8 Postes &amp; Appairage : voir tous les postes et les faire synchroniser</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Pilotage &amp; administration <span class="fleche">➔</span> Synchronisation
+  </span>
+  <p>
+    Cet écran (titre <strong>Postes &amp; Appairage</strong>) existe sur le web et sur le poste. Il montre, <strong>poste par
+    poste</strong>, ce que le serveur en sait. Il parle au serveur : <strong>hors réseau, il le dit</strong> et le tableau
+    reste vide.
+  </p>
+
+  <table>
+    <thead><tr><th>Colonne</th><th>Contenu</th></tr></thead>
+    <tbody>
+      <tr><td>Utilisateur / Poste / Compte</td><td>Le compte qui a appairé le poste et le nom du poste.</td></tr>
+      <tr><td>Appairé le · Dernier contact · Expiration · Dernier contrôle</td><td>Dates d'appairage et de dernier échange avec le serveur ; « Sans expiration » : le jeton n'expire pas ; dernier contrôle de cohérence.</td></tr>
+      <tr><td>Dernier envoi · Dernière réception · En attente d'envoi</td><td>Ce que le poste a remis, reçu, et ce qui reste dans sa file.</td></tr>
+      <tr><td>État</td><td><span class="pastille vert">Actif</span> · <span class="pastille or">Sans nouvelles</span> · <span class="pastille rouge">Expiré</span> · <span class="pastille gris">Non appairé</span></td></tr>
+      <tr><td>Appairage · Actions</td><td>« Appairé » (avec la date du dernier usage) ou « Non appairé » ; le bouton <strong>Révoquer</strong> d'un autre poste (administrateurs).</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Le bouton <strong>Demander la synchronisation des postes</strong> enregistre une <strong>demande</strong> au serveur :
+    chaque poste allumé et connecté la lit <strong>dans la minute</strong> (par son battement de 30 secondes) et passe
+    aussitôt — il <strong>envoie sa file, puis reçoit tout ce que le serveur détient, tous modules</strong>. Le poste qui
+    clique passe lui aussi tout de suite. L'écran affiche « Demande envoyée le … » puis, par poste, si la demande est
+    <em>Reçue</em> ou <em>Pas encore reçue</em>. Le bouton <strong>Actualiser</strong> relit le tableau.
+  </p>
+  <p>
+    Un poste éteint ou hors réseau suivra la demande à sa prochaine connexion : <strong>rien de ce qui a été
+    enregistré n'est perdu</strong>. Sur le web, le même bouton existe dans la fenêtre de l'icône de synchronisation
+    de la barre supérieure.
+  </p>
+
+  <figure class="compact">
+    <img src="../captures/c16-postes-appairage.png" alt="L'écran « Postes & Appairage » avec deux postes listés (« Actif » et « Sans nouvelles »).">
+    <figcaption><b>Figure 16.5</b> — L'écran Postes &amp; Appairage. <i>Rendu de l’écran du poste ; la colonne « État » est coupée à droite à cette largeur.</i></figcaption>
+  </figure>
+
+  <h2>16.9 Vérifier que les postes sont cohérents</h2>
+  <p>
+    Sur l'écran Synchronisation, onglet <strong>Réception</strong>, la carte <strong>Contrôle de cohérence</strong> compare,
+    <strong>jour par jour sur les sept derniers jours</strong>, les documents que le serveur détient à ceux du poste :
+    ventes, dépenses, factures, encaissements, réservations, règlements, mouvements de stock.
+  </p>
+  <ol class="etapes">
+    <li>Laissez d'abord le poste envoyer sa file (le voyant doit être vert ou orange, pas rouge).</li>
+    <li>Cliquez sur <strong>Contrôler maintenant</strong> (il faut le serveur).</li>
+    <li>Lisez le bilan : <em>« Ce poste a tout reçu jusqu'au … : aucun écart sur N table(s) comparée(s). »</em> ou la liste des écarts, avec, pour chacun, le compte du serveur et celui du poste.</li>
+  </ol>
+  <p>
+    Un écart peut tout simplement venir d'opérations qui attendent encore de partir : l'écran le précise. Le
+    dernier contrôle est conservé et rappelé à chaque ouverture (« Dernier contrôle de cohérence : le … »).
+  </p>
+
+  <h2>16.10 Ce qui ne se synchronise pas</h2>
+  <table>
+    <thead><tr><th>Élément</th><th>Pourquoi</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Les mots de passe</strong>, et tout ce qui permettrait de les retrouver</td><td>Décision de sécurité : jamais envoyés, ni dans un sens ni dans l'autre. Les comptes du poste et ceux du web sont <strong>distincts</strong> (chapitre 19).</td></tr>
+      <tr><td><strong>Les comptes eux-mêmes</strong></td><td>Seule exception : la <strong>suppression</strong> d'un compte, reconnue par son identifiant (chapitre 19).</td></tr>
+      <tr><td><strong>Mon profil</strong> (téléphone, intitulé, e-mail du compte)</td><td>Reste local à chaque côté.</td></tr>
+      <tr><td><strong>Le jeton e-MECeF</strong></td><td>Il reste au serveur, chiffré ; il n'est jamais envoyé aux postes (chapitre 17).</td></tr>
+      <tr><td><strong>Les réglages propres au poste</strong> : adresse du serveur, fréquence, adresse du pilote du boîtier, « ce poste certifie par », mot de passe SMTP</td><td>Chaque poste a les siens, dans sa configuration locale.</td></tr>
+      <tr><td><strong>Les écritures comptables produites par les modules</strong> (ventes, dépenses, règlements, clôture)</td><td>Le serveur passe les siennes. Seuls le plan comptable et les pièces saisies à la main partent.</td></tr>
+      <tr><td><strong>Les sauvegardes</strong> du poste</td><td>Ce sont des copies locales.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>16.11 Cas particuliers</h2>
+  <ul class="puces">
+    <li><strong>Serveur réinitialisé.</strong> Après une phase d'essais en production, l'éditeur peut vider le serveur. Les postes non réinitialisés sont alors refusés et affichent en rouge « Le serveur a été réinitialisé… ». Réinitialisez le poste (Import &amp; Export ➔ Réinitialiser comme neuf) : ses saisies non envoyées, qui étaient des essais, sont abandonnées. Pendant une phase d'essais, l'écran affiche aussi « Le serveur annonce une phase d'essais en production : les données saisies pendant cette phase pourront être réinitialisées. »</li>
+    <li><strong>Poste neuf.</strong> Après l'appairage, la première réception apporte au poste ce que le serveur détient déjà (catalogue, clients, réservations, documents des autres postes).</li>
+    <li><strong>Annuler le document d'un autre poste.</strong> Un document saisi ailleurs ne s'annule que par l'administration ou le comptable : « Annulation refusée : ce document a été saisi sur un autre poste (ou au serveur). »</li>
+  </ul>
+
+  <h2>16.12 Ce qui n'est pas encore éprouvé ou pas encore possible</h2>
+  <ul class="puces">
+    <li>L'<strong>essai à plusieurs postes</strong> avec coupures réseau, puis synchronisation désactivée, reste à faire sur le terrain.</li>
+    <li>Le <strong>délai de propagation</strong> d'environ 30 secondes n'est pas mesuré sur l'hébergement réel (section 16.5).</li>
+    <li>Pas de notification instantanée ; pas d'écran pour trancher un conflit financier ; les jetons d'appairage n'expirent pas ; un appairage se fait depuis le poste, pas depuis le web.</li>
+  </ul>
+</section>

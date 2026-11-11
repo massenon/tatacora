@@ -1,7 +1,12 @@
+import '../../achats/domain/entities/archivage_fournisseur.dart';
+import '../../achats/domain/messages_achats.dart' show MessagesAchats;
+import '../domain/calcul_inventaire.dart';
 import '../domain/calcul_stock.dart';
 import '../domain/entities/etat_stock.dart';
 import '../domain/entities/fiche_stock.dart';
 import '../domain/entities/mouvement_stock.dart';
+import '../../../core/rbac/regle_archivage.dart'
+    show roleNormalise, rolesAdministration;
 import '../domain/messages_stock.dart';
 import '../domain/nombre_saisi.dart';
 import 'stocks_dao.dart';
@@ -61,9 +66,19 @@ sealed class ResultatEcritureArticle {
 }
 
 final class ArticleEnregistre extends ResultatEcritureArticle {
-  const ArticleEnregistre({required this.id, required this.libelle});
+  const ArticleEnregistre({
+    required this.id,
+    required this.libelle,
+    this.messageEntree,
+  });
   final String id;
   final String libelle;
+
+  /// Le message de la vue quand la fiche a AUSSI fait entrer du stock
+  /// (`article.entree_enregistree`) ; `null` : la fiche a été enregistrée sans
+  /// toucher au stock — annoncer une entrée qui n'a pas eu lieu serait un
+  /// indicateur qui affirme un état qu'il n'a pas vérifié.
+  final String? messageEntree;
 }
 
 final class ArticleRefuse extends ResultatEcritureArticle {
@@ -83,6 +98,22 @@ final class ArticleRefuse extends ResultatEcritureArticle {
 
 final class ArticleInjoignable extends ResultatEcritureArticle {
   const ArticleInjoignable();
+}
+
+/// Ce que la fiche CONSOLIDÉE (« Tous les articles ») peut rendre. Jamais
+/// « injoignable » : une base locale n'est pas hors connexion.
+sealed class ResultatFicheConsolidee {
+  const ResultatFicheConsolidee();
+}
+
+final class FicheConsolideeRecue extends ResultatFicheConsolidee {
+  const FicheConsolideeRecue(this.fiche);
+  final FicheConsolidee fiche;
+}
+
+final class FicheConsolideeRefusee extends ResultatFicheConsolidee {
+  const FicheConsolideeRefusee(this.motif);
+  final String motif;
 }
 
 /// Ce que l'enregistrement d'un mouvement peut rendre — EF-M6-02.
@@ -171,6 +202,23 @@ final class PointRefuse extends ResultatPoint {
   final String motif;
 }
 
+/// Ce qu'une opération d'inventaire ou d'archivage peut rendre : sa valeur, ou
+/// un refus qui porte une PHRASE. Rien n'a été écrit en cas de refus.
+sealed class ResultatStocks<T> {
+  const ResultatStocks();
+}
+
+final class StocksOk<T> extends ResultatStocks<T> {
+  const StocksOk(this.valeur);
+  final T valeur;
+}
+
+final class StocksRefuse<T> extends ResultatStocks<T> {
+  const StocksRefuse(this.motif, {this.codeHttp});
+  final String motif;
+  final int? codeHttp;
+}
+
 /// La phrase quand le droit de lecture de M6 manque.
 const String refusLectureStocks =
     'Vous n’avez pas le droit de consulter les stocks.';
@@ -217,12 +265,36 @@ final class StocksApi {
     required this._peutLire,
     required this._peutEcrire,
     required this._auteurId,
-  });
+    String? Function()? roleUtilisateur,
+    Future<bool> Function()? peutArchiver,
+  }) : _role = roleUtilisateur,
+       _peutArchiver = peutArchiver ?? _archivageFerme;
 
   final StocksDao _dao;
   final bool Function() _peutLire;
   final bool Function() _peutEcrire;
   final String? Function() _auteurId;
+
+  /// Le rôle de la session, lu à CHAQUE appel — jamais capturé. `null` (un banc
+  /// qui ne le fournit pas) : personne n'est administrateur.
+  final String? Function()? _role;
+
+  /// `AutoriseArchivage::peutArchiver()` — la règle UNIQUE
+  /// (`core/rbac/regle_archivage.dart`), relue À CHAQUE geste : la bascule
+  /// « Suppression d'un enregistrement » peut se refermer entre l'ouverture de
+  /// la confirmation et le clic. Un banc qui ne la fournit pas : archivage
+  /// fermé.
+  final Future<bool> Function() _peutArchiver;
+
+  static Future<bool> _archivageFerme() async => false;
+
+  /// `Stocks::peutAjusterLeStock()` : l'entrée depuis la fiche article est un
+  /// geste d'ADMINISTRATION — elle valorise la marchandise et déplace le coût
+  /// moyen pondéré. Le rôle ne dispense jamais du droit d'écriture sur M6 : il
+  /// s'y ajoute.
+  bool get peutAjusterLeStock =>
+      _peutEcrire() &&
+      rolesAdministration.contains(roleNormalise(_role?.call()));
 
   /// Le code du suivi permanent, lu par M5 pour filtrer les articles.
   /// Identifiant métier, pas donnée de transport : conservé.
@@ -286,6 +358,26 @@ final class StocksApi {
         : FicheRecue(fiche);
   }
 
+  /// « Tous les articles » : la fiche consolidée sur la période. Les bornes
+  /// inversées sont refusées avec la phrase du serveur, comme pour un article.
+  Future<ResultatFicheConsolidee> ficheConsolidee({
+    required DateTime debut,
+    required DateTime fin,
+    String? pointId,
+  }) async {
+    if (!_peutLire()) return const FicheConsolideeRefusee(refusLectureStocks);
+
+    final j = DateTime(debut.year, debut.month, debut.day);
+    final f = DateTime(fin.year, fin.month, fin.day);
+    if (f.isBefore(j)) {
+      return const FicheConsolideeRefusee(MessagesStock.periodeInversee);
+    }
+
+    return FicheConsolideeRecue(
+      await _dao.ficheConsolidee(debut: debut, fin: fin, pointId: pointId),
+    );
+  }
+
   Future<ResultatJournal> mouvements({
     String? articleId,
     String? pointId,
@@ -319,6 +411,15 @@ final class StocksApi {
       return PointRefuse(e.motif);
     }
   }
+
+  /// Pose la valeur d'achat de RÉFÉRENCE d'un article (v57) — seulement si elle
+  /// est vide ; `false` sans droit d'écriture, ou si rien n'a été posé.
+  Future<bool> poserValeurAchatReference(
+    String articleId,
+    int dixMilliemes,
+  ) async =>
+      _peutEcrire() &&
+      await _dao.poserValeurAchatReference(articleId, dixMilliemes);
 
   Future<ResultatEcritureArticle> enregistrerArticle(
     SaisieArticle saisie, {
@@ -421,6 +522,38 @@ final class StocksApi {
     return ArticleEnregistre(id: saisie.id, libelle: saisie.libelle.trim());
   }
 
+  /// L'ENTRÉE saisie depuis la fiche article (`Stocks::faireEntrerLeStock`,
+  /// directive du PO du 06/09/2026) : un mouvement d'entrée, jamais une valeur
+  /// de stock. Le droit est exigé ICI — l'ouverture d'un bloc ne protège rien.
+  /// Sans coût, l'entrée ne valorise rien (un zéro se lirait « reçu
+  /// gratuitement » et écraserait le coût moyen pondéré).
+  Future<ResultatEcritureMouvement> faireEntrerDepuisFiche({
+    required String articleId,
+    required String pointId,
+    required String quantite,
+    String? coutUnitaire,
+  }) async {
+    if (!_peutEcrire()) {
+      return const MouvementRefuse(motif: refusEcritureStocks, codeHttp: 403);
+    }
+    if (!peutAjusterLeStock) {
+      return const MouvementRefuse(
+        motif: MessagesStock.entreeRefusRole,
+        codeHttp: 403,
+      );
+    }
+    return enregistrerMouvement(
+      SaisieMouvement(
+        articleId: articleId,
+        pointId: pointId,
+        type: TypeMouvement.entree,
+        quantite: quantite,
+        motif: MessagesStock.entreeMotif,
+        coutUnitaire: coutUnitaire,
+      ),
+    );
+  }
+
   /// Enregistre un mouvement — ou demande la confirmation de RG-06.
   ///
   /// ⚠ Un refus, jamais une file d'attente : annoncer « en attente de
@@ -492,6 +625,167 @@ final class StocksApi {
         motif: e.motif,
         erreurs: e.champ == null ? const {} : {e.champ!: e.motif},
       );
+    }
+  }
+
+  /* ================================================================== */
+  /* L'INVENTAIRE physique (EF-M6-05)                                    */
+  /* ================================================================== */
+
+  /// La feuille de comptage de l'inventaire [enCours] : tous les articles,
+  /// comptés (théorique figé) ou non. `null` quand le droit de lecture manque.
+  Future<FeuilleComptage?> feuilleDeComptage(InventaireEnCours enCours) async {
+    if (!_peutLire()) return null;
+    return _dao.feuilleDeComptage(
+      pointId: enCours.pointId,
+      comptages: enCours.comptages,
+    );
+  }
+
+  /// `Inventaires::ouvrirInventaire` : ouvre un inventaire sur [pointId]. Rien
+  /// n'est écrit : le comptage vit en mémoire jusqu'à la clôture (voir
+  /// `calcul_inventaire.dart`). Rend l'inventaire ouvert ET le nombre
+  /// d'articles à compter. Un point inconnu est refusé avec la phrase de la vue.
+  Future<ResultatStocks<({InventaireEnCours inventaire, int aCompter})>>
+  lancerInventaire(String pointId, {DateTime? aujourdhui}) async {
+    if (!_peutEcrire()) {
+      return const StocksRefuse(refusEcritureStocks, codeHttp: 403);
+    }
+    final connu = (await _dao.points()).any((p) => p.id == pointId);
+    if (!connu) return const StocksRefuse(MessagesStock.aucunPointDefini);
+
+    final jour = aujourdhui ?? _dao.maintenant();
+    return StocksOk((
+      inventaire: InventaireEnCours(
+        pointId: pointId,
+        date: DateTime(jour.year, jour.month, jour.day),
+      ),
+      aCompter: await _dao.nombreArticlesACompter(),
+    ));
+  }
+
+  /// `Inventaires::enregistrerComptage` : fige le comptage d'UN article (son
+  /// théorique à cet instant, le constaté saisi). Le nombre reste une chaîne
+  /// jusqu'ici ; une troisième décimale est refusée, une quantité négative
+  /// aussi (phrase du serveur).
+  Future<ResultatStocks<ComptageBrouillon>> compter({
+    required String pointId,
+    required String articleId,
+    required String quantite,
+  }) async {
+    if (!_peutEcrire()) {
+      return const StocksRefuse(refusEcritureStocks, codeHttp: 403);
+    }
+    final lu = lireCentiemes(quantite);
+    if (quantite.trim().isEmpty) {
+      return const StocksRefuse(MessagesStock.quantitePositive);
+    }
+    if (lu == null) {
+      // Le « - » d'une saisie négative n'est pas lu par `lireCentiemes` : la
+      // phrase du serveur la nomme.
+      return StocksRefuse(
+        quantite.trim().startsWith('-')
+            ? MessagesStock.quantiteNegative
+            : 'Nombre attendu, au plus deux décimales (ex. 12 ou 12,5).',
+      );
+    }
+    try {
+      return StocksOk(
+        await _dao.figerComptage(
+          articleId: articleId,
+          pointId: pointId,
+          constateCentiemes: lu,
+        ),
+      );
+    } on RefusStock catch (e) {
+      return StocksRefuse(e.motif);
+    }
+  }
+
+  /// `Inventaires::cloturer` — toujours en PARTIEL assumé : la modale annonce
+  /// avant le clic combien d'articles n'ont pas été comptés. Écrit l'inventaire,
+  /// ses lignes et ses mouvements de régularisation dans UNE transaction.
+  Future<ResultatStocks<BilanCloture>> cloturerInventaire(
+    InventaireEnCours enCours,
+  ) async {
+    if (!_peutEcrire()) {
+      return const StocksRefuse(refusEcritureStocks, codeHttp: 403);
+    }
+    try {
+      return StocksOk(
+        await _dao.cloturerInventaire(
+          pointId: enCours.pointId,
+          date: enCours.date,
+          comptages: enCours.comptages,
+          auteurId: _auteurId(),
+          partielAutorise: true,
+        ),
+      );
+    } on RefusStock catch (e) {
+      return StocksRefuse(e.motif);
+    }
+  }
+
+  /// L'historique des inventaires (onglet « Inventaires clôturés »). `null`
+  /// quand le droit de lecture manque.
+  Future<List<InventaireClos>?> inventairesClos() async =>
+      _peutLire() ? _dao.inventairesClos() : null;
+
+  /// La date du dernier inventaire de chaque point (`AAAA-MM-JJ`).
+  Future<Map<String, String>> dernierInventaireParPoint() async =>
+      _peutLire() ? _dao.dernierInventaireParPoint() : const {};
+
+  /* ================================================================== */
+  /* L'ARCHIVAGE d'un article                                            */
+  /* ================================================================== */
+
+  /// `exigerArchivage()` : le droit d'ÉCRITURE d'abord (403), PUIS la règle
+  /// d'archivage — la bascule fermée refuse avec la phrase du serveur. Rend le
+  /// refus, ou `null` quand le geste est permis.
+  Future<StocksRefuse<T>?> _refusArchivage<T>() async {
+    if (!_peutEcrire()) {
+      return StocksRefuse<T>(refusEcritureStocks, codeHttp: 403);
+    }
+    if (!await _peutArchiver()) {
+      return StocksRefuse<T>(MessagesAchats.refusBascule, codeHttp: 403);
+    }
+    return null;
+  }
+
+  /// « Supprimer » — l'OUVERTURE de la confirmation
+  /// (`confirmerArchivageArticle`) : exige le droit d'archiver dès ici, puis
+  /// compose le lot (verrous, états bloqué / partiel / nominal). Les motifs
+  /// datent de l'ouverture : le verrou qui tranche est recontrôlé à l'exécution.
+  Future<ResultatStocks<LotArchivage>> preparerArchivage(
+    List<String> ids,
+  ) async {
+    final refus = await _refusArchivage<LotArchivage>();
+    if (refus != null) return refus;
+    return StocksOk(await _dao.composerLotArchivage(ids));
+  }
+
+  /// « Supprimer » de la modale — l'EXÉCUTION (`archiverArticles`) : le droit
+  /// d'archiver est exigé de nouveau. Archive (`actif = false`), jamais un
+  /// effacement.
+  Future<ResultatStocks<ResultatArchivage>> archiverArticles(
+    List<String> ids,
+  ) async {
+    final refus = await _refusArchivage<ResultatArchivage>();
+    if (refus != null) return refus;
+    return StocksOk(await _dao.archiverLot(ids));
+  }
+
+  /// « Restaurer » (`restaurerArticle`). **Pas derrière la règle d'archivage** :
+  /// seul le droit d'écriture est exigé — fermer la bascule pendant qu'un
+  /// article est aux archives ne doit jamais l'y enfermer. Rend le libellé.
+  Future<ResultatStocks<String>> restaurerArticle(String id) async {
+    if (!_peutEcrire()) {
+      return const StocksRefuse(refusEcritureStocks, codeHttp: 403);
+    }
+    try {
+      return StocksOk(await _dao.restaurerArticle(id));
+    } on RefusStock catch (e) {
+      return StocksRefuse(e.motif);
     }
   }
 }

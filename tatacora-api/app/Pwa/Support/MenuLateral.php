@@ -27,6 +27,8 @@ final class MenuLateral
         'etats' => '<path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6M9 9h1"/>',
         'roles' => '<path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
         'import' => '<path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+        'synchronisation' => '<path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>',
+        'appairage' => '<path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>',
         'parametres' => '<circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c.14.31.22.65.22 1V10c.66 0 1 .34 1 1v2c0 .66-.34 1-1 1z"/>',
     ];
 
@@ -54,8 +56,8 @@ final class MenuLateral
             'pwa.paie',
             'pwa.etats.studio',
             'pwa.notifications',
-            'pwa.import-export',
             'pwa.roles-permissions',
+            'pwa.comptes-utilisateurs',
             'pwa.parametres',
             'pwa.clients',
             'pwa.facturation',
@@ -110,6 +112,7 @@ final class MenuLateral
         ]],
         ['groupe' => 'Ressources humaines', 'items' => [
             ['nom' => 'Personnel & Paie', 'icone' => 'rh', 'module' => 'M13', 'route' => 'pwa.paie'],
+            ['nom' => 'Congés & Plannings', 'icone' => 'rh', 'module' => 'M13', 'route' => 'pwa.conges-plannings'],
         ]],
         ['groupe' => 'Pilotage & administration', 'items' => [
             ['nom' => 'États & Rapports', 'icone' => 'etats', 'module' => 'M14', 'route' => 'pwa.etats.studio'],
@@ -128,9 +131,25 @@ final class MenuLateral
             // (l.144). Sa garde de droit vit dans
             // `liensChassis()['journal_audit']`, qui déclare son module M14 —
             // retirer l'entrée du menu ne retire donc aucun contrôle.
-            ['nom' => 'Import & Export', 'icone' => 'import', 'module' => 'PARAM', 'route' => 'pwa.import-export'],
+            // 09/11/2026 (PO) : « Synchronisation », « Import & Export » et « Appairage Postes »
+            // sont visibles de TOUS les rôles par défaut. Trois droits transverses
+            // (`SYNCHRO`, `IMPORT_EXPORT`, `APPAIRAGE`, `L` pour tous — voir
+            // `RolePermissionSeeder::DROITS_OUVERTS_A_TOUS`) ne commandent que la
+            // VISIBILITÉ ; les gestes sensibles gardent leurs gardes. Le gérant les
+            // voit aussi : elles ne sont plus dans `ROUTES_MASQUEES_PAR_ROLE`.
+            ['nom' => 'Import & Export', 'icone' => 'import', 'module' => 'IMPORT_EXPORT', 'route' => 'pwa.import-export'],
             ['nom' => 'Rôles & Permissions', 'icone' => 'roles', 'module' => 'ROLES', 'route' => 'pwa.roles-permissions'],
+            // 29/10/2026 (PO, option A du « mot de passe perdu ») : la liste des comptes et
+            // « Réinitialiser le mot de passe ». Même entrée, même icône (les
+            // personnes) que sur le poste Windows.
+            ['nom' => 'Comptes utilisateurs', 'icone' => 'crm', 'module' => 'ROLES', 'route' => 'pwa.comptes-utilisateurs'],
             ['nom' => 'Paramètres', 'icone' => 'parametres', 'module' => 'PARAM', 'route' => 'pwa.parametres'],
+            // 21/10/2026 (demande du PO) : « Postes & Appairage » a son entrée de menu,
+            // en plus de celle du menu de compte. Depuis le 09/11/2026, l'entrée
+            // et la route suivent le droit transverse `APPAIRAGE` (lecture pour
+            // tous les rôles par défaut), plus le droit sur Paramètres.
+            ['nom' => 'Synchronisation', 'icone' => 'synchronisation', 'module' => 'SYNCHRO', 'route' => 'pwa.synchronisation'],
+            ['nom' => 'Appairage Postes', 'icone' => 'appairage', 'module' => 'APPAIRAGE', 'route' => 'pwa.synchronisation-postes'],
         ]],
     ];
 
@@ -392,10 +411,10 @@ final class MenuLateral
             'journal_audit' => ['pwa.journal-audit', 'M14'],
             // Décision PO du 18/10/2026 : tout compte qui enregistre au
             // serveur peut faire passer les postes tout de suite.
-            'synchronisation_postes' => ['pwa.synchronisation-postes', null],
+            'synchronisation_postes' => ['pwa.synchronisation-postes', 'APPAIRAGE'],
             'mon_profil' => ['pwa.mon-profil', null],
             'parametres_compte' => ['pwa.parametres', 'PARAM'],
-            'import_export' => ['pwa.import-export', 'PARAM'],
+            'import_export' => ['pwa.import-export', 'IMPORT_EXPORT'],
             'aide_a_propos' => ['pwa.aide-a-propos', null],
             'contact_editeur' => ['pwa.contact-editeur', null],
         ];

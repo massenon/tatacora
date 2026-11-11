@@ -108,9 +108,9 @@ return [
         'ventes_compteur_annulees' => 'dont :nombre annulée(s), hors total',
         'ventes_total_page' => 'TOTAL DE LA PAGE',
         'ventes_total_page_aide' => 'Somme des lignes validées affichées ci-dessus. Une vente '
-            . 'annulée reste au registre (RG-02) mais son montant n\'est pas de l\'argent.',
+            . 'annulée reste au registre mais son montant n\'est pas compté.',
         'ventes_stock_aide' => 'Le stock affiché est celui d\'aujourd\'hui, jamais celui du jour de '
-            . 'la vente : aucune table n\'en garde la trace.',
+            . 'la vente.',
         'ventes_stock_hors_carte' => 'Cet article n\'est plus à la carte : son stock ne se lit plus '
             . 'nulle part. Ce n\'est pas un stock nul.',
         'ventes_vide' => 'Aucune ligne de vente ne correspond à ces critères.',
@@ -197,6 +197,7 @@ return [
         // maître — carte-module.js l.89-93 et l.110-114
         'badge_non_suivi' => 'non suivi',
         'badge_rupture' => 'rupture',
+        'badge_illimite' => 'illimité',
         'bouton_rendre_indispo' => 'Rendre indispo.',
         'bouton_remettre' => 'Remettre',
         'bouton_lier' => 'Lier au stock',
@@ -249,7 +250,7 @@ return [
 
         // maître — carte-module.js l.209-212 (`motif_sans_lien`)
         'sans_lien_bar' => 'Non rattaché à un article de stock — la vente ne décrémentera rien.',
-        'sans_lien_restaurant' => 'Fiche technique absente (EF-M4-02) : une recette ne se décrémente '
+        'sans_lien_restaurant' => 'Fiche technique absente : une recette ne se décrémente '
             . 'pas comme un article.',
 
         // maître — carte-module.js l.135-143 (`formaterConversion`)
@@ -339,6 +340,9 @@ return [
         'bouton_enregistrer' => 'Enregistrer le lien',
 
         'aucun_article_stock' => 'Aucun article en suivi permanent ne correspond à cette recherche.',
+
+        // 09/11/2026 (PO) — l'état vide du RESTAURANT : aucun article, aucune recherche.
+        'aucun_article_cuisine' => 'Aucun article de stock en cuisine : importez le modèle Stocks (point Cuisine) ou créez l\'article dans Stocks.',
     ],
 
     'modale_dispo' => [
@@ -431,14 +435,6 @@ return [
         'sous_titre' => 'Chaque boisson vendue décrémente son casier. Le rapprochement contrôle la '
             . '<strong>contenance</strong> : une 33 cl ne sort pas du casier de 66 cl.',
 
-        // maître — carte-module.js l.66-74, branche bar
-        'bandeau_titre' => 'Au bar, vendre et sortir du stock désignent la même chose.',
-        'bandeau_texte' => 'Une Béninoise 66 cl vendue, c\'est une bouteille en moins. Le lien est '
-            . 'direct et automatisable par rapprochement de libellé — à condition que la '
-            . '<strong>contenance</strong> corresponde : une 33 cl ne sort pas du casier de 66 cl, et '
-            . 'l\'écart ne se verrait qu\'à l\'inventaire. Couverture actuelle : '
-            . '<strong>:lies / :total</strong> articles rattachés.',
-
         // Onglet AJOUTÉ le 03/09/2026 (Product Owner) — le libellé est celui
         // du rayon, jamais un « Ventes » générique : les deux écrans partagent
         // le même corps, et deux onglets homonymes ne se distingueraient pas
@@ -475,16 +471,6 @@ return [
         // maître — l.33
         'sous_titre' => 'Composition, disponibilité du jour et lien au stock. Le stock affiché est '
             . '<strong>calculé</strong>, jamais saisi.',
-
-        // maître — carte-module.js l.76-85, branche restaurant
-        'bandeau_titre' => 'Un plat n\'est pas un article de stock : c\'est une recette.',
-        'bandeau_texte' => 'Décrémenter un « Poulet DG » suppose une <strong>fiche technique</strong> '
-            . '(EF-M4-02) indiquant combien de grammes de poulet, d\'huile et d\'oignon partent à chaque '
-            . 'assiette. <strong>Conséquence portée ici plutôt que masquée :</strong> :sans_lien '
-            . 'article(s) sur :total ne décrémentent rien à la vente. La valeur du stock affichée est '
-            . 'donc surévaluée, et l\'écart apparaîtra à l\'inventaire. Un plat peut néanmoins être '
-            . 'rattaché à la main lorsqu\'il correspond à un article unique — une bouteille d\'eau '
-            . 'servie à table, par exemple.',
 
         // Onglet AJOUTÉ le 03/09/2026 (Product Owner) — voir `bar.onglet_ventes`.
         'onglet_ventes' => 'Ventes du Restaurant',
@@ -554,6 +540,8 @@ return [
         'form_titre_modification' => 'Modifier le plat',
         'label_nom' => 'Nom du plat',
         'invite_nom' => 'Ex. Poulet DG',
+        // 30/10/2026 (décision du PO) : description FACULTATIVE du plat.
+        'label_description' => 'Description',
         'label_categorie' => 'Catégorie',
         'label_prix' => 'Prix de vente (FCFA)',
 
@@ -584,7 +572,7 @@ return [
          * la contrainte, message SQL à l'appui, et le plat n'aurait jamais été
          * créé — sans que l'écran sache dire pourquoi.
          */
-        'aide_fiche' => 'Obligatoire : un plat se décrémente par sa fiche technique (EF-M4-02). '
+        'aide_fiche' => 'Obligatoire : un plat se décrémente par sa fiche technique. '
             . 'Créez d\'abord la recette si elle n\'existe pas.',
         'label_menu' => 'Menu',
         'invite_menu' => 'Choisir un menu',
@@ -698,8 +686,7 @@ return [
          * se rattache à aucun article. L'écart est nommé ici, pas dissimulé.
          */
         'recette_composition_aide' => 'Chaque ingrédient est un article de stock réel, avec la '
-            . 'quantité consommée pour UNE portion. Le maître propose ici un texte libre : il ne '
-            . 'permettrait aucune sortie de stock, et la fiche ne servirait à rien (PA-23).',
+            . 'quantité consommée pour UNE portion.',
         'recette_recherche_article' => 'Rechercher un article de stock...',
         'recette_label_article' => 'Article de stock',
         'recette_invite_article' => 'Choisir un article',
@@ -707,7 +694,7 @@ return [
         'recette_bouton_ajouter_ingredient' => 'Ajouter un ingrédient',
         'recette_bouton_retirer_ingredient' => 'Retirer cette ligne',
         'recette_aucun_article' => 'Aucun article de stock ne correspond. Élargissez la recherche, '
-            . 'ou créez l\'article depuis l\'écran Stocks (M6).',
+            . 'ou créez l\'article depuis l\'écran Stocks.',
         /*
          * ⚠ CE MESSAGE DISAIT « la composition se complète plus tard depuis
          * l'API », ET C'ÉTAIT LE DÉFAUT (corrigé le 04/09/2026).
@@ -716,12 +703,17 @@ return [
          * existante — et cette phrase renvoyait l'utilisateur vers un chemin
          * qu'il n'a pas. Résultat : 82 fiches vides, et un point de vente
          * restaurant bloqué en entier sans que personne sache où aller. Le
-         * geste existe désormais sur cet écran ; le message dit la CONSÉQUENCE
-         * réelle, qui n'est pas « c'est permis » mais « la vente sera refusée ».
+         * geste existe désormais sur cet écran.
+         *
+         * ⚠ DÉCISION DU PO DU 30/10/2026 (« le stock s'ajoute après ») : ce
+         * message annonçait « le point de vente REFUSERA la vente du plat qui
+         * l'utilise ». Le refus est levé (`DeductionStockCuisineService`) : un
+         * plat à fiche vide se vend, sans mouvement de stock. Le message dit
+         * désormais cette conséquence-là, et seulement elle.
          */
         'recette_sans_ingredient' => 'Sans ingrédient, cette fiche ne décrémente aucun stock : le '
-            . 'point de vente REFUSERA la vente du plat qui l\'utilise. Ajoutez au moins un article '
-            . 'de stock, ou revenez la composer depuis l\'onglet « Fiches techniques ».',
+            . 'plat qui l\'utilise se vend quand même, sans sortie de stock. Ajoutez au moins un '
+            . 'article de stock, ou revenez la composer depuis l\'onglet « Fiches techniques ».',
         /*
          * LE COÛT MATIÈRE A TROIS ÉTATS, ET IL N'EST JAMAIS SAISI.
          *
@@ -735,7 +727,7 @@ return [
         'recette_creee_sans_ingredient' => 'La fiche « :recette » est créée, sans ingrédient : elle '
             . 'ne décrémentera aucun stock tant que sa composition est vide.',
         'recette_creee_cout_incomplet' => 'La fiche « :recette » est créée. Son coût matière reste '
-            . 'INCONNU : :articles n\'ont pas de coût moyen pondéré (jamais réceptionnés en M6).',
+            . 'INCONNU : :articles n\'ont pas de coût moyen pondéré (jamais réceptionnés).',
 
         /*
         |-----------------------------------------------------------------------
@@ -745,8 +737,10 @@ return [
         | Constat du Product Owner : aucune vente possible au point de vente
         | restaurant. Relevé en base — 83 plats, 83 recettes, TROIS lignes
         | d'`ingredients_recette`. Chaque plat avait sa fiche, et elle était
-        | vide ; or une fiche vide n'est pas neutre, c'est une vente REFUSÉE
-        | (`RecetteManquanteException`).
+        | vide ; or une fiche vide était alors une vente REFUSÉE
+        | (`RecetteManquanteException`). ⚠ Levé le 30/10/2026 (décision du PO,
+        | « le stock s'ajoute après ») : une fiche vide se vend, sans mouvement
+        | de stock ; les libellés ci-dessous disent cet état, plus un blocage.
         |
         | Le geste qui manquait n'était pas la création — livrée le 03/09 —
         | mais la composition d'une fiche EXISTANTE. Les libellés ci-dessous
@@ -758,13 +752,13 @@ return [
         'onglet_menus' => 'Menus',
 
         'fiches_kpi_total' => 'Fiches techniques',
-        'fiches_kpi_vides' => 'Fiches vides — vente refusée',
+        'fiches_kpi_vides' => 'Fiches vides — sans sortie de stock',
         'fiches_kpi_provisoires' => 'Compositions provisoires',
         'fiches_kpi_provisoires_detail' => 'Quantités posées, jamais pesées',
 
         'fiches_recherche' => 'Rechercher une fiche technique...',
         'fiches_filtre_vides' => 'Fiches vides seulement',
-        'fiches_filtre_vides_aide' => 'Ce sont elles qui bloquent la vente au comptoir.',
+        'fiches_filtre_vides_aide' => 'Ces plats se vendent au comptoir, sans sortie de stock.',
 
         'fiches_col_fiche' => 'Fiche technique',
         'fiches_col_plat' => 'Plat servi',
@@ -774,9 +768,9 @@ return [
 
         'fiches_etat_composee' => 'Composée',
         'fiches_etat_vide' => 'Vide — ne décrémente rien',
-        'fiches_etat_vide_infobulle' => 'Toute vente de ce plat au point de vente restaurant est '
-            . 'REFUSÉE tant que la composition est vide : la cuisine ne saurait pas quoi sortir du '
-            . 'stock.',
+        'fiches_etat_vide_infobulle' => 'Ce plat se vend au point de vente restaurant, sans aucune '
+            . 'sortie de stock tant que la composition est vide. Composez la fiche pour que la '
+            . 'vente décrémente ses ingrédients.',
         /*
          * LE TROISIEME ETAT, ET IL N'EST NI « composee » NI « vide ».
          *
@@ -807,7 +801,7 @@ return [
          * forme exacte de PA-126.
          */
         'fiches_cout_incomplet' => 'Incomplet',
-        'fiches_cout_incomplet_infobulle' => 'Sans coût moyen pondéré (jamais réceptionnés en M6) : '
+        'fiches_cout_incomplet_infobulle' => 'Sans coût moyen pondéré (jamais réceptionnés) : '
             . ':articles',
         'fiches_cout_vide' => 'Non calculable',
         'fiches_cout_vide_infobulle' => 'Une composition vide n\'a pas de coût : ce n\'est pas un '
@@ -822,26 +816,26 @@ return [
          * l'utilisateur, à l'endroit où il peut le faire — la Directive
          * interdit un écran qui montre un problème sans offrir le geste.
          */
-        'fiches_bandeau' => 'Une fiche sans ingrédient ne décrémente aucun stock, et le point de '
-            . 'vente REFUSE la vente du plat qui l\'utilise. Ouvrez la fiche, posez ses articles de '
-            . 'stock et leurs quantités par portion : le coût matière se calcule tout seul.',
+        'fiches_bandeau' => 'Une fiche sans ingrédient ne décrémente aucun stock : le plat qui '
+            . 'l\'utilise se vend quand même, sans sortie de stock. Ouvrez la fiche, posez ses '
+            . 'articles de stock et leurs quantités par portion pour que la vente décrémente : le '
+            . 'coût matière se calcule tout seul.',
 
         // --- Modale « Modifier la fiche technique » (04/09/2026) ---
         'recette_form_titre_modification' => 'Modifier la fiche technique',
         'recette_form_sous_titre_modification' => 'Composition, libellé et coût matière de la fiche.',
         'recette_cout_actuel' => 'Coût matière enregistré',
         'recette_cout_actuel_aide' => 'Calculé depuis la composition ci-dessous et le coût moyen '
-            . 'pondéré de chaque article (M6). Jamais saisi — il se recalcule à l\'enregistrement.',
+            . 'pondéré de chaque article. Jamais saisi — il se recalcule à l\'enregistrement.',
         'recette_bandeau_provisoire' => 'Composition PROVISOIRE : ces quantités ont été posées pour '
             . 'débloquer le service, personne ne les a pesées. Corrigez-les et enregistrez — la '
             . 'marque tombera d\'elle-même.',
         'recette_modifiee' => 'La fiche « :recette » est à jour. Coût matière calculé : :cout.',
         'recette_modifiee_sans_ingredient' => 'La fiche « :recette » est enregistrée SANS '
-            . 'ingrédient : elle ne décrémente aucun stock, et toute vente du plat qui l\'utilise '
-            . 'sera refusée au comptoir.',
+            . 'ingrédient : elle ne décrémente aucun stock, et le plat qui l\'utilise se vend sans '
+            . 'sortie de stock.',
         'recette_modifiee_cout_incomplet' => 'La fiche « :recette » est à jour. Son coût matière '
-            . 'reste INCONNU : :articles n\'ont pas de coût moyen pondéré (jamais réceptionnés en '
-            . 'M6).',
+            . 'reste INCONNU : :articles n\'ont pas de coût moyen pondéré (jamais réceptionnés).',
 
         // --- Onglet « Menus » (04/09/2026) ---
         'menus_col_menu' => 'Menu',
@@ -851,7 +845,7 @@ return [
         'menus_saison_permanente' => 'Permanent',
         'menus_action_editer' => 'Modifier',
         'menus_aucun' => 'Aucun menu n\'existe encore. Le bouton « Nouveau menu » en crée un : sans '
-            . 'lui, aucun plat ne peut être enregistré (`plats.menu_id` est obligatoire).',
+            . 'lui, aucun plat ne peut être enregistré.',
         'menu_form_titre_modification' => 'Modifier le menu',
         'menu_modifie' => 'Le menu « :libelle » est à jour.',
     ],

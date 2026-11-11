@@ -75,6 +75,6 @@ final class BaseViergeTest extends TestCase
         $this->assertSame('TATACORA AFRIQUE Gîte Chez Noël', $entete->raisonSociale);
         $this->assertSame('NABOGOU Noel', $entete->promoteur);
         $this->assertSame('0197355974', $entete->whatsapp);
-        $this->assertSame('https://tatacora.com/', $entete->siteWeb);
+        $this->assertSame('https://tatacora.com', $entete->siteWeb);
     }
 }

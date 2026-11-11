@@ -82,7 +82,9 @@ final class PaiementsSynchronisationTest extends TestCase
 
         $this->pousser([$this->paiement($id)], $this->receptionniste, 'poste-a')
             ->assertJsonPath('resultats.0.statut', 'synchronise')
-            ->assertJsonPath('resultats.0.anomalies', [AnomalieSynchronisation::PAIEMENT_FACTURE_NON_CERTIFIEE]);
+            // 07/11/2026 : une facture du poste est ÉMISE (figée, simple) à sa réception — plus d'anomalie
+            // « facture non certifiée » : la normalisation est une affaire à part, par bouton.
+            ->assertJsonPath('resultats.0.anomalies', null);
 
         $paiement = Paiement::findOrFail($id);
         $this->assertSame('10000.00', (string) $paiement->montant);
@@ -117,6 +119,34 @@ final class PaiementsSynchronisationTest extends TestCase
         $this->assertSame($this->session->id, Paiement::findOrFail($id)->session_id);
         $this->assertTrue(AnomalieSynchronisation::query()
             ->where('entite_id', $id)->where('type', AnomalieSynchronisation::PAIEMENT_SESSION_INCONNUE)->exists());
+    }
+
+    #[Test]
+    public function un_centime_d_arrondi_au_dessus_du_reste_du_est_plafonne_et_signale_jamais_refuse(): void
+    {
+        // Reste dû 29 999,99 F (un centime déjà encaissé) ; le poste encaisse 30 000 F (constat du PO du 10/11/2026).
+        $this->pousser([$this->paiement($this->uuid(), ['montant' => 1])], $this->receptionniste)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $id = $this->uuid();
+        $this->pousser([$this->paiement($id, ['montant' => 3000000])], $this->receptionniste)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $this->assertSame('29999.99', (string) Paiement::findOrFail($id)->montant);
+        $this->assertSame('0.00', Paiement::findOrFail($id)->facture->resteDu());
+        $this->assertTrue(AnomalieSynchronisation::query()
+            ->where('entite_id', $id)->where('type', AnomalieSynchronisation::PAIEMENT_ARRONDI_PLAFONNE)->exists());
+    }
+
+    #[Test]
+    public function deux_centimes_au_dessus_du_reste_du_gardent_le_refus_lisible(): void
+    {
+        $this->pousser([$this->paiement($this->uuid(), ['montant' => 2])], $this->receptionniste)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        // Reste dû 29 999,98 F ; 30 000 F dépasse de 0,02 F : refusé, avec sa phrase.
+        $this->pousser([$this->paiement($this->uuid(), ['montant' => 3000000])], $this->receptionniste)
+            ->assertJsonPath('resultats.0.statut', 'rejete');
     }
 
     #[Test]

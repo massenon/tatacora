@@ -590,6 +590,8 @@ void main() {
         'remise_valeur': '10.00',
         'mode_paiement': 'mobile_money',
         'canal': 'Booking.com',
+        // 09/11/2026 : la création porte ses services (aucun ici).
+        'lignes': <Object?>[],
       });
     });
   });
@@ -1246,15 +1248,29 @@ void main() {
             reason: e.key,
           );
         }
-        // Le seul auteur d'écritures ne touche pas à la file, et inversement.
-        for (final chemin in [
-          'lib/features/comptabilite/data/moteur_comptable.dart',
+        // Le DAO de la comptabilité ne touche jamais à la file.
+        final comptabilite = File(
           'lib/features/comptabilite/data/comptabilite_dao.dart',
-        ]) {
-          final code = File(chemin).readAsStringSync();
-          expect(code, isNot(contains('OperationsSyncDao')), reason: chemin);
-          expect(code, isNot(contains('enfiler')), reason: chemin);
-        }
+        ).readAsStringSync();
+        expect(comptabilite, isNot(contains('OperationsSyncDao')));
+        expect(comptabilite, isNot(contains('enfiler')));
+        // D246 ROUVERT (décision du PO du 28/10/2026) : le moteur n'enfile que
+        // la SOURCE d'un compte du plan et d'une pièce saisie à la main —
+        // jamais la pièce d'un module (vente, dépense, règlement, clôture) ni
+        // une écriture.
+        final moteur = File(
+          'lib/features/comptabilite/data/moteur_comptable.dart',
+        ).readAsStringSync();
+        final tablesDuMoteur = {
+          for (final m in RegExp(
+            r'TableSynchronisee\.(\w+)',
+          ).allMatches(moteur))
+            m.group(1)!,
+        };
+        expect(tablesDuMoteur, {
+          'planComptable',
+          'piecesSaisie',
+        }, reason: 'le moteur n\u2019enfile que le plan et les pièces saisies');
         final dao = File(
           'lib/features/synchronisation/data/operations_sync_dao.dart',
         ).readAsStringSync();
@@ -1275,6 +1291,10 @@ void main() {
         if (f is! File || !f.path.endsWith('.dart')) continue;
         if (f.path.endsWith('.g.dart')) continue;
         if (f.path.endsWith('app_database.dart')) continue;
+        // Exception NOMMÉE (28/10/2026, R2) : la réconciliation du schéma
+        // rejoue la migration v43 (élargissement du CHECK) sur la table ; elle
+        // ne lit ni n'écrit une ligne de la file.
+        if (f.path.endsWith('core/database/reconcilier_schema.dart')) continue;
         final code = f.readAsStringSync();
         if (motifs.any((m) => m.hasMatch(code))) ecrivains.add(f.path);
       }
@@ -1307,6 +1327,8 @@ void main() {
         'circuitsLocal',
         'guidesLocal',
         'reservationsTourLocal',
+        // 21/10/2026 : les canaux de réservation (Paramètres).
+        'canauxReservationLocal',
       ];
       // Les écrivains qui n'enfilent pas, et pourquoi — tous nommés.
       const exceptions = {

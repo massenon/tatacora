@@ -33,7 +33,14 @@ final class LigneStock {
     required this.pointLibelle,
     required this.prixAchat,
     required this.deriveCmp,
+    this.valeurAchatReference,
+    this.cmpDeReference = false,
+    this.actif = true,
   });
+
+  /// `true` : aucune entrée valorisée sur ce poste, le CMP et la valeur viennent du CMP du
+  /// serveur (v59, le chiffre que le web affiche). Alors ni l'un ni l'autre n'est inconnu.
+  final bool cmpDeReference;
 
   final String id;
   final String libelle;
@@ -78,21 +85,38 @@ final class LigneStock {
   /// moyen pondéré.
   final String? prixAchat;
 
+  /// La VALEUR D'ACHAT DE RÉFÉRENCE posée par un import (v57, 09/11/2026), ou
+  /// `null` (« — »). Elle n'est NI un mouvement NI un coût : elle ne sert qu'à
+  /// l'AFFICHAGE de « Valeur d'achat » ([prixAchatAffiche]) tant qu'aucune entrée
+  /// valorisée n'existe. [cmpInconnu] et [valeurInconnue] continuent de ne lire
+  /// que [prixAchat] : le CMP et la valeur de stock restent calculés des entrées.
+  final String? valeurAchatReference;
+
+  /// Ce que la colonne « Valeur d'achat » affiche : le dernier prix d'une entrée
+  /// valorisée, à défaut la valeur de référence, à défaut rien.
+  String? get prixAchatAffiche => prixAchat ?? valeurAchatReference;
+
   /// La dérive du coût moyen pondéré contre [prixAchat], en pourcentage
   /// entier. `null` quand elle n'est pas mesurable — jamais zéro.
   final int? deriveCmp;
+
+  /// `false` : l'article est archivé (badge « Archivé », bouton « Restaurer »).
+  final bool actif;
 
   bool get estJournalier => suivi == SuiviArticle.journalier;
 
   /// Aucune entrée valorisée : le coût moyen pondéré n'est pas « 0 », il est
   /// INCONNU (le 0 n'est que la valeur de départ du calcul). Il s'affiche « — ».
-  bool get cmpInconnu => prixAchat == null;
+  bool get cmpInconnu => prixAchat == null && !cmpDeReference;
 
   /// Du stock (positif ou négatif) mais AUCUNE entrée valorisée : le coût est
   /// inconnu, donc la valeur l'est aussi. Elle s'affiche « — », jamais « 0 » —
   /// un zéro se somme, et le total du stock passerait pour exhaustif.
   bool get valeurInconnue =>
-      !estJournalier && prixAchat == null && _stockCentiemes != 0;
+      !estJournalier &&
+      prixAchat == null &&
+      !cmpDeReference &&
+      _stockCentiemes != 0;
 
   // Les seuils et le stock sont des chaînes de CENTIÈMES exacts (« 12.50 ») que
   // `calculerEtat` vient d'écrire : on les compare par leurs chiffres, jamais

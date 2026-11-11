@@ -12,7 +12,6 @@ use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Domain\Comptabilite\Models\JournalComptable;
 use App\Domain\Comptabilite\ReadModels\EtapeCloture;
 use App\Domain\Comptabilite\ReadModels\EtatCloture;
-use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -43,11 +42,11 @@ class EtatClotureService
 {
     private const PRECISION = 2;
 
-    /** Cf. `MODULE_COMPTABILITE_COMPLET_PART4.md` §2.2 — benefice / perte. */
-    private const COMPTE_BENEFICE = ComptesSyscohada::RESULTAT_BENEFICE;
-
-    private const COMPTE_PERTE = ComptesSyscohada::RESULTAT_PERTE;
-
+    /**
+     * Cf. `MODULE_COMPTABILITE_COMPLET_PART4.md` §2.2 — bénéfice / perte : les
+     * rôles `RESULTAT_BENEFICE` et `RESULTAT_PERTE` de la correspondance des
+     * comptes (modifiable depuis le 26/10/2026), lus au moment de l'état.
+     */
     public const BLOCAGE_JOURNAL_AN_ABSENT = 'journal_a_nouveaux_absent';
 
     public const BLOCAGE_COMPTES_RESULTAT_ABSENTS = 'comptes_de_resultat_absents';
@@ -93,6 +92,7 @@ class EtatClotureService
         private readonly BalanceGeneraleService $balance,
         private readonly BilanService $bilan,
         private readonly TafireService $tafire,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -138,9 +138,11 @@ class EtatClotureService
             $blocagesStructurels[] = self::BLOCAGE_JOURNAL_AN_ABSENT;
         }
 
-        $comptesDeResultatPresents = CompteComptable::query()
-            ->whereIn('numero_compte', [self::COMPTE_BENEFICE, self::COMPTE_PERTE])
-            ->count() === 2;
+        $compteBenefice = $this->comptes->compte('RESULTAT_BENEFICE');
+        $comptePerte = $this->comptes->compte('RESULTAT_PERTE');
+
+        $comptesDeResultatPresents = CompteComptable::query()->where('numero_compte', $compteBenefice)->exists()
+            && CompteComptable::query()->where('numero_compte', $comptePerte)->exists();
 
         if (! $comptesDeResultatPresents) {
             $blocagesStructurels[] = self::BLOCAGE_COMPTES_RESULTAT_ABSENTS;
@@ -212,8 +214,8 @@ class EtatClotureService
             actionExposee: true,
             resultatAReporter: $bilan->resultatExercice,
             compteDeDestination: bccomp($bilan->resultatExercice, '0.00', self::PRECISION) >= 0
-                ? self::COMPTE_BENEFICE
-                : self::COMPTE_PERTE,
+                ? $compteBenefice
+                : $comptePerte,
             impotNonComptabilise: $bilan->impotNonComptabilise,
             statuts: $balance->statuts,
             filtresAppliques: $balance->filtresAppliques,

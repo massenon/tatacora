@@ -61,7 +61,7 @@ final class ReportHeaderServiceTest extends TestCase
         $this->assertSame('Quartier Sountichirantikou, Natitingou, Bénin', $entete->adresse);
         $this->assertSame('+229 01 97 35 59 74', $entete->telephone);
         $this->assertSame('nabogounoel@yahoo.fr', $entete->email);
-        $this->assertSame('www.tatacora.com', $entete->siteWeb);
+        $this->assertSame('https://tatacora.com', $entete->siteWeb);
         // Directive PO du 02/09/2026 : l'enseigne s'imprime EN MINUSCULES,
         // sous la raison sociale, sur tous les documents.
         $this->assertSame('gîte chez noël', $entete->enseigne);
@@ -201,16 +201,23 @@ final class ReportHeaderServiceTest extends TestCase
     }
 
     /**
-     * Grille `RESPECT_TABLEAU_RAPPORT.md` : « Pied de page institutionnel :
-     * mention PAEB/FAGUEZ SARL + date/heure d'édition présentes ».
+     * Décision du PO du 10/11/2026 : plus de mention « Projet PAEB — Cabinet FAGUEZ SARL » ; la date
+     * d'édition reste, et l'identité s'imprime UNE fois, en cinq lignes.
      */
     #[Test]
-    public function la_mention_institutionnelle_et_la_date_d_edition_sont_presentes(): void
+    public function l_identite_s_imprime_une_fois_en_cinq_lignes_sans_la_mention_paeb(): void
     {
         $entete = $this->service()->genererEnTete('État des stocks', 'Août 2026', null);
 
-        $this->assertStringContainsString('PAEB', $entete->mentionInstitutionnelle);
-        $this->assertStringContainsString('FAGUEZ', $entete->mentionInstitutionnelle);
         $this->assertMatchesRegularExpression('#^\d{2}/\d{2}/\d{4} à \d{2}:\d{2}$#', $entete->dateEdition);
+        $lignes = $entete->lignesIdentite();
+        $this->assertSame('TATACORA AFRIQUE Gîte Chez Noël', $lignes[0]);
+        $this->assertSame('Quartier Sountichirantikou, Natitingou, Bénin', $lignes[1]);
+        $this->assertSame('Tél. +229 01 97 35 59 74 - nabogounoel@yahoo.fr', $lignes[2]);
+        $this->assertSame('https://tatacora.com', $lignes[3]);
+        $texte = implode("\n", $lignes);
+        foreach (['PAEB', 'FAGUEZ', 'Promoteur', 'WhatsApp', 'Système de gestion'] as $interdit) {
+            $this->assertStringNotContainsString($interdit, $texte);
+        }
     }
 }

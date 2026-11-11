@@ -193,7 +193,10 @@
     <div class="cachet">{{ __('pos_pwa.document.mecef_reserve') }}</div>
   @endif
 
-  <div class="pied-mecef">{{ __('pos_pwa.document.ticket_thermique_pied') }}</div>
+  {{-- Décision du PO du 07/11/2026 : en mode DÉSACTIVÉ, aucune mention MECeF sur le papier remis. --}}
+  @if (\App\Domain\Facturation\Services\ModeFacturation::courant() !== \App\Domain\Facturation\Services\ModeFacturation::Desactive)
+    <div class="pied-mecef">{{ __('pos_pwa.document.ticket_thermique_pied') }}</div>
+  @endif
 
   <script>
     // Fenêtre d'impression dédiée (PA-101) : la boîte de dialogue s'ouvre

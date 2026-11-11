@@ -10,12 +10,17 @@ import '../../../../core/theme/app_colors.dart';
 /// figure telle quelle (`vue_exploitation_test.dart`) : une icône Material « de
 /// même sens » serait un autre dessin.
 ///
-/// ⚠ Le titre « Tableau de bord » N'A PAS d'icône dans la vue : son `<h1>`
-/// (l.246) est un texte seul, et le relevé du navigateur le place au même `x`
-/// que le sous-titre (296 px). `INSTRUCTION.txt` §2 demande une icône « grille
-/// / tableau » avant le titre : la vue gagne — l'icône Material que portait
-/// l'écran (`Icons.insights_outlined`) est retirée, pas remplacée.
+/// ⚠ Depuis le 26/10/2026 (directive du PO), le titre « Tableau de bord » a
+/// son icône, comme les autres écrans : la vue la pose dans un bloc
+/// `flex items-center gap-2.5` et reprend le tracé `dashboard` de la barre
+/// latérale (`MenuLateral::ICONES`). Avant cette date le `<h1>` était un texte
+/// seul — ne rétablissez pas cet état.
 abstract final class TracesAccueil {
+  /// L'icône du titre de la page (`<svg width="24" height="24">` avant le
+  /// `<h1>`) : le tracé `dashboard` de la barre latérale.
+  static const String titre =
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/>';
+
   /// Le bouton « Actualiser » (l.290).
   static const String actualiser =
       '<path stroke-linecap="round" stroke-linejoin="round" d="M23 4v6h-6M1 20v-6h6"/>'

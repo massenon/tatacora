@@ -50,6 +50,8 @@ final class DefinitionParametre {
     required this.valeur,
     this.notes = const [],
     this.correction,
+    this.choixLibelles = const {},
+    this.reserveAdministrateur = false,
   });
 
   final String cle;
@@ -72,6 +74,13 @@ final class DefinitionParametre {
   final String? aide;
   final String? valeur;
 
+  /// Le libellé de chaque choix (`choixLibelles` du serveur) ; vide : la valeur
+  /// stockée est le libellé.
+  final Map<String, String> choixLibelles;
+
+  /// Réservé aux Administrateurs : « Modifier » ne s'affiche qu'à eux.
+  final bool reserveAdministrateur;
+
   /// Ce que CE POSTE ajoute à l'aide du serveur, une phrase par élément : le
   /// refus d'un secret, ou « aucun module ne lit cette valeur ». Jamais fondu
   /// dans [aide], qui reste celle de la vue Blade mot pour mot.
@@ -81,6 +90,9 @@ final class DefinitionParametre {
   final String? correction;
 
   TypeParametre? get type => TypeParametre.depuisCode(typeBrut);
+
+  /// Le libellé affiché d'un choix : celui de la vue, sinon la valeur elle-même.
+  String libelleDuChoix(String valeur) => choixLibelles[valeur] ?? valeur;
 
   bool get estRendable => type != null;
 

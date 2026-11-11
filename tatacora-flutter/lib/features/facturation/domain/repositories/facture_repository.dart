@@ -1,4 +1,5 @@
 import '../entities/piece_facturation.dart';
+import '../ifu_client.dart';
 
 /// Contrat d'accès au registre de facturation.
 ///
@@ -70,6 +71,19 @@ abstract interface class FactureRepository {
     String motif, {
     String? auteurId,
   });
+
+  /// Émet un avoir PARTIEL — `EmissionFactureService::emettreAvoir($facture,
+  /// $montant, $motif)` de la PWA. La facture d'origine reste INCHANGÉE (elle
+  /// n'est pas annulée) ; l'avoir est une pièce à part, d'une ligne du
+  /// [montant] (en francs entiers), qui diminue son reste dû.
+  ///
+  /// Rend l'avoir émis. Lève [AvoirMontantNul] ou [AvoirExcessif] (la règle du
+  /// service : jamais plus que le TTC de la facture).
+  Future<PieceFacturation> emettreAvoirPartiel(
+    String pieceId,
+    int montant,
+    String motif,
+  );
 }
 
 /// Ce qu'il faut pour émettre une pièce — les lignes y sont déjà **décidées**.
@@ -87,6 +101,9 @@ final class BrouillonFacture {
     this.panierId,
     this.modePaiement,
     this.pointVente,
+    this.acheteurIfu,
+    this.acheteurNom,
+    this.retenirIfu = false,
   });
 
   final OrigineFacture origine;
@@ -100,6 +117,13 @@ final class BrouillonFacture {
   final String? panierId;
   final String? modePaiement;
   final String? pointVente;
+
+  /// L'ACHETEUR (décision du PO du 07/11/2026) : IFU du client — facultatif, 13 chiffres
+  /// s'il est rempli (`IfuClient`), vide = client sans IFU —, son nom, et « Retenir pour ce
+  /// client » (décoché par défaut) : le serveur range l'IFU sur la fiche.
+  final String? acheteurIfu;
+  final String? acheteurNom;
+  final bool retenirIfu;
 
   int get montantTotal => lignes.fold(0, (t, l) => t + l.montant);
 }
@@ -175,6 +199,38 @@ final class FactureDejaAnnulee implements Exception {
       'fois le même montant en négatif.';
 }
 
+/// Une facture NORMALISÉE est figée : sa normalisation ne se refait ni ne
+/// s'écrase jamais (07/11/2026). Sa correction est un AVOIR, qui passe aussi par
+/// le boîtier (`rt = FA`, `rn = NIM-TC`).
+final class FactureDejaNormalisee implements Exception {
+  const FactureDejaNormalisee(this.numero);
+  final String numero;
+
+  @override
+  String toString() =>
+      'La facture $numero est déjà normalisée : elle ne se modifie ni ne se '
+      'renormalise. Pour la corriger, émettez un avoir.';
+}
+
+/// Un avoir sur une facture NORMALISÉE se fait EN LIGNE (décision du PO du 07/11/2026) : hors
+/// ligne, interrupteur « Synchronisation activée » éteint ou serveur injoignable, le geste est
+/// REFUSÉ avec cette phrase — la même qu'au serveur (`facturation.avoir_en_ligne`) — et RIEN
+/// n'est écrit localement.
+final class AvoirEnLigneRequis implements Exception {
+  const AvoirEnLigneRequis();
+
+  @override
+  String toString() => TextesFacturationModes.avoirEnLigne;
+}
+
+/// L'IFU du client saisi n'a pas 13 chiffres (il est facultatif : vide est valide).
+final class IfuClientInvalide implements Exception {
+  const IfuClientInvalide();
+
+  @override
+  String toString() => TextesIfuClient.invalide;
+}
+
 /// Un avoir ne s'annule pas — il est déjà la correction.
 final class AvoirNonAnnulable implements Exception {
   const AvoirNonAnnulable(this.numero);
@@ -184,6 +240,25 @@ final class AvoirNonAnnulable implements Exception {
   String toString() =>
       'La pièce $numero est un avoir : il neutralise déjà une facture. '
       'L’annuler reviendrait à ré-émettre le montant sans le dire.';
+}
+
+/// Un avoir ne dépasse jamais le TTC de sa facture — la règle d'
+/// `EmissionFactureService::emettreAvoir`, dite avec SA phrase
+/// (`facturation.avoir_montant_excessif`).
+final class AvoirExcessif implements Exception {
+  const AvoirExcessif();
+
+  @override
+  String toString() =>
+      "Le montant de l'avoir ne peut pas dépasser celui de la facture.";
+}
+
+/// Un avoir porte un montant strictement positif (`gt:0` de la vue).
+final class AvoirMontantNul implements Exception {
+  const AvoirMontantNul();
+
+  @override
+  String toString() => "Le montant de l'avoir doit être supérieur à zéro.";
 }
 
 /// Une annulation sans motif est indistinguable d'une erreur de manipulation.

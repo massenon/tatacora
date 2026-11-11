@@ -32,13 +32,10 @@ import '../providers_pos.dart';
 ///
 /// ## Ce que la vue rend et que cette colonne ne rend pas
 ///
-/// - **La mention « Tourisme et location ne sont pas encaissables au comptoir »**
-///   (l.161-163, `prestation_refusee`). La vue refuse ces prestations parce que
-///   leur prix devrait être saisi au clavier (`MODULES_ENCAISSABLES`). Sur ce
-///   poste, `PanierDao.ajouterLigne` fige prix et libellé DEPUIS le catalogue
-///   local (règle 3) : le motif est faux ici, et l'afficher interdirait un
-///   geste que le poste sait faire. Relu le 09/10/2026 contre `gerer_panier`
-///   et `catalogue_dao.dart` ; les prestations restent ajoutables.
+/// - La mention `prestation_refusee` et la carte grisée d'une prestation
+///   n'existent plus : depuis le 26/10/2026 (directive du PO), « Tourisme » et
+///   « Location » ne sont plus PROPOSÉS à la sélection — le catalogue ne porte
+///   que le bar et le restaurant ([modulesProposesAuPos]).
 class CatalogueHeberges extends ConsumerStatefulWidget {
   const CatalogueHeberges({
     required this.actif,

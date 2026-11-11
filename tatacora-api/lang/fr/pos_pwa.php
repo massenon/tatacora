@@ -60,7 +60,7 @@ return [
     // =====================================================================
 
     'comptant' => [
-        'titre_page' => 'Point de vente comptant — TATACORA AFRIQUE',
+        'titre_page' => 'Point de vente comptant — LogiReStock — TATACORA AFRIQUE',
 
         // maitre — pos.html l.34-35
         'salle' => 'Salle',
@@ -85,7 +85,7 @@ return [
 
         // maitre — pos.html l.488-503
         'point_orange_infobulle' => 'Vendable, mais ne décrémente aucun stock — fiche technique absente',
-        'point_orange_legende' => 'Point orange : article vendable qui ne décrémente aucun stock, faute de fiche technique (EF-M4-02).',
+        'point_orange_legende' => 'Point orange : article vendable qui ne décrémente aucun stock, faute de fiche technique.',
 
         /*
          * AJOUT AU MAÎTRE (04/09/2026) — la marque « composition provisoire ».
@@ -114,17 +114,6 @@ return [
         'panier_choisir' => 'Choisissez une table ou le comptoir dans la salle.',
         'panier_vide' => 'Panier vide',
         'panier_vide_aide' => 'Touchez un article pour l\'ajouter.',
-        /*
-         * PROPRE a la PWA — PA-161, 31/08/2026. Le panier est desormais une
-         * TABLE : il survit au rechargement de la page, au changement de
-         * navigateur et a la releve d'equipe. Ce qu'il ne fait PAS, et que la
-         * phrase dit : partir vers un autre poste. `paniers` n'est pas au
-         * registre `TABLES_SYNCHRONISABLES` ; ecrire « en attente de
-         * synchronisation » annoncerait un depart qui n'aura jamais lieu
-         * (PA-59/60/61).
-         */
-        'panier_sur_ce_poste' => 'Enregistré sur ce poste : le panier reste ouvert après un '
-            .'changement d’équipe ou de navigateur. Il ne part vers aucun autre poste.',
         'articles' => ':nombre article(s)',
         'vider' => 'Vider',
         'abandonner' => 'Abandonner',
@@ -164,17 +153,6 @@ return [
             .'Le panier reste intact.',
         'rupture_confirmer' => 'Vendre quand même',
 
-        /*
-         * ECART DECLARE, DATE — 31/08/2026. Le maitre (pos.html l.504-510)
-         * affiche un bandeau rouge listant les articles « au prix provisoire ».
-         * Aucune colonne du schema ne porte cette notion : ni `cartes_boisson`
-         * ni `plats` n'ont de drapeau de prix provisoire. Le rendre exigerait
-         * de le DEVINER sur une donnee monetaire. Cette ligne dit qu'il n'est
-         * pas rendu, plutot que de laisser croire que tous les prix sont
-         * confirmes.
-         */
-        'sans_prix_provisoire' => 'Aucun prix n’est signalé comme provisoire : '
-            .'le schéma ne porte pas cette information (31/08/2026).',
         // maitre — pos.html l.619
         'encaisser_sans_caisse' => 'Ouvrez la caisse pour encaisser',
         // maitre — pos.html l.596
@@ -276,24 +254,25 @@ return [
          * reformulation — un titre reformule est un ecart de gabarit, au meme
          * titre qu'une classe changee.
          */
-        'titre_page' => 'Point de vente — clients hébergés — TATACORA AFRIQUE',
+        'titre_page' => 'Point de vente — clients hébergés — LogiReStock — TATACORA AFRIQUE',
 
         // maitre — pos-heberges.html l.24-28
         'titre' => 'Point de vente — clients hébergés',
-        'sous_titre' => 'Le panier reste ouvert de l’arrivée au départ. Bar, restaurant, '
-            .'tourisme et location y entrent ensemble — un seul panier, une seule facture à la clôture.',
+        'sous_titre' => 'Le panier reste ouvert de l’arrivée au départ. Bar et '
+            .'restaurant y entrent ensemble — un seul panier, une seule facture à la clôture.',
 
         // maitre — pos-heberges.html l.38-39
         'sejours' => 'Séjours en cours',
         'sejours_aide' => 'Un panier par séjour, jamais deux.',
-        'sejours_vide' => 'Aucun séjour en cours. Le POS hébergés n’a de sens que pour un client présent.',
+        // Un séjour n'est offert ici qu'avec le STATUT `confirmee` ou `en_cours` (`PosHeberges::STATUTS_EN_SEJOUR`) :
+        // une réservation créée est `en_attente`, et seul le check-in la passe `en_cours`. L'écran Réservations,
+        // lui, affiche « En cours » d'après les DATES — d'où un POS vide face à des réservations « En cours ».
+        'sejours_vide' => 'Aucun séjour en cours. Le POS hébergés n’a de sens que pour un client présent. Aucune réservation en attente, confirmée ou en cours : créez-en une depuis Hébergement/Réservations, elle apparaît ici dès son enregistrement.',
         'badge_panier_ouvert' => 'PANIER OUVERT',
         'badge_aucun_panier' => 'AUCUN PANIER',
 
         // maitre — pos-heberges.html l.49
         'rechercher' => 'Rechercher une consommation ou une prestation…',
-        // maitre — pos-heberges.html l.150
-        'categorie_prestations' => 'Tourisme & location',
         'categorie_bar' => 'Bar',
         'categorie_restauration' => 'Restauration',
         // maitre — pos-heberges.html l.253
@@ -336,35 +315,6 @@ return [
         'facture_emise_consommations' => 'Consommations facturées pour :client. L\'hébergement reste dû '
             .'sur la fiche du client.',
 
-        /*
-         * PROPRE a la PWA — PA-161, 31/08/2026.
-         *
-         * ⚠ Cette cle REMPLACE `panier_volatil`, dont le motif a cesse d'etre
-         * vrai le jour ou la table `paniers` a ete livree. Elle disait :
-         * « Panier ouvert sur ce poste et dans ce navigateur seulement :
-         * aucune table ne le porte encore. Un changement d'équipe ou une
-         * session expirée le perd. » Un avertissement perime est pire qu'aucun
-         * — il fait cloturer par prudence un panier qui n'avait rien a
-         * craindre, et il apprend a ignorer le bandeau (PA-144).
-         *
-         * Ce qui reste vrai est dit, et rien de plus : le panier ne part vers
-         * aucun autre poste, `paniers` n'etant pas au registre
-         * `TABLES_SYNCHRONISABLES`. Annoncer une synchronisation qui n'aura
-         * pas lieu serait PA-59/60/61.
-         */
-        'panier_sur_ce_poste' => 'Panier ouvert de l’arrivée au départ : il survit au changement '
-            .'d’équipe et de navigateur. Enregistré sur ce poste — il ne part vers aucun autre.',
-
-        /*
-         * PROPRE a la PWA — PA-24. `MODULES_ENCAISSABLES` vaut ['M4','M5'] :
-         * ni le tourisme ni la location n'ont de catalogue d'ou FIGER un prix
-         * cote serveur. Les accepter obligerait l'ecran a transmettre un
-         * montant au clavier. Les articles restent AFFICHES avec leur raison
-         * plutot qu'omis : un rayon absent ne se distingue pas d'un rayon vide.
-         */
-        'prestation_refusee' => 'Tourisme et location ne sont pas encaissables au comptoir '
-            .'(31/08/2026) : leur prix devrait être saisi au clavier, ce que le registre des '
-            .'ventes refuse. Ces prestations passent par leur propre module.',
 
         // Messages d'issue.
         'facture_emise' => 'Séjour facturé. Panier clôturé et facture émise pour :client.',
@@ -390,7 +340,7 @@ return [
     // =====================================================================
 
     'journal' => [
-        'titre_page' => 'Historique des ventes — TATACORA AFRIQUE',
+        'titre_page' => 'Historique des ventes — LogiReStock — TATACORA AFRIQUE',
 
         /*
          * L'ACCORDÉON de la bande d'indicateurs (03/09/2026, demande du

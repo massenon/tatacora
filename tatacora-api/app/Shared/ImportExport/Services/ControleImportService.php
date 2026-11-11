@@ -7,6 +7,7 @@ namespace App\Shared\ImportExport\Services;
 use App\Shared\ImportExport\Data\ColonneImport;
 use App\Shared\ImportExport\Data\ModuleImport;
 use App\Shared\ImportExport\Data\RapportControle;
+use App\Domain\Restaurant\Services\RapprochementPlatsStockService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -53,7 +54,7 @@ class ControleImportService
         [$carte, $inconnues, $manquantes] = $this->correspondance($module, $tableau[0]);
 
         foreach ($manquantes as $libelle) {
-            $erreurs[] = ['ligne' => 1, 'colonne' => $libelle, 'message' => __('imports.controle.colonne_manquante', ['libelle' => $libelle])];
+            $erreurs[] = ['ligne' => 1, 'colonne' => $libelle, 'message' => __('imports.controle.colonne_manquante', ['libelle' => $libelle, 'trouvees' => $this->entetesTrouvees($tableau[0])])];
         }
 
         // Une colonne en trop n'empêche pas l'import : ignorée, et on le dit.
@@ -65,6 +66,12 @@ class ControleImportService
         foreach (array_slice($tableau, 1) as $indice => $brute) {
             if (array_filter($brute, static fn ($v): bool => trim((string) $v) !== '') !== []) {
                 // +2 : l'en-tête est la ligne 1, l'utilisateur compte comme Excel.
+                if (app(TableurService::class)->estLigneExemple($brute)) {
+                    $avertissements[] = ['ligne' => $indice + 2, 'colonne' => null, 'message' => __('imports.controle.ligne_exemple_ignoree')];
+
+                    continue;
+                }
+
                 $corps[$indice + 2] = $brute;
             }
         }
@@ -81,6 +88,7 @@ class ControleImportService
         $vusDansFichier = [];
         $lignesValides = [];
         $lignesEnErreur = [];
+        $ignorees = 0;
 
         foreach ($corps as $numero => $brute) {
             $objet = [];
@@ -115,6 +123,13 @@ class ControleImportService
                     if ($module->doublonExistantBloquant) {
                         $erreurs[] = ['ligne' => $numero, 'colonne' => $libelleIdentifiant, 'message' => __('imports.controle.doublon_existant_bloquant', ['valeur' => (string) $objet[$module->identifiant]])];
                         $lignesEnErreur[$numero] = true;
+                    } elseif ($module->doublonExistantIgnore && ! isset($lignesEnErreur[$numero])) {
+                        // La CARTE (09/11/2026) : un import ne crée jamais de doublon
+                        // et n'écrase rien — la ligne est ignorée, et on le dit.
+                        $avertissements[] = ['ligne' => $numero, 'colonne' => $libelleIdentifiant, 'message' => __('imports.controle.doublon_existant_ignore', ['valeur' => (string) $objet[$module->identifiant]])];
+                        $ignorees++;
+
+                        continue;
                     } else {
                         // Doublon avec l'EXISTANT : avertissement — souvent un
                         // rechargement volontaire, bloquer interdirait de
@@ -140,43 +155,34 @@ class ControleImportService
                 'valides' => count($lignesValides),
                 'en_erreur' => count($lignesEnErreur),
             ],
+            ignorees: $ignorees,
         );
     }
 
     /**
-     * Découpe un flux CSV — séparateur point-virgule OU virgule, celui des
-     * deux que l'en-tête emploie le plus (le maître accepte les deux,
-     * `import-export.html` l.86).
+     * Découpe un flux CSV — séparateur point-virgule, virgule OU tabulation
+     * (celui que la première ligne emploie le plus), BOM UTF-8, UTF-16 ou
+     * Windows-1252 : voir `TableurService::lireCsv()`.
      *
      * @return list<list<string>>
      */
     public function analyserCsv(string $contenu): array
     {
-        // Le BOM UTF-8 d'Excel ferait échouer la correspondance de la
-        // première colonne — retiré, jamais compté comme du texte.
-        if (str_starts_with($contenu, "\u{FEFF}")) {
-            $contenu = substr($contenu, 3);
-        }
+        return app(TableurService::class)->lireCsv($contenu);
+    }
 
-        $lignesBrutes = preg_split('/\r\n|\r|\n/', $contenu) ?: [];
-        $premiere = $lignesBrutes[0] ?? '';
-        $separateur = substr_count($premiere, ';') >= substr_count($premiere, ',') ? ';' : ',';
-
-        $tableau = [];
-        foreach ($lignesBrutes as $ligne) {
-            if (trim($ligne) === '') {
-                // Une ligne vide n'est pas une erreur, c'est un blanc — mais sa
-                // POSITION est conservée pour que les numéros restent ceux
-                // qu'Excel affiche à l'utilisateur.
-                $tableau[] = [''];
-
-                continue;
-            }
-
-            $tableau[] = array_map(strval(...), str_getcsv($ligne, $separateur, '"', '\\'));
-        }
-
-        return $tableau;
+    /**
+     * Lit un fichier déposé — `.xlsx` d'abord, CSV en secours — et rend les
+     * lignes brutes, l'en-tête en premier. LÈVE avec un message français si
+     * le fichier est illisible.
+     *
+     * @return list<list<string>>
+     *
+     * @throws \RuntimeException
+     */
+    public function analyserFichier(string $chemin, string $nomOriginal = ''): array
+    {
+        return app(TableurService::class)->lire($chemin, $nomOriginal);
     }
 
     // ------------------------------------------------------------- interne
@@ -200,7 +206,8 @@ class ControleImportService
 
             $trouvee = null;
             foreach ($module->colonnes as $colonne) {
-                if ($this->normaliser($colonne->libelle) === $normalise || $this->normaliser($colonne->champ) === $normalise) {
+                if ($this->normaliser($colonne->libelle) === $normalise || $this->normaliser($colonne->champ) === $normalise
+                    || in_array($normalise, array_map(fn (string $a): string => $this->normaliser($a), $colonne->alias), true)) {
                     $trouvee = $colonne;
                     break;
                 }
@@ -221,6 +228,19 @@ class ControleImportService
         }
 
         return [$carte, $inconnues, $manquantes];
+    }
+
+    /**
+     * Les en-têtes lus, pour que le message dise ce que le fichier contient
+     * VRAIMENT — une seule « colonne » à rallonge trahit un séparateur perdu.
+     *
+     * @param  list<string>  $entetes
+     */
+    private function entetesTrouvees(array $entetes): string
+    {
+        $lues = array_values(array_filter(array_map(static fn ($v): string => trim((string) $v), $entetes), static fn (string $v): bool => $v !== ''));
+
+        return $lues === [] ? __('imports.controle.aucune_entete') : implode(' ; ', $lues);
     }
 
     /** Vérifie une cellule contre le type déclaré — `null` : rien à redire. */
@@ -256,6 +276,10 @@ class ControleImportService
             }
 
             return null;
+        }
+
+        if ($colonne->type === 'texte' && $colonne->longueurMax !== null && mb_strlen($brut) > $colonne->longueurMax) {
+            return __('imports.controle.texte_trop_long', ['colonne' => $colonne->libelle, 'maximum' => $colonne->longueurMax]);
         }
 
         if ($colonne->type === 'reference') {
@@ -315,8 +339,27 @@ class ControleImportService
 
         $identifiant = DB::table($table)->where($champ, $libelle)->value('id');
 
-        return is_string($identifiant) ? $identifiant : null;
+        if (is_string($identifiant)) {
+            return $identifiant;
+        }
+
+        // Le point « Cuisine » (09/11/2026, PO) : le modèle Stocks de la carte y
+        // range les articles de la cuisine. S'il n'existe pas encore, le
+        // contrôle l'ACCEPTE (jamais d'écriture ici) et l'import le crée par le
+        // chemin du domaine — refuser « Cuisine » rendrait le modèle inimportable
+        // sur une base neuve, et c'est l'unique point qu'on crée ainsi : toute
+        // autre référence inconnue reste une erreur (faute de frappe ≠ doublon).
+        if ($table === 'points_stockage' && $this->normaliser($libelle) === $this->normaliser(RapprochementPlatsStockService::LIBELLE_POINT)) {
+            $cuisine = DB::table('points_stockage')->whereIn('type', [RapprochementPlatsStockService::TYPE_POINT, 'restaurant'])->orderBy('libelle')->value('id');
+
+            return is_string($cuisine) ? $cuisine : self::POINT_CUISINE_A_CREER;
+        }
+
+        return null;
     }
+
+    /** Valeur convertie d'un point « Cuisine » qui n'existe pas encore — créé à l'import. */
+    public const POINT_CUISINE_A_CREER = '@cuisine-a-creer';
 
     /**
      * @return list<string> identifiants existants, normalisés
@@ -353,11 +396,7 @@ class ControleImportService
     /** Casse et accents neutralisés — le SENS, jamais (voir l'entête). */
     private function normaliser(string $texte): string
     {
-        $texte = mb_strtolower(trim($texte));
-
-        $translit = transliterator_transliterate('NFD; [:Nonspacing Mark:] Remove; NFC', $texte);
-
-        return is_string($translit) ? $translit : $texte;
+        return app(TableurService::class)->normaliser($texte);
     }
 
     private function refusGlobal(string $message): RapportControle

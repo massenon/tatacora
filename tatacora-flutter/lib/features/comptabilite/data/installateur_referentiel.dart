@@ -39,7 +39,7 @@ final class BilanInstallation {
 }
 
 /// Installe le référentiel comptable du serveur sur ce poste : les sept centres
-/// de coût, les cinq journaux, le plan comptable du PO (importé de
+/// de coût, les journaux (les cinq du seeder et les deux de la clôture), le plan comptable du PO (importé de
 /// [contenuPlan] par `lirePlanComptable`, UNE fonction) et l'exercice de
 /// l'année. Réplique de `ComptabiliteReferentielSeeder`.
 ///
@@ -118,7 +118,12 @@ Future<BilanInstallation> installerReferentielComptable(
       for (final j in await db.select(db.journauxLocal).get()) j.code,
     };
     var journauxCrees = 0;
-    for (final e in ComptesSyscohada.journaux.entries) {
+    // Les cinq journaux du seeder, puis les deux de la CLÔTURE (CL, AN) : le
+    // serveur les porte depuis la migration de la clôture annuelle.
+    for (final e in [
+      ...ComptesSyscohada.journaux.entries,
+      ...ComptesSyscohada.journauxDeCloture.entries,
+    ]) {
       if (journauxExistants.contains(e.key)) continue;
       await db
           .into(db.journauxLocal)

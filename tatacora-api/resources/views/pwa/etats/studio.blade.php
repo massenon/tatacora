@@ -125,7 +125,6 @@
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.5" class="mx-auto mb-4"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
                   <p class="text-[15px] font-semibold" style="color:var(--navy)">{{ __('pwa.etats.accueil_titre') }}</p>
                   <p class="text-[13px] text-slate-500 mt-2">{{ __('pwa.etats.accueil_detail', ['total' => $totalAccessibles]) }}</p>
-                  <p class="text-[12px] text-slate-400 mt-4">{!! __('pwa.etats.accueil_rbac') !!}</p>
                 </div>
               </div>
             </div>
@@ -143,6 +142,15 @@
                       <span class="text-slate-300">·</span> {{ __('pwa.etats.lignes', ['nombre' => $resultat->nombreLignes()]) }}
                     </p>
                   </div>
+                  {{-- État « Locations » seulement : la case décochée par
+                       défaut. Un contrat annulé coché n'est JAMAIS compté
+                       (voir `EtatLocations`). Propriété, pas action. --}}
+                  @if ($offreCaseAnnules)
+                    <label class="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer sans-impression">
+                      <input type="checkbox" wire:model.live="inclureAnnules" class="rounded border-slate-300">
+                      {{ __('pwa.etats.inclure_annules') }}
+                    </label>
+                  @endif
                 </div>
                 @if ($resultat->kpis !== [])
                   <div class="flex flex-wrap gap-2 mt-3">

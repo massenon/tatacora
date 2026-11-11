@@ -49,6 +49,23 @@ enum FormatTexte {
   /// domaine pointé. Il protège un en-tête imprimé et, depuis le 14/10/2026,
   /// l'expéditeur des messages à l'éditeur (`email_smtp_utilisateur`).
   courriel,
+
+  /// `regex:/^[1-9][0-9]{1,3}$/` du serveur — LA règle du numéro de compte
+  /// (`PlanComptableService::NUMERO_COMPTE_FORMAT`, `RegleNumeroCompte`). Sa
+  /// validation complète (existence au plan, classe du rôle, compte imputable)
+  /// est celle de la correspondance des comptes, pas celle d'un texte.
+  numeroCompte,
+
+  /// `regex:/^[0-9]{13}$/` du serveur (`ReglagesMecef::FORMAT_IFU`) — l'IFU
+  /// béninois : 13 chiffres. Le même IFU sert le boîtier et e-MECeF.
+  ifu,
+
+  /// `regex:/^[A-Za-z0-9]+$/` du serveur — la RÉFÉRENCE FACTURE (`GCN`) : lettres et chiffres.
+  alphanumerique,
+
+  /// `regex:/^https:\/\/[^\s]+$/i` du serveur — l'adresse de l'API de la DGI :
+  /// `https://` exigé.
+  urlHttps,
 }
 
 /// Pourquoi un taux confirmé de la paie ne peut pas être vidé.
@@ -71,14 +88,14 @@ final class SpecParametre {
     required this.type,
     this.choix = const [],
     this.aide,
-    this.note,
-    this.correction,
     this.longueurMax,
     this.minimum,
     this.maximum,
     this.format = FormatTexte.libre,
     this.videRefuse,
     this.lecteur,
+    this.choixLibelles = const {},
+    this.reserveAdministrateur = false,
   });
 
   final String cle;
@@ -89,21 +106,6 @@ final class SpecParametre {
   final TypeParametre type;
   final List<String> choix;
   final String? aide;
-
-  /// Une phrase PROPRE À CE POSTE, rendue à part de l'aide du serveur (qui doit
-  /// rester identique mot pour mot à la vue Blade). Elle porte aujourd'hui le
-  /// refus des secrets : sur les trois clés voisines d'un secret, elle dit que
-  /// ce secret n'est enregistrable nulle part ici.
-  final String? note;
-
-  /// Une CORRECTION visible en ligne, sous l'aide : l'aide du serveur affirme
-  /// un fait faux sur ce poste (« imprimé dans l'en-tête des états », « la
-  /// facture lèverait au comptoir » (ici c'est la clôture de la VENTE), « DÉMARRE la suppression de traces
-  /// d'audit », « tous les modules »). Décision du Lead (D114) : l'honnêteté
-  /// prime sur la mesure de géométrie pour ces huit clés (la huitième,
-  /// `activation_suppression`, depuis D278) ; les autres clés sans lecteur
-  /// gardent l'infobulle. Courte — une ligne — pour limiter l'écart à la vue.
-  final String? correction;
 
   /// Longueur maximale d'un texte (`max:N` d'un `string`).
   final int? longueurMax;
@@ -119,6 +121,26 @@ final class SpecParametre {
 
   /// Le fichier qui LIT cette clé sur ce poste, ou `null` si personne.
   final String? lecteur;
+
+  /// Le libellé affiché de chaque choix (`choixLibelles` de la définition du
+  /// serveur) : la valeur stockée est un code technique (`boitier`), l'écran dit
+  /// « Boîtier CC300 (poste) », comme la vue. Vide : la valeur stockée EST le
+  /// libellé.
+  final Map<String, String> choixLibelles;
+
+  /// RÉSERVÉ aux Administrateurs (09/11/2026, décision du PO : « le poste fait ce
+  /// que le web fait ») : le mode de facturation, l'adresse de l'API de la DGI,
+  /// l'opérateur et la forme juridique se règlent ici COMME au web — « Modifier »
+  /// n'apparaît que pour un administrateur (`peutAdministrerComptes`), et
+  /// `EnregistrerParametres` refuse tout autre auteur avec la phrase du serveur.
+  /// Le serveur rejoue la règle sur le compte du JETON D'APPAIRAGE
+  /// (`GestionnaireParametres::refusDeDroit`). Aucune clé du registre n'est
+  /// « serveur seulement » : le JETON e-MECeF, seul secret, n'y figure pas (il ne
+  /// descend ni ne se saisit jamais ici).
+  final bool reserveAdministrateur;
+
+  /// Le libellé affiché de [valeur] : celui de la vue, sinon la valeur elle-même.
+  String libelleDuChoix(String valeur) => choixLibelles[valeur] ?? valeur;
 }
 
 /// Le registre fermé.
@@ -200,8 +222,6 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       aide:
           'Le numéro, pas la clé d’API — celle-ci vit en configuration serveur. Imprimé dans l’en-tête des états quand il est renseigné.',
-      note:
-          'Sur ce poste, aucune clé d’API WhatsApp n’est enregistrable : un secret n’entre jamais dans cette base.',
       longueurMax: 40,
       format: FormatTexte.telephone,
       lecteur: 'lib/core/impression/entete_etablissement.dart',
@@ -221,7 +241,8 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       aide:
           'L’IFU est obligatoire pour la facturation MECeF. Laissé vide, la mention n’apparaît sur aucun document : imprimer un exemple de format serait un faux identifiant fiscal.',
-      longueurMax: 30,
+      // 13 chiffres depuis le 07/11/2026 (facturation normalisée), comme le serveur.
+      format: FormatTexte.ifu,
       lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
@@ -240,9 +261,157 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       aide:
           'Fourni par la DGI. Identifiant, donc paramétrable — la CLÉ D’API MECeF, elle, vit en configuration serveur et n’apparaîtra jamais ici.',
-      note:
-          'Sur ce poste, aucune clé d’API MECeF n’est enregistrable : un secret n’entre jamais dans cette base.',
       longueurMax: 30,
+    ),
+    // --- Forme juridique (09/11/2026) : réservée aux Administrateurs, au web comme sur ce poste.
+    SpecParametre(
+      cle: 'forme_juridique',
+      groupe: 'entreprise',
+      libelle: 'Forme juridique',
+      type: TypeParametre.choix,
+      choix: ['entreprise_individuelle', 'sarl', 'sa'],
+      choixLibelles: {
+        'entreprise_individuelle': 'Entreprise individuelle',
+        'sarl': 'SARL',
+        'sa': 'SA',
+      },
+      aide:
+          'Commande l’affectation du résultat. Entreprise individuelle (défaut du Gîte) : ni réserve légale, ni dividendes, ni procès-verbal d’assemblée ; le bénéfice revient à l’exploitant, au report à nouveau ou aux réserves. SARL et SA : réserve légale obligatoire, dividendes encadrés. Réservé aux Administrateurs ; refusé tant qu’une affectation du résultat est active.',
+      lecteur: 'lib/features/comptabilite/domain/forme_juridique.dart',
+      reserveAdministrateur: true,
+    ),
+    // --- Documents commerciaux (factures A4, proformas), PO 07/11/2026 : modifiables ici depuis le 09/11/2026 (droit PARAM, comme au web).
+    SpecParametre(
+      cle: 'entreprise_activites',
+      groupe: 'entreprise',
+      libelle: 'Activités (en-tête des factures)',
+      type: TypeParametre.texte,
+      aide:
+          'Ligne en gras souligné de l’en-tête, ex. « Tourisme, Hébergement, Restauration ». Vide : absente.',
+      longueurMax: 255,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+    ),
+    SpecParametre(
+      cle: 'entreprise_facebook',
+      groupe: 'entreprise',
+      libelle: 'Page Facebook',
+      type: TypeParametre.texte,
+      longueurMax: 150,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+    ),
+    SpecParametre(
+      cle: 'entreprise_ville_emission',
+      groupe: 'entreprise',
+      libelle: 'Ville du lieu d’émission',
+      type: TypeParametre.texte,
+      aide: 'Imprimée avant la date, ex. « Natitingou, le 02 Novembre 2026 ».',
+      longueurMax: 80,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+    ),
+    SpecParametre(
+      cle: 'facture_reference',
+      groupe: 'entreprise',
+      libelle: 'Référence facture',
+      type: TypeParametre.texte,
+      aide:
+          'Porte le numéro des proformas : N°0045 FP-GCN/2026. Vide : GCN. Ne renumérote jamais une proforma déjà émise.',
+      longueurMax: 10,
+      format: FormatTexte.alphanumerique,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+    ),
+    SpecParametre(
+      cle: 'signataire_nom',
+      groupe: 'entreprise',
+      libelle: 'Signataire — nom',
+      type: TypeParametre.texte,
+      longueurMax: 100,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+    ),
+    SpecParametre(
+      cle: 'signataire_fonction',
+      groupe: 'entreprise',
+      libelle: 'Signataire — fonction',
+      type: TypeParametre.texte,
+      longueurMax: 100,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+    ),
+    SpecParametre(
+      cle: 'facture_signature_affichee',
+      groupe: 'entreprise',
+      libelle: 'Afficher la signature et le cachet sur les factures',
+      type: TypeParametre.booleen,
+      aide:
+          'Vaut pour les proformas ET les factures (PDF A4 ; le ticket n’en porte jamais). Non : aucun bloc signature. Oui sans image déposée : nom et fonction seulement.',
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+    ),
+    SpecParametre(
+      cle: 'proforma_validite_affichee',
+      groupe: 'entreprise',
+      libelle: 'Afficher la date de validité sur les proformas',
+      type: TypeParametre.booleen,
+      aide:
+          'Défaut Non. Calculée à l’émission et enregistrée sur la proforma : changer ce réglage ne modifie pas les proformas déjà émises.',
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+    ),
+    SpecParametre(
+      cle: 'proforma_validite_jours',
+      groupe: 'entreprise',
+      libelle: 'Durée de validité d’une proforma (jours)',
+      type: TypeParametre.entier,
+      aide: 'Défaut 30 jours.',
+      minimum: '1',
+      maximum: '365',
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+    ),
+    // --- Facturation normalisée (MECeF), 07/11/2026 : modifiable ici par un
+    // Administrateur depuis le 09/11/2026. Le JETON e-MECeF n'est PAS au registre :
+    // il ne descend jamais et ne se saisit jamais sur ce poste.
+    SpecParametre(
+      cle: 'facturation_mode',
+      groupe: 'mecef',
+      libelle: 'Mode',
+      type: TypeParametre.choix,
+      choix: ['desactive', 'emecef', 'boitier'],
+      choixLibelles: {
+        'desactive': 'Désactivé',
+        'emecef': 'e-MECeF (en ligne)',
+        'boitier': 'Boîtier CC300 (poste)',
+      },
+      aide:
+          'Désactivé : factures de démonstration, sans valeur fiscale. e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, même hors ligne. Réservé aux Administrateurs.',
+      lecteur: 'lib/features/facturation/domain/mode_facturation.dart',
+      reserveAdministrateur: true,
+    ),
+    SpecParametre(
+      cle: 'mecef_api_url',
+      groupe: 'mecef',
+      libelle: 'Adresse de l’API de la DGI',
+      type: TypeParametre.texte,
+      aide:
+          'https:// exigé. Vide : developper.impots.bj/sygmef-emcf/api (adresse de la DGI).',
+      longueurMax: 255,
+      format: FormatTexte.urlHttps,
+      // Aucun lecteur sur ce poste : seul le SERVEUR appelle l'API de la DGI.
+      reserveAdministrateur: true,
+    ),
+    SpecParametre(
+      cle: 'mecef_operateur_id',
+      groupe: 'mecef',
+      libelle: 'Identifiant de l’opérateur',
+      type: TypeParametre.texte,
+      longueurMax: 30,
+      lecteur: 'lib/features/facturation/data/service_normalisation.dart',
+      reserveAdministrateur: true,
+    ),
+    SpecParametre(
+      cle: 'mecef_operateur_nom',
+      groupe: 'mecef',
+      libelle: 'Nom de l’opérateur',
+      type: TypeParametre.texte,
+      aide: '30 caractères au plus (limite du boîtier).',
+      longueurMax: 30,
+      lecteur: 'lib/features/facturation/data/service_normalisation.dart',
+      reserveAdministrateur: true,
     ),
     SpecParametre(
       cle: 'tva_active',
@@ -255,9 +424,6 @@ abstract final class RegistreParametresLocal {
       // mot, confrontée à la vue : l'écart est NOMMÉ ici, dans la correction.
       // Sur ce poste ce n'est pas la facture qui est refusée sans taux, c'est la
       // CLÔTURE de la vente (`RefusTva` de `PanierDao.cloturer`).
-      correction:
-          'Sur ce poste : HT/TVA ventilés dans la pièce des ventes ; sans taux, '
-          'la vente est refusée.',
       groupe: 'fiscalite',
       libelle: 'Assujettissement à la TVA',
       type: TypeParametre.booleen,
@@ -280,6 +446,10 @@ abstract final class RegistreParametresLocal {
       libelle: 'Convention des prix du catalogue',
       type: TypeParametre.choix,
       choix: ['ht', 'ttc'],
+      choixLibelles: {
+        'ht': 'HT — la TVA s’ajoute aux tarifs',
+        'ttc': 'TTC — la TVA est extraite des tarifs',
+      },
       aide:
           '« ht » : la TVA s’ajoute aux tarifs. « ttc » : elle en est extraite.',
       lecteur: 'lib/features/comptabilite/domain/calcul_tva.dart',
@@ -290,6 +460,11 @@ abstract final class RegistreParametresLocal {
       libelle: 'Régime fiscal',
       type: TypeParametre.choix,
       choix: ['reel_normal', 'reel_simplifie', 'tpu'],
+      choixLibelles: {
+        'reel_normal': 'Réel normal',
+        'reel_simplifie': 'Réel simplifié',
+        'tpu': 'Taxe Professionnelle Unique',
+      },
       aide:
           'Imprimé avec l’IFU et le RCCM dans les mentions légales des états quand il est renseigné.',
       lecteur: 'lib/core/impression/entete_etablissement.dart',
@@ -377,12 +552,37 @@ abstract final class RegistreParametresLocal {
       lecteur: 'lib/features/hebergement/domain/annulation_reservation.dart',
     ),
     SpecParametre(
+      cle: 'hebergement_annulation_seuil_heures',
+      groupe: 'exploitation',
+      libelle: 'Annulation — seuil du délai avant l’arrivée (heures)',
+      type: TypeParametre.entier,
+      aide:
+          'Grille d’annulation : une annulation faite à moins de ce nombre d’heures avant la date d’arrivée prend le taux « moins de 24h » ; au-delà, le taux « au-delà du seuil ». Appliqué automatiquement à l’ouverture du formulaire (reste corrigeable). Référence : 24 h.',
+      minimum: '0',
+      maximum: '8760',
+      lecteur: 'lib/features/hebergement/domain/annulation_reservation.dart',
+    ),
+    SpecParametre(
+      cle: 'hebergement_annulation_taux_au_dela',
+      groupe: 'exploitation',
+      libelle: 'Annulation — taux au-delà du seuil (%)',
+      type: TypeParametre.decimal,
+      aide:
+          'Taux de commission d’une annulation faite avant le seuil d’heures (0 % par défaut). La commission se retient sur le montant déjà payé.',
+      minimum: '0',
+      maximum: '100',
+      lecteur: 'lib/features/hebergement/domain/annulation_reservation.dart',
+    ),
+    SpecParametre(
       cle: 'delai_preavis_conge_jours',
       groupe: 'exploitation',
       libelle: 'Préavis de congé (jours)',
       type: TypeParametre.entier,
       minimum: '0',
       maximum: '365',
+      // LUE depuis le 21/10/2026 : valider une demande de congé (RG-14) exige
+      // ce réglage et REFUSE sans lui (`conges_plannings_dao.dart`).
+      lecteur: 'lib/features/rh/data/conges_plannings_dao.dart',
     ),
     SpecParametre(
       cle: 'couverture_minimale_par_service',
@@ -391,11 +591,12 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.entier,
       minimum: '0',
       maximum: '100',
+      // LUE depuis le 21/10/2026 : valider une demande de congé (RG-14) exige
+      // ce réglage et REFUSE sans lui (`conges_plannings_dao.dart`).
+      lecteur: 'lib/features/rh/data/conges_plannings_dao.dart',
     ),
     SpecParametre(
       cle: 'duree_retention_audit_jours',
-      correction:
-          'Sur ce poste, aucune purge n’a lieu : pas de journal d’audit.',
       groupe: 'exploitation',
       libelle: 'Rétention du journal d’audit (jours)',
       type: TypeParametre.entier,
@@ -414,8 +615,6 @@ abstract final class RegistreParametresLocal {
       // LUE depuis le 14/10/2026 (Lot J2 partie 2) par l'envoi des messages à
       // l'éditeur (action réseau du poste). L'aide du serveur parle de
       // `.env`, qui n'existe pas ici : l'écart est NOMMÉ dans la correction.
-      correction:
-          'Sur ce poste : lu par « Contactez l’éditeur » ; vide, aucun message ne part (il reste en attente).',
       longueurMax: 150,
       lecteur: 'lib/features/transverse/data/envoi_messages_editeur.dart',
     ),
@@ -434,6 +633,7 @@ abstract final class RegistreParametresLocal {
       libelle: 'Sécurité',
       type: TypeParametre.choix,
       choix: ['tls', 'ssl', 'aucune'],
+      choixLibelles: {'tls': 'TLS', 'ssl': 'SSL', 'aucune': 'Aucune'},
       lecteur: 'lib/features/transverse/data/envoi_messages_editeur.dart',
     ),
     SpecParametre(
@@ -443,8 +643,6 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       aide:
           'Le mot de passe SMTP, lui, reste en configuration serveur (.env) et n’apparaîtra jamais ici.',
-      note:
-          'Sur ce poste, aucun mot de passe SMTP n’est enregistrable : un secret n’entre jamais dans cette base. Il se pose dans le fichier %APPDATA%\\TATACORA\\poste.json du poste.',
       format: FormatTexte.courriel,
       longueurMax: 150,
       lecteur: 'lib/features/transverse/data/envoi_messages_editeur.dart',
@@ -458,14 +656,14 @@ abstract final class RegistreParametresLocal {
           "Affiche le bouton Supprimer dans tous les modules. La suppression reste un archivage : l'élément part aux archives et peut être restauré.",
       // LUE depuis le 12/10/2026 (lot 7, D269) par les fournisseurs de M7, et
       // depuis le 13/10/2026 par le bouton d'archivage des unités d'hébergement
-      // (décision du PO : « comme dans la vue »). L'aide du serveur, identique mot pour mot à la vue,
-      // dit « tous les modules » : c'est faux sur ce poste (la Paie garde sa
-      // règle propre, D272 ; les autres écrans n'ont pas de bouton Supprimer
-      // branché sur la bascule). L'aide n'est donc PAS touchée ; l'écart est
-      // NOMMÉ dans la correction, comme pour `tva_active`.
-      correction:
-          'Sur ce poste : seuls les fournisseurs (M7) et les unités '
-          'd’hébergement (M1) honorent cette bascule ; la Paie garde sa règle.',
+      // (décision du PO : « comme dans la vue »), et depuis le 21/10/2026 par
+      // l'archivage des articles de stock (M6), des clients (M3) et du personnel
+      // (M13, 27/10/2026 : la Paie n'a plus de règle propre, D272 levée).
+      // L'aide du serveur, identique mot pour mot à la vue,
+      // dit « tous les modules » : c'est encore plus que ce poste ne fait (les
+      // autres écrans n'ont pas de bouton Supprimer branché sur la bascule).
+      // L'aide n'est donc PAS touchée ; l'écart est NOMMÉ dans la correction,
+      // comme pour `tva_active`.
       // Le lecteur est celui qui interroge la base : `suppressionActiveProvider`
       // (la règle d'archivage `peutArchiver` en est le consommateur).
       lecteur:
@@ -489,18 +687,238 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.booleen,
       aide:
           'Affiche les stocks critiques et les créances échues dès la connexion.',
-      // LUE depuis le 14/10/2026 (lot B, cloche de la barre supérieure) :
-      // fermée, la cloche ne dérive plus aucune alerte, comme au serveur
-      // (`AlertesOuverture::pour()`). Les deux modales d'ouverture de session
-      // de la vue ne sont pas portées sur ce poste : l'aide (celle de la vue,
-      // non touchée) promet plus que ce que le poste fait, l'écart est NOMMÉ
-      // dans la correction.
-      correction:
-          'Sur ce poste : seule la cloche de la barre supérieure honore cette '
-          "bascule ; les fenêtres d'alertes à la connexion ne sont pas portées.",
+      // LUE : la cloche de la barre supérieure (lot B, 14/10/2026) et, depuis
+      // le 27/10/2026 (A2), les deux modales d'ouverture de session
+      // (`HoteModalesOuverture`, `AlertesOuvertureModales`) : fermée, ni la
+      // cloche ni les modales ne s'affichent, comme au serveur
+      // (`AlertesOuverture::pour()`). L'aide, celle de la vue, est donc vraie.
       lecteur: 'lib/features/alertes/presentation/providers_alertes.dart',
     ),
+
+    // --- La correspondance rôle -> compte comptable (26/10/2026, décision du
+    // PO : « on peut impérativement modifier les comptes sur poste et le
+    // web »). Quinze clés `compte_<rôle>`, générées côté serveur depuis
+    // `RolesCorrespondance::ROLES` ; elles ne se montrent PAS dans l'écran
+    // Paramètres (leur écran est « Correspondance des comptes », hub de la
+    // comptabilité). Lecteur : `ComptabiliteDao.compteDuRole`, appelé par le
+    // moteur au moment de passer la pièce. Trois rôles n'ont AUCUN lecteur
+    // sur ce poste — la TVA récupérable et les deux comptes de résultat sont
+    // lus par la déclaration de TVA et la clôture, qui sont au serveur — et
+    // l'écran le dit.
+    SpecParametre(
+      cle: 'compte_produit_prestations',
+      groupe: 'comptes',
+      libelle: 'Compte — Produits du restaurant',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par une vente du restaurant au comptoir. Vide : le compte par défaut (7061). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_produit_marchandises',
+      groupe: 'comptes',
+      libelle: 'Compte — Produits du bar',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par une vente de boissons au comptoir. Vide : le compte par défaut (7011). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_produit_locations',
+      groupe: 'comptes',
+      libelle: 'Compte — Produits de la location de véhicules',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par une location encaissée au comptoir. Vide : le compte par défaut (7073). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_produit_circuits',
+      groupe: 'comptes',
+      libelle: 'Compte — Produits du tourisme, circuits',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par un circuit encaissé au comptoir. Vide : le compte par défaut (7061). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_tva_facturee_biens',
+      groupe: 'comptes',
+      libelle: 'Compte — TVA facturée sur les ventes de biens (bar)',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par la part de TVA d’une vente de boissons ; lu par la déclaration de TVA. Vide : le compte par défaut (4431). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_tva_facturee_prestations',
+      groupe: 'comptes',
+      libelle:
+          'Compte — TVA facturée sur les prestations (restaurant, location, tourisme)',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par la part de TVA d’une prestation de services ; lu par la déclaration de TVA. Vide : le compte par défaut (4432). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_tva_recuperable_achats',
+      groupe: 'comptes',
+      libelle: 'Compte — TVA récupérable sur les achats',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Lu par la déclaration de TVA, au titre de la TVA déductible. Vide : le compte par défaut (4452). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+    ),
+    SpecParametre(
+      cle: 'compte_caisse',
+      groupe: 'comptes',
+      libelle: 'Compte — Caisse',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Trésorerie des règlements en espèces. Vide : le compte par défaut (5711). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_banque',
+      groupe: 'comptes',
+      libelle: 'Compte — Banque',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Trésorerie des règlements par carte, virement ou chèque. Vide : le compte par défaut (5211). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_mobile_money',
+      groupe: 'comptes',
+      libelle: 'Compte — Mobile Money',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Trésorerie des règlements par Mobile Money. Vide : le compte par défaut (552). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_clients',
+      groupe: 'comptes',
+      libelle: 'Compte — Clients',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Débité par une vente portée sur la note de chambre, crédité par l’encaissement d’une facture. Vide : le compte par défaut (4111). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_fournisseurs',
+      groupe: 'comptes',
+      libelle: 'Compte — Fournisseurs',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Débité par le règlement d’une commande fournisseur. Vide : le compte par défaut (4011). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_avances_clients',
+      groupe: 'comptes',
+      libelle: 'Compte — Avances et acomptes clients',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par l’acompte d’une réservation, débité par son remboursement. Vide : le compte par défaut (4191). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_resultat_benefice',
+      groupe: 'comptes',
+      libelle: 'Compte — Résultat net : bénéfice',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par la clôture d’un exercice qui dégage un bénéfice. Vide : le compte par défaut (131). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+    ),
+    SpecParametre(
+      cle: 'compte_resultat_perte',
+      groupe: 'comptes',
+      libelle: 'Compte — Résultat net : perte',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Débité par la clôture d’un exercice qui dégage une perte. Vide : le compte par défaut (139). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+    ),
+    SpecParametre(
+      cle: 'compte_reserve_legale',
+      groupe: 'comptes',
+      libelle: 'Compte — Réserve légale',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Créditée par l’affectation d’un bénéfice à la réserve légale. Vide : le compte par défaut (111). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_autres_reserves',
+      groupe: 'comptes',
+      libelle: 'Compte — Autres réserves',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Créditée par l’affectation d’un bénéfice aux autres réserves, débitée par l’imputation d’une perte. Vide : le compte par défaut (1181). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_dividendes_a_payer',
+      groupe: 'comptes',
+      libelle: 'Compte — Associés : dividendes à payer',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Créditée par l’affectation d’un bénéfice aux dividendes à verser aux associés. Vide : le compte par défaut (465). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_report_a_nouveau_crediteur',
+      groupe: 'comptes',
+      libelle: 'Compte — Report à nouveau créditeur',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par l’affectation d’un bénéfice reporté, débité par l’imputation d’une perte. Vide : le compte par défaut (121). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_report_a_nouveau_debiteur',
+      groupe: 'comptes',
+      libelle: 'Compte — Report à nouveau débiteur',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Débité par l’affectation d’une perte reportée à nouveau. Vide : le compte par défaut (1291). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_compte_exploitant',
+      groupe: 'comptes',
+      libelle: 'Compte — Compte de l’exploitant',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par l’affectation d’un bénéfice à l’exploitant d’une entreprise individuelle, débité par l’affectation d’une perte. Vide : le compte par défaut (1041). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
   ];
+
+  /// Le lecteur des quinze clés `compte_<rôle>` : le DAO qui les lit au moment
+  /// de passer une pièce.
+  static const String _lecteurDesComptes =
+      'lib/features/comptabilite/data/comptabilite_dao.dart';
 }
 
 /// Un paramètre de la base vierge : clé, valeur, description.
@@ -600,7 +1018,7 @@ const List<ParametreInitial> parametresEtablissementInitiaux = [
   (cle: 'communication_whatsapp', valeur: '0197355974', description: null),
   (
     cle: 'entreprise_site_web',
-    valeur: 'https://tatacora.com/',
+    valeur: 'https://tatacora.com',
     description: null,
   ),
   (

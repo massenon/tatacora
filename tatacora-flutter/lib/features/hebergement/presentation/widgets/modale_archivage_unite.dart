@@ -11,10 +11,19 @@
 ///    une panne ; le masquer dit que la décision n'appartient pas à cet écran.
 /// 2. **NOMINAL** — la question, puis le rappel : rien n'est effacé.
 ///
-/// L'état PARTIEL du composant serveur (« N élément(s) seront conservés ») n'a
-/// pas d'équivalent ici : il sert la sélection multiple, que cet écran ne porte
-/// pas — la vue elle-même déclare sa barre d'action groupée refusée, « le “D”
-/// de CRUD n'existe nulle part dans ce dépôt ».
+/// ## Les deux autres états du composant partagé ne sont PAS invoqués par cette vue
+///
+/// `modale-archivage` sait aussi poser la question au pluriel quand `nombre` est
+/// passé :
+/// « Voulez-vous archiver les :nombre élément(s) sélectionnés ? »
+/// (les mots de la vue, dits ici : « Voulez-vous archiver les » puis
+/// « élément(s) sélectionnés ? ») et annoncer, avant le clic, l'état PARTIEL :
+/// « :nombre élément(s) seront conservés : ils sont engagés ailleurs. »
+/// Ces deux branches servent la sélection multiple ; `hebergement.blade.php`
+/// n'en passe aucune (elle ne donne que `element`, `messagesVerrou` et `bloque`),
+/// et sa barre d'action groupée est refusée — « le “D” de CRUD n'existe nulle part
+/// dans ce dépôt ». Elles sont donc NOMMÉES ici et non rendues : la mesure les
+/// compte « nommées », pas « portées ».
 ///
 /// ## Le titre dit « suppression », le corps dit « archiver »
 ///

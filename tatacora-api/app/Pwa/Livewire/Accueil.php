@@ -329,7 +329,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * combien de sources il a réellement lues : sans cette phrase, un rôle sans
  * droit M10 lirait « rien à traiter » sur une comptabilité en défaut.
  */
-#[Title('Tableau de bord — TATACORA AFRIQUE')]
+#[Title('Tableau de bord — LogiReStock — TATACORA AFRIQUE')]
 final class Accueil extends PageMetier
 {
     use FormulaireModal;
@@ -1543,7 +1543,7 @@ final class Accueil extends PageMetier
             // recoit pas.
             'title' => $tableauDeBordAutorise
                 ? __('accueil_pwa.titre_page')
-                : __('pwa.accueil.titre').' — '.__('pwa.marque'),
+                : __('pwa.accueil.titre').' — '.__('pwa.titre_defaut'),
         ]);
     }
 

@@ -1,3 +1,5 @@
+import '../../hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
 import '../domain/entities/article_vendable.dart';
 import '../domain/entities/panier.dart';
 import '../domain/repositories/panier_repository.dart';
@@ -68,6 +70,16 @@ final class PanierRepositoryLocal implements PanierRepository {
   Future<Panier> vider(String panierId) => _dao.vider(panierId);
 
   @override
+  Future<Panier> abandonner(String panierId) => _dao.abandonner(panierId);
+
+  @override
+  Future<Panier> annulerVente(
+    String panierId,
+    String motif, {
+    required String auteurId,
+  }) => _dao.annulerVente(panierId, motif, auteurId: auteurId);
+
+  @override
   Future<Panier> modifierQuantite(
     String panierId,
     String ligneId,
@@ -86,6 +98,17 @@ final class PanierRepositoryLocal implements PanierRepository {
     modePaiement: modePaiement,
     auteurId: auteurId,
   );
+
+  @override
+  Future<Panier> appliquerRemise(
+    String panierId,
+    TypeRemise type,
+    String valeurSaisie,
+  ) => _dao.appliquerRemise(panierId, type, valeurSaisie);
+
+  @override
+  Future<Panier> definirMentionClient(String panierId, String? saisie) =>
+      _dao.definirMentionClient(panierId, saisie);
 
   @override
   Future<Panier> annuler(String panierId, String motif) =>

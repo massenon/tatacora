@@ -6,7 +6,7 @@ namespace Tests\Feature\Pwa;
 
 use App\Domain\Crm\Models\Client;
 use App\Models\User;
-use App\Pwa\Livewire\Transverse\ImportExport;
+use App\Pwa\Livewire\Transverse\Parametres;
 use App\Shared\Backup\Services\ReinitialisationDonneesTestService;
 use App\Shared\Parametres\Models\ParametreSysteme;
 use App\Shared\Rbac\Models\Role;
@@ -45,9 +45,8 @@ final class ReinitialisationCommeNeufTest extends TestCase
         'utilisateurs', 'roles', 'permissions', 'permission_role', 'parametres_systeme',
         'journal_audit',
         'categories_hebergement', 'unites_hebergement', 'canaux_reservation',
-        'articles', 'points_stockage',
-        'menus', 'recettes', 'ingredients_recette', 'plats', 'tables_salle',
-        'cartes_boisson', 'vehicules', 'circuits',
+        'points_stockage', 'tables_salle',
+        'vehicules', 'circuits',
         'plan_comptable', 'journaux_comptables', 'exercices_comptables', 'centres_cout',
         'services', 'modeles_notification',
     ];
@@ -62,6 +61,8 @@ final class ReinitialisationCommeNeufTest extends TestCase
         'ventes', 'lignes_vente', 'commandes_achat', 'depenses',
         'contrats_location', 'reservations_tour', 'sessions_caisse',
         'factures', 'commandes_restaurant', 'inventaires',
+        // Correction du PO : le catalogue (et ses jointures) se vide aussi.
+        'articles', 'menus', 'recettes', 'ingredients_recette', 'plats', 'cartes_boisson',
         'cache', 'cache_locks', 'failed_jobs',
     ];
 
@@ -83,7 +84,7 @@ final class ReinitialisationCommeNeufTest extends TestCase
 
         $this->actingAs($administrateur);
 
-        Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+        Livewire::test(Parametres::class, ['onglet' => 'activation'])
             ->call('ouvrirReinitialisation')
             ->set('phraseConfirmationReset', 'vider')
             ->call('reinitialiserDonneesTest')
@@ -169,10 +170,10 @@ final class ReinitialisationCommeNeufTest extends TestCase
 
         // …et l'écran refuse d'ouvrir la modale comme d'exécuter.
         $this->actingAs($gerant);
-        Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+        Livewire::test(Parametres::class, ['onglet' => 'activation'])
             ->call('ouvrirReinitialisation')
             ->assertForbidden();
-        Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+        Livewire::test(Parametres::class, ['onglet' => 'activation'])
             ->set('phraseConfirmationReset', 'VIDER')
             ->call('reinitialiserDonneesTest')
             ->assertForbidden();
@@ -192,7 +193,7 @@ final class ReinitialisationCommeNeufTest extends TestCase
         $this->assertTrue(app()->isProduction());
 
         $this->actingAs($administrateur);
-        Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+        Livewire::test(Parametres::class, ['onglet' => 'activation'])
             ->set('phraseConfirmationReset', 'VIDER')
             ->call('reinitialiserDonneesTest')
             ->assertHasErrors('phraseConfirmationReset');
@@ -214,7 +215,7 @@ final class ReinitialisationCommeNeufTest extends TestCase
         $this->actingAs($this->utilisateur('administrateur'));
 
         foreach (['', 'OUI', 'VIDE'] as $saisie) {
-            Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+            Livewire::test(Parametres::class, ['onglet' => 'activation'])
                 ->call('ouvrirReinitialisation')
                 ->set('phraseConfirmationReset', $saisie)
                 ->call('reinitialiserDonneesTest')

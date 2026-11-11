@@ -274,7 +274,7 @@ class _VueCommandesState extends ConsumerState<VueCommandes> {
                   child: Center(
                     child: Text(
                       // Le texte du maître (l.344), au mot.
-                      'Aucune commande. Passez par l’onglet Besoins.',
+                      "Aucune commande. Passez par l'onglet Besoins.",
                       key: const Key('commandes-vide'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),

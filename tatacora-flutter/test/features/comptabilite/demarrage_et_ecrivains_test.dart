@@ -52,7 +52,7 @@ void main() {
         final bilan = await conteneur.read(referentielComptableProvider.future);
         expect(bilan.comptesCrees, 1332);
         expect(bilan.centresCrees, 7);
-        expect(bilan.journauxCrees, 5);
+        expect(bilan.journauxCrees, 7);
         expect(bilan.exerciceSeme, DateTime.now().year);
 
         final restaurant = (await dao.centreParLibelle('Restaurant'))!.id;
@@ -135,7 +135,22 @@ void main() {
       // Accès Drift typé.
       expect(qui('.ecrituresLocal'), {'comptabilite_dao.dart'});
       // SQL brut : les quatre triggers de RG-11, et personne d'autre.
-      expect(qui('ecritures_local'), {'declencheurs_comptables.dart'});
+      // Lot A1/A3 (28/10/2026) : le DAO LIT par SQL brut (pièces saisies non
+      // reprises, anciennes pièces) ; il n'y écrit jamais en SQL brut.
+      expect(qui('ecritures_local'), {
+        'declencheurs_comptables.dart',
+        'comptabilite_dao.dart',
+      });
+      expect(
+        RegExp(
+          r'(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+ecritures_local',
+        ).hasMatch(
+          File(
+            'lib/features/comptabilite/data/comptabilite_dao.dart',
+          ).readAsStringSync(),
+        ),
+        isFalse,
+      );
     });
 
     test('l’écriture d’une ligne ne s’appelle que par le moteur', () {
@@ -213,8 +228,21 @@ void main() {
         // moteur (cas ci-dessous).
         'descente_catalogue.dart',
         'aligneur_catalogue.dart',
+        // 26/10/2026 : la CLÔTURE ANNUELLE (`ClotureExerciceLocale`) demande
+        // ses deux pièces (CL, AN) et la contre-passation de la réouverture au
+        // moteur — ce n'est pas un mouvement d'argent : le résultat et les
+        // soldes de bilan sont déjà dans des pièces validées. Elle n'écrit
+        // aucune ligne elle-même (`ecrivains_cloture_test.dart`).
+        'cloture_exercice_locale.dart',
+        // 09/11/2026 : l'AFFECTATION DU RÉSULTAT (`AffectationResultatLocale`) passe
+        // sa pièce OD par `MoteurComptable.saisirPiece(affectation:)` (pièce saisie
+        // à la main, enfilée dans la même transaction) et demande la
+        // contre-passation : même statut que la clôture annuelle.
+        'affectation_resultat_locale.dart',
       });
       expect(qui('moteurComptableProvider'), {
+        // Lot A3 : le geste « Envoyer mes anciennes pièces saisies ».
+        'envoi_anciennes_pieces.dart',
         'providers_achats.dart',
         'providers_comptabilite.dart',
         'providers_depenses.dart',
@@ -230,6 +258,12 @@ void main() {
         // `MoteurComptable.passer` / `passerEtValider`, seul écrivain de
         // `ecritures_local` (aucun accès direct : voir les cas ci-dessus).
         'modale_ecriture.dart',
+        // 21/10/2026 : « Créer un compte » et « Ouvrir un exercice » du hub
+        // (`MoteurComptable.creerCompte` / `ouvrirExercice`) — des gestes de
+        // référentiel, aucun mouvement d'argent, aucune écriture (`hub_plan_clotures_test.dart`).
+        'modales_hub_comptabilite.dart',
+        // 26/10/2026 : les gestes de la clôture annuelle (onglet « Clôtures »).
+        'providers_cloture.dart',
       });
     });
 

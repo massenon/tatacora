@@ -21,9 +21,28 @@ abstract final class MessagesVentes {
   /// `ventes.module_non_encaissable` — [module] est le libellé du serveur
   /// (`VenteService::MODULES`), « Véhicules » pour M8 et non « Location ».
   static String moduleNonEncaissable(String module) =>
-      // Fin de phrase « …anti-patron que le prototype porte et que ce dépôt
-      // refuse » retirée de l'écran le 14/10/2026 (directive du PO).
-      '$module ne dispose pas encore de catalogue encaissable au comptoir.';
+      '$module ne dispose pas encore de catalogue encaissable au comptoir : '
+      'la ligne ne peut pas être acceptée.';
+
+  /// `ventes.panier_cloture_immuable` — la phrase du serveur quand « Vider »
+  /// ou « Abandonner » vise un panier qui n'est plus ouvert
+  /// (`PanierService::exigerOuvert`).
+  static const String panierClotureImmuable =
+      'Ce panier est clôturé : plus aucune consommation ne peut y entrer ni en '
+      'sortir. La correction passe par l\'annulation de la vente, jamais par le '
+      'panier — sans quoi le panier deviendrait le chemin par lequel on modifie '
+      'une facture émise.';
+
+  /// `pos_pwa.comptant.panier_abandonne` — le message de « Abandonner »
+  /// (`PosComptant::abandonnerPanier`), au mot.
+  static const String panierAbandonne = 'Panier abandonné.';
+
+  /// Le motif porté par un panier abandonné. Le serveur n'en demande aucun
+  /// (`PanierService::abandonner` clôt sans vente) ; le poste, dont le registre
+  /// distingue un panier « annulé » d'un panier « clôturé sur une vente », y
+  /// écrit ce mot fixe plutôt que d'inventer une raison ou d'interroger le
+  /// caissier — la vue ne lui demande rien.
+  static const String motifAbandon = 'Panier abandonné';
 
   /// `ventes.reference_inconnue`.
   static String referenceInconnue(String reference) =>
@@ -57,6 +76,45 @@ abstract final class MessagesVentes {
       '« Porté sur la note de chambre » n\'existe pas au comptoir : aucune '
       'chambre n\'y porte de note. Utilisez le point de vente des clients '
       'hébergés.';
+
+  /// `ventes.deja_annulee`.
+  static String dejaAnnulee(String numero) =>
+      'La vente $numero est déjà annulée.';
+
+  /// `pos_pwa.comptant.refus_motif_obligatoire` (le même mot que
+  /// `pos_pwa.journal.refus_motif_obligatoire`).
+  static const String motifAnnulationObligatoire =
+      "Le motif de l'annulation est obligatoire : une vente annulée reste au journal, et le journal doit dire pourquoi.";
+
+  /// `pos_pwa.journal.refus_vente_absente`.
+  static const String venteAbsente = "Cette vente n'existe plus au registre.";
+
+  /// `ventes.libelle_contrepassation` — le libellé de la pièce inverse.
+  static String libelleContrepassation(String numero) =>
+      'Annulation vente $numero';
+
+  /// `pos_pwa.journal.vente_annulee`. (Le comptoir du serveur ajoute « Les
+  /// sorties de stock sont compensées » : ce poste n'écrit aucune sortie, le
+  /// serveur compense à la réception de l'annulation — la phrase serait fausse
+  /// ici.)
+  static String venteAnnulee(String numero) =>
+      'Vente $numero annulée. Elle reste au journal.';
+
+  /// `ventes.remise_ligne_facture` — le libellé des lignes négatives de remise
+  /// de la facture (« … — Restaurant »).
+  static const String remiseLigneFacture = 'Remise sur consommations';
+
+  /// `ventes.remise_valeur_invalide`.
+  static const String remiseValeurInvalide =
+      'La valeur de la remise doit être un nombre positif ou nul.';
+
+  /// `ventes.remise_pourcentage_hors_bornes`.
+  static const String remisePourcentageHorsBornes =
+      "Une remise en pourcentage vit entre 0 et 100. Au-delà, le total deviendrait négatif : ce n'est plus une remise, c'est un montant que personne n'a décidé.";
+
+  /// `ventes.remise_superieure_au_total`.
+  static const String remiseSuperieureAuTotal =
+      "La remise dépasse le total du panier : le net serait négatif. Réduisez-la, ou retirez-la avant d'encaisser.";
 
   /// `ventes.libelle_ecriture` — seul le gabarit est celui du serveur ; voir
   /// [libelleDeLaPiece] pour ce que le poste y met.

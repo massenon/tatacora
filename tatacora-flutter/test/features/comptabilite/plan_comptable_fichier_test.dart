@@ -94,13 +94,13 @@ void main() {
         }
       });
 
-      test('les 18 comptes que le code mouvemente existent au plan', () {
+      test('les 19 comptes que le code mouvemente existent au plan', () {
         final numeros = lirePlanComptable(
           lirePlanEmbarque(),
         ).map((c) => c.numero).toSet();
         for (final n in const [
           '4111', '4011', '4191', '4431', '4432', '4452', '5711', '5211', //
-          '552', '7061', '7011', '6011', '6052', '6051', '6223', '6281',
+          '552', '7061', '7011', '7073', '6011', '6052', '6051', '6223', '6281',
           '131', '139',
         ]) {
           expect(numeros, contains(n));

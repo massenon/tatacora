@@ -1,5 +1,8 @@
+import '../../../hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
 import '../entities/article_vendable.dart';
 import '../entities/panier.dart';
+import '../messages_ventes.dart' show MessagesVentes;
 
 /// Contrat d'accès aux paniers.
 ///
@@ -72,7 +75,40 @@ abstract interface class PanierRepository {
     required String auteurId,
   });
 
+  /// Pose la REMISE du panier ouvert : le [type] et la valeur saisie
+  /// ([valeurSaisie], le texte du champ), jamais un montant. Lève `RefusVente`
+  /// hors bornes (phrases du serveur) et n'écrit alors rien.
+  Future<Panier> appliquerRemise(
+    String panierId,
+    TypeRemise type,
+    String valeurSaisie,
+  );
+
+  /// Pose la MENTION client (texte libre, facultatif) du panier au comptant
+  /// OUVERT : normalisée comme le serveur (`MentionClient.normaliser`), elle
+  /// suit la vente (ticket, charge de synchronisation). Un panier de séjour est
+  /// refusé (`ArgumentError`), un panier fermé aussi (`PanierNonModifiable`).
+  Future<Panier> definirMentionClient(String panierId, String? saisie);
+
   Future<Panier> annuler(String panierId, String motif);
+
+  /// « Abandonner » du comptoir (`PanierService::abandonner`) : ferme le panier
+  /// OUVERT sans vente et sans motif saisi, garde ses lignes, libère sa table.
+  /// Lève [PanierNonModifiable] sur un panier déjà fermé.
+  Future<Panier> abandonner(String panierId);
+
+  /// Annule une VENTE encaissée (`VenteService::annuler`, RG-02) : le panier
+  /// clôturé devient annulé, sa pièce comptable est contre-passée EN ENTIER, et
+  /// la vente reste au journal. À distinguer d'[annuler], qui n'accepte qu'un
+  /// panier OUVERT (un service abandonné avant paiement).
+  ///
+  /// Lève `RefusVente` — motif vide, vente absente ou déjà annulée, document
+  /// d'un autre poste (Q3) — sans rien écrire.
+  Future<Panier> annulerVente(
+    String panierId,
+    String motif, {
+    required String auteurId,
+  });
 }
 
 /// Le catalogue vendable, tel que le poste le connaît **hors ligne**.
@@ -106,9 +142,13 @@ final class PanierNonModifiable implements Exception {
   const PanierNonModifiable(this.statut);
   final StatutPanier statut;
 
+  /// Un panier clôturé répond la phrase du SERVEUR
+  /// (`ventes.panier_cloture_immuable`) ; un panier annulé, que le serveur ne
+  /// connaît pas, garde la phrase du poste.
   @override
-  String toString() =>
-      'Ce panier est ${statut.code} : il ne peut plus être modifié.';
+  String toString() => statut == StatutPanier.cloture
+      ? MessagesVentes.panierClotureImmuable
+      : 'Ce panier est ${statut.code} : il ne peut plus être modifié.';
 }
 
 /// La ligne demandée n'appartient pas à ce panier.

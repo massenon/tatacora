@@ -6,13 +6,14 @@ namespace App\Pwa\Livewire\Transverse;
 
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Shared\Backup\Services\ExportTableService;
-use App\Shared\Backup\Services\ReinitialisationDonneesTestService;
 use App\Shared\Backup\Services\SauvegardeManuelleService;
 use App\Shared\ImportExport\Data\ReferentielsImport;
 use App\Shared\ImportExport\Models\JournalImport;
+use App\Shared\ImportExport\Services\CarteGiteChezNoelService;
 use App\Shared\ImportExport\Services\ControleImportService;
 use App\Shared\ImportExport\Services\ImportReferentielsService;
 use App\Shared\ImportExport\Services\RegistreArchivesService;
+use App\Shared\ImportExport\Services\TableurService;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -30,7 +31,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * réel derrière chaque geste :
  *
  * - **Importer les données** — registre fermé `ReferentielsImport` (huit
- *   modules), fiche « Colonnes attendues », modèle CSV généré depuis la MÊME
+ *   modules), fiche « Colonnes attendues », modèle `.xlsx` généré depuis la MÊME
  *   déclaration que le contrôle, rapport ERREUR/AVERTIS., et application en
  *   TRANSACTION UNIQUE : aucun import partiel (`ImportReferentielsService`).
  *   Historique réel (`journal_imports`). Le refus antérieur (« aucun moteur
@@ -44,21 +45,30 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *   M8), restauration par les services de parc, purge réservée à
  *   l'administrateur avec refus motivé. Le refus antérieur (« aucun registre
  *   d'archives ») est levé : le registre existe désormais, en dérivé.
- * - **Réinitialiser les données de test** — « Réinitialiser comme neuf »
- *   (demande PO du 14/10/2026, `ReinitialisationDonneesTestService`) :
- *   transactionnel ET tiers (clients, employés, fournisseurs, guides) vidés,
- *   comptes, paramètres, journaux et référentiels désignés par le PO gardés,
- *   sauvegarde automatique AVANT, réservé aux rôles d'administration.
- *   Verrous : l'environnement (jamais en Production) et la bascule
- *   `reinitialisation_seeders` (fermée par défaut — état verrouillé du
- *   maître, cadenas et renvoi vers Paramètres). Modale au markup du maître :
- *   la phrase « VIDER » à retaper (jamais `wire:confirm`,
- *   `MotifsInterditsPwaTest`).
+ * - **Réinitialiser les données de test** — n'est PLUS ici : « Ramène le bouton
+ *   RÉINITIALISER LES DONNÉES DE TEST dans PARAMÈTRES » (PO, 09/11/2026). La
+ *   fonction, ses verrous (environnement, bascule `reinitialisation_seeders`,
+ *   phase d'essais), la phrase « VIDER » à retaper et le journal d'audit vivent
+ *   dans l'onglet « Activation & Sécurité » de `Parametres`, INCHANGÉS.
+ *
+ * ## Qui voit quoi (09/11/2026, PO : « Import & Export » au menu de TOUS les rôles)
+ *
+ * Le droit transverse `IMPORT_EXPORT` (lecture pour tous) ne commande que la
+ * VISIBILITÉ de la page. Chaque geste garde sa garde :
+ * - les onglets « Sauvegardes de la base » et « Restaurer » (génération,
+ *   téléchargement, retrait, export d'une table, restauration, purge) exigent
+ *   la lecture de `PARAM` (gérant) et, pour toute ÉCRITURE, son écriture
+ *   (administrateurs) : un rôle sans `PARAM` ne les voit pas et les actions
+ *   refusent (403) ;
+ * - l'import (modèle, contrôle, confirmation) exige l'écriture sur
+ *   `PARAM` (`exigerEcriture(self::MODULE)`, garde figée par
+ *   `PwaEcritureAutoriseeTest`) : un rôle sans ce droit voit la fiche des
+ *   colonnes attendues et l'historique, sans bouton d'import.
  *
  * @see LARAVEL_PWA.md §1, §3
  * @see DIRECTIVE_CONFORMITE_100.md Article 3.3, Article 8
  */
-#[Title('Import & Export — TATACORA AFRIQUE')]
+#[Title('Import & Export — LogiReStock — TATACORA AFRIQUE')]
 class ImportExport extends PageTransverse
 {
     use FormulaireModal;
@@ -67,7 +77,7 @@ class ImportExport extends PageTransverse
     /** Le module RBAC de l'écran — `data-module="PARAM"` au maître. */
     public const MODULE = 'PARAM';
 
-    public const ONGLETS = ['importer', 'sauvegardes', 'restaurer', 'seeders'];
+    public const ONGLETS = ['importer', 'sauvegardes', 'restaurer'];
 
     /** Plafonds d'affichage du rapport de contrôle — ceux du maître (l.499-501). */
     public const PLAFOND_ERREURS = 60;
@@ -115,9 +125,6 @@ class ImportExport extends PageTransverse
 
     public ?string $purgeLibelle = null;
 
-    // -------------------------------------------------------------- seeders
-    public string $phraseConfirmationReset = '';
-
     /**
      * @return array<string, list<string>>
      */
@@ -127,7 +134,6 @@ class ImportExport extends PageTransverse
             'export_table' => ['tableExport'],
             'retrait_sauvegarde' => ['sauvegardeARetirer'],
             'purge' => ['purgeType', 'purgeId', 'purgeLibelle'],
-            'reinitialisation' => ['phraseConfirmationReset'],
         ];
     }
 
@@ -136,11 +142,15 @@ class ImportExport extends PageTransverse
     // =====================================================================
 
     /**
-     * Le fichier modèle — généré depuis la MÊME déclaration que le contrôle
-     * (`ReferentielsImport`), règle du maître : « il ne peut pas s'en
-     * écarter ». En-têtes + une ligne d'exemple, CSV UTF-8 avec BOM.
+     * Le fichier modèle — un VRAI classeur `.xlsx`, généré depuis la MÊME
+     * déclaration que le contrôle (`ReferentielsImport`), règle du maître :
+     * « il ne peut pas s'en écarter ». Feuille « Modèle » (en-têtes en gras,
+     * une ligne d'exemple) et feuille « Aide » (une ligne par colonne).
+     *
+     * Le CSV au point-virgule qui l'a précédé s'ouvrait en UNE seule colonne
+     * dans un Excel réglé sur la virgule (30/10/2026, `TableurService`).
      */
-    public function telechargerModeleCsv(): ?StreamedResponse
+    public function telechargerModele(TableurService $tableur): ?StreamedResponse
     {
         $this->exigerEcriture(self::MODULE);
 
@@ -150,13 +160,47 @@ class ImportExport extends PageTransverse
             return null;
         }
 
-        $entetes = array_map(static fn ($c): string => $c->libelle, $module->colonnes);
-        $exemples = array_map(static fn ($c): string => $c->exemple, $module->colonnes);
+        $octets = $tableur->ecrireClasseur($module->nom, $module->description, $module->colonnes);
 
-        return $this->fluxCsv('modele_import_'.$module->cle.'.csv', static function ($sortie) use ($entetes, $exemples): void {
-            fputcsv($sortie, $entetes, ';');
-            fputcsv($sortie, $exemples, ';');
-        });
+        return $this->fluxXlsx(__('imports.xlsx.nom_fichier', ['cle' => $module->cle]), $octets);
+    }
+
+    /**
+     * « Carte du Gîte Chez Noël (exemple) » — le modèle du module choisi,
+     * PRÉREMPLI avec la carte des affiches (m6 articles des boissons, m5
+     * boissons, m4 plats). Sans stock ni quantité : il s'ajoute après.
+     */
+    public function telechargerExempleGite(CarteGiteChezNoelService $carte): ?StreamedResponse
+    {
+        $this->exigerEcriture(self::MODULE);
+
+        if (! in_array($this->moduleImport, CarteGiteChezNoelService::MODULES, true)) {
+            return null;
+        }
+
+        return $this->fluxXlsx(
+            __('imports.xlsx.nom_fichier_gite', ['cle' => $this->moduleImport]),
+            $carte->classeur($this->moduleImport),
+        );
+    }
+
+    /**
+     * Lit le fichier déposé — `.xlsx` d'abord, CSV en secours.
+     *
+     * @return list<list<string>>|null `null` : refus, déjà posé sur le champ
+     */
+    private function lireFichierDepose(ControleImportService $controle): ?array
+    {
+        try {
+            return $controle->analyserFichier(
+                (string) $this->fichierImport?->getRealPath(),
+                (string) $this->fichierImport?->getClientOriginalName(),
+            );
+        } catch (RuntimeException $refus) {
+            $this->addError('fichierImport', $refus->getMessage());
+
+            return null;
+        }
     }
 
     /**
@@ -168,7 +212,7 @@ class ImportExport extends PageTransverse
     {
         $donnees = $this->validerEcriture([
             'moduleImport' => ['required', 'string'],
-            'fichierImport' => ['required', 'file', 'mimes:csv,txt', 'max:4096'],
+            'fichierImport' => ['required', 'file', 'mimes:xlsx,csv,txt', 'max:4096'],
         ]);
 
         $module = ReferentielsImport::parCle((string) $donnees['moduleImport']);
@@ -179,8 +223,13 @@ class ImportExport extends PageTransverse
             return;
         }
 
-        $contenu = (string) file_get_contents((string) $this->fichierImport?->getRealPath());
-        $rapport = $controle->controler($module, $controle->analyserCsv($contenu));
+        $tableau = $this->lireFichierDepose($controle);
+
+        if ($tableau === null) {
+            return;
+        }
+
+        $rapport = $controle->controler($module, $tableau);
 
         $this->rapportControle = [
             'cle' => $module->cle,
@@ -202,7 +251,7 @@ class ImportExport extends PageTransverse
     {
         $donnees = $this->validerEcriture([
             'moduleImport' => ['required', 'string'],
-            'fichierImport' => ['required', 'file', 'mimes:csv,txt', 'max:4096'],
+            'fichierImport' => ['required', 'file', 'mimes:xlsx,csv,txt', 'max:4096'],
         ]);
 
         $module = ReferentielsImport::parCle((string) $donnees['moduleImport']);
@@ -213,8 +262,13 @@ class ImportExport extends PageTransverse
             return;
         }
 
-        $contenu = (string) file_get_contents((string) $this->fichierImport?->getRealPath());
-        $rapport = $controle->controler($module, $controle->analyserCsv($contenu));
+        $tableau = $this->lireFichierDepose($controle);
+
+        if ($tableau === null) {
+            return;
+        }
+
+        $rapport = $controle->controler($module, $tableau);
 
         if (! $rapport->ok) {
             // L'état a changé entre le contrôle affiché et la confirmation :
@@ -231,6 +285,14 @@ class ImportExport extends PageTransverse
             return;
         }
 
+        if ($rapport->lignes === [] && $rapport->ignorees > 0) {
+            // Ré-import d'un fichier déjà importé : rien à ajouter, rien d'écrasé.
+            $this->reset(['fichierImport', 'rapportControle']);
+            session()->flash('pwa-succes', __('imports.controle.rien_a_ajouter', ['nombre' => (string) $rapport->ignorees, 'module' => $module->nom]));
+
+            return;
+        }
+
         try {
             $nombre = $import->appliquer($module, $rapport->lignes);
         } catch (RuntimeException $refus) {
@@ -240,10 +302,10 @@ class ImportExport extends PageTransverse
         }
 
         $this->reset(['fichierImport', 'rapportControle']);
-        session()->flash('pwa-succes', __('imports.controle.import_fait', [
+        session()->flash('pwa-succes', trim(__('imports.controle.import_fait', [
             'nombre' => (string) $nombre,
             'module' => $module->nom,
-        ]));
+        ]).($rapport->ignorees > 0 ? ' '.__('imports.controle.dont_ignorees', ['nombre' => (string) $rapport->ignorees]) : '').' '.($import->bilanRapprochement ?? '')));
     }
 
     // =====================================================================
@@ -278,6 +340,8 @@ class ImportExport extends PageTransverse
      */
     public function telechargerSauvegarde(string $nom, SauvegardeManuelleService $service): ?BinaryFileResponse
     {
+        $this->exigerRoleAdministration();
+
         $chemin = $service->cheminSiExiste($nom);
 
         if ($chemin === null) {
@@ -332,6 +396,8 @@ class ImportExport extends PageTransverse
      */
     public function ouvrirExport(): void
     {
+        $this->exigerRoleAdministration();
+
         // PAS `ouvrirFormulaire()` : ce délégué exige le niveau C, et
         // l'export est une LECTURE ouverte à qui peut lire l'écran (même
         // famille que PA-119 — un rôle en L doit pouvoir sortir une table
@@ -350,6 +416,8 @@ class ImportExport extends PageTransverse
      */
     public function exporterTable(ExportTableService $service): ?StreamedResponse
     {
+        $this->exigerRoleAdministration();
+
         if ($this->tableExport === '') {
             $this->addError('tableExport', __('pwa.import_export.export_table_choisir'));
 
@@ -444,65 +512,24 @@ class ImportExport extends PageTransverse
     // =====================================================================
 
     /**
-     * « Réinitialiser comme neuf » (demande PO du 14/10/2026, lot E) — réservé
-     * aux rôles d'administration, revérifié à l'ouverture ET à l'exécution.
+     * Les onglets « Sauvegardes de la base » et « Restaurer » et leurs gestes de
+     * LECTURE (téléchargement d'une sauvegarde, export d'une table) exigent au
+     * moins la LECTURE de `PARAM` — ce qu'exigeait la page entière avant le
+     * 09/11/2026 (le gérant, `PARAM = L`, les gardait : PA-119). Un rôle qui ne
+     * fait que VOIR la page (droit `IMPORT_EXPORT`, `PARAM = -`) n'y a pas
+     * accès. Les gestes d'écriture ont en plus `exigerEcriture(self::MODULE)`
+     * (`PARAM = C` : les administrateurs).
      */
-    public function ouvrirReinitialisation(ReinitialisationDonneesTestService $service): void
+    private function exigerRoleAdministration(): void
     {
-        $this->exigerAdministration($service);
-        $this->ouvrirFormulaire('reinitialisation');
+        abort_unless($this->accesSauvegardes(), 403);
     }
 
-    public function reinitialiserDonneesTest(ReinitialisationDonneesTestService $service): void
+    private function accesSauvegardes(): bool
     {
-        $this->exigerAdministration($service);
-
-        $donnees = $this->validerEcriture([
-            'phraseConfirmationReset' => ['required', 'string'],
-        ]);
-
-        $attendue = __('pwa.import_export.seeders_phrase_confirmation');
-
-        // La casse est tolérée (le maître compare en majuscules, l.865) — le
-        // MOT, jamais : une saisie plutôt qu'un simple clic est « la seule
-        // barrière qui résiste à un double-clic distrait ».
-        if (mb_strtoupper(trim((string) $donnees['phraseConfirmationReset'])) !== $attendue) {
-            $this->addError('phraseConfirmationReset', __('pwa.import_export.seeders_phrase_invalide', [
-                'phrase' => $attendue,
-            ]));
-
-            return;
-        }
-
-        try {
-            /** @var \App\Models\User|null $auteur */
-            $auteur = auth()->user();
-            // La session de l'administrateur qui agit est épargnée : il reste
-            // connecté (pilote de session `database` ; sans effet sinon).
-            $resultat = $service->executer($auteur, session()->getId());
-        } catch (RuntimeException $refus) {
-            $this->addError('phraseConfirmationReset', $refus->getMessage());
-
-            return;
-        }
-
-        // Le compte et la session SURVIVENT : les tables préservées portent
-        // l'identité. Rien n'est semé à nouveau : le système est neuf.
-        $this->terminerFormulaire(__('pwa.import_export.seeders_fait', [
-            'nombre' => (string) $resultat['videes'],
-            'lignes' => (string) $resultat['lignes'],
-            'sauvegarde' => $resultat['sauvegarde'],
-        ]));
-    }
-
-    private function exigerAdministration(ReinitialisationDonneesTestService $service): void
-    {
-        /** @var \App\Models\User|null $utilisateur */
         $utilisateur = auth()->user();
 
-        if (! $service->estPermisA($utilisateur)) {
-            abort(403, __('pwa.import_export.reset_refuse_role'));
-        }
+        return $utilisateur !== null && $utilisateur->estActif() && $utilisateur->niveauSurModule(self::MODULE) !== '-';
     }
 
     public function fermerModales(): void
@@ -515,13 +542,13 @@ class ImportExport extends PageTransverse
 
     public function render(
         SauvegardeManuelleService $sauvegardes,
-        ReinitialisationDonneesTestService $reinitialisation,
         ExportTableService $exportTables,
         RegistreArchivesService $registreArchives,
     ): View {
-        $fichiers = $sauvegardes->fichiers();
-        $archives = $registreArchives->archives();
-        $restaurees = $registreArchives->restaurees();
+        $accesAdministration = $this->accesSauvegardes();
+        $fichiers = $accesAdministration ? $sauvegardes->fichiers() : [];
+        $archives = $accesAdministration ? $registreArchives->archives() : [];
+        $restaurees = $accesAdministration ? $registreArchives->restaurees() : [];
 
         $module = ReferentielsImport::parCle($this->moduleImport);
 
@@ -529,6 +556,7 @@ class ImportExport extends PageTransverse
             'onglet' => $this->ongletValide(),
             'titrePage' => __('pwa.import_export.titre'),
             'peutEcrire' => $this->peutEcrire(),
+            'accesAdministration' => $accesAdministration,
             'estAdministrateur' => auth()->user()?->role?->libelle === 'administrateur',
             // Le bouton de purge n'est offert qu'au SUPER_ADMIN (PO 03/09/2026).
             'estSuperAdmin' => auth()->user()?->estSuperAdmin() ?? false,
@@ -541,7 +569,7 @@ class ImportExport extends PageTransverse
 
             // Onglet 2 — sauvegardes
             'fichiersSauvegarde' => $fichiers,
-            'nombreTables' => $sauvegardes->nombreTables(),
+            'nombreTables' => $accesAdministration ? $sauvegardes->nombreTables() : 0,
             'sauvegardeEnAttente' => collect($fichiers)->first(
                 static fn (array $f): bool => ! $f['telechargee'],
             ),
@@ -550,14 +578,6 @@ class ImportExport extends PageTransverse
             // Onglet 3 — restaurer
             'archives' => $this->archivesFiltrees($archives, $restaurees),
             'nombreRestaurables' => count($archives),
-
-            // Onglet 4 — seeders
-            'reinitialisationAutorisee' => $reinitialisation->estAutorisee(),
-            'reinitialisationPhaseEssais' => $reinitialisation->enPhaseEssais(),
-            'reinitialisationOuverte' => $reinitialisation->estOuverte(),
-            'reinitialisationPermise' => $reinitialisation->estPermisA(auth()->user()),
-            'tablesEffacables' => $reinitialisation->tablesEffacables(),
-            'tablesPreservees' => $reinitialisation->tablesPreservees(),
         ]))->layout('layouts.pwa', ['title' => __('pwa.import_export.titre_page')]);
     }
 
@@ -617,6 +637,11 @@ class ImportExport extends PageTransverse
 
     private function ongletValide(): string
     {
+        // Un rôle sans lecture de `PARAM` n'a que l'onglet « Importer ».
+        if (! $this->accesSauvegardes()) {
+            return 'importer';
+        }
+
         return in_array($this->onglet, self::ONGLETS, true) ? $this->onglet : 'importer';
     }
 
@@ -634,27 +659,17 @@ class ImportExport extends PageTransverse
     }
 
     /**
-     * Un flux CSV avec BOM UTF-8 et séparateur point-virgule — convention
-     * serveur RG-19, celle qu'Excel francophone ouvre sans boîte de dialogue.
-     *
-     * @param  callable(resource): void  $ecrire
+     * Un classeur `.xlsx` en téléchargement — le vrai type MIME, jamais
+     * `text/csv` : le navigateur et Excel n'ont ainsi rien à deviner.
      */
-    private function fluxCsv(string $nom, callable $ecrire): StreamedResponse
+    private function fluxXlsx(string $nom, string $octets): StreamedResponse
     {
         return response()->streamDownload(
-            static function () use ($ecrire): void {
-                $sortie = fopen('php://output', 'w');
-
-                if ($sortie === false) {
-                    return;
-                }
-
-                fwrite($sortie, "\xEF\xBB\xBF");
-                $ecrire($sortie);
-                fclose($sortie);
+            static function () use ($octets): void {
+                echo $octets;
             },
             $nom,
-            ['Content-Type' => 'text/csv; charset=UTF-8'],
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
         );
     }
 }

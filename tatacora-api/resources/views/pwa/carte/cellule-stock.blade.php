@@ -24,6 +24,8 @@
   <span class="text-[11px] text-slate-400" title="{{ $motif }}">{{ __('carte_pwa.commun.badge_non_suivi') }}</span>
 @elseif ($stock['non_consulte'])
   <span class="text-[11px] text-amber-700">{{ __('carte_pwa.commun.stock_non_consulte') }}</span>
+@elseif ($stock['illimite'] ?? false)
+  <span class="text-[11px] text-slate-500">{{ __('carte_pwa.commun.badge_illimite') }}</span>
 @elseif ($stock['rupture'])
   <span class="text-[11px] px-1.5 py-0.5 rounded bg-red-50 text-red-700 font-semibold">{{ __('carte_pwa.commun.badge_rupture') }}</span>
 @else

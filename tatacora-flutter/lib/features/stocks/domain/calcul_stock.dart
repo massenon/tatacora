@@ -303,10 +303,20 @@ final class ArticleCalcul {
     required this.seuilCentiemes,
     required this.suivi,
     this.pointStockageId,
+    this.prixAchatReference,
+    this.cmpReference,
+    this.actif = true,
   });
 
   final String id;
   final String libelle;
+
+  /// Le CMP du serveur (v59), en dix-millièmes — `null` : inconnu. Ne sert que s'il n'y a
+  /// AUCUNE entrée valorisée sur ce poste.
+  final int? cmpReference;
+
+  /// La valeur d'achat de référence (v57), en dix-millièmes — `null` : aucune.
+  final int? prixAchatReference;
 
   /// `null` = non renseignée (jamais la chaîne vide).
   final String? categorie;
@@ -314,6 +324,10 @@ final class ArticleCalcul {
   final int seuilCentiemes;
   final SuiviArticle suivi;
   final String? pointStockageId;
+
+  /// `false` : l'article est ARCHIVÉ (v35). Il reste dans le référentiel, marqué
+  /// « Archivé » — le masquer le rendrait indiscernable d'un article inexistant.
+  final bool actif;
 
   bool get estSuiviEnStock => suivi == SuiviArticle.permanent;
 }
@@ -364,8 +378,12 @@ EtatStock calculerEtat({
   for (final a in ordonnes) {
     final siens = parArticle[a.id] ?? const <MouvementCalcul>[];
     final stock = stockDe(siens, pointId: pointId);
-    final cmp = coutMoyenPondereDe(siens);
     final prix = dernierPrixAchatDe(siens);
+    // Aucune entrée valorisée ici : le CMP du serveur (v59) tient lieu de référence — le web
+    // affiche ce même chiffre. Dès qu'une entrée valorisée existe, le CMP est REJOUÉ.
+    final deReference =
+        prix == null && a.cmpReference != null && a.cmpReference! > 0;
+    final cmp = deReference ? a.cmpReference! : coutMoyenPondereDe(siens);
     final valeur = a.estSuiviEnStock ? valeurEnFrancs(stock, cmp) : 0;
 
     if (a.estSuiviEnStock) {
@@ -381,7 +399,9 @@ EtatStock calculerEtat({
     // Du stock, mais jamais un coût : sa valeur n'est pas zéro, elle est
     // INCONNUE. (Compté sur tout le référentiel de la portée, comme les
     // alarmes : filtrer l'affichage ne rend pas le coût connu.)
-    if (a.estSuiviEnStock && stock != 0 && prix == null) sansValorisation++;
+    if (a.estSuiviEnStock && stock != 0 && prix == null && !deReference) {
+      sansValorisation++;
+    }
 
     if (filtre == EtatStockFiltre.sousSeuil && !estSousSeuil) continue;
 
@@ -406,6 +426,11 @@ EtatStock calculerEtat({
             : (libellesPoints[rattache] ?? rattache),
         prixAchat: prix == null ? null : ecrireCout(prix),
         deriveCmp: deriveCoutMoyenPondere(cmp: cmp, prixAchat: prix),
+        cmpDeReference: deReference,
+        valeurAchatReference: a.prixAchatReference == null
+            ? null
+            : ecrireCout(a.prixAchatReference!),
+        actif: a.actif,
       ),
     );
     valeurTotale += valeur;
@@ -550,6 +575,64 @@ FicheStock calculerFiche({
     valeurStockTheorique: ecrireFrancs(valeurEnFrancs(theorique, cmp)),
     coherent: solde == theorique,
     pointId: pointId,
+    lignes: lignes,
+  );
+}
+
+/// La fiche CONSOLIDÉE : chaque article garde SA fiche (calculée par
+/// [calculerFiche], jamais par une seconde formule), et le consolidé en tire un
+/// compte d'articles, un compte de mouvements, une VALEUR totale et la liste
+/// nommée des fiches incohérentes — jamais un cumul de quantités.
+///
+/// [fiches] arrive dans l'ordre des libellés. Les lignes sont triées par
+/// (date, article) ; à égalité, l'ordre d'écriture de chaque fiche est gardé.
+FicheConsolidee consoliderFiches(
+  List<FicheStock> fiches, {
+  required DateTime debut,
+  required DateTime fin,
+  String? pointId,
+}) {
+  var valeur = 0;
+  var avecMouvement = 0;
+  final incoherents = <String>[];
+  final lignes = <LigneFicheConsolidee>[];
+
+  for (final f in fiches) {
+    valeur += int.parse(f.valeurStockTheorique);
+    if (!f.coherent) incoherents.add(f.article.libelle);
+    if (f.lignes.isEmpty) continue;
+    avecMouvement++;
+    for (final l in f.lignes) {
+      lignes.add(
+        LigneFicheConsolidee(
+          article: f.article.libelle,
+          unite: f.article.unite,
+          ligne: l,
+        ),
+      );
+    }
+  }
+
+  // `List.sort` n'est pas stable : le rang d'insertion départage.
+  final rang = <LigneFicheConsolidee, int>{
+    for (final (i, l) in lignes.indexed) l: i,
+  };
+  lignes.sort((a, b) {
+    final parDate = a.ligne.date.compareTo(b.ligne.date);
+    if (parDate != 0) return parDate;
+    final parArticle = a.article.compareTo(b.article);
+    if (parArticle != 0) return parArticle;
+    return rang[a]!.compareTo(rang[b]!);
+  });
+
+  return FicheConsolidee(
+    debut: formatIso(debut),
+    fin: formatIso(fin),
+    pointId: pointId,
+    articles: fiches.length,
+    articlesAvecMouvement: avecMouvement,
+    valeurStockTheorique: ecrireFrancs(valeur),
+    incoherents: incoherents,
     lignes: lignes,
   );
 }

@@ -2,11 +2,14 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/database/tables/clients_table.dart';
 import '../../../core/database/tables/notifications_tables.dart';
 import '../../hebergement/domain/entities/reservation.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
+import '../../transverse/data/boite_envoi_emails_dao.dart';
+import '../../transverse/domain/boite_envoi_emails.dart';
 import '../domain/entities/canal_notification.dart';
 import '../domain/entities/declencheur_notification.dart';
 import '../domain/entities/message_notification.dart';
@@ -65,6 +68,24 @@ final class BilanDetection {
   bool get rienDeRegarde => modelesExamines == 0;
 }
 
+/// L'objet d'un e-mail dont le modèle n'a pas d'objet : le nom du logiciel,
+/// comme `config('app.name')` au serveur (`EnvoiEmailNotificationService`).
+const String objetParDefautEmail = 'TATACORA AFRIQUE';
+
+/// Ce que « Envoyer » a fait du message.
+enum IssueMiseEnBoite {
+  /// L'e-mail vient d'être mis en boîte.
+  miseEnBoite,
+
+  /// Il y était déjà (clé d'idempotence) : rien n'est dupliqué.
+  dejaEnBoite,
+
+  /// L'adresse du destinataire n'a pas pu être lue : rien n'est mis en boîte.
+  sansAdresse,
+}
+
+typedef ResultatMiseEnBoite = ({IssueMiseEnBoite issue, EmailEnBoite? email});
+
 /// Un modèle qui n'a pas pu composer son message, et pourquoi.
 final class RefusComposition {
   const RefusComposition({
@@ -80,13 +101,18 @@ final class RefusComposition {
 
 /// Accès Drift à M12 — le référentiel et la TRACE.
 ///
-/// ## Aucun geste d'envoi, et ce n'est pas un oubli
+/// ## Un seul chemin vers « Envoyé par le système » : l'accusé SMTP
 ///
-/// RG-20 n'est pas implémentée, aucun canal n'est contracté, et ce poste est
-/// hors ligne : aucun envoi n'y est même techniquement possible. Ce DAO
-/// n'expose donc AUCUNE méthode d'envoi, et aucun de ses gestes ne peut écrire
-/// le statut « envoyé » — `notifications_dao_test.dart` l'exige en énumérant
-/// les gestes publics.
+/// Depuis le 26/10/2026 (décision du PO : l'envoi réel d'e-mails en poste et
+/// web), un message de canal e-mail dont l'adresse est connue est MIS EN BOÎTE
+/// d'envoi (`boite_envoi_emails_local`, v39) à sa composition ; la boîte
+/// l'envoie par SMTP. Les autres canaux restent à transmettre à la main
+/// (RG-20 n'y est pas implémentée, aucun n'est contracté).
+///
+/// Aucun geste de l'écran ne peut écrire le statut « envoyé » :
+/// [marquerEnvoyeParLeSysteme] n'est appelée QUE par `ServiceBoiteEnvoiEmails`,
+/// dans la transaction qui écrit `envoye` dans la boîte, après l'accusé du
+/// relais — `notifications_dao_test.dart` énumère les gestes publics.
 ///
 /// « Transmis à la main » fait sortir le message de la file **sans jamais**
 /// prétendre à un envoi système : ce n'est pas le logiciel qui l'a fait partir,
@@ -98,7 +124,9 @@ final class RefusComposition {
 /// `TABLES_SYNCHRONISABLES`, une opération y serait rejetée indéfiniment, et le
 /// badge « en attente de synchronisation » qui en découlerait serait
 /// l'indicateur qui affirme un état que rien n'a vérifié (PA-59/60/61).
-@DriftAccessor(tables: [ModelesNotificationLocal, MessagesNotificationLocal])
+@DriftAccessor(
+  tables: [ModelesNotificationLocal, MessagesNotificationLocal, ClientsLocal],
+)
 class NotificationsDao extends DatabaseAccessor<AppDatabase>
     with _$NotificationsDaoMixin {
   NotificationsDao(super.db);
@@ -361,7 +389,9 @@ class NotificationsDao extends DatabaseAccessor<AppDatabase>
   /* --------------------------------------------------------------- détection */
 
   /// « Détecter maintenant » — compose réellement les messages du jour et les
-  /// met en file. **N'envoie rien.**
+  /// met en file ; un e-mail dont l'adresse du client est connue est mis EN
+  /// BOÎTE d'envoi (il part par SMTP, voir `ServiceBoiteEnvoiEmails`). Cette
+  /// méthode n'envoie rien elle-même.
   ///
   /// Un modèle actif sur un déclencheur que ce poste ne sait pas regarder est
   /// simplement ignoré : ce n'est pas une faute de saisie, et le signaler comme
@@ -370,7 +400,10 @@ class NotificationsDao extends DatabaseAccessor<AppDatabase>
   Future<BilanDetection> detecter({
     required List<Reservation> reservations,
     required DateTime aujourdHui,
+    Map<String, String> emailsClients = const {},
+    DateTime Function()? maintenant,
   }) async {
+    final horloge = maintenant ?? DateTime.now;
     var composes = 0;
     var deja = 0;
     var examines = 0;
@@ -392,14 +425,30 @@ class NotificationsDao extends DatabaseAccessor<AppDatabase>
         declencheur: declencheur,
         reservations: reservations,
         aujourdHui: aujourdHui,
+        emailsClients: emailsClients,
       );
       if (occurrences.isEmpty) continue;
 
       final dejaComposees = await _referencesDe(modele.id);
 
       for (final occurrence in occurrences) {
-        if (dejaComposees.contains(occurrence.reference)) {
+        final existant = dejaComposees[occurrence.reference];
+        if (existant != null) {
           deja++;
+          // RATTRAPAGE : un e-mail composé avant la v39 (ou sans adresse
+          // connue alors) est mis en boîte dès que son adresse se lit. Sans
+          // effet s'il y est déjà (clé d'idempotence) ou n'est plus en file.
+          if (existant.canal == CanalNotification.email.code &&
+              existant.statut == StatutMessageNotification.enAttente.code) {
+            await _mettreEnBoiteSiAdresse(
+              messageId: existant.id,
+              objet: existant.objet,
+              contenu: existant.contenu,
+              destinataire: existant.destinataire,
+              adresse: occurrence.adresseEmail,
+              maintenant: horloge(),
+            );
+          }
           continue;
         }
 
@@ -415,18 +464,33 @@ class NotificationsDao extends DatabaseAccessor<AppDatabase>
               ),
             );
           case MessageCompose(:final contenu, :final objet, :final longueur):
-            await into(messagesNotificationLocal).insert(
-              MessagesNotificationLocalCompanion.insert(
-                id: _uuid.v4(),
-                modeleId: modele.id,
-                canal: modele.canalCode,
-                reference: occurrence.reference,
-                destinataire: occurrence.destinataire,
-                contenu: contenu,
-                longueur: longueur,
-                objet: Value(objet),
-              ),
-            );
+            // Le message ET son e-mail en boîte naissent ENSEMBLE, ou aucun
+            // des deux : jamais un message composé dont l'envoi est perdu.
+            await transaction(() async {
+              final id = _uuid.v4();
+              await into(messagesNotificationLocal).insert(
+                MessagesNotificationLocalCompanion.insert(
+                  id: id,
+                  modeleId: modele.id,
+                  canal: modele.canalCode,
+                  reference: occurrence.reference,
+                  destinataire: occurrence.destinataire,
+                  contenu: contenu,
+                  longueur: longueur,
+                  objet: Value(objet),
+                ),
+              );
+              if (modele.canalCode == CanalNotification.email.code) {
+                await _mettreEnBoiteSiAdresse(
+                  messageId: id,
+                  objet: objet,
+                  contenu: contenu,
+                  destinataire: occurrence.destinataire,
+                  adresse: occurrence.adresseEmail,
+                  maintenant: horloge(),
+                );
+              }
+            });
             composes++;
         }
       }
@@ -527,6 +591,11 @@ class NotificationsDao extends DatabaseAccessor<AppDatabase>
           traiteLe: Value(DateTime.now()),
         ),
       );
+      // Transmis à la main ou abandonné : son e-mail en boîte ne partira
+      // JAMAIS (sinon le client le recevrait deux fois, ou malgré l'abandon).
+      await BoiteEnvoiEmailsDao(
+        attachedDatabase,
+      ).annulerPourSource(SourceEmail.notification, messageId);
     });
 
     final apres = await (select(
@@ -536,13 +605,132 @@ class NotificationsDao extends DatabaseAccessor<AppDatabase>
     return _versMessage(apres, await _declencheursParModele());
   }
 
+  /* ------------------------------------------------------- envoi par e-mail */
+
+  /// Les adresses e-mail des clients du poste, par identifiant — la lecture
+  /// que la détection et « Envoyer » partagent (une adresse blanche ou
+  /// invalide est omise : elle ne deviendrait jamais un envoi).
+  Future<Map<String, String>> emailsDesClients() async {
+    final lignes = await select(clientsLocal).get();
+    return {
+      for (final c in lignes)
+        // Un client archivé (`actif == false`) ne reçoit plus de message.
+        if (c.actif != false && estAdresseEmail(c.email)) c.id: c.email!.trim(),
+    };
+  }
+
+  /// « Envoyer » : met le message [messageId] en boîte d'envoi, en résolvant
+  /// l'adresse de son destinataire à partir de son occurrence d'origine (la
+  /// réservation, donc le client). Rend la boîte et ce qui a eu lieu.
+  ///
+  /// Un message composé avant la v39 n'a jamais eu son adresse lue : elle se lit
+  /// ICI, au geste — jamais une adresse affirmée sans l'avoir lue.
+  Future<ResultatMiseEnBoite> mettreEnBoite(
+    String messageId, {
+    required List<Reservation> reservations,
+    DateTime Function()? maintenant,
+  }) async {
+    final ligne = await (select(
+      messagesNotificationLocal,
+    )..where((m) => m.id.equals(messageId))).getSingleOrNull();
+    if (ligne == null) {
+      throw const RefusNotification("Ce message n'existe plus.");
+    }
+    if (ligne.statut != StatutMessageNotification.enAttente.code) {
+      throw const RefusNotification(
+        'Ce message a déjà été transmis ou abandonné.',
+      );
+    }
+    if (ligne.canal != CanalNotification.email.code) {
+      throw const RefusNotification(
+        'Seul le canal e-mail peut être envoyé automatiquement pour le moment.',
+      );
+    }
+
+    final existant = await BoiteEnvoiEmailsDao(
+      attachedDatabase,
+    ).parSource(SourceEmail.notification, messageId);
+    if (existant != null) {
+      return (issue: IssueMiseEnBoite.dejaEnBoite, email: existant);
+    }
+
+    // `reference` = « <déclencheur>:<id de la réservation> ».
+    final reservationId = ligne.reference.contains(':')
+        ? ligne.reference.substring(ligne.reference.indexOf(':') + 1)
+        : ligne.reference;
+    String? clientId;
+    for (final r in reservations) {
+      if (r.id == reservationId) clientId = r.clientId;
+    }
+    final adresse = clientId == null
+        ? null
+        : (await emailsDesClients())[clientId];
+
+    final cree = await _mettreEnBoiteSiAdresse(
+      messageId: ligne.id,
+      objet: ligne.objet,
+      contenu: ligne.contenu,
+      destinataire: ligne.destinataire,
+      adresse: adresse,
+      maintenant: (maintenant ?? DateTime.now)(),
+    );
+    return cree == null
+        ? (issue: IssueMiseEnBoite.sansAdresse, email: null)
+        : (issue: IssueMiseEnBoite.miseEnBoite, email: cree);
+  }
+
+  /// Le SEUL chemin vers « Envoyé par le système » : le relais SMTP a ACCEPTÉ
+  /// l'e-mail. Appelé par `ServiceBoiteEnvoiEmails`, dans la transaction qui
+  /// écrit `envoye` dans la boîte — jamais par un geste de l'écran. Sans effet
+  /// si le message n'est plus en file (déjà transmis à la main, abandonné).
+  Future<void> marquerEnvoyeParLeSysteme(
+    String messageId, {
+    required DateTime envoyeLe,
+  }) async {
+    await (update(messagesNotificationLocal)..where(
+          (m) =>
+              m.id.equals(messageId) &
+              m.statut.equals(StatutMessageNotification.enAttente.code),
+        ))
+        .write(
+          MessagesNotificationLocalCompanion(
+            statut: Value(StatutMessageNotification.envoyeParLeSysteme.code),
+            traiteLe: Value(envoyeLe),
+          ),
+        );
+  }
+
+  Future<EmailEnBoite?> _mettreEnBoiteSiAdresse({
+    required String messageId,
+    required String? objet,
+    required String contenu,
+    required String destinataire,
+    required String? adresse,
+    required DateTime maintenant,
+  }) async {
+    if (!estAdresseEmail(adresse)) return null;
+    final resultat = await BoiteEnvoiEmailsDao(attachedDatabase).mettreEnFile(
+      cleIdempotence: SourceEmail.cleNotification(messageId),
+      source: SourceEmail.notification,
+      sourceId: messageId,
+      adresse: adresse!,
+      destinataireNom: destinataire,
+      objet: objet ?? objetParDefautEmail,
+      corps: contenu,
+      maintenant: maintenant,
+    );
+    return resultat.email;
+  }
+
   /* ---------------------------------------------------------------- internes */
 
-  Future<Set<String>> _referencesDe(String modeleId) async {
+  Future<Map<String, MessagesNotificationLocalData>> _referencesDe(
+    String modeleId,
+  ) async {
     final lignes = await (select(
       messagesNotificationLocal,
     )..where((m) => m.modeleId.equals(modeleId))).get();
-    return lignes.map((l) => l.reference).toSet();
+    return {for (final l in lignes) l.reference: l};
   }
 
   Future<ModelesNotificationLocalData> _ligneModele(String id) async {

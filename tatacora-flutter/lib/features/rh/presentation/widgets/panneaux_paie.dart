@@ -1268,11 +1268,11 @@ class _Rubrique {
 /// Le squelette du tableau « Écriture comptable proposée », **et son état vide
 /// qui nomme le refus**.
 ///
-/// Le maître propose une écriture de paie et un bouton « Comptabiliser la
-/// paie ». Vérifié le 31/08/2026 côté serveur : le listener
-/// « GenererEcritureDepuisPaie » que la migration RH annonce elle-même n'existe
-/// nulle part, et écrire la pièce depuis M13 doublerait le seul point d'entrée
-/// d'écriture comptable, où vit l'immuabilité RG-11.
+/// La note de conception de la vue (`livre_ecriture_absente_texte`), dite ici
+/// mot pour mot — le poste ne la rend pas, directive du PO du 14/10/2026 :
+/// « Le maître propose une écriture de paie et un bouton « Comptabiliser la paie ». Vérifié le 31/08/2026 : le listener « GenererEcritureDepuisPaie » que la migration RH annonce elle-même n’existe nulle part dans le dépôt, et écrire la pièce depuis M13 doublerait le seul point d’entrée d’écriture comptable, où vit l’immuabilité RG-11. La paie se comptabilise donc depuis l’écran Comptabilité, sur les montants de ce livre. »
+/// Seule sa dernière phrase est rendue (voir `_EcritureComptableAbsente`) ; la
+/// mesure compte la note « nommée », pas « rendue ».
 ///
 /// **Aucune ligne d'écriture n'est inventée** : pas de lignes, pas de badge
 /// « Équilibrée », pas de totaux. Les colonnes, elles, sont rendues — un

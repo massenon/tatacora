@@ -3,6 +3,14 @@ import 'package:uuid/uuid.dart';
 import '../../../core/donnees_absentes.dart';
 import '../../pos/data/catalogue_dao.dart';
 import '../../pos/data/dto/catalogue_dto.dart';
+import '../../pos/data/historique_prix_carte_dao.dart';
+import '../../pos/data/indisponibilites_carte_dao.dart';
+import '../../pos/domain/changement_prix_carte.dart';
+import '../../pos/domain/entities/panier.dart';
+import '../../pos/domain/entities/reference_catalogue.dart';
+import '../../ventes/domain/lignes_vente_du_rayon.dart';
+import '../domain/apercu_lien.dart';
+import '../domain/motif_indisponibilite.dart';
 import '../domain/entities/boisson.dart';
 import '../domain/entities/trace_prix.dart';
 import '../domain/entities/ventes_bar.dart';
@@ -73,24 +81,24 @@ final class PageBar<T> {
 
 /// La saisie d'une boisson.
 ///
-/// ## `articleId` n'est plus obligatoire, et c'est un CHANGEMENT de fond
+/// ## L'article de stock ET son conditionnement partent ensemble (26/10/2026)
 ///
-/// Il l'était tant que la boisson naissait au serveur : `cartes_boisson.
-/// article_id` y est NOT NULL et `exists:articles,id`. Sur ce poste,
-/// `articles_local` est **délibérément vide** (PA-134) — le stock était calculé
-/// par le serveur, et aucun référentiel d'articles n'y est répliqué. Exiger un
-/// article ici rendrait la création **impossible**, c'est-à-dire laisserait le
-/// point de vente sans rien à vendre : exactement le défaut que ce lot referme.
-///
-/// Une boisson saisie au comptoir naît donc **sans lien de stock**, la carte
-/// l'affiche « non suivi », et sa vente ne décrémente aucun casier — ce qui est
-/// la vérité de ce poste, pas une approximation.
+/// Le poste tient maintenant ses articles de stock (`articles_local`, module
+/// Stocks) : « Nouvelle boisson » choisit un article et dit combien d'unités
+/// VENDUES font une unité de STOCK (un casier de 24 : `24`). Un conditionnement
+/// SANS article est refusé (il ne décrémenterait rien, `conversion_sans_lien`).
+/// Un article SANS conditionnement est admis au niveau de l'API, comme
+/// `CarteBoissonService::creer` (le serveur garde alors son défaut, 1) : c'est
+/// l'import d'une carte. [articleId] vide aussi (boissons d'avant : « non
+/// suivie »). Ce sont les MODALES qui exigent les deux, comme la vue exige
+/// l'article.
 final class SaisieBoisson {
   const SaisieBoisson({
     required this.libelle,
     required this.categorie,
     required this.prixVente,
     this.articleId = '',
+    this.unitesVendablesParUniteStock = '',
     this.id,
   });
 
@@ -103,6 +111,10 @@ final class SaisieBoisson {
 
   /// Le lien vers l'article de stock (M6). Chaîne vide = aucun lien.
   final String articleId;
+
+  /// Combien d'unités vendables dans une unité de stock, tel que saisi
+  /// (« 24 », « 66,5 »). Exigé avec [articleId], refusé sans lui.
+  final String unitesVendablesParUniteStock;
 
   /// L'identifiant de la boisson à MODIFIER. `null` = création.
   final String? id;
@@ -135,23 +147,15 @@ final class SaisieBoisson {
 /// et l'amorçage de démonstration. Un second auteur est le défaut que
 /// `database/seeders/` a produit cinq fois.
 ///
-/// ## Ce que ce poste ne peut PAS porter, et pourquoi — sans rien inventer
+/// ## Le lien au stock s'écrit ICI (26/10/2026)
 ///
-/// Quatre gestes de l'écran restent **refusés avec leur raison**, parce que la
-/// colonne ou la table qui les porterait n'existe pas au schéma local. Les
-/// rendre « en session » les ferait disparaître au redémarrage, sur l'écran qui
-/// dit au barman ce qui est vendable — la famille PA-59/60/61 :
-///
-///  - **retrait et remise à la carte du jour** : aucune colonne
-///    d'indisponibilité (ni motif, ni commentaire) ;
-///  - **lien au stock** : aucune colonne `unites_vendables_par_unite_stock`, et
-///    aucun article auquel se lier (`articles_local` est vide, PA-134) ;
-///  - **historique des prix** : aucune table de trace ;
-///  - **prix provisoire / corrigé à la main** : aucune colonne.
-///
-/// Ces quatre manques sont **signalés**, jamais comblés par une colonne créée
-/// au passage : le schéma Drift est versionné, et une table modifiée ici
-/// exigerait sa migration, sa fixture de retour arrière et son arbitrage.
+/// `cartes_boisson_local.unites_vendables` (v30) porte le conditionnement et
+/// `articles_local` les articles du poste : « Nouvelle boisson » et « Lier au
+/// stock » / « Modifier le lien » écrivent l'article ET son conditionnement par
+/// [CatalogueDao], dans la file d'envoi (création ou modification). Reste
+/// refusé, parce que ni colonne ni table ne le porte : la marque **prix
+/// corrigé à la main** d'une boisson. L'**historique des prix** est tenu depuis
+/// la v38 (`historique_prix_carte_local`) : [historiquePrix] le lit.
 ///
 /// ## Aucune suppression, et ce n'est pas un oubli
 ///
@@ -160,9 +164,24 @@ final class SaisieBoisson {
 /// `Policy::delete()` rend `false` partout dans ce projet, et le geste métier
 /// existe à la place : on retire de la carte, on ne détruit pas la ligne.
 final class BoissonsApi {
-  BoissonsApi(this._catalogue, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
+  BoissonsApi(
+    this._catalogue, {
+    Uuid? uuid,
+    IndisponibilitesCarteDao? retraits,
+    this._sourceVentes,
+  }) : _uuid = uuid ?? const Uuid(),
+       _retraits =
+           retraits ?? IndisponibilitesCarteDao(_catalogue.attachedDatabase);
 
   final CatalogueDao _catalogue;
+
+  /// Les paniers du poste — la source des ventes du rayon (leur numéro `V-` et
+  /// leur auteur sont des colonnes du panier, v38). `null` : la donnée est dite
+  /// absente.
+  final Future<List<Panier>> Function()? _sourceVentes;
+
+  /// Seul écrivain des retraits de la carte du jour (v31, 21/10/2026).
+  final IndisponibilitesCarteDao _retraits;
 
   /// Injectable : un identifiant tiré au hasard rendrait les cas d'essai
   /// illisibles, et l'UUID naît **côté client** par règle de projet.
@@ -209,21 +228,22 @@ final class BoissonsApi {
     return b == null ? _introuvable() : BarRecu(_versBoisson(b));
   }
 
-  /// L'historique des prix — **aucune trace n'existe sur ce poste**.
+  /// L'historique des prix d'UNE boisson, du plus récent au plus ancien — la
+  /// table locale `historique_prix_carte_local` (v38), alimentée par les
+  /// changements de prix faits ici ([CatalogueDao.enregistrerBoisson], dans la
+  /// transaction du prix) et par la descente (les traces des autres postes et
+  /// de la PWA).
   ///
-  /// Elle était écrite au serveur par `CarteBoissonObserver`, dans une table
-  /// `historiques_prix_carte` qui n'a jamais été répliquée. Rendre une liste
-  /// vide dirait « aucun changement de prix », ce qui est un FAIT — et un fait
-  /// faux dès la première modification faite ici.
-  Future<ResultatBar<List<TracePrix>>> historiquePrix(
-    String id,
-  ) async => const BarRefuse(
-    motif:
-        'L’historique des prix n’est pas tenu sur ce poste : aucune table '
-        'ne trace les changements du catalogue local. Ce n’est pas « aucun '
-        'changement » — la trace n’existe pas, elle n’est pas vide. Le prix '
-        'affiché sur la carte est le prix en cours, et lui seul.',
-  );
+  /// Une liste VIDE dit désormais la vérité : le poste a tracé chaque changement
+  /// qu'il a fait et reçu ceux du serveur — « aucun changement de prix » est un
+  /// fait vérifié, plus l'absence d'une table. (Un changement fait au serveur
+  /// et pas encore descendu n'y figure pas : le prochain passage le rapporte.)
+  Future<ResultatBar<List<TracePrix>>> historiquePrix(String id) async =>
+      BarRecu(
+        await HistoriquePrixCarteDao(
+          _catalogue.attachedDatabase,
+        ).deLArticle(SourceCarte.boisson, id),
+      );
 
   /* ================================================================== */
   /* Écritures                                                           */
@@ -266,6 +286,37 @@ final class BoissonsApi {
       return _introuvable();
     }
 
+    // Le lien : l'article ET son conditionnement, ou ni l'un ni l'autre.
+    String? unitesEcrites;
+    final article = saisie.articleId.trim();
+    if (article.isEmpty) {
+      if (saisie.unitesVendablesParUniteStock.trim().isNotEmpty) {
+        return BarRefuse(
+          motif: TextesCatalogueLocal.saisieRefusee,
+          erreurs: {
+            _champConversion: TextesCatalogueLocal.conversionSansLien(libelle),
+          },
+        );
+      }
+    } else {
+      final erreursLien = await _verifierLien(
+        libelle: libelle,
+        articleId: article,
+        conditionnement: saisie.unitesVendablesParUniteStock,
+        // Comme `CarteBoissonService::creer` : une clé absente laisse le
+        // conditionnement au défaut du schéma serveur (1). C'est la MODALE
+        // qui l'exige (« Combien de … dans une unité de stock ? »).
+        conditionnementRequis: false,
+      );
+      if (erreursLien.$2.isNotEmpty) {
+        return BarRefuse(
+          motif: TextesCatalogueLocal.saisieRefusee,
+          erreurs: erreursLien.$2,
+        );
+      }
+      unitesEcrites = erreursLien.$1;
+    }
+
     // Le doublon se refuse AVANT l'écriture : `insertOnConflictUpdate` porte
     // sur l'identifiant, pas sur le libellé — deux créations successives du
     // même nom produiraient deux lignes, et le point de vente en montrerait
@@ -279,13 +330,14 @@ final class BoissonsApi {
 
     final ecrite = BoissonDistante(
       id: id ?? _uuid.v4(),
-      articleId: saisie.articleId.isEmpty ? null : saisie.articleId,
+      articleId: article.isEmpty ? null : article,
       libelle: libelle,
       categorie: saisie.categorie.code,
       // Le franc CFA n'a pas de sous-unité en circulation : le catalogue ne
       // porte que des francs entiers, et la conversion se fait ICI, une fois.
       prixVente: prix!.roundToDouble(),
       stockDisponible: null,
+      unitesVendables: unitesEcrites,
     );
 
     await _catalogue.enregistrerBoisson(ecrite);
@@ -342,63 +394,229 @@ final class BoissonsApi {
     return BarRecu(_versBoisson(ecrite));
   }
 
+  /// « Modifier la boisson » — le libellé et la catégorie, et RIEN d'autre
+  /// (`CarteBar::enregistrerModificationBoisson`, `CarteBoissonService::modifier`
+  /// ne reçoit que ces deux clés) : le prix, le lien au stock et l'historique
+  /// restent ceux de la boisson. Le prix est donc RELU au catalogue juste avant
+  /// l'écriture, jamais repris de la ligne affichée.
+  ///
+  /// Mêmes règles que `EnregistrerBoissonRequest` : libellé requis, 255
+  /// caractères au plus, catégorie du registre fermé ; le poste refuse en plus
+  /// un libellé déjà pris (deux entrées de même nom au comptoir).
+  Future<ResultatBar<Boisson>> modifier(
+    String id, {
+    required String libelle,
+    required CategorieBoisson categorie,
+  }) async {
+    final actuelle = await _catalogue.boissonDuCatalogue(id);
+    if (actuelle == null) return _introuvable();
+
+    final nom = libelle.trim();
+    if (nom.isEmpty || nom.length > 255) {
+      return BarRefuse(
+        motif: TextesCatalogueLocal.saisieRefusee,
+        erreurs: {
+          'libelle': nom.isEmpty
+              ? TextesCatalogueLocal.libelleManquant
+              : TextesCatalogueLocal.libelleTropLong,
+        },
+      );
+    }
+    if (await _catalogue.libelleBoissonExiste(nom, sauf: id)) {
+      return BarRefuse(
+        motif: TextesCatalogueLocal.saisieRefusee,
+        erreurs: {'libelle': TextesCatalogueLocal.libelleDejaPris(nom)},
+      );
+    }
+
+    final ecrite = BoissonDistante(
+      id: actuelle.id,
+      articleId: actuelle.articleId,
+      libelle: nom,
+      categorie: categorie.code,
+      prixVente: actuelle.prixVente,
+      stockDisponible: null,
+    );
+    await _catalogue.enregistrerBoisson(ecrite);
+    return BarRecu(_versBoisson(ecrite));
+  }
+
   /* ================================================================== */
-  /* Les quatre gestes que le SCHÉMA LOCAL ne porte pas                  */
+  /* Le retrait de la carte du jour (v31, 21/10/2026)                    */
   /* ================================================================== */
 
-  /// « Rendre indispo. » — **refusé, faute de colonne**.
-  ///
-  /// Le serveur écrivait une ligne `indisponibilites_carte` (motif, commentaire,
-  /// utilisateur, sous verrou). `cartes_boisson_local` n'a que cinq colonnes :
-  /// `id`, `article_id`, `libelle`, `categorie`, `prix_vente`. Il n'existe donc
-  /// **aucun endroit** où écrire un retrait.
-  ///
-  /// Le tenir en mémoire le ferait disparaître à la fermeture de la fenêtre :
-  /// le barman aurait retiré la Béninoise le matin et la verrait revenir à
-  /// midi, sans que personne ne sache s'il faut la racheter. C'est le défaut
-  /// même que la PWA a fermé, et l'inverse serait pire que l'absence.
+  /// « Rendre indispo. » — écrit une ligne `indisponibilites_carte_local`
+  /// (motif du registre fermé, commentaire, instant) et la met en file : le
+  /// serveur la fusionne si la boisson est déjà retirée, et les autres postes
+  /// la reçoivent. Un motif hors registre est refusé AVANT l'écriture.
   Future<ResultatBar<Boisson>> retirer({
     required String id,
     required String motif,
     String? commentaire,
-  }) async => const BarRefuse(motif: TextesCatalogueLocal.retraitSansColonne);
+  }) async {
+    final m = MotifIndisponibilite.values
+        .where((x) => x.code == motif)
+        .firstOrNull;
+    if (m == null) {
+      return BarRefuse(
+        motif: 'Le motif « $motif » n’existe pas.',
+        erreurs: {'motif': 'Choisissez un des motifs proposés.'},
+      );
+    }
+    final b = await _catalogue.boissonDuCatalogue(id);
+    if (b == null) return _introuvable();
+    if ((commentaire?.trim().length ?? 0) > 500) {
+      return const BarRefuse(
+        motif: 'Le commentaire est trop long.',
+        erreurs: {'commentaire': '500 caractères au plus.'},
+      );
+    }
+    final ecrit = await _retraits.retirer(
+      boissonId: id,
+      motif: m,
+      commentaire: commentaire,
+    );
+    if (ecrit == null) {
+      return BarRefuse(
+        motif: TextesCatalogueLocal.dejaRetiree(b.libelle),
+        erreurs: {'etat': TextesCatalogueLocal.dejaRetiree(b.libelle)},
+      );
+    }
+    return BarRecu(_versBoisson(b));
+  }
 
-  /// « Remettre » — refusé pour la même raison que [retirer] : il n'y a rien à
-  /// lever, puisqu'il n'y a rien où écrire un retrait.
-  Future<ResultatBar<Boisson>> remettre(String id) async =>
-      const BarRefuse(motif: TextesCatalogueLocal.retraitSansColonne);
+  /// « Remettre » — ferme le retrait en cours (instant du retour) et le met en
+  /// file. Refusé, en le DISANT, quand rien n'est retiré (déjà remise ici ou
+  /// sur un autre poste).
+  Future<ResultatBar<Boisson>> remettre(String id) async {
+    final b = await _catalogue.boissonDuCatalogue(id);
+    if (b == null) return _introuvable();
+    if (!await _retraits.remettre(boissonId: id)) {
+      return BarRefuse(
+        motif: TextesCatalogueLocal.nonRetiree(b.libelle),
+        erreurs: {'etat': TextesCatalogueLocal.nonRetiree(b.libelle)},
+      );
+    }
+    return BarRecu(_versBoisson(b));
+  }
 
-  /// « Lier au stock » — **refusé deux fois plutôt qu'une**.
+  /// « Lier au stock » / « Modifier le lien » — l'article de stock ET son
+  /// conditionnement, écrits ENSEMBLE (26/10/2026).
   ///
-  /// Il n'y a aucun article auquel se lier (`articles_local` est délibérément
-  /// vide, PA-134), et aucune colonne où ranger le conditionnement — qui est la
-  /// raison d'être même de ce geste : un casier de 24 et une bouteille à
-  /// l'unité ne décrémentent pas pareil. Écrire le seul `article_id` en jetant
-  /// le conditionnement serait le champ collecté puis ignoré.
+  /// Écrire le seul `article_id` en jetant le conditionnement serait le champ
+  /// collecté puis ignoré : un casier de 24 et une bouteille à l'unité ne
+  /// décrémentent pas pareil. Les deux valeurs passent donc par
+  /// [CatalogueDao.enregistrerBoisson] — seul écrivain —, qui met en file une
+  /// modification portant `article_id` et `unites_vendables_par_unite_stock`
+  /// (les seuls champs changés ; le serveur les reçoit depuis le 26/10/2026).
+  ///
+  /// Refusé AVANT toute écriture, champ par champ : boisson inconnue, article
+  /// absent de ce poste, conditionnement vide, illisible ou non strictement
+  /// positif (`gt:0` : la décrémentation vaut `1 / conditionnement`). Le prix, le
+  /// libellé et la catégorie restent ceux du catalogue, relus à l'instant.
   Future<ResultatBar<Boisson>> lierAuStock({
     required String id,
     required String articleId,
     required String unitesVendablesParUniteStock,
-  }) async => const BarRefuse(motif: TextesCatalogueLocal.lienSansColonne);
+  }) async {
+    final actuelle = await _catalogue.boissonDuCatalogue(id);
+    if (actuelle == null) return _introuvable();
+
+    final verifie = await _verifierLien(
+      libelle: actuelle.libelle,
+      articleId: articleId.trim(),
+      conditionnement: unitesVendablesParUniteStock,
+    );
+    if (verifie.$2.isNotEmpty) {
+      return BarRefuse(
+        motif: TextesCatalogueLocal.saisieRefusee,
+        erreurs: verifie.$2,
+      );
+    }
+
+    final ecrite = BoissonDistante(
+      id: actuelle.id,
+      articleId: articleId.trim(),
+      libelle: actuelle.libelle,
+      categorie: actuelle.categorie,
+      prixVente: actuelle.prixVente,
+      stockDisponible: null,
+      unitesVendables: verifie.$1,
+    );
+    await _catalogue.enregistrerBoisson(ecrite);
+    return BarRecu(_versBoisson(ecrite));
+  }
+
+  static const String _champConversion = 'unites_vendables_par_unite_stock';
+
+  /// Le lien est-il écrivable ? Rend le conditionnement NORMALISÉ (« 24 »,
+  /// « 66.5 ») et les erreurs par champ — vides quand tout est bon.
+  ///
+  /// Les règles sont celles de `EcranDeCarte::enregistrerLienAuStock()` :
+  /// article requis et présent, conditionnement `numeric` et `gt:0`.
+  Future<(String?, Map<String, String>)> _verifierLien({
+    required String libelle,
+    required String articleId,
+    required String conditionnement,
+    bool conditionnementRequis = true,
+  }) async {
+    final erreurs = <String, String>{};
+    if (articleId.isEmpty) {
+      erreurs['article_id'] = TextesCatalogueLocal.articleObligatoire;
+    } else if (await _catalogue.articleDeStock(articleId) == null) {
+      erreurs['article_id'] = TextesCatalogueLocal.articleInexistant;
+    }
+
+    String? unites;
+    if (conditionnement.trim().isEmpty) {
+      if (conditionnementRequis) {
+        erreurs[_champConversion] = TextesCatalogueLocal.conversionRequise(
+          libelle,
+        );
+      }
+    } else {
+      final lu = lireDecimal(conditionnement);
+      if (lu == null || lu <= BigInt.zero) {
+        erreurs[_champConversion] = TextesCatalogueLocal.conversionInvalide(
+          libelle,
+        );
+      } else {
+        unites = ecrireDecimal(lu);
+      }
+    }
+    return (unites, erreurs);
+  }
 
   /* ================================================================== */
-  /* Les ventes du bar — hors de ce lot                                  */
+  /* Les ventes du bar — calculées sur les paniers du poste              */
   /* ================================================================== */
 
-  /// ⚠ `ventes_bar_local` existe au schéma et **n'a aucun auteur** : aucune
-  /// vente n'y est écrite, ni par le point de vente (qui tient ses paniers)
-  /// ni par personne d'autre. Rendre une liste vide annoncerait « aucune vente
-  /// aujourd'hui », un fait — et faux. Ce lot ne referme pas ce point ; il le
-  /// nomme.
-  Future<ResultatBar<PageVentesBar>> ventes(FiltreVentesBar filtre) async =>
-      BarRefuse(motif: donneeNonDisponible(_ventes));
+  /// Les lignes de vente du rayon M5, filtrées et paginées, SANS serveur
+  /// (`lignesDuRayon`, réplique de `LignesVenteDuRayonService`) : les paniers
+  /// clôturés ou annulés de ce poste et ceux des autres postes qu'il a reçus.
+  /// Sans source de ventes injectée, la donnée est dite absente — jamais une
+  /// liste vide qui annoncerait « aucune vente ».
+  Future<ResultatBar<PageVentesBar>> ventes(FiltreVentesBar filtre) async {
+    final source = _sourceVentes;
+    if (source == null) return BarRefuse(motif: donneeNonDisponible(_ventes));
+    final paniers = await source();
+    return BarRecu(
+      pageDuRayon(lignesDuRayon(paniers, ModuleVendable.m5Bar, filtre), filtre),
+    );
+  }
 
   Future<ResultatBar<(List<LigneVenteBar>, TotauxVentesBar)>> toutesLesVentes(
     FiltreVentesBar filtre, {
     int pagesMax = 500,
-  }) async => BarRefuse(motif: donneeNonDisponible(_ventes));
+  }) async {
+    final source = _sourceVentes;
+    if (source == null) return BarRefuse(motif: donneeNonDisponible(_ventes));
+    final paniers = await source();
+    final lignes = lignesDuRayon(paniers, ModuleVendable.m5Bar, filtre);
+    return BarRecu((lignes, totauxDuRayon(lignes)));
+  }
 
-  static const String _ventes = 'Les ventes du bar (module M5)';
+  static const String _ventes = 'Les ventes du bar';
 
   /* ================================================================== */
 
@@ -437,8 +655,9 @@ final class BoissonsApi {
     // Le stock ne se saisit jamais (PA-24). Ici ce n'est plus une affirmation
     // du serveur relue, c'est un fait du poste : aucun champ ne l'accepte.
     stockLectureSeule: true,
-    // Aucune colonne ne porte le conditionnement — voir [lierAuStock].
-    unitesVendablesParUniteStock: null,
+    // `cartes_boisson_local.unites_vendables` (v30) — `null` : pas reçu, et la
+    // modale « Lier au stock » ne propose alors pas de valeur inventée.
+    unitesVendablesParUniteStock: b.unitesVendables,
   );
 }
 
@@ -468,20 +687,38 @@ abstract final class TextesCatalogueLocal {
       'entrées au point de vente, et le barman ne peut plus savoir laquelle il '
       'vend. Deux contenances différentes sont deux articles : nommez-les.';
 
-  /// Le refus de « Rendre indispo. » et de « Remettre ».
-  static const String retraitSansColonne =
-      'Le retrait de la carte du jour n’est pas enregistrable sur ce poste : '
-      'la table du catalogue local ne porte ni motif, ni commentaire, ni date '
-      'de retrait. Le tenir en mémoire le ferait disparaître à la fermeture de '
-      'la fenêtre — l’article reviendrait seul à la carte, sans que personne '
-      'ne sache s’il faut le racheter. Retirez plutôt la boisson de la carte '
-      'en la renommant ou signalez-la au responsable.';
+  /// « Rendre indispo. » sur une boisson déjà retirée : rien n'est écrit.
+  static String dejaRetiree(String libelle) =>
+      '« $libelle » est déjà retirée de la carte du jour.';
 
-  /// Le refus de « Lier au stock ».
-  static const String lienSansColonne =
-      'Le lien au stock n’est pas enregistrable sur ce poste : aucun article '
-      'de stock n’y est répliqué, et la table du catalogue local ne porte pas '
-      'le conditionnement (combien de bouteilles dans un casier ?). Sans lui, '
-      'une vente ne saurait pas quoi décrémenter — et l’enregistrer à moitié '
-      'ferait croire à un rattachement qui ne compte rien.';
+  /// « Remettre » sur une boisson qui n'est pas retirée : rien n'est écrit.
+  static String nonRetiree(String libelle) =>
+      '« $libelle » n’est pas retirée de la carte du jour.';
+
+  /// `bar.validation.article_obligatoire`.
+  static const String articleObligatoire =
+      'Une boisson doit être liée à un article du stock, sinon sa vente ne '
+      'décrémenterait rien.';
+
+  /// `bar.validation.article_inexistant`, précisé : sur ce poste, la liste des
+  /// articles est celle du module Stocks.
+  static const String articleInexistant =
+      'Cet article n’existe pas dans le référentiel Stocks de ce poste.';
+
+  /// `carte.conversion_requise_avec_lien`.
+  static String conversionRequise(String libelle) =>
+      '« $libelle » est rattaché à un article de stock : le nombre d’unités '
+      'vendables par unité de stock devient obligatoire. Sans lui, la vente ne '
+      'saurait pas quelle fraction d’unité de stock sortir.';
+
+  /// `carte.conversion_invalide`.
+  static String conversionInvalide(String libelle) =>
+      'La conversion vers le stock de « $libelle » est invalide : le nombre '
+      'd’unités vendables par unité de stock doit être strictement positif.';
+
+  /// `carte.conversion_sans_lien`.
+  static String conversionSansLien(String libelle) =>
+      '« $libelle » n’est rattaché à aucun article de stock : un '
+      'conditionnement y serait sans objet, et laisserait croire à une '
+      'décrémentation qui n’aura pas lieu.';
 }

@@ -8,9 +8,98 @@ use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\ReadModels\LigneBalance;
 use App\Domain\Comptabilite\ReadModels\Tafire;
 use App\Domain\Comptabilite\Support\RubriquesSyscohada;
+use App\Domain\Comptabilite\Support\RubriquesTafire;
 
 /**
  * TAFIRE — `MODULE_COMPTABILITE_COMPLET_PART3.md` §2, `m10-flux-tresorerie.html`.
+ *
+ * ## DEFINITION FINALE (10/11/2026, avis de l'expert-comptable SYSCOHADA)
+ *
+ * Le resultat est celui de N SEUL, et tout montant de bilan est une VARIATION :
+ * solde de cloture (balance, a-nouveaux compris) moins solde d'ouverture
+ * (`BalanceGeneraleService::soldesOuverture` : journal AN, ou a-nouveaux
+ * provisoires). Il n'y a plus de « niveau » dans le tableau, donc plus de report
+ * de N-1 recompte.
+ *
+ *   CAFG        = resultat net de N (`Bilan::resultatExercice`, jamais le 131/139
+ *                 reporte)
+ *                 + DOTATIONS (681 + 687 + 691 + 697 + 85)
+ *                 - REPRISES (781 + 787 + 791 + 797 + 798 + 86)
+ *                 + valeur comptable des cessions (81) - produits des cessions (82)
+ *                 - quote-part des subventions d'investissement virée au résultat
+ *                   (799 : produit non encaisse)
+ *   Exploitation  = CAFG - variation du BFR (stocks + creances - dettes circulantes ;
+ *                   le 465 n'y est PAS)
+ *   Investissement = produits des cessions (82) - acquisitions, avec
+ *                 acquisitions = variation des immobilisations NETTES + dotations
+ *                 aux AMORTISSEMENTS (681, 852) + VNC cedees - reprises sur
+ *                 immobilisations (781, 787, 798, 862)
+ *   Financement = apports (101, 102, 103, 105, 106, 109 + subventions
+ *                 d'investissement RECUES : variation du 14 + quote-part 799 virée)
+ *                 + emprunts (comptes 16 et 17 : dettes financieres et credit-bail)
+ *                 + dettes liees a des participations et comptes de liaison (18,
+ *                   ligne distincte, nulle sans groupe)
+ *                 - dividendes verses, avec
+ *                 dividendes verses = -(variation des capitaux propres hors resultat :
+ *                 compte de l'exploitant 104, reserves 11, report 12, resultat
+ *                 reporte 13 + variation des dividendes a payer 465)
+ *   Variation de tresorerie = Exploitation + Investissement + Financement
+ *                           = variation constatee aux comptes de classe 5.
+ *
+ * ### Les provisions (19, 15) n'entrent dans AUCUN flux
+ *
+ * Le 19 est une PROVISION FINANCIERE POUR RISQUES ET CHARGES, pas un emprunt : sa
+ * variation passe par les dotations (691, 697, 85) et les reprises (791, 797, 86)
+ * de la CAFG, et par rien d'autre. Meme regle pour le 15 (provisions
+ * reglementees : 851 / 861). Une dotation aux PROVISIONS est reintegree a la CAFG
+ * mais n'entre pas dans les acquisitions (aucune contrepartie parmi les
+ * immobilisations) : seules les dotations dont la contrepartie est un
+ * amortissement (681, 852) et les reprises sur immobilisations (781, 787, 798,
+ * 862) s'y compensent. Un mouvement de 19 qui ne passerait pas par une dotation ou
+ * une reprise (ex. D 121 / C 19) laisse un ECART : le controle de coherence le
+ * dit, c'est son role.
+ *
+ * ### Ce que le plan comptable du depot dit, et ce que l'avis supposait
+ *
+ *  - Le 777 est « Gains sur cessions de titres de placement » (encaisse) : la
+ *    quote-part des subventions virée au resultat est, au plan revise, le 799
+ *    « Reprises de subventions d'investissement » ; c'est lui qui est retire de
+ *    la CAFG. Le 799, comme le 797 et le 687, n'etait capte par aucune rubrique du
+ *    compte de resultat : ils entrent maintenant dans la cascade des SIG.
+ *  - Le 781 et le 787 sont des « Transferts de charges », comptes de l'avis ranges
+ *    avec les reprises ; leur contrepartie est supposee etre une immobilisation (ou
+ *    son amortissement). Un transfert dont la contrepartie serait une creance (BFR)
+ *    fausserait le tableau : a confirmer avec le comptable.
+ *  - Les reprises d'amortissements sont au 798 (absent de l'avis, ajoute ici : sans
+ *    lui, une reprise d'amortissement laissait un ecart).
+ *  - 18 : « dettes liees a des participations, comptes de liaison ». Ligne
+ *    distincte (ressource de financement reelle quand un groupe existe, et elle
+ *    garde les totaux equilibres) plutot qu'exclusion avec un ecart nomme ; nulle
+ *    sans groupe, donc non affichee au web.
+ *  - ECART NOMME : le TAFIRE n'a pas de ligne « subventions d'investissement
+ *    recues » : elles restent dans « Augmentation de capital » (variation du 14
+ *    + quote-part 799 virée, soit le montant effectivement recu).
+ *
+ * ### Le compte de l'exploitant (104) et le 465
+ *
+ * L'affectation du resultat de N-1 (D 131 / C 121, 111, 118, 465, 104 ; perte
+ * D 129 / C 139) n'est PAS du resultat de N : c'est un mouvement des capitaux
+ * propres, lu PAR COMPTES (classe 1) et non par une liste de pieces. Un benefice
+ * affecte au 104 (D 131 / C 104) se compense (131 baisse, 104 monte) : aucun
+ * decaissement. Un PRELEVEMENT personnel (D 104 / C 5xx) baisse les capitaux
+ * propres : il est lu avec les dividendes (« dividendes verses et prelevements de
+ * l'exploitant »). Le 465 reste HORS du BFR (au bilan il est dans le passif
+ * circulant, mais le TAFIRE lit sa variation avec les capitaux propres) : ne sort
+ * de tresorerie que ce qui est REGLE (D 465 / C 5xx). Un a-nouveau reporte sans
+ * affectation ne varie pas (variation nulle).
+ *
+ * Preuve : la somme des soldes de tous les comptes est nulle a l'ouverture et a
+ * la cloture, donc la somme des variations des classes 1 a 5 vaut le resultat
+ * net de N (classes 6 a 8). Un ecart ne peut venir que d'un compte de classe 1 a
+ * 5 qu'aucune rubrique ne capte (le Bilan le nomme dans `comptesHorsRubrique`)
+ * ou d'un mouvement de provision sans dotation ni reprise.
+ *
+ * Les prefixes propres au TAFIRE sont dans `RubriquesTafire`.
  *
  * @see EF-M10-06 Edition des etats reglementaires SYSCOHADA
  *
@@ -65,30 +154,101 @@ class TafireService
         $bilan = $this->bilan->genererPourExercice($exerciceId, $statuts, $filtreStatut);
         $lignes = $balance->lignes;
 
-        // --- RESSOURCES ---
+        // Soldes d'OUVERTURE (a-nouveaux ecrits au journal AN, ou provisoires),
+        // deja compris dans la balance : on ne retient que les VARIATIONS.
+        // Les a-nouveaux ne sont dans la balance que pour les ecritures
+        // validees ; sans elles, rien a retrancher.
+        $ouverture = in_array('validee', $statuts, true)
+            ? $this->balance->soldesOuverture($exerciceId)['soldes']
+            : [];
+
+        // --- CAFG : part du resultat de N SEUL ---
         //
-        // Le resultat vient du Bilan, jamais d'une seconde agregation : c'est la
-        // MEME grandeur qui equilibre le bilan et qui ouvre la CAFG. Deux
-        // formules finiraient par diverger et les deux etats afficheraient deux
-        // resultats sur le meme exercice (PA-121).
+        // `Bilan::resultatExercice` = produits - charges des classes 6 a 8 de
+        // CET exercice (jamais le 131/139 reporte de N-1, qui est un capital
+        // propre, voir `Bilan::resultatReporte`).
         $resultatExercice = $bilan->resultatExercice;
 
-        // Charge NON DECAISSEE : elle a diminue le resultat sans sortir de
-        // tresorerie, on la reintegre. Debitrice par nature (compte 681).
-        $dotations = $this->sommeDebitrice($lignes, RubriquesSyscohada::DOTATIONS_AMORTISSEMENTS);
-        $cafg = bcadd($resultatExercice, $dotations, self::PRECISION);
+        // Charges NON DECAISSEES reintegrees (dotations : amortissements,
+        // provisions, depreciations, HAO) et produits NON ENCAISSES deduits
+        // (reprises, transferts de charges).
+        $dotations = $this->sommeDebitrice($lignes, RubriquesTafire::DOTATIONS);
+        $reprises = $this->sommeCreditrice($lignes, RubriquesTafire::REPRISES);
+        // La part de ces mouvements dont la contrepartie est une immobilisation
+        // ou son amortissement : seule elle se compense dans les acquisitions.
+        $dotationsAmortissements = $this->sommeDebitrice($lignes, RubriquesTafire::DOTATIONS_AMORTISSEMENTS);
+        $reprisesSurImmobilisations = $this->sommeCreditrice($lignes, RubriquesTafire::REPRISES_SUR_IMMOBILISATIONS);
+        $vncCessions = $this->sommeDebitrice($lignes, RubriquesTafire::VALEUR_COMPTABLE_CESSIONS);
+        $produitsCessions = $this->sommeCreditrice($lignes, RubriquesTafire::PRODUITS_CESSIONS);
+        // Quote-part des subventions d'investissement virée au resultat (D 14 /
+        // C 799) : produit NON encaisse.
+        $quotePartSubventions = $this->sommeCreditrice($lignes, RubriquesTafire::QUOTE_PART_SUBVENTIONS);
 
-        $augmentationCapital = $this->sommeCreditrice($lignes, RubriquesSyscohada::CAPITAL);
-        $totalRessources = bcadd($cafg, $augmentationCapital, self::PRECISION);
+        $cafg = bcsub(
+            bcsub(
+                bcadd(bcsub(bcadd($resultatExercice, $dotations, self::PRECISION), $reprises, self::PRECISION), $vncCessions, self::PRECISION),
+                $produitsCessions,
+                self::PRECISION,
+            ),
+            $quotePartSubventions,
+            self::PRECISION,
+        );
 
-        // --- EMPLOIS ---
-        $acquisitions = $this->sommeDebitrice($lignes, RubriquesSyscohada::IMMOBILISATIONS_BRUTES);
-        $totalEmplois = $acquisitions;
+        // --- RESSOURCES : CAFG, cessions, apports, emprunts ---
+        //
+        // Apports = variation du capital (101 a 109 hors 104) et des
+        // subventions d'investissement (14) + quote-part virée (799) : la
+        // subvention RECUE est la variation du 14 avant la quote-part qui l'a
+        // diminue sans tresorerie. Pas de ligne dediee : ecart nomme en tete.
+        $augmentationCapital = bcadd(
+            $this->variationCreditrice($lignes, $ouverture, RubriquesTafire::APPORTS_CAPITAL),
+            $quotePartSubventions,
+            self::PRECISION,
+        );
+        // Emprunts = comptes 16 et 17 SEULS. Le 19 est une provision : aucun flux.
+        $variationEmprunts = $this->variationCreditrice($lignes, $ouverture, RubriquesTafire::DETTES_FINANCIERES);
+        $variationParticipations = $this->variationCreditrice($lignes, $ouverture, RubriquesTafire::DETTES_PARTICIPATIONS);
+        $totalRessources = bcadd(
+            bcadd(
+                bcadd(bcadd($cafg, $produitsCessions, self::PRECISION), $augmentationCapital, self::PRECISION),
+                $variationEmprunts,
+                self::PRECISION,
+            ),
+            $variationParticipations,
+            self::PRECISION,
+        );
 
-        // --- BESOIN EN FONDS DE ROULEMENT ---
-        $variationStocks = $this->sommeDebitrice($lignes, RubriquesSyscohada::STOCKS);
-        $variationCreances = $this->sommeDebitrice($lignes, RubriquesSyscohada::CREANCES);
-        $variationDettes = $this->sommeCreditrice($lignes, RubriquesSyscohada::DETTES_CIRCULANTES);
+        // --- EMPLOIS : investissements et dividendes ---
+        //
+        // Acquisitions = variation des immobilisations NETTES + dotations aux
+        // AMORTISSEMENTS + VNC cedees - reprises sur immobilisations (une sortie
+        // d'actif amorti ne diminue pas les acquisitions). Les dotations aux
+        // PROVISIONS n'y entrent pas : elles n'ont pas de contrepartie d'actif.
+        $variationBrut = $this->variationDebitrice($lignes, $ouverture, RubriquesSyscohada::IMMOBILISATIONS_BRUTES);
+        $variationAmort = $this->variationCreditrice($lignes, $ouverture, RubriquesSyscohada::AMORTISSEMENTS);
+        $acquisitions = bcsub(
+            bcadd(bcadd(bcsub($variationBrut, $variationAmort, self::PRECISION), $dotationsAmortissements, self::PRECISION), $vncCessions, self::PRECISION),
+            $reprisesSurImmobilisations,
+            self::PRECISION,
+        );
+
+        // Affectation du resultat de N-1 et compte de l'exploitant : mouvement
+        // des capitaux propres lu PAR COMPTES (104, 11, 12, 13), jamais du
+        // resultat de N. Ses contreparties sont, pour la part non distribuee,
+        // d'autres comptes de capitaux propres (qui se compensent, y compris un
+        // benefice affecte au 104) et, pour la part distribuee, les dividendes a
+        // payer (465). Le decaissement est donc la variation des capitaux propres
+        // + la variation des 465 (nul tant que rien n'est paye ; chaque reglement
+        // D 465 / C 5xx le creuse ; un prelevement D 104 / C 5xx aussi).
+        $variationAutres = $this->variationCreditrice($lignes, $ouverture, RubriquesTafire::AUTRES_CAPITAUX_PROPRES);
+        $variationDividendes = $this->variationCreditrice($lignes, $ouverture, RubriquesTafire::DIVIDENDES_A_PAYER);
+        $dividendesVerses = bcsub('0.00', bcadd($variationAutres, $variationDividendes, self::PRECISION), self::PRECISION);
+        $totalEmplois = bcadd($acquisitions, $dividendesVerses, self::PRECISION);
+
+        // --- BESOIN EN FONDS DE ROULEMENT (variations) ---
+        $variationStocks = $this->variationDebitrice($lignes, $ouverture, RubriquesSyscohada::STOCKS);
+        $variationCreances = $this->variationDebitrice($lignes, $ouverture, RubriquesSyscohada::CREANCES);
+        $variationDettes = $this->variationCreditrice($lignes, $ouverture, RubriquesSyscohada::DETTES_CIRCULANTES);
 
         $variationBfr = bcsub(
             bcadd($variationStocks, $variationCreances, self::PRECISION),
@@ -103,12 +263,21 @@ class TafireService
             self::PRECISION,
         );
 
+        $fluxExploitation = bcsub($cafg, $variationBfr, self::PRECISION);
+        $fluxInvestissement = bcsub($produitsCessions, $acquisitions, self::PRECISION);
+        $fluxFinancement = bcsub(
+            bcadd(bcadd($augmentationCapital, $variationEmprunts, self::PRECISION), $variationParticipations, self::PRECISION),
+            $dividendesVerses,
+            self::PRECISION,
+        );
+
         // La tresorerie NETTE : l'actif moins le passif de tresorerie. Ne
         // retenir que l'actif ferait apparaitre un decouvert bancaire comme une
-        // ressource, le jour ou un compte 56 sera ouvert.
+        // ressource, le jour ou un compte 56 sera ouvert. C'est la VARIATION
+        // constatee aux classes 5 (cloture - ouverture).
         $variationReelle = bcsub(
-            $this->sommeDebitrice($lignes, RubriquesSyscohada::TRESORERIE_ACTIF),
-            $this->sommeCreditrice($lignes, RubriquesSyscohada::TRESORERIE_PASSIF),
+            $this->variationDebitrice($lignes, $ouverture, RubriquesSyscohada::TRESORERIE_ACTIF),
+            $this->variationCreditrice($lignes, $ouverture, RubriquesSyscohada::TRESORERIE_PASSIF),
             self::PRECISION,
         );
 
@@ -118,11 +287,23 @@ class TafireService
             exerciceId: $exerciceId,
             resultatExercice: $resultatExercice,
             dotationsAmortissements: $dotations,
+            reprisesAmortissements: $reprises,
+            valeurComptableCessions: $vncCessions,
+            quotePartSubventions: $quotePartSubventions,
             capaciteAutofinancementGlobale: $cafg,
+            produitsCessions: $produitsCessions,
             augmentationCapital: $augmentationCapital,
+            variationEmprunts: $variationEmprunts,
+            variationDettesParticipations: $variationParticipations,
             totalRessources: $totalRessources,
             acquisitionsImmobilisations: $acquisitions,
+            variationAutresCapitauxPropres: $variationAutres,
+            variationDividendesAPayer: $variationDividendes,
+            dividendesVerses: $dividendesVerses,
             totalEmplois: $totalEmplois,
+            fluxExploitation: $fluxExploitation,
+            fluxInvestissement: $fluxInvestissement,
+            fluxFinancement: $fluxFinancement,
             variationStocks: $variationStocks,
             variationCreances: $variationCreances,
             variationDettes: $variationDettes,
@@ -170,5 +351,36 @@ class TafireService
         }
 
         return $total;
+    }
+
+    /**
+     * Variation d'une rubrique debitrice : solde de cloture (balance, a-nouveaux
+     * compris) moins solde d'ouverture.
+     *
+     * @param  list<LigneBalance>  $lignes
+     * @param  array<string, string>  $ouverture  debit - credit par compte
+     * @param  list<string>  $prefixes
+     */
+    private function variationDebitrice(array $lignes, array $ouverture, array $prefixes): string
+    {
+        $total = $this->sommeDebitrice($lignes, $prefixes);
+
+        foreach ($ouverture as $numero => $net) {
+            if (RubriquesSyscohada::releveDe((string) $numero, $prefixes)) {
+                $total = bcsub($total, $net, self::PRECISION);
+            }
+        }
+
+        return $total;
+    }
+
+    /**
+     * @param  list<LigneBalance>  $lignes
+     * @param  array<string, string>  $ouverture
+     * @param  list<string>  $prefixes
+     */
+    private function variationCreditrice(array $lignes, array $ouverture, array $prefixes): string
+    {
+        return bcsub('0.00', $this->variationDebitrice($lignes, $ouverture, $prefixes), self::PRECISION);
     }
 }

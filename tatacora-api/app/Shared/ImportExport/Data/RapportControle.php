@@ -27,6 +27,8 @@ final class RapportControle
         public readonly array $avertissements,
         public readonly array $lignes,
         public readonly array $resume,
+        /** lignes déjà présentes, ignorées (modules de la carte) */
+        public readonly int $ignorees = 0,
     ) {
     }
 }

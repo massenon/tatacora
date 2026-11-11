@@ -73,6 +73,10 @@ class Reservation extends Model
         'mode_saisie_remboursement',
         'date_annulation',
         'utilisateur_annulation_id',
+        // Annulation envoyée par un POSTE : le login LOCAL de l'auteur et le poste
+        // (le compte d'appairage, lui, est `utilisateur_annulation_id`).
+        'annulee_par_login',
+        'annulee_depuis_poste',
         'ecriture_remboursement_id',
     ];
 
@@ -143,6 +147,48 @@ class Reservation extends Model
     public function lignes(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(LigneReservation::class, 'reservation_id');
+    }
+
+    /**
+     * Les réservations qui occupent l'unité — comme chambre PRINCIPALE (`unite_id`) ou comme
+     * chambre SUPPLÉMENTAIRE (ligne `hebergement`, réservation multi-chambres du 10/11/2026).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Reservation>  $requete
+     */
+    public function scopeSurUnite(\Illuminate\Database\Eloquent\Builder $requete, string $uniteId): void
+    {
+        $requete->where(function ($q) use ($uniteId): void {
+            $q->where('unite_id', $uniteId)
+                ->orWhereHas('lignes', fn ($l) => $l
+                    ->where('service', LigneReservation::CHAMBRE)
+                    ->where('source_id', $uniteId));
+        });
+    }
+
+    /**
+     * Les identifiants de TOUTES les chambres de la réservation : la principale d'abord.
+     *
+     * @return list<string>
+     */
+    public function uniteIds(): array
+    {
+        $supplementaires = $this->relationLoaded('lignes')
+            ? $this->lignes->where('service', LigneReservation::CHAMBRE)->pluck('source_id')->all()
+            : $this->lignes()->where('service', LigneReservation::CHAMBRE)->pluck('source_id')->all();
+
+        return array_values(array_unique([(string) $this->unite_id, ...array_map('strval', $supplementaires)]));
+    }
+
+    /**
+     * Les numéros des chambres (« BNG-3, BNG-4 ») pour l'historique et les cartes.
+     */
+    public function numerosDesChambres(): string
+    {
+        $numeros = \Illuminate\Support\Facades\DB::table('unites_hebergement')
+            ->whereIn('id', $this->uniteIds())
+            ->pluck('numero', 'id');
+
+        return collect($this->uniteIds())->map(fn (string $id): string => (string) ($numeros[$id] ?? $id))->implode(', ');
     }
 
     /**
@@ -318,6 +364,6 @@ class Reservation extends Model
      */
     public function utilisateurAnnulation(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'utilisateur_annulation_id');
+        return $this->belongsTo(\App\Models\User::class, 'utilisateur_annulation_id')->withTrashed();
     }
 }

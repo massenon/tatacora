@@ -82,8 +82,8 @@ pw.Widget piedA4(int page, int total) => pw.Container(
 );
 
 /// Le pied d'un ÉTAT D'EXPORT — Directive §6, décision du Product Owner du
-/// 11/09/2026 (PA-192 (a), PA-195) : mention institutionnelle, date d'édition,
-/// pagination. Traduction de `pdf/partials/pied-rapport.blade.php`.
+/// 11/09/2026 (PA-192 (a), PA-195) : date d'édition, pagination — la mention « Projet PAEB —
+/// Cabinet FAGUEZ SARL » est RETIRÉE (décision du PO du 10/11/2026). Traduction de `pdf/partials/pied-rapport.blade.php`.
 ///
 /// [edition] est passée, jamais lue ici : la composition reste déterministe.
 pw.Widget piedRapportA4(
@@ -101,14 +101,8 @@ pw.Widget piedRapportA4(
     children: [
       pw.Expanded(
         child: pw.Text(
-          texteTicket(entete.mentionInstitutionnelle),
-          style: const pw.TextStyle(fontSize: 7.5),
-        ),
-      ),
-      pw.Expanded(
-        child: pw.Text(
           texteTicket('Édité le ${_horodatage(edition)}'),
-          textAlign: pw.TextAlign.center,
+          textAlign: pw.TextAlign.left,
           style: const pw.TextStyle(fontSize: 7.5),
         ),
       ),
@@ -131,7 +125,10 @@ pw.Widget piedRapportA4(
 ///
 /// Un document REMIS AU CLIENT n'en porte jamais : un « Visa Ordonnateur » sur
 /// un papier client le ferait lire comme une pièce d'ordonnancement interne.
-pw.Widget zoneSignaturesA4({required List<String> visas}) => pw.Padding(
+pw.Widget zoneSignaturesA4({
+  required List<String> visas,
+  String ligne = '____________________',
+}) => pw.Padding(
   padding: const pw.EdgeInsets.only(top: 30),
   child: pw.Row(
     crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -148,10 +145,7 @@ pw.Widget zoneSignaturesA4({required List<String> visas}) => pw.Padding(
                 ),
               ),
               pw.SizedBox(height: 36),
-              pw.Text(
-                '____________________',
-                style: const pw.TextStyle(fontSize: 8.5),
-              ),
+              pw.Text(ligne, style: const pw.TextStyle(fontSize: 8.5)),
             ],
           ),
         ),

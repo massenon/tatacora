@@ -5,11 +5,11 @@
     l'ajout ne détonne pas dans une barre dont tout le reste est transcrit.
 --}}
 <div class="relative hidden md:block mr-3" x-data="{ ouvert: false }" @click.outside="ouvert = false">
-  <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-lg px-3 py-1.5 w-64 focus-within:border-white/40">
+  <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-lg px-3 py-1.5 w-[125px] focus-within:border-white/40">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-white/50 shrink-0"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
     <input type="search" wire:model.live.debounce.250ms="terme" @focus="ouvert = true" @input="ouvert = true"
            placeholder="{{ __('pwa.recherche_globale.invite') }}"
-           class="bg-transparent text-xs text-white placeholder-white/40 outline-none w-full"
+           class="bg-transparent text-xs text-white placeholder-white/40 outline-none w-full min-w-0 text-ellipsis"
            aria-label="{{ __('pwa.recherche_globale.invite') }}">
   </div>
 

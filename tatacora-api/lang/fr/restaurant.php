@@ -7,9 +7,10 @@ declare(strict_types=1);
  */
 
 return [
-    'recette_manquante' => 'Le plat « :plat » n\'a pas de fiche technique : sa vente ne pourrait '
-        // Article 8 (02/09/2026) : la reference RG-05 vit ici, jamais a l'ecran.
-        . 'décrémenter aucun stock. Renseignez sa recette avant de le mettre à la carte.',
+    // N'est plus levée (30/10/2026, décision du PO : un plat sans fiche se vend). Le texte dit
+    // ce qui est vrai : le plat n'a pas de fiche composée, sa vente ne sort aucun stock.
+    'recette_manquante' => 'Le plat « :plat » n\'a pas de fiche technique composée : sa vente ne décrémente '
+        . 'aucun stock tant qu\'elle est vide.',
     'commande_vide' => 'Une commande doit comporter au moins une ligne.',
     'deja_transmise' => 'Cette commande a déjà été transmise en cuisine.',
     'annulee_non_transmissible' => 'Une commande annulée ne peut pas être transmise.',
@@ -19,15 +20,12 @@ return [
     'motif_vente' => 'Vente restaurant — :plat ×:quantite',
 
     /*
-     * Éléments du maître que l'API ne rend PAS, et pourquoi. Le client les
-     * affiche à la place d'un chiffre : « — » et « 0 » ne disent pas la même
-     * chose, et un indicateur qui affirme un état qu'il n'a pas vérifié est le
-     * défaut nommé en PA-59/60/61.
+     * Éléments que l'API ne rend pas. Le client les affiche à la place d'un
+     * chiffre : « — » et « 0 » ne disent pas la même chose.
      */
     'absent' => [
-        'disponibilite' => 'La disponibilité du jour n\'est portée par aucune colonne du schéma : '
-            . 'ni un plat retiré de la carte, ni son motif ne peuvent être enregistrés. '
-            . 'Arbitrage en attente ; aucun chiffre n\'est produit d\'ici là.',
+        'disponibilite' => 'La disponibilité du jour n\'est pas enregistrée : '
+            . 'aucun chiffre n\'est produit.',
         // `prix_provisoire` a été RETIRÉ le 02/09/2026 : la colonne existe
         // (migration `2026_09_02_200000`), l'indicateur se compte, et laisser
         // ici le motif de son refus le ferait vieillir en oubli (PA-144).
@@ -54,6 +52,7 @@ return [
             // Article 8 (02/09/2026) : la reference RG-05 vit ici, jamais a l'ecran.
             . 'ne décrémenterait aucun stock.',
         'recette_inexistante' => 'Fiche technique inconnue du référentiel.',
+        'description_trop_longue' => 'La description ne peut pas dépasser :max caractères.',
         'prix_obligatoire' => 'Le prix de vente est obligatoire.',
         'prix_negatif' => 'Le prix de vente ne peut pas être négatif.',
         'saison_inversee' => 'La fin de validité précède son début : ce menu ne rendrait jamais aucun '
@@ -66,11 +65,9 @@ return [
             // Article 8 (02/09/2026) : la reference PA-23 vit ici, jamais a l'ecran.
             . 'technique ne sert à rien. Utilisez la composition de la recette : de vrais '
             . 'articles avec leurs quantités.',
-        'disponibilite_sans_schema' => 'Aucune colonne du schéma ne porte cette information. L\'accepter '
-            . 'sans la stocker laisserait croire qu\'elle a été enregistrée, et un plat resterait à la '
-            . 'carte — ou en serait retiré — sans que personne ne sache pourquoi.',
-        'etat_sans_schema' => 'Ce filtre porte sur une information qu\'aucune colonne du schéma ne '
-            . 'contient. L\'ignorer rendrait la carte ENTIÈRE sous un intitulé qui promet le contraire.',
+        'disponibilite_sans_schema' => 'La disponibilité d\'un plat ne se modifie pas ici : elle n\'est pas '
+            . 'enregistrée.',
+        'etat_sans_schema' => 'Ce filtre n\'est pas disponible : la carte ne porte pas cette information.',
         'etat_inconnu' => 'Filtre d\'état inconnu. Le registre est fermé : lie, sans_lien, rupture_stock, '
             . 'provisoire.',
         'valeur_calculee' => 'Cette valeur est calculée : elle s\'affiche, elle ne se saisit pas. La '
@@ -103,12 +100,10 @@ return [
         'statut_inconnu' => 'Statut de commande inconnu. Un filtre incompris serait ignoré, et le '
             . 'registre entier s\'afficherait sous un intitulé qui promet le contraire — un écran '
             . '« transmises » qui montre tout ferait préparer des commandes annulées.',
-        'montant_sans_schema' => 'Une commande restaurant ne transporte aucun montant : ses lignes ne '
-            . 'figent aucun prix unitaire au schéma, et un total recalculé au tarif du jour serait faux '
-            . 'pour toute commande antérieure à un changement de carte.',
+        'montant_sans_schema' => 'Une commande restaurant ne transporte aucun montant : le total est '
+            . 'recalculé au tarif du jour.',
         'identifiant_non_accepte' => 'Une commande restaurant ne reçoit pas d\'identifiant du client : '
-            . 'cette table n\'est pas synchronisable et aucun mécanisme de rejeu n\'existe. En accepter '
-            . 'un laisserait croire à une idempotence qui n\'a pas lieu.',
+            . 'il est attribué à l\'enregistrement.',
         'identifiant_non_modifiable' => 'L\'identifiant ne se modifie pas.',
     ],
 ];

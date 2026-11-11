@@ -19,6 +19,8 @@ import 'package:tatacora_flutter/features/restaurant/presentation/ecran_carte_re
 import 'package:tatacora_flutter/features/restaurant/presentation/ecran_restauration.dart';
 import 'package:tatacora_flutter/features/restaurant/presentation/providers_restaurant.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
+import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/mouvement_stock.dart';
 
@@ -268,14 +270,15 @@ void main() {
         textesSous(tester, const Key('restauration-kpi-2')),
         contains('0'),
       );
-      // « Retirés de la carte » n'a AUCUNE source : « — », jamais « 0 ».
+      // « Retirés de la carte » est COMPTÉ (retraits de la carte, v31) : un
+      // poste neuf en a zéro, mesuré, jamais « — ».
       expect(
         textesSous(tester, const Key('restauration-kpi-3')),
-        contains('—'),
+        containsAll(['RETIRÉS DE LA CARTE', '0']),
       );
       expect(
         textesSous(tester, const Key('restauration-kpi-3')),
-        isNot(contains('0')),
+        isNot(contains('—')),
       );
 
       expect(find.text('Aucun résultat'), findsOneWidget);
@@ -296,16 +299,19 @@ void main() {
         textesSous(tester, const Key('restauration-fiches-kpi-0')),
         contains('0'),
       );
-      // « Compositions provisoires » : aucune source, « — ».
+      // « Compositions provisoires » : COMPTÉES (v35) — un poste neuf en a
+      // zéro, mesuré, jamais « — ».
       expect(
         textesSous(tester, const Key('restauration-fiches-kpi-2')),
-        contains('—'),
+        containsAll(['COMPOSITIONS PROVISOIRES', '0']),
       );
-      // La phrase de la vue promet un refus que ce poste ne fait pas : elle est
-      // suivie de l'honnêteté.
       expect(
-        find.text(MessagesRestaurant.venteSansSortieDeStock),
-        findsOneWidget,
+        textesSous(tester, const Key('restauration-fiches-kpi-2')),
+        isNot(contains('—')),
+      );
+      expect(
+        find.byKey(const Key('restauration-fiches-vente-sans-stock')),
+        findsNothing,
       );
 
       await toucher(tester, const Key('restauration-onglet-menus'));
@@ -753,10 +759,10 @@ void main() {
         textesSous(tester, const Key('carte-restaurant-kpi-provisoires')),
         contains('0'),
       );
-      // « Retirés du jour » n'a aucune source : « — ».
+      // « Retirés du jour » est COMPTÉ depuis la v31 : zéro est une mesure.
       expect(
         textesSous(tester, const Key('carte-restaurant-kpi-retires')),
-        contains('—'),
+        contains('0'),
       );
       expect(find.textContaining('ne figurent pas sur ce poste'), findsNothing);
     });
@@ -786,8 +792,10 @@ void main() {
         'Recette Poulet DG',
       ]);
       expect(find.text('Fiche technique (1 ingrédient(s))'), findsOneWidget);
-      // Le chiffre ne tient pas compte des ventes de ce poste : DIT.
-      expect(find.text(MessagesRestaurant.stockSansLesVentes), findsOneWidget);
+      expect(
+        find.byKey(const Key('carte-restaurant-stock-sans-ventes')),
+        findsNothing,
+      );
       // Les compteurs.
       expect(
         textesSous(tester, const Key('carte-restaurant-kpi-lies')),
@@ -821,6 +829,60 @@ void main() {
       expect(textesSous(tester, Key('carte-restaurant-portions-${ids.plat}')), [
         '25',
       ]);
+    });
+
+    testWidgets('« Rendre indispo. » écrit le retrait d’un plat : « non », '
+        'motif sous le nom, KPI, file d’envoi ; « Remettre » le rend', (
+      tester,
+    ) async {
+      await poste();
+      final ids = await garni();
+      await monter(tester, const EcranCarteRestaurant());
+      expect(
+        textesSous(tester, const Key('carte-restaurant-kpi-retires')),
+        contains('0'),
+      );
+
+      await toucher(tester, Key('carte-restaurant-rendre-indispo-${ids.plat}'));
+      expect(find.byKey(const Key('modale-retrait-carte')), findsOneWidget);
+      await saisir(
+        tester,
+        const Key('retrait-carte-commentaire'),
+        'Plus de poulet',
+      );
+      await toucher(tester, const Key('retrait-carte-confirmer'));
+
+      expect(find.byKey(const Key('modale-retrait-carte')), findsNothing);
+      expect(textesSous(tester, Key('carte-restaurant-retrait-${ids.plat}')), [
+        'Rupture du jour — Plus de poulet',
+      ]);
+      expect(
+        textesSous(tester, const Key('carte-restaurant-kpi-retires')),
+        contains('1'),
+      );
+      expect(
+        textesSous(tester, Key('carte-restaurant-disponible-${ids.plat}')),
+        ['non'],
+      );
+      // Un retrait de plat est une `creation` de `indisponibilites_carte`.
+      final ops = [
+        for (final o in await OperationsSyncDao(
+          db,
+        ).operations(table: TableSynchronisee.indisponibilitesCarte))
+          o.payload,
+      ];
+      expect(ops, hasLength(1));
+      expect(ops.single, contains('"plat_id":"${ids.plat}"'));
+
+      await toucher(tester, Key('carte-restaurant-remettre-${ids.plat}'));
+      expect(
+        textesSous(tester, Key('carte-restaurant-disponible-${ids.plat}')),
+        ['oui'],
+      );
+      expect(
+        find.byKey(Key('carte-restaurant-rendre-indispo-${ids.plat}')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('un plat sans fiche composée : « non suivi », sa raison, et '
@@ -898,9 +960,10 @@ void main() {
         'Article;Categorie;Prix;Ingredients;Portions vendables;Cout matiere;'
         'Marque de prix',
       );
-      // Le plat : nombre brut, catégorie du menu, portions et coût calculés.
+      // Le plat : nombre brut, catégorie du PLAT (aucune ici : « Autres », jamais
+      // une catégorie devinée), portions et coût calculés.
       // La dernière case (marque de prix) est VIDE : le tarif est ferme.
-      expect(lignes[3], 'Poulet DG;Local;4500.00;1;33;750.00;');
+      expect(lignes[3], 'Poulet DG;Autres;4500.00;1;33;750.00;');
       expect(lignes, hasLength(4));
     });
 
@@ -961,6 +1024,88 @@ void main() {
 
       final octets = octetsExportes(tester, type: TypeFichierEnregistre.pdf);
       expect(ascii.decode(octets.sublist(0, 4)), '%PDF');
+    });
+  });
+
+  /* ==================================================================== */
+  /* Les gestes du catalogue : sélection, retrait de la carte              */
+  /* ==================================================================== */
+
+  group('Le catalogue des plats : sélection et retrait de la carte', () {
+    testWidgets('cocher une ligne compte « 1 sélectionné(s) », « Tout '
+        'sélectionner » les prend toutes', (tester) async {
+      final ids = await garni();
+      await monter(tester, const EcranRestauration());
+
+      expect(find.textContaining('sélectionné(s)'), findsNothing);
+      await toucher(tester, Key('restauration-case-${ids.plat}'));
+      expect(find.textContaining('1 sélectionné(s)'), findsOneWidget);
+
+      await toucher(tester, Key('restauration-case-${ids.plat}'));
+      expect(find.textContaining('sélectionné(s)'), findsNothing);
+
+      await toucher(tester, const Key('restauration-tout'));
+      expect(find.textContaining('1 sélectionné(s)'), findsOneWidget);
+    });
+
+    testWidgets('« Retirer de la carte » DEMANDE confirmation, écrit le '
+        'retrait, l’enfile, et le compteur le suit', (tester) async {
+      final ids = await garni(libelle: 'Poulet DG');
+      await monter(tester, const EcranRestauration());
+
+      await toucher(tester, Key('restauration-retirer-${ids.plat}'));
+      expect(find.text('Retirer « Poulet DG » de la carte ?'), findsOneWidget);
+
+      // Annuler n'écrit rien.
+      await toucher(tester, const Key('achats-archivage-annuler'));
+      expect(await db.select(db.indisponibilitesCarteLocal).get(), isEmpty);
+
+      await toucher(tester, Key('restauration-retirer-${ids.plat}'));
+      await toucher(tester, const Key('achats-archivage-confirmer'));
+
+      final lignes = await db.select(db.indisponibilitesCarteLocal).get();
+      expect(lignes, hasLength(1));
+      expect(
+        find.text('Le plat « Poulet DG » est retiré de la carte.'),
+        findsOneWidget,
+      );
+      expect(
+        textesSous(tester, const Key('restauration-kpi-3')),
+        containsAll(['RETIRÉS DE LA CARTE', '1']),
+      );
+      final file = await OperationsSyncDao(db).operations();
+      expect(file, isNotEmpty, reason: 'le retrait part au serveur');
+    });
+
+    testWidgets('un plat DÉJÀ retiré ne se retire pas deux fois : le verrou '
+        'est dit', (tester) async {
+      final ids = await garni(libelle: 'Poulet DG');
+      await monter(tester, const EcranRestauration());
+
+      await toucher(tester, Key('restauration-retirer-${ids.plat}'));
+      await toucher(tester, const Key('achats-archivage-confirmer'));
+      await toucher(tester, Key('restauration-retirer-${ids.plat}'));
+
+      expect(
+        find.byKey(const Key('achats-archivage-impossible')),
+        findsOneWidget,
+      );
+      expect(
+        await db.select(db.indisponibilitesCarteLocal).get(),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('sans droit d’écriture sur M4, le bouton n’est pas offert', (
+      tester,
+    ) async {
+      final ids = await garni();
+      await monter(
+        tester,
+        const EcranRestauration(),
+        avec: surcharges(m4: 'L'),
+      );
+      expect(find.byKey(Key('restauration-retirer-${ids.plat}')), findsNothing);
     });
   });
 }

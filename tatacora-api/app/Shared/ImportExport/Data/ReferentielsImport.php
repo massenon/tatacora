@@ -119,6 +119,7 @@ final class ReferentielsImport
         return new ModuleImport(
             cle: 'm5-bar',
             module: 'M5',
+            doublonExistantIgnore: true,
             nom: $t['nom'],
             description: $t['description'],
             identifiant: 'libelle',
@@ -128,7 +129,11 @@ final class ReferentielsImport
                 // registre que le POS et l'écran Carte du bar.
                 new ColonneImport('categorie', $t['colonnes']['categorie']['libelle'], true, 'liste', valeurs: array_keys(CarteBoisson::CATEGORIES), exemple: $t['colonnes']['categorie']['exemple']),
                 new ColonneImport('prix_vente', $t['colonnes']['prix_vente']['libelle'], true, 'montant', exemple: $t['colonnes']['prix_vente']['exemple']),
-                new ColonneImport('article', $t['colonnes']['article']['libelle'], true, 'reference', reference: 'articles.libelle', exemple: $t['colonnes']['article']['exemple']),
+                // 09/11/2026 (PO) : `article` devient FACULTATIF — vide, la boisson est
+                // rapprochée par son NOM de l'article de stock (créé s'il manque) ; renseigné,
+                // il doit exister (vraie clé étrangère, comme avant).
+                new ColonneImport('article', $t['colonnes']['article']['libelle'], false, 'reference', reference: 'articles.libelle', exemple: $t['colonnes']['article']['exemple']),
+                ...self::colonnesDeStockFacultatives($t),
             ],
         );
     }
@@ -140,15 +145,29 @@ final class ReferentielsImport
         return new ModuleImport(
             cle: 'm4-restaurant',
             module: 'M4',
+            doublonExistantIgnore: true,
             nom: $t['nom'],
             description: $t['description'],
             identifiant: 'libelle',
             colonnes: [
                 new ColonneImport('libelle', $t['colonnes']['libelle']['libelle'], true, 'texte', exemple: $t['colonnes']['libelle']['exemple']),
                 new ColonneImport('categorie', $t['colonnes']['categorie']['libelle'], true, 'liste', valeurs: array_keys(\App\Pwa\Livewire\Restaurant\CarteRestaurant::CATEGORIES), exemple: $t['colonnes']['categorie']['exemple']),
-                new ColonneImport('prix_vente', $t['colonnes']['prix_vente']['libelle'], true, 'montant', exemple: $t['colonnes']['prix_vente']['exemple']),
-                new ColonneImport('menu', $t['colonnes']['menu']['libelle'], true, 'reference', reference: 'menus.libelle', exemple: $t['colonnes']['menu']['exemple']),
-                new ColonneImport('recette', $t['colonnes']['recette']['libelle'], true, 'reference', reference: 'recettes.libelle', exemple: $t['colonnes']['recette']['exemple']),
+                // 30/10/2026 — trois colonnes FACULTATIVES, pour « enregistrer
+                // simplement, puis compléter après » (le PO) : prix vide =
+                // plat « sur commande », entré à 0 avec la marque prix
+                // PROVISOIRE ; menu vide = le menu `ImportReferentielsService::MENU_DEFAUT` ;
+                // fiche vide = une fiche du nom du plat, SANS ingrédient et
+                // marquée « composition provisoire » (le stock s'y ajoute après ; entre-temps le plat se
+                // VEND sans mouvement de stock, décision du PO du 30/10/2026).
+                new ColonneImport('prix_vente', $t['colonnes']['prix_vente']['libelle'], false, 'montant', exemple: $t['colonnes']['prix_vente']['exemple']),
+                new ColonneImport('menu', $t['colonnes']['menu']['libelle'], false, 'reference', reference: 'menus.libelle', exemple: $t['colonnes']['menu']['exemple']),
+                new ColonneImport('recette', $t['colonnes']['recette']['libelle'], false, 'reference', reference: 'recettes.libelle', exemple: $t['colonnes']['recette']['exemple']),
+                // 30/10/2026 (décision du PO) : la description FACULTATIVE du plat,
+                // 500 caractères au plus (`DescriptionPlat::MAX`).
+                new ColonneImport('description', $t['colonnes']['description']['libelle'], false, 'texte', exemple: $t['colonnes']['description']['exemple'], longueurMax: \App\Domain\Restaurant\Support\DescriptionPlat::MAX),
+                // 09/11/2026 (PO) : pour que le plat soit VENDABLE du stock — l'article de
+                // même nom est repris ou créé (point Cuisine par défaut), sans écraser.
+                ...self::colonnesDeStockFacultatives($t),
             ],
         );
     }
@@ -160,6 +179,7 @@ final class ReferentielsImport
         return new ModuleImport(
             cle: 'm6-stocks',
             module: 'M6',
+            doublonExistantIgnore: true,
             nom: $t['nom'],
             description: $t['description'],
             identifiant: 'libelle',
@@ -167,8 +187,12 @@ final class ReferentielsImport
                 new ColonneImport('libelle', $t['colonnes']['libelle']['libelle'], true, 'texte', exemple: $t['colonnes']['libelle']['exemple']),
                 new ColonneImport('categorie', $t['colonnes']['categorie']['libelle'], true, 'liste', valeurs: \App\Pwa\Livewire\Stocks\Stocks::CATEGORIES, exemple: $t['colonnes']['categorie']['exemple']),
                 new ColonneImport('unite_mesure', $t['colonnes']['unite_mesure']['libelle'], true, 'liste', valeurs: \App\Pwa\Livewire\Stocks\Stocks::UNITES, exemple: $t['colonnes']['unite_mesure']['exemple']),
-                new ColonneImport('seuil_alerte', $t['colonnes']['seuil_alerte']['libelle'], true, 'nombre', exemple: $t['colonnes']['seuil_alerte']['exemple']),
-                new ColonneImport('point_stockage', $t['colonnes']['point_stockage']['libelle'], false, 'reference', reference: 'points_stockage.libelle', exemple: $t['colonnes']['point_stockage']['exemple']),
+                // 09/11/2026 (PO) : « Seuil » devient facultatif (vide = 0) ; « Point Stock » et
+                // « Seuil » sont reconnus comme en-têtes équivalents ; « Valeur d'achat » est la
+                // dernière valeur d'achat de référence (jamais une quantité).
+                new ColonneImport('seuil_alerte', $t['colonnes']['seuil_alerte']['libelle'], false, 'nombre', exemple: $t['colonnes']['seuil_alerte']['exemple'], alias: self::ALIAS_SEUIL),
+                new ColonneImport('point_stockage', $t['colonnes']['point_stockage']['libelle'], false, 'reference', reference: 'points_stockage.libelle', exemple: $t['colonnes']['point_stockage']['exemple'], alias: self::ALIAS_POINT),
+                new ColonneImport('valeur_achat', $t['colonnes']['valeur_achat']['libelle'], false, 'montant', exemple: $t['colonnes']['valeur_achat']['exemple'], alias: self::ALIAS_VALEUR),
             ],
         );
     }
@@ -237,6 +261,53 @@ final class ReferentielsImport
                 new ColonneImport('capacite_max', $t['colonnes']['capacite_max']['libelle'], true, 'nombre', exemple: $t['colonnes']['capacite_max']['exemple']),
             ],
         );
+    }
+
+    /** En-têtes équivalents acceptés à la lecture — mêmes mots sur le poste (`importeurs_locaux.dart`). */
+    public const ALIAS_POINT = ['Point Stock', 'Point de stock', 'Point'];
+
+    public const ALIAS_SEUIL = ['Seuil'];
+
+    public const ALIAS_VALEUR = ['Valeur d\'achat', 'Valeur achat'];
+
+    /**
+     * Les trois colonnes de STOCK des modèles m4 et m5 (09/11/2026) : point de stockage,
+     * seuil d'alerte, valeur d'achat — toutes facultatives (un ancien fichier sans elles
+     * reste valide). Même déclaration que m6 : un seul vocabulaire.
+     *
+     * @param  array{colonnes: array<string, array{libelle: string, exemple: string}>}  $t
+     * @return list<ColonneImport>
+     */
+    private static function colonnesDeStockFacultatives(array $t): array
+    {
+        return [
+            new ColonneImport('point_stockage', $t['colonnes']['point_stockage']['libelle'], false, 'reference', reference: 'points_stockage.libelle', exemple: $t['colonnes']['point_stockage']['exemple'], alias: self::ALIAS_POINT),
+            new ColonneImport('seuil_alerte', $t['colonnes']['seuil_alerte']['libelle'], false, 'nombre', exemple: $t['colonnes']['seuil_alerte']['exemple'], alias: self::ALIAS_SEUIL),
+            new ColonneImport('valeur_achat', $t['colonnes']['valeur_achat']['libelle'], false, 'montant', exemple: $t['colonnes']['valeur_achat']['exemple'], alias: self::ALIAS_VALEUR),
+        ];
+    }
+
+    /**
+     * Les colonnes du modèle d'import de l'écran Stocks (M6) — huit colonnes,
+     * stock d'ouverture compris, DISTINCTES des cinq de l'écran Import &
+     * Export. Déclaration UNIQUE dont découlent le classeur `.xlsx` modèle et
+     * la lecture de `Stocks::lancerImport` (par NOM d'en-tête). Même ordre
+     * que `Stocks::COLONNES_IMPORT`.
+     *
+     * @return list<ColonneImport>
+     */
+    public static function colonnesArticlesEcranStocks(): array
+    {
+        return [
+            new ColonneImport('nom', 'nom', true, 'texte', exemple: 'Riz local (sac 50 kg)'),
+            new ColonneImport('categorie', 'categorie', false, 'liste', valeurs: \App\Pwa\Livewire\Stocks\Stocks::CATEGORIES, exemple: 'Denrées'),
+            new ColonneImport('unite_mesure', 'unite_mesure', true, 'liste', valeurs: \App\Pwa\Livewire\Stocks\Stocks::UNITES, exemple: 'sac'),
+            new ColonneImport('prix_achat', 'prix_achat', false, 'nombre', exemple: '32000'),
+            new ColonneImport('seuil_alerte', 'seuil_alerte', false, 'nombre', exemple: '4'),
+            new ColonneImport('point_stockage', 'point_stockage', false, 'reference', reference: 'points_stockage.libelle', exemple: 'Magasin général'),
+            new ColonneImport('suivi', 'suivi', false, 'liste', valeurs: Article::SUIVIS, exemple: 'permanent'),
+            new ColonneImport('stock_initial', 'stock_initial', false, 'nombre', exemple: '10'),
+        ];
     }
 
     // ------------------------------------------------------------- support

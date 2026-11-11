@@ -26,7 +26,7 @@
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[900px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         <div class="mb-5">
           <a href="{{ route('pwa.comptabilite.hub') }}" wire:navigate
@@ -86,6 +86,12 @@
                       <span class="text-slate-600 text-[15px]">{{ $poste->libelle }}</span>
                       <span class="font-mono-tatacora text-[15px] text-slate-600">{{ MontantFcfa::format($poste->net) }}</span>
                     </div>
+                    @if ($poste->code === 'passif_circulant')
+                      <div class="flex justify-between py-1">
+                        <span class="text-slate-500 text-[13px]">{{ __('comptabilite_pwa.bilan_dont_dividendes_a_payer') }}</span>
+                        <span class="font-mono-tatacora text-[13px] text-slate-500">{{ MontantFcfa::format($bilan->dividendesAPayer) }}</span>
+                      </div>
+                    @endif
                   @endforeach
                   <div class="flex justify-between py-1 font-bold pt-2 border-t border-slate-100">
                     <span class="text-slate-800 text-[15px]">TOTAL PASSIF</span>

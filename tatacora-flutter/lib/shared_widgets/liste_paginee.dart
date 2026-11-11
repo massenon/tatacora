@@ -25,6 +25,7 @@ class ListePaginee<T> extends StatefulWidget {
     this.cleRemiseAZero,
     this.parPage = MesuresTransverses.lignesParPage,
     this.masquerSiVide = false,
+    this.masquerSansPages = false,
     super.key,
   });
 
@@ -43,6 +44,9 @@ class ListePaginee<T> extends StatefulWidget {
 
   /// `true` : aucun pied sous une liste vide (l'état vide du tableau suffit).
   final bool masquerSiVide;
+
+  /// `true` : les liens du pied disparaissent s'il n'y a qu'une page (le `hasPages()` de Laravel).
+  final bool masquerSansPages;
 
   @override
   State<ListePaginee<T>> createState() => _ListePagineeState<T>();
@@ -74,6 +78,7 @@ class _ListePagineeState<T> extends State<ListePaginee<T>> {
             key: Key(widget.prefixeCle),
             tranche: tranche,
             prefixeCle: widget.prefixeCle,
+            masquerSansPages: widget.masquerSansPages,
             onPage: (p) => setState(() => _page = p),
           ),
       ],

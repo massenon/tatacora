@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/apercu_etat.dart';
 import '../../domain/entities/etat_catalogue.dart';
+import '../../domain/registre_etats.dart';
 import '../providers_etats.dart';
 import 'textes_etats.dart';
 
@@ -59,20 +59,11 @@ class PanneauApercuEtat extends ConsumerWidget {
 
 /// Le décompte de l'accueil — `pwa.etats.accueil_detail`, AU MOT.
 ///
-/// La seconde phrase de la vue — « L'aperçu s'affiche immédiatement : vous ne
-/// consultez que ce que le moteur d'états calcule réellement. » — était fausse
-/// sur ce poste tant qu'il n'avait pas d'aperçu (09/10/2026, D50). Elle est
-/// vraie depuis le 10/10/2026 : l'aperçu s'affiche à la sélection, calculé par
-/// les modules sources du poste, et un état dont la source manque affiche sa
-/// raison, jamais un chiffre.
-///
 /// [nombre] est `null` tant que le catalogue n'est pas lu : le décompte est
 /// alors « — » et non « 0 ». Un « 0 état(s) sont éditables » affirmerait que
 /// le rôle n'a droit à rien, ce que personne n'a constaté (Article 7).
 String decompteAccueilEtats(int? nombre) =>
-    '${nombre ?? '—'} état(s) sont éditables avec vos droits. L\'aperçu '
-    's\'affiche immédiatement : vous ne consultez que ce que le moteur '
-    'd\'états calcule réellement.';
+    '${nombre ?? '—'} état(s) sont éditables avec vos droits.';
 
 /// La phrase d'une lecture qui échoue : FERMÉE. L'exception brute (`Bad state:
 /// …`) nomme des types internes qu'un exploitant ne peut pas lire, et dit
@@ -131,34 +122,6 @@ class _Accueil extends StatelessWidget {
                         color: Ardoise.c500,
                       ),
                     ),
-                    // `mt-4` (l.128).
-                    const SizedBox(height: AppSpacing.md),
-                    // `pwa.etats.accueil_rbac` (l.128) : les mots « module
-                    // source » sont en gras (`<strong>`), apostrophe droite.
-                    Text.rich(
-                      key: const Key('etats-accueil-rbac'),
-                      TextSpan(
-                        style: TextesEtats.noteAccueil,
-                        children: [
-                          const TextSpan(
-                            text: 'Les droits sont portés par le ',
-                          ),
-                          TextSpan(
-                            text: 'module source',
-                            style: TextesEtats.noteAccueil.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const TextSpan(
-                            text:
-                                ' de chaque état, pas par M14 : un magasinier '
-                                'ne lit pas le livre de paie parce qu\'il a '
-                                'accès aux « États ».',
-                          ),
-                        ],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
                   ],
                 ),
               ),
@@ -195,6 +158,11 @@ class _Apercu extends ConsumerWidget {
           moduleSource: apercu?.moduleSource ?? etat.module,
           lignes: apercu == null ? tiretApercu : '${apercu.nombreLignes}',
           indicateurs: apercu?.indicateurs ?? const [],
+          // `@if ($offreCaseAnnules)` (l.147-153 de la vue) : la case n'existe
+          // que sur l'état « Locations ».
+          action: etat.code == EtatLocal.locationsVehicules.code
+              ? const _CaseAnnules()
+              : null,
         ),
         Expanded(
           child: resultat.when(
@@ -240,6 +208,7 @@ class _EnTete extends StatelessWidget {
     required this.moduleSource,
     required this.lignes,
     required this.indicateurs,
+    this.action,
   });
 
   final String titre;
@@ -247,6 +216,10 @@ class _EnTete extends StatelessWidget {
   final String moduleSource;
   final String lignes;
   final List<IndicateurApercu> indicateurs;
+
+  /// Ce qui se pose à droite du titre (`justify-between`, l.138) : la case
+  /// « Inclure les contrats annulés » de l'état « Locations ».
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -263,32 +236,45 @@ class _EnTete extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            titre,
-            key: const Key('etats-apercu-titre'),
-            style: TextesEtats.titreBarre,
-          ),
-          const SizedBox(height: AppSpacing.demi),
-          // `{{ $periodeEtat }} · module source M6 · N ligne(s)` (l.140-144) :
-          // les puces sont `text-slate-300`.
-          Text.rich(
-            key: const Key('etats-apercu-sous-ligne'),
-            TextSpan(
-              style: TextesEtats.etiquetteBarre,
-              children: [
-                TextSpan(text: periode),
-                const TextSpan(
-                  text: ' · ',
-                  style: TextesEtats.separateurApercu,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      titre,
+                      key: const Key('etats-apercu-titre'),
+                      style: TextesEtats.titreBarre,
+                    ),
+                    const SizedBox(height: AppSpacing.demi),
+                    // `{{ $periodeEtat }} · module source M6 · N ligne(s)` (l.140-144) :
+                    // les puces sont `text-slate-300`.
+                    Text.rich(
+                      key: const Key('etats-apercu-sous-ligne'),
+                      TextSpan(
+                        style: TextesEtats.etiquetteBarre,
+                        children: [
+                          TextSpan(text: periode),
+                          const TextSpan(
+                            text: ' · ',
+                            style: TextesEtats.separateurApercu,
+                          ),
+                          TextSpan(text: 'module source $moduleSource'),
+                          const TextSpan(
+                            text: ' · ',
+                            style: TextesEtats.separateurApercu,
+                          ),
+                          TextSpan(text: '$lignes ligne(s)'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                TextSpan(text: 'module source $moduleSource'),
-                const TextSpan(
-                  text: ' · ',
-                  style: TextesEtats.separateurApercu,
-                ),
-                TextSpan(text: '$lignes ligne(s)'),
-              ],
-            ),
+              ),
+              ?action,
+            ],
           ),
           if (indicateurs.isNotEmpty) ...[
             // `mt-3` (l.147) ; `flex flex-wrap gap-2`.
@@ -304,6 +290,38 @@ class _EnTete extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// La case « Inclure les contrats annulés » — `pwa.etats.inclure_annules`,
+/// DÉCOCHÉE par défaut ; le libellé est celui de la vue, au mot.
+///
+/// Un `Row` et non un `CheckboxListTile` (voir la case des doublons du
+/// registre clients). Cochée, l'aperçu s'ajoute la colonne « Statut » et liste
+/// les annulés à part, SANS les compter dans les totaux (`apercuLocations`).
+class _CaseAnnules extends ConsumerWidget {
+  const _CaseAnnules();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final coche = ref.watch(inclureAnnulesEtatsProvider);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Checkbox(
+          key: const Key('etats-inclure-annules'),
+          value: coche,
+          onChanged: (v) => ref
+              .read(inclureAnnulesEtatsProvider.notifier)
+              .definir(v ?? false),
+        ),
+        const Text(
+          'Inclure les contrats annulés',
+          key: Key('etats-inclure-annules-libelle'),
+          style: TextesEtats.etiquetteBarre,
+        ),
+      ],
     );
   }
 }
@@ -371,30 +389,10 @@ class _Corps extends ConsumerWidget {
 
   final ApercuEtat apercu;
 
-  /// Sélecteur d'exercice global (PO, 20/10/2026) : sur ce poste, l'aperçu
-  /// est une photographie du JOUR. Le dater d'un exercice passé serait faux —
-  /// une ligne le dit, seulement quand un autre exercice est consulté (la
-  /// directive du 14/10/2026 interdit les longs encadrés ici).
-  static const String horsExercice =
-      'Sur ce poste : aperçu du jour, pas de l’exercice choisi.';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final consulte = ref.watch(exerciceConsulteProvider);
-    final defaut = exerciceParDefaut(
-      ref.watch(exercicesDuPosteProvider).value ?? const [],
-    );
     return ListView(
       children: [
-        if (consulte != null && defaut != null && consulte.id != defaut.id)
-          const Padding(
-            padding: EdgeInsets.all(AppSpacing.sm),
-            child: Text(
-              horsExercice,
-              key: Key('etats-hors-exercice'),
-              style: TextesEtats.videApercu,
-            ),
-          ),
         // L'encadré ambre « Sur ce poste » (`_Mentions`, ajout à la vue) est
         // RETIRÉ de l'écran le 14/10/2026 (directive absolue du PO : aucune
         // explication longue en bloc). Les « — » restent ; les mentions

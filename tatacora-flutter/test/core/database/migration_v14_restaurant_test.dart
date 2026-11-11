@@ -234,6 +234,8 @@ void main() {
         'cree_par',
         'modifie_le',
         'modifie_par',
+        // v35 : la composition provisoire (ajoutée en dernier).
+        'composition_provisoire',
       ]);
       expect(await colonnes(apres, 'ingredients_recette_local'), [
         'recette_id',
@@ -252,12 +254,19 @@ void main() {
         'cree_par',
         'modifie_le',
         'modifie_par',
+        // v36 : le lien direct au stock (ajouté en dernier).
+        'article_id',
+        'unites_vendables',
+        // v41 : la catégorie du plat (dix valeurs de la carte).
+        'categorie',
+        // v47 : la description facultative du plat.
+        'description',
       ]);
 
       // Ni un coût, ni une marge, ni des portions, ni un taux n'est une colonne
       // (piège 9 : personne ne les écrirait, ou ils divergeraient de leurs
-      // sources) ; ni un lien direct à un article, ni une disponibilité du
-      // jour, dont aucun geste n'est porté ; aucun `statut_sync`.
+      // sources) ; ni une disponibilité du jour (`disponible`, portée par
+      // `indisponibilites_carte_local`) ; aucun `statut_sync`.
       for (final t in tablesRestaurant) {
         final cols = await colonnes(apres, t);
         for (final interdit in [
@@ -271,8 +280,10 @@ void main() {
           'article_id_direct',
           'unites_vendables_par_unite_stock',
           'disponible',
-          'composition_provisoire',
-          'categorie',
+          // `composition_provisoire` n'est plus interdite : la v35 (21/10/2026)
+          // l'ajoute à `recettes_local`, la PWA l'écrivant.
+          // `categorie` n'est plus interdite sur `plats_local` : la v41 (27/10/2026)
+          // l'ajoute (les dix catégories de la carte, saisies comme au web).
           'statut_sync',
         ]) {
           expect(cols, isNot(contains(interdit)), reason: '$t.$interdit');
@@ -444,6 +455,19 @@ void main() {
         ...tablesAjouteesEnV27,
         ...tablesAjouteesEnV28,
         ...tablesAjouteesEnV29,
+        ...tablesAjouteesEnV31,
+        ...tablesAjouteesEnV32,
+        ...tablesAjouteesEnV33,
+        ...tablesAjouteesEnV34,
+        ...tablesAjouteesEnV35,
+        ...tablesAjouteesEnV37,
+        ...tablesAjouteesEnV38,
+        ...tablesAjouteesEnV39,
+        ...tablesAjouteesEnV40,
+        ...tablesAjouteesEnV44,
+        ...tablesAjouteesEnV46,
+        ...tablesAjouteesEnV52,
+        ...tablesAjouteesEnV53,
       });
       expect(apres.difference(avant), isEmpty);
       await db.close();

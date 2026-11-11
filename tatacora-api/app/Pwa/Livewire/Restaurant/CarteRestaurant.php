@@ -8,6 +8,7 @@ use App\Domain\Bar\Models\CarteBoisson;
 use App\Domain\Carte\Services\StockDeCarteService;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Services\CartePlatMenuService;
+use App\Domain\Restaurant\Services\RapprochementPlatsStockService;
 use App\Domain\Stocks\Models\Article;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Exports\CarteRestaurantExport;
@@ -66,7 +67,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see DIRECTIVE_CONFORMITE_100.md Articles 3.3, 4.6
  */
 #[Layout('layouts.pwa')]
-#[Title('Carte du restaurant — TATACORA AFRIQUE')]
+#[Title('Carte du restaurant — LogiReStock — TATACORA AFRIQUE')]
 class CarteRestaurant extends PageMetier
 {
     use EcranDeCarte;
@@ -173,6 +174,28 @@ class CarteRestaurant extends PageMetier
         $this->cacheDesPlats = null;
 
         $this->terminerFormulaire(__('carte_pwa.commun.toast_lien_retire'));
+    }
+
+    /**
+     * « Rapprocher les plats du stock » — le RATTRAPAGE (PO, 09/11/2026).
+     *
+     * Pour une base déjà importée : relie chaque plat sans lien à l'article de
+     * stock de même nom au point Cuisine, crée ceux qui manquent, et DIT ce
+     * qu'il a fait. N'écrase aucun lien, n'écrit ni prix ni quantité, laisse à
+     * leur fiche les plats décomposés en ingrédients. Idempotent.
+     *
+     * Droit : écriture sur M4 (les liens des plats) ET M6 (les articles créés).
+     */
+    public function rapprocherLesPlatsDuStock(): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerEcriture('M6');
+
+        $bilan = app(RapprochementPlatsStockService::class)->rapprocher();
+
+        $this->cacheDesPlats = null;
+
+        session()->flash('pwa-succes', __('imports.rapprochement.fait', ['bilan' => RapprochementPlatsStockService::phrase($bilan)]));
     }
 
     /**
@@ -385,7 +408,7 @@ class CarteRestaurant extends PageMetier
             'entetes' => $entetes,
             'lignes' => $matrice,
             'indicateurs' => $this->indicateurs($this->lignesDeLaCarte()),
-            'quand' => now()->format('d/m/Y à H:i'),
+            'quand' => \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y à H:i'),
         ])->setPaper('a4', 'portrait');
 
         return response()->streamDownload(
@@ -401,7 +424,7 @@ class CarteRestaurant extends PageMetier
     {
         $pdf = Pdf::loadView('pdf.fiche-prix', [
             // L'identité seulement : la fiche garde sa propre mise en page.
-            'entete' => $this->enTeteRapport(__('carte_pwa.fiche_prix_titre_restaurant'), now()->format('d/m/Y')),
+            'entete' => $this->enTeteRapport(__('carte_pwa.fiche_prix_titre_restaurant'), \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y')),
             'titre' => __('carte_pwa.fiche_prix_titre_restaurant'),
             'groupes' => $groupes,
             'total' => array_sum(array_map(
@@ -409,7 +432,7 @@ class CarteRestaurant extends PageMetier
                 $groupes,
             )),
             'sansPrix' => $sansPrix,
-            'quand' => now()->format('d/m/Y à H:i'),
+            'quand' => \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y à H:i'),
         ])->setPaper('a4', 'portrait');
 
         return response()->streamDownload(

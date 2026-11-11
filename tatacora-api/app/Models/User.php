@@ -10,6 +10,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -25,10 +26,17 @@ use Laravel\Sanctum\HasApiTokens;
  *
  * @property string $id
  * @property string $login
+ * @property string|null $email
  * @property string $mot_de_passe_hash
  * @property string $role_id
  * @property string $statut
  * @property \Illuminate\Support\Carbon|null $derniere_connexion
+ * @property bool $must_change_password
+ * @property \Illuminate\Support\Carbon|null $temp_expires_at
+ * @property string|null $previous_password_hash
+ * @property string|null $recovery_code_hash
+ * @property \Illuminate\Support\Carbon|null $recovery_code_generated_at
+ * @property \Illuminate\Support\Carbon|null $supprime_le
  * @property-read Role|null $role
  */
 class User extends Authenticatable
@@ -41,11 +49,22 @@ class User extends Authenticatable
     use HasUuids;
     use Notifiable;
 
+    /**
+     * SUPPRESSION LOGIQUE d'un compte (décision du PO du 03/11/2026) : la colonne
+     * `supprime_le` tient lieu de `deleted_at`. La portée globale écarte les comptes
+     * supprimés de TOUTE requête (connexion, listes, jetons) ; l'auteur d'une
+     * saisie se relit par `withTrashed()` (relations `belongsTo` des modèles).
+     */
+    use SoftDeletes;
+
+    public const DELETED_AT = 'supprime_le';
+
     protected $table = 'utilisateurs';
 
     protected $fillable = [
         'id',
         'login',
+        'email',
         'mot_de_passe_hash',
         'role_id',
         'statut',
@@ -54,6 +73,8 @@ class User extends Authenticatable
     protected $hidden = [
         'mot_de_passe_hash',
         'remember_token',
+        'previous_password_hash',
+        'recovery_code_hash',
     ];
 
     protected function casts(): array
@@ -61,6 +82,10 @@ class User extends Authenticatable
         return [
             'mot_de_passe_hash' => 'hashed',
             'derniere_connexion' => 'datetime',
+            'must_change_password' => 'boolean',
+            'temp_expires_at' => 'datetime',
+            'recovery_code_generated_at' => 'datetime',
+            'supprime_le' => 'datetime',
         ];
     }
 
@@ -105,6 +130,20 @@ class User extends Authenticatable
     }
 
     /**
+     * Ce compte peut-il modifier CE champ de son propre profil ? [champ] est
+     * l'une des clés de `ChampsProfil::DROITS`. Le droit est un module RBAC
+     * transverse, binaire : seul `C` autorise ; `L` ou `-` refusent. Un compte
+     * inactif ne modifie rien. Autorité unique, relue par le serveur à chaque
+     * enregistrement — masquer le champ dans l'écran ne protège rien.
+     */
+    public function peutModifierSonProfil(string $champ): bool
+    {
+        $droit = \App\Pwa\Support\ChampsProfil::DROITS[$champ] ?? null;
+
+        return $droit !== null && $this->estActif() && $this->niveauSurModule($droit) === 'C';
+    }
+
+    /**
      * Les DEUX rôles qui administrent — auteur unique de cette liste.
      *
      * Elle était écrite dans `AutoriseArchivage`, qui la lisait seul. Un
@@ -130,6 +169,19 @@ class User extends Authenticatable
     }
 
     /**
+     * Le mot de passe TEMPORAIRE posé par un administrateur est-il expiré ?
+     *
+     * Vrai seulement si un changement est exigé ET que l'échéance est passée :
+     * un compte ordinaire (aucun temporaire) n'expire jamais.
+     */
+    public function motDePasseTemporaireExpire(): bool
+    {
+        return $this->must_change_password
+            && $this->temp_expires_at !== null
+            && $this->temp_expires_at->isPast();
+    }
+
+    /**
      * Le SUPER_ADMIN — directive PO du 03/09/2026. Seul role autorise a
      * PURGER les archives (suppression physique d'un element deja archive) ;
      * partout ailleurs il agit par ses droits `C`, comme les autres. Les
@@ -150,5 +202,52 @@ class User extends Authenticatable
     public function estAdministrateur(): bool
     {
         return in_array((string) $this->role?->libelle, self::ROLES_ADMINISTRATION, true);
+    }
+
+    /**
+     * Le module dont l'écriture (`C`) est exigée EN PLUS du rôle pour supprimer
+     * un compte : celui de l'écran « Comptes utilisateurs » (menu `ROLES`).
+     */
+    public const MODULE_SUPPRESSION_COMPTES = 'ROLES';
+
+    /**
+     * QUI peut supprimer un compte (décision du PO du 03/11/2026) : un SUPER
+     * ADMINISTRATEUR actif, avec l'écriture sur ROLES. Auteur unique de la règle :
+     * l'écran, le service et la synchronisation la demandent ici, aucun ne la
+     * recopie. Un simple administrateur désactive, il ne supprime pas.
+     */
+    public function peutSupprimerDesComptes(): bool
+    {
+        return $this->estActif()
+            && $this->estSuperAdmin()
+            && $this->niveauSurModule(self::MODULE_SUPPRESSION_COMPTES) === 'C';
+    }
+
+    /**
+     * QUI peut être supprimé : un compte dont le rôle n'administre PAS. Un
+     * administrateur ou un super administrateur se désactive, il ne se supprime
+     * pas — ce qui garantit aussi qu'on ne supprime jamais le dernier
+     * administrateur (ce n'est jamais un administrateur qui part).
+     */
+    public function estSupprimable(): bool
+    {
+        return $this->supprime_le === null && ! $this->estAdministrateur();
+    }
+
+    /** Le compte a-t-il été supprimé (suppression logique) ? */
+    public function estSupprime(): bool
+    {
+        return $this->supprime_le !== null;
+    }
+
+    /**
+     * Le nom d'un auteur tel que les listes l'affichent : son login, suivi de
+     * « (compte supprimé) » quand le compte l'est. Ce qu'il a saisi garde son nom.
+     */
+    public function libelleAuteur(): string
+    {
+        return $this->estSupprime()
+            ? __('pwa.comptes.auteur_supprime', ['login' => $this->login])
+            : $this->login;
     }
 }

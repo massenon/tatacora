@@ -141,7 +141,7 @@ final class HebergementCyclePwaTest extends TestCase
     #[Test]
     public function la_reservation_rapide_est_refusee_et_tracee_pour_un_role_en_lecture(): void
     {
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M1'));
         $this->actingAs($comptable);
 
@@ -295,7 +295,7 @@ final class HebergementCyclePwaTest extends TestCase
     #[Test]
     public function un_role_en_lecture_seule_exporte_reellement_un_fichier(): void
     {
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M1'), 'La matrice a change : ce cas ne verifie plus rien.');
         $this->actingAs($comptable);
 
@@ -420,7 +420,7 @@ final class HebergementCyclePwaTest extends TestCase
     #[Test]
     public function le_cycle_est_refuse_a_un_role_en_lecture_et_le_refus_est_trace(): void
     {
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->actingAs($comptable);
 
         Livewire::test(Hebergement::class)

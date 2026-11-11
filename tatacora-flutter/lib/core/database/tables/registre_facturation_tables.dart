@@ -138,6 +138,50 @@ class PiecesFacturationLocal extends Table {
   /// de configuration présente. C'est PA-61 mot pour mot.
   TextColumn get numeroMecef => text().nullable()();
 
+  /* ------------------------------------------------ normalisation (v50) -- */
+  /// La NORMALISATION fiscale de la pièce (07/11/2026, schéma v50) : le résultat
+  /// du boîtier CC300 de ce poste, ou celui d'e-MECeF reçu du serveur. Toutes
+  /// nullables : une pièce d'avant, une démonstration, un mode « désactivé » n'en
+  /// ont aucune. `numero_mecef` ci-dessus porte « NIM-TC » (l'identité fiscale,
+  /// la valeur de `rn` d'un avoir) ; ces colonnes portent le reste.
+  /// Voir `docs/SPEC_FACTURATION_NORMALISEE_MECEF.md` §6.
+
+  /// `normalisee` | `en_attente` | `refusee` | `a_verifier` (`StatutNormalisation`).
+  /// `null` : non concernée.
+  TextColumn get normalisationStatut => text().nullable()();
+
+  /// Le motif, en français, d'un `en_attente` / `refusee` / `a_verifier`.
+  TextColumn get normalisationMotif => text().nullable()();
+
+  /// `boitier` | `emecef` : la voie qui a normalisé (ou tenté de).
+  TextColumn get normalisationMode => text().nullable()();
+
+  /// « TC » : le compteur de la facture au boîtier, lu APRÈS la vente.
+  TextColumn get normalisationCompteur => text().nullable()();
+
+  /// Le compteur du boîtier lu AVANT l'envoi : posé quand une requête part,
+  /// retiré quand l'issue est CERTAINE. Non nul = « une tentative est partie,
+  /// son issue n'est pas tranchée » (protocole de la réponse perdue).
+  TextColumn get normalisationCompteurAvant => text().nullable()();
+
+  /// Le code MECeF/DGI (extrait du QR) — pour e-MECeF, la `reference` d'un avoir.
+  TextColumn get codeMecef => text().nullable()();
+
+  /// Le contenu du QR code fiscal (`F;NIM;code;IFU;date`).
+  TextColumn get qrCodeFiscal => text().nullable()();
+
+  /// Quand la normalisation a eu lieu.
+  DateTimeColumn get normaliseeLe => dateTime().nullable()();
+
+  /* ----------------------------------------------------- acheteur (v51) -- */
+  /// L'IFU du CLIENT saisi pour CETTE facture (07/11/2026, schéma v51) : facultatif, 13
+  /// chiffres s'il est rempli (`ifu_client.dart`), `null` = client sans IFU. Figé avec la
+  /// facture, comme `client_nom`. Le nom saisi pour la normalisation est `acheteur_nom`
+  /// (à défaut, `client_nom`).
+  TextColumn get acheteurIfu => text().nullable()();
+
+  TextColumn get acheteurNom => text().nullable()();
+
   /* -------------------------------------------------------------- état -- */
   /// `emise` | `annulee`.
   ///

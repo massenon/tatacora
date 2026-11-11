@@ -103,6 +103,25 @@ Map<String, Object?> chargePointStockage({
   required String? type,
 }) => {'libelle': libelle, 'type': type};
 
+/// `canaux_reservation` (création) — `GestionnaireCanauxReservation` : le NOM
+/// (clé naturelle, insensible à la casse) et l'état. Le même nom saisi sur deux
+/// postes fusionne au serveur.
+Map<String, Object?> chargeCanalReservation({
+  required String nom,
+  required bool actif,
+}) => {'nom': nom, 'actif': actif};
+
+/// `canaux_reservation` (modification) — l'ÉTAT ENTIER (nom, actif), plus
+/// l'ANCIEN nom quand le geste est un renommage : un canal aligné par son nom
+/// à la descente garde ici un identifiant que le serveur ne connaît pas, et
+/// l'ancien nom le lui fait retrouver (sinon « Physique » → « Comptoir » créerait
+/// un second canal au lieu de renommer le premier).
+Map<String, Object?> chargeCanalReservationModifie({
+  required String nom,
+  required bool actif,
+  String? ancienNom,
+}) => {'nom': nom, 'ancien_nom': ?ancienNom, 'actif': actif};
+
 /// `articles` — `EnregistrerArticleRequest` (sans les champs calculés,
 /// interdits). Le stock d'ouverture n'en fait PAS partie : c'est un mouvement,
 /// et le serveur interdit `stock_initial`.
@@ -113,6 +132,7 @@ Map<String, Object?> chargeArticle({
   required int seuilCentiemes,
   required String suivi,
   required String? pointStockageId,
+  int? valeurAchatDixMilliemes,
 }) => {
   'libelle': libelle,
   'categorie': categorie.trim().isEmpty
@@ -122,21 +142,34 @@ Map<String, Object?> chargeArticle({
   'seuil_alerte': decimalExact(seuilCentiemes, 2),
   'suivi': suivi,
   'point_stockage_id': pointStockageId,
+  // 09/11/2026 (PO) : la valeur d'achat de référence (v57) REMONTE — le serveur la pose
+  // si l'article n'en porte pas, puis la descend à tous les postes. Clé absente : rien.
+  if (valeurAchatDixMilliemes != null && valeurAchatDixMilliemes > 0)
+    'valeur_achat_reference': decimalExact(valeurAchatDixMilliemes, 4),
 };
 
 /// `cartes_boisson` — `EnregistrerBoissonRequest`. [articleId] nul : le
 /// serveur l'exige (`required`) et REJETTERA l'opération avec sa phrase — une
 /// boisson sans article ne peut rien décrémenter (point ouvert, F2).
+///
+/// [unitesVendables] : le conditionnement du lien (`24` pour un casier de 24),
+/// en TEXTE décimal. La clé n'est écrite que s'il est connu : un `null` serait
+/// refusé par la règle `numeric` du serveur, et l'absence laisse le serveur
+/// garder le sien. Le serveur le reçoit depuis le 26/10/2026
+/// (`GestionnaireCartesBoisson`) — sans lui, « Lier au stock » au poste ne
+/// changeait RIEN chez le serveur.
 Map<String, Object?> chargeBoisson({
   required String libelle,
   required String? articleId,
   required String categorie,
   required int prixVenteFrancs,
+  String? unitesVendables,
 }) => {
   'libelle': libelle,
   'article_id': articleId,
   'categorie': categorie,
   'prix_vente': prixVenteFrancs,
+  'unites_vendables_par_unite_stock': ?unitesVendables,
 };
 
 /// `menus` — `EnregistrerMenuRequest`.
@@ -177,13 +210,30 @@ Map<String, Object?> chargePlat({
   required int prixVenteFrancs,
   required bool prixProvisoire,
   required bool prixCorrigeMain,
+  String? articleId,
+  String? unitesVendables,
+  String? categorie,
+  String? description,
 }) => {
   'libelle': libelle,
+  // Depuis la v47 (30/10/2026) : la description facultative, normalisée. Absente
+  // d'un plat qui n'en a pas ; effacée, elle part en `null` explicite (voir
+  // `RestaurantDao._differences`).
+  'description': ?description,
   'menu_id': menuId,
   'recette_id': recetteId,
   'prix_vente': prixVenteFrancs,
+  // Depuis la v41 : la catégorie du plat, l'une des dix clés de la carte (le
+  // serveur l'accepte en synchronisation et la valide contre ce registre). Absente
+  // d'un plat d'avant : jamais envoyée en `null`.
+  'categorie': ?categorie,
   'prix_provisoire': prixProvisoire,
   'prix_corrige_main': prixCorrigeMain,
+  // Le lien direct au stock (v36) : les DEUX champs vont ensemble, ou aucun
+  // (`CartePlatMenuService`). Absents d'un plat sans lien ; le retrait du lien
+  // part en `null` explicite (voir `RestaurantDao`).
+  'article_id': ?articleId,
+  if (articleId != null) 'unites_vendables_par_unite_stock': unitesVendables,
 };
 
 /// `categories_hebergement` — `EnregistrerCategorieHebergementRequest`.
@@ -236,6 +286,34 @@ Map<String, Object?> chargeClient({
   'type_client': typeClient,
 };
 
+/// `clients`, ARCHIVAGE ou RESTAURATION (modification) —
+/// `GestionnaireClients` : `actif` seul. Le serveur archive par
+/// `ReferentielClientService` (quatre verrous) sous la règle d'archivage de la
+/// directive du 03/09/2026 ; restaurer ne se refuse jamais.
+Map<String, Object?> chargeArchivageClient({required bool actif}) => {
+  'actif': actif,
+};
+
+/// `relances_clients` (création) — `GestionnaireRelancesClients` : un FAIT daté,
+/// jamais modifié. Le montant réclamé voyage en CENTIMES -> chaîne décimale
+/// exacte (`"15000.00"`, jamais un `double`) : c'est ce qui a été DIT au client
+/// ce jour-là. Promesse et commentaire absents partent `null`.
+Map<String, Object?> chargeRelanceClient({
+  required String clientId,
+  required DateTime dateRelance,
+  required String canal,
+  required int montantReclameCentimes,
+  required DateTime? promesse,
+  required String? commentaire,
+}) => {
+  'client_id': clientId,
+  'date_relance': jourIso(dateRelance),
+  'canal': canal,
+  'montant_reclame': decimalExact(montantReclameCentimes, 2),
+  'promesse': promesse == null ? null : jourIso(promesse),
+  'commentaire': commentaire,
+};
+
 /* ==================================================================== */
 /* Documents                                                             */
 /* ==================================================================== */
@@ -257,6 +335,7 @@ Map<String, Object?> chargeReservation({
   required num? remiseValeur,
   required String? modePaiement,
   String? canal,
+  List<Map<String, Object?>> lignes = const [],
 }) => {
   'client_id': clientId,
   'unite_id': uniteId,
@@ -271,6 +350,28 @@ Map<String, Object?> chargeReservation({
       : decimalExact((remiseValeur * 100).round(), 2),
   'mode_paiement': modePaiement,
   'canal': canal,
+  // Les services (09/11/2026) : jamais laissés au poste. Sans eux, un autre poste
+  // et le web voyaient un séjour sans service (75 000 au lieu de 80 000).
+  'lignes': lignes,
+};
+
+/// Une ligne de SERVICE d'une réservation, telle que le serveur la reçoit
+/// (`GestionnaireReservations`) : le prix ET le libellé FIGÉS par le poste à
+/// l'ajout (jamais relus du catalogue du serveur), la quantité et le prix en
+/// décimales exactes. L'hébergement n'est PAS une ligne au serveur : il vit sur
+/// `unite_id` et `tarif_nuit`.
+Map<String, Object?> chargeLigneReservation({
+  required String service,
+  required String sourceId,
+  required String libelle,
+  required int quantite,
+  required int prixUnitaireFrancs,
+}) => {
+  'service': service,
+  'source_id': sourceId,
+  'libelle': libelle,
+  'quantite': decimalExact(quantite * 100, 2),
+  'prix_unitaire': decimalExact(prixUnitaireFrancs * 100, 2),
 };
 
 /// `commandes_achat` (création seule) — `GestionnaireCommandesAchat` : les
@@ -362,7 +463,9 @@ Map<String, Object?> chargeClotureCaisse({
 
 /// `ventes` (création seule, AU COMPTANT) — `GestionnaireVentes`. Prix et
 /// total en francs entiers ; le prix du poste fait foi (le serveur signale
-/// l'écart avec son catalogue, il ne corrige pas).
+/// l'écart avec son catalogue, il ne corrige pas). Avec une remise,
+/// [montantCloture] est le NET (arrondi au franc : le poste compte en francs
+/// entiers, le serveur garde les centimes de sa formule).
 Map<String, Object?> chargeVente({
   String typeVente = 'comptant',
   String? reservationId,
@@ -373,6 +476,8 @@ Map<String, Object?> chargeVente({
   required String? tableId,
   required String? clientNom,
   required int montantCloture,
+  String remiseType = 'aucune',
+  int remiseValeurCentiemes = 0,
   required List<
     ({
       String moduleSource,
@@ -395,6 +500,13 @@ Map<String, Object?> chargeVente({
   'table_id': tableId,
   'client_nom': clientNom,
   'montant_cloture': montantCloture,
+  // 21/10/2026 : la remise du panier, telle que saisie (type + valeur, jamais
+  // un montant pré-calculé) ; `montant_cloture` est alors le NET. Absente
+  // quand il n'y en a pas : le document d'avant reste le même.
+  if (remiseType != 'aucune') ...{
+    'remise_type': remiseType,
+    'remise_valeur': decimalExact(remiseValeurCentiemes, 2),
+  },
   'lignes': [
     for (final l in lignes)
       {
@@ -467,12 +579,21 @@ Map<String, Object?> chargeCircuit({
   'duree': duree,
 };
 
-/// `guides` — `EnregistrerGuideRequest`. Pas de tarif : le poste ne le
-/// saisit pas (le serveur range 0 et le signale).
+/// `guides` — `EnregistrerGuideRequest`. La certification et le tarif
+/// journalier n'existent pas dans `guides_local` : quand l'exploitant les
+/// saisit (modale « Ajouter un guide touristique »), ils partent au serveur
+/// SANS être rangés ici. Absents, le serveur range un tarif de 0 et le signale.
 Map<String, Object?> chargeGuide({
   required String nom,
   required String? zoneCompetence,
-}) => {'nom': nom, 'zone_competence': zoneCompetence};
+  String? certification,
+  int? tarifJourFrancs,
+}) => {
+  'nom': nom,
+  'zone_competence': zoneCompetence,
+  'certification': ?certification,
+  'tarif_jour': ?tarifJourFrancs,
+};
 
 /// `reservations_tour` (création) — `ReserverCircuitRequest`.
 Map<String, Object?> chargeReservationTour({
@@ -527,12 +648,20 @@ Map<String, Object?> chargeFacture({
     ({String module, String libelle, int prixUnitaire, int quantite})
   >
   lignes,
+  String? acheteurIfu,
+  String? acheteurNom,
+  bool retenirIfu = false,
 }) => {
   'origine': origine,
   'date_emission': jourIso(dateEmission),
   'client_id': clientId,
   'reservation_id': reservationId,
   'panier_id': panierId,
+  // L'ACHETEUR (07/11/2026) : IFU facultatif de 13 chiffres (jamais envoyé vide), nom, et
+  // « Retenir pour ce client » (le serveur range l'IFU sur la fiche du client).
+  'acheteur_ifu': ?acheteurIfu,
+  'acheteur_nom': ?acheteurNom,
+  if (retenirIfu && acheteurIfu != null) 'retenir_ifu': true,
   'lignes': [
     for (final l in lignes)
       {
@@ -546,11 +675,58 @@ Map<String, Object?> chargeFacture({
 
 /// `factures`, ANNULATION (la seule modification) : le serveur émet l'avoir
 /// du TTC entier et rend son numéro (`AV-AAAA-NNNNN`).
+///
+/// 07/11/2026 (décision du PO, point 4) : l'avoir de l'annulation naît AU SERVEUR, sous
+/// l'identifiant du serveur — la charge ne porte plus d'`avoir_id` (le poste reconnaît son
+/// avoir provisoire par le numéro rendu). Et l'annulation d'une facture NORMALISÉE ne passe
+/// JAMAIS par cette file : elle se fait EN LIGNE (`ServiceAvoirEnLigne`).
 Map<String, Object?> chargeAnnulationFacture({required String motif}) => {
   // Le mot du serveur est celui du registre local (`StatutPiece`).
   'statut': StatutPiece.annulee.code,
   'motif': motif,
 };
+
+/// `factures` (modification) — la NORMALISATION faite par le boîtier de CE poste
+/// (07/11/2026) : le serveur RANGE le résultat (`GestionnaireFactures::normaliser`),
+/// il ne re-certifie rien et n'appelle jamais le boîtier. [avoirId] : le résultat
+/// est celui de l'avoir de ce poste, pas celui de la facture. Jamais un secret ;
+/// `numero_mecef` n'est donné que pour une pièce normalisée.
+Map<String, Object?> chargeNormalisationFacture({
+  required String statut,
+  required String mode,
+  String? motif,
+  String? numeroMecef,
+  String? qrCode,
+  String? codeMecef,
+  String? compteur,
+  DateTime? date,
+  String? avoirId,
+}) => {
+  'avoir_id': ?avoirId,
+  'normalisation': {
+    'statut': statut,
+    'mode': mode,
+    'motif': ?motif,
+    'numero_mecef': ?numeroMecef,
+    'qr_code': ?qrCode,
+    'code_mecef': ?codeMecef,
+    'compteur': ?compteur,
+    if (date != null) 'date': instantLocal(date),
+  },
+};
+
+/// `factures`, AVOIR PARTIEL (modification, sans `statut`) —
+/// `GestionnaireFactures` : `emettreAvoir($facture, $montant, $motif)` de la
+/// PWA. Le montant en FRANCS entiers (le serveur le range à deux décimales) ;
+/// [avoirId] est l'identifiant de l'avoir sur CE poste : l'avoir naît sous cet
+/// UUID au serveur (rejeu sans doublon, reconnu à la descente), et le numéro
+/// rendu est celui de CET avoir. Le plafond (TTC) est celui du service : un
+/// montant plus grand est rejeté avec sa phrase.
+Map<String, Object?> chargeAvoirPartielFacture({
+  required int montantFrancs,
+  required String motif,
+  required String avoirId,
+}) => {'montant': montantFrancs, 'motif': motif, 'avoir_id': avoirId};
 
 /// `paiements` (création) — `GestionnairePaiements`. Montant en CENTIMES
 /// (le serveur divise par 100), la caisse du poste qui a reçu l'argent,
@@ -585,14 +761,21 @@ Map<String, Object?> chargeAnnulationPaiement({required String motif}) => {
 /// et le MONTANT qu'il a remboursé (mode `montant`) : les deux côtés
 /// remboursent la même somme au centime, même quand la saisie était en
 /// pourcentage (écart nommé : le serveur note alors le mode « montant »).
+///
+/// `auteur` (09/11/2026) : le LOGIN du compte de ce poste qui a annulé. Le serveur ne juge pas
+/// ce compte (le contrôle « qui peut annuler » est fait ici, par le droit local `ANNULATIONS`) ;
+/// il le garde pour que l'onglet « Annulations » nomme la même personne partout, et pour
+/// l'audit. L'instant de la saisie est celui de l'opération (`horodatage_client`).
 Map<String, Object?> chargeAnnulationReservation({
   required int tauxCentiemes,
   required int rembourseCentimes,
+  String? auteurLogin,
 }) => {
   'statut': 'annulee',
   'taux': decimalExact(tauxCentiemes, 2),
   'mode_remboursement': 'montant',
   'valeur_remboursement': decimalExact(rembourseCentimes, 2),
+  if (auteurLogin != null && auteurLogin.isNotEmpty) 'auteur': auteurLogin,
 };
 
 /// `reservations`, DÉPLACEMENT — les seuls champs CHANGÉS parmi la chambre
@@ -607,8 +790,71 @@ Map<String, Object?> chargeDeplacementReservation({
   if (dateDepart != null) 'date_depart': jourIso(dateDepart),
 };
 
+/// Les champs de la FICHE d'une réservation qu'une modification peut porter
+/// (`GestionnaireReservations::CHAMPS_DEPLACEMENT` + `CHAMPS_FICHE`), et eux seuls.
+const champsFicheReservation = [
+  'unite_id',
+  'date_arrivee',
+  'date_depart',
+  'client_id',
+  'tarif_nuit',
+  'acompte',
+  'remise_type',
+  'remise_valeur',
+  'mode_paiement',
+  'canal',
+  'lignes',
+];
+
+/// `reservations`, MODIFICATION de la fiche (09/11/2026, décision du PO : « toute
+/// modification se propage complètement et identiquement ») — SEULS les champs
+/// CHANGÉS (dernier écrit gagnant, clé par clé). Les `lignes`, quand elles
+/// changent, partent en bloc : c'est la composition courante qui est remplacée.
+Map<String, Object?> chargeModificationReservation(
+  Map<String, Object?> champsChanges,
+) {
+  for (final cle in champsChanges.keys) {
+    if (!champsFicheReservation.contains(cle)) {
+      throw ArgumentError.value(
+        cle,
+        'champsChanges',
+        'champ inconnu de la fiche d’une réservation',
+      );
+    }
+  }
+  return Map<String, Object?>.of(champsChanges);
+}
+
 /// `commandes_achat`, STATUT — `envoyee` ou `cloturee`, par leurs services.
 Map<String, Object?> chargeStatutCommande(String statut) => {'statut': statut};
+
+/* ==================================================================== */
+/* Retraits de la carte du jour (21/10/2026)                              */
+/* ==================================================================== */
+
+/// `indisponibilites_carte` (création) — `GestionnaireIndisponibilitesCarte` :
+/// EXACTEMENT un de [boissonId] / [platId] (le serveur refuse les deux, ou
+/// aucun), le motif du registre fermé, l'instant du retrait au poste. Le
+/// serveur fusionne si l'article est déjà retiré.
+Map<String, Object?> chargeIndisponibiliteCarte({
+  String? boissonId,
+  String? platId,
+  required String motif,
+  String? commentaire,
+  required DateTime date,
+}) => {
+  'boisson_id': ?boissonId,
+  'plat_id': ?platId,
+  'motif': motif,
+  'commentaire': ?commentaire,
+  'date_indisponibilite': instantLocal(date),
+};
+
+/// `indisponibilites_carte` (modification) : la REMISE à la carte, seule
+/// modification admise.
+Map<String, Object?> chargeRemiseALaCarte(DateTime date) => {
+  'date_retour_disponibilite': instantLocal(date),
+};
 
 /* ==================================================================== */
 /* Tables de salle (lot F6, 18/10/2026)                                   */
@@ -655,16 +901,82 @@ Map<String, Object?> chargeReglementFournisseur({
 /* Véhicules (audit de couverture, 18/10/2026)                            */
 /* ==================================================================== */
 
-/// `vehicules` (création) — `GestionnaireVehicules`. Le poste ne saisit ni
-/// année ni capacité : le serveur range l'année 0 et le SIGNALE.
+/// `vehicules` (création) — `GestionnaireVehicules`. Depuis la v41 (27/10/2026) le
+/// poste saisit l'année, les places (`capacite`) et la transmission comme le web ;
+/// un véhicule d'avant n'en a pas et l'année absente est rangée à 0 par le
+/// serveur, qui la SIGNALE. Les clés absentes ne sont pas envoyées (jamais un
+/// `null` qui vaudrait « effacer »).
 Map<String, Object?> chargeVehicule({
   required String immatriculation,
   required String categorie,
   required int tarifJour,
+  int? annee,
+  int? capacite,
+  String? transmission,
 }) => {
   'immatriculation': immatriculation,
   'categorie': categorie,
   'tarif_jour': tarifJour,
+  'annee': ?annee,
+  'capacite': ?capacite,
+  'transmission': ?transmission,
+};
+
+/// `entretiens_vehicule` (création) — `GestionnaireEntretiensVehicule` : un fait
+/// daté (jour, francs entiers), jamais modifié ; le chauffeur est facultatif.
+Map<String, Object?> chargeEntretienVehicule({
+  required String vehiculeId,
+  required String type,
+  required DateTime date,
+  required int coutFrancs,
+  String? chauffeurId,
+}) => {
+  'vehicule_id': vehiculeId,
+  'type': type,
+  'date': jourIso(date),
+  'cout': coutFrancs,
+  'chauffeur_id': ?chauffeurId,
+};
+
+/// `plannings` (création) — `GestionnairePlannings` : un créneau se crée, il ne
+/// se modifie pas. Le jour en `AAAA-MM-JJ`, les heures en `HH:MM`. Le service
+/// part par identifiant ET libellé : tant que le poste n'a rien reçu, son
+/// identifiant lui est propre, et le serveur retombe sur le libellé.
+Map<String, Object?> chargePlanning({
+  required String employeId,
+  required String serviceId,
+  required String serviceLibelle,
+  required DateTime date,
+  required String heureDebut,
+  required String heureFin,
+}) => {
+  'employe_id': employeId,
+  'service_id': serviceId,
+  'service_libelle': serviceLibelle,
+  'date': jourIso(date),
+  'heure_debut': heureDebut,
+  'heure_fin': heureFin,
+};
+
+/// `conges` (création) — `GestionnaireConges` : la DEMANDE, toujours acceptée
+/// par le serveur ; sa décision part ensuite en [chargeDecisionConge].
+Map<String, Object?> chargeConge({
+  required String employeId,
+  required String type,
+  required DateTime dateDebut,
+  required DateTime dateFin,
+}) => {
+  'employe_id': employeId,
+  'type': type,
+  'date_debut': jourIso(dateDebut),
+  'date_fin': jourIso(dateFin),
+};
+
+/// `conges` (modification) — la seule admise : la décision, `valide` ou
+/// `refuse`. Le serveur la rejoue par `valider` / `refuser` (RG-14 sur le
+/// préavis et la couverture, avec SES paramètres).
+Map<String, Object?> chargeDecisionConge({required bool valide}) => {
+  'statut_validation': valide ? 'valide' : 'refuse',
 };
 
 /// `contrats_location` (création) — `GestionnaireContratsLocation` : les
@@ -677,6 +989,8 @@ Map<String, Object?> chargeContratLocation({
   required DateTime fin,
   required String pieceIdentite,
   required String? permisConduire,
+  int? remiseFrancs,
+  int? acompteFrancs,
 }) => {
   'vehicule_id': vehiculeId,
   'client_id': clientId,
@@ -685,7 +999,16 @@ Map<String, Object?> chargeContratLocation({
   'date_fin': jourIso(fin),
   'piece_identite': pieceIdentite,
   'permis_conduire': permisConduire,
+  // Depuis la v41 : la remise et l'acompte (FCFA entiers) de la signature. Le
+  // serveur juge `remise <= brut` puis `acompte <= net` avec les phrases de la
+  // vue et range le montant NET ; absents (poste d'avant), il range le brut.
+  'remise': ?remiseFrancs,
+  'acompte': ?acompteFrancs,
 };
+
+/// `contrats_location` (modification) — l'ANNULATION, la seule admise
+/// (`GestionnaireContratsLocation::modifier`, par `ContratLocationService::annuler`).
+Map<String, Object?> chargeAnnulationContratLocation() => {'statut': 'annule'};
 
 /* ==================================================================== */
 /* RH et paie (audit de couverture, 18/10/2026)                           */
@@ -698,6 +1021,7 @@ Map<String, Object?> chargeContratLocation({
 Map<String, Object?> chargeEmploye({
   required String nom,
   required String prenom,
+  required String? email,
   required String poste,
   required String serviceId,
   required String serviceLibelle,
@@ -710,6 +1034,8 @@ Map<String, Object?> chargeEmploye({
 }) => {
   'nom': nom,
   'prenom': prenom,
+  // v45 : toujours présent (null = effacé), comme le serveur le relit.
+  'email': email,
   'poste': poste,
   'service_id': serviceId,
   'service_libelle': serviceLibelle,
@@ -731,6 +1057,14 @@ Map<String, Object?> chargeBulletinPaie({
 
 /// `bulletins_paie`, ANNULATION (la seule modification).
 Map<String, Object?> chargeAnnulationBulletin({required String motif}) => {
+  'statut': 'annulee',
+  'motif': motif,
+};
+
+/// `ventes`, ANNULATION (la seule modification) — `GestionnaireVentes::
+/// modifier` : `statut: annulee` et `motif`, par `VenteService::annuler`
+/// (contre-passation de la pièce du serveur, retour des boissons au stock).
+Map<String, Object?> chargeAnnulationVente({required String motif}) => {
   'statut': 'annulee',
   'motif': motif,
 };
@@ -796,4 +1130,231 @@ Map<String, Object?> chargeModeleNotification({
   'objet': objet,
   'contenu_template': contenuTemplate,
   'actif': actif,
+};
+
+/// `plan_comptable` (création seule, 28/10/2026, D246 rouvert) —
+/// `GestionnairePlanComptable` : le compte tel que `PlanComptableService::creerCompte`
+/// le prend. La classe ne part pas : elle est DÉRIVÉE du numéro, des deux côtés.
+Map<String, Object?> chargeCompte({
+  required String numeroCompte,
+  required String libelle,
+  required String nature,
+}) => {'numero_compte': numeroCompte, 'libelle': libelle, 'nature': nature};
+
+/// `pieces_saisie` (création seule, 28/10/2026, D246 rouvert) —
+/// `GestionnairePiecesSaisie` : la SOURCE d'une saisie manuelle, jamais une
+/// écriture. Journal (code), date `AAAA-MM-JJ`, libellé, statut (`brouillon` ou
+/// `validee`) et lignes : compte par son NUMÉRO, débit et crédit en CENTIMES
+/// entiers, libellé de ligne et centre de coût seulement s'ils ont été saisis
+/// (sinon le serveur applique RG-12 à SON plan). Le centre voyage par son
+/// LIBELLÉ, jamais par l'identifiant du poste (le poste et le serveur ne
+/// partagent pas leurs identifiants de centre). Le numéro de pièce ne part pas :
+/// c'est celui du serveur.
+///
+/// [affectation] (09/11/2026) : la pièce est l'AFFECTATION DU RÉSULTAT d'un
+/// exercice clôturé — `{annee, ventilation}`, ventilation en CENTIMES par poste
+/// (`chargeAffectationResultat`). Le serveur ne la rejoue pas comme une pièce
+/// libre : il la passe par `AffectationResultatService` (mêmes règles, mêmes
+/// phrases) et confronte les lignes.
+Map<String, Object?> chargePieceSaisie({
+  required String journal,
+  required String date,
+  required String libelle,
+  required String statut,
+  required List<
+    ({
+      String compte,
+      int debitCentimes,
+      int creditCentimes,
+      String? libelle,
+      String? centreLibelle,
+    })
+  >
+  lignes,
+  Map<String, Object?>? affectation,
+}) => {
+  'journal': journal,
+  'date': date,
+  'libelle': libelle,
+  'statut': statut,
+  'affectation': ?affectation,
+  'lignes': [
+    for (final l in lignes)
+      {
+        'compte': l.compte,
+        'debit': l.debitCentimes,
+        'credit': l.creditCentimes,
+        'libelle': ?l.libelle,
+        'centre': ?l.centreLibelle,
+      },
+  ],
+};
+
+/// Le bloc `affectation` d'une pièce saisie (09/11/2026) : l'année de l'exercice
+/// clôturé dont le résultat est affecté et la ventilation, en CENTIMES entiers,
+/// par poste (`reserve_legale`, `autres_reserves`, `dividendes`,
+/// `report_a_nouveau`, `imputation_report_crediteur`).
+Map<String, Object?> chargeAffectationResultat({
+  required int annee,
+  required Map<String, int> ventilation,
+}) => {'annee': annee, 'ventilation': ventilation};
+
+/// `immobilisations` (création seule, 21/10/2026) —
+/// `GestionnaireImmobilisations` : le bien, sa valeur d'origine en CENTIMES
+/// entiers (le serveur : `DECIMAL(15,2)`), sa mise en service en `AAAA-MM-JJ`
+/// et sa durée d'utilité en années. Le code ne part pas : c'est celui de la
+/// séquence du serveur qui revient. Le plan d'amortissement ne part pas non plus
+/// (il se calcule).
+Map<String, Object?> chargeImmobilisation({
+  required String libelle,
+  required String? compteImmobilisation,
+  required int valeurOrigineCentimes,
+  required String dateMiseService,
+  required int dureeAnnees,
+}) => {
+  'libelle': libelle,
+  'compte_immobilisation': compteImmobilisation,
+  'valeur_origine': valeurOrigineCentimes,
+  'date_mise_service': dateMiseService,
+  'duree_annees': dureeAnnees,
+};
+
+/// `inventaires` (création seule, 21/10/2026) — `GestionnaireInventaires` : un
+/// inventaire physique CLÔTURÉ, en UN document : le point, le jour
+/// (`AAAA-MM-JJ`) et ses lignes comptées. Chaque ligne porte son théorique
+/// FIGÉ au comptage, le constaté et l'écart, en CENTIÈMES entiers ; le serveur
+/// les écrit tels quels (il ne les recalcule pas) et vérifie seulement
+/// `écart = constaté − théorique`. La régularisation, elle, part à part en
+/// mouvements de stock.
+Map<String, Object?> chargeInventaire({
+  required String pointId,
+  required DateTime date,
+  required List<
+    ({
+      String id,
+      String articleId,
+      int theoriqueCentiemes,
+      int constateCentiemes,
+      int ecartCentiemes,
+    })
+  >
+  lignes,
+}) => {
+  'point_id': pointId,
+  'date_inventaire': jourIso(date),
+  'lignes': [
+    for (final l in lignes)
+      {
+        'id': l.id,
+        'article_id': l.articleId,
+        'quantite_theorique': l.theoriqueCentiemes,
+        'quantite_constatee': l.constateCentiemes,
+        'ecart': l.ecartCentiemes,
+      },
+  ],
+};
+
+/// `demandes_cloture_exercice` (création seule, 26/10/2026) —
+/// `GestionnaireDemandesCloture` : l'ANNÉE de l'exercice, l'ACTION
+/// (`demarrer`, `reprendre_saisie`, `cloturer`, `rouvrir`, et depuis le
+/// 09/11/2026 `annuler_affectation` : la contre-passation de l'affectation du
+/// résultat de l'exercice `annee`) et, pour une réouverture ou une
+/// contre-passation, le motif. Une demande, jamais une pièce (D246) : le serveur
+/// rejoue `ClotureExerciceService` et passe ses propres pièces CL et AN.
+Map<String, Object?> chargeDemandeCloture({
+  required int annee,
+  required String action,
+  String? motif,
+  String? referenceDecision,
+}) => {
+  'annee': annee,
+  'action': action,
+  'motif': ?motif,
+  // La référence FACULTATIVE de la décision (PV d'assemblée / décision de
+  // l'exploitant) d'une contre-passation d'affectation : tracée à l'audit du serveur.
+  'reference_decision': ?referenceDecision,
+};
+
+/// `articles` (modification) — l'archivage (`false`) ou la restauration
+/// (`true`) : le serveur l'applique par `ReferentielArticleService`, sous ses
+/// verrous (stock, commande en cours, carte, recette) et la règle de droits
+/// d'archivage (`DroitArchivageService`, module M6).
+Map<String, Object?> chargeArchivageArticle({required bool actif}) => {
+  'actif': actif,
+};
+
+/// `proformas`, CRÉATION (07/11/2026) : une facture proforma née au poste, hors ligne.
+///
+/// Le numéro provisoire ne part pas (il n'a de sens qu'ici) : à l'émission le serveur attribue
+/// `N°0045 FP-GCN/2026` et le rend. [emettre] : la proforma est émise (sinon brouillon). La validité
+/// est celle DÉCIDÉE au poste ([valideJusquAu], `null` = aucune) : le serveur la range telle quelle.
+Map<String, Object?> chargeProforma({
+  required String clientNom,
+  required List<({String designation, int quantite, int prixUnitaire})> lignes,
+  String? clientId,
+  String? clientTelephone,
+  String? clientIfu,
+  String? objet,
+  String sourceModule = 'libre',
+  bool emettre = false,
+  DateTime? dateEmission,
+  DateTime? valideJusquAu,
+}) => {
+  'client_nom': clientNom,
+  'client_id': ?clientId,
+  'client_telephone': ?clientTelephone,
+  'client_ifu': ?clientIfu,
+  'objet': ?objet,
+  'source_module': sourceModule,
+  if (emettre) 'emettre': true,
+  if (emettre && dateEmission != null) 'date_emission': jourIso(dateEmission),
+  // La clé est TOUJOURS présente à l'émission (même `null`) : c'est ce qui dit au serveur que la
+  // validité est déjà décidée, et qu'il ne la recalcule pas avec son réglage du moment.
+  if (emettre)
+    'valide_jusqu_au': valideJusquAu == null ? null : jourIso(valideJusquAu),
+  'lignes': [
+    for (final l in lignes)
+      {
+        'designation': l.designation,
+        'quantite': l.quantite,
+        'prix_unitaire': l.prixUnitaire,
+      },
+  ],
+};
+
+/// `proformas`, MODIFICATION (07/11/2026) : les SEULS champs changés — le client, l'objet, les lignes
+/// (remplacées en bloc), l'émission d'un brouillon (`statut: emise`), l'annulation (`annulee` + motif)
+/// ou le lien vers la facture née de la conversion (`convertie` + `facture_id`).
+Map<String, Object?> chargeProformaModification({
+  String? clientNom,
+  String? clientTelephone,
+  String? clientIfu,
+  String? objet,
+  List<({String designation, int quantite, int prixUnitaire})>? lignes,
+  String? statut,
+  String? motif,
+  String? factureId,
+  DateTime? dateEmission,
+  bool avecValidite = false,
+  DateTime? valideJusquAu,
+}) => {
+  'client_nom': ?clientNom,
+  'client_telephone': ?clientTelephone,
+  'client_ifu': ?clientIfu,
+  'objet': ?objet,
+  'statut': ?statut,
+  'motif': ?motif,
+  'facture_id': ?factureId,
+  if (dateEmission != null) 'date_emission': jourIso(dateEmission),
+  if (avecValidite)
+    'valide_jusqu_au': valideJusquAu == null ? null : jourIso(valideJusquAu),
+  if (lignes != null)
+    'lignes': [
+      for (final l in lignes)
+        {
+          'designation': l.designation,
+          'quantite': l.quantite,
+          'prix_unitaire': l.prixUnitaire,
+        },
+    ],
 };

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Sync\Http\Controllers;
 
 use App\Shared\Sync\Services\CoherenceService;
+use App\Shared\Sync\Services\SuiviPostesService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,8 +16,10 @@ use Illuminate\Http\Request;
  */
 class CoherenceController
 {
-    public function __construct(private readonly CoherenceService $coherence)
-    {
+    public function __construct(
+        private readonly CoherenceService $coherence,
+        private readonly SuiviPostesService $suivi,
+    ) {
     }
 
     public function __invoke(Request $request): JsonResponse
@@ -33,6 +36,14 @@ class CoherenceController
                 'message' => __('sync.coherence.fenetre', ['jours' => CoherenceService::JOURS_MAX]),
                 'errors' => ['au' => [__('sync.coherence.fenetre', ['jours' => CoherenceService::JOURS_MAX])]],
             ], 422);
+        }
+
+        // « Postes & Appairage » : le dernier contrôle de ce poste (son nom est
+        // celui de son jeton).
+        $poste = $request->user()->currentAccessToken()?->name;
+
+        if (is_string($poste) && $poste !== '') {
+            $this->suivi->noterControle($poste, $request->user());
         }
 
         return response()->json(['data' => [

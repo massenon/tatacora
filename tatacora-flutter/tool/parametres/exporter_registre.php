@@ -34,6 +34,7 @@ foreach (RegistreParametres::definitions() as $d) {
         'type' => $d->type,
         'regles' => $d->regles,
         'choix' => $d->choix,
+        'choix_libelles' => $d->choixLibelles,
         'aide' => $d->aide,
     ];
 }

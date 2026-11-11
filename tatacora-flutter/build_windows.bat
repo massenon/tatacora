@@ -1,7 +1,7 @@
 @echo off
 rem ===========================================================================
 rem  TATACORA - Systeme de gestion Integre : construction de l'installateur
-rem  Windows (TATACORA_Setup_<version>.exe).
+rem  Windows (LogiReStock_Setup_<version>.exe).
 rem
 rem  A lancer depuis une invite de commandes, dans le dossier tatacora-flutter :
 rem      build_windows.bat              (build de production, ENV=production)
@@ -17,6 +17,13 @@ rem  Prerequis : voir README_DEPLOY.md.
 rem ===========================================================================
 
 setlocal EnableExtensions
+
+rem --- Nom commercial et editeur de l'installateur (source unique) -----------
+rem  Passes a Inno Setup (/DAppName, /DAppPublisher) : ils s'affichent dans
+rem  l'assistant, le menu Demarrer, les raccourcis, "Applications et
+rem  fonctionnalites" et les proprietes du programme d'installation.
+set "APP_NOM_COMMERCIAL=LogiReStock"
+set "APP_EDITEUR=Dr MASSENON Rhodes"
 
 rem Le script travaille depuis SON dossier, d'ou qu'on l'appelle.
 cd /d "%~dp0"
@@ -40,7 +47,7 @@ if "%VERSION_COMPLETE%"=="" (
 for /f "tokens=1 delims=+" %%a in ("%VERSION_COMPLETE%") do set "APP_VERSION=%%a"
 
 echo.
-echo === TATACORA %APP_VERSION% (%VERSION_COMPLETE%) - flavor %TATACORA_ENV% ===
+echo === %APP_NOM_COMMERCIAL% %APP_VERSION% (%VERSION_COMPLETE%) - flavor %TATACORA_ENV% - editeur : %APP_EDITEUR% ===
 echo.
 
 rem --- Outils requis ------------------------------------------------------------
@@ -90,11 +97,11 @@ if not exist "build\windows\x64\runner\Release\tatacora_flutter.exe" (
 rem --- 4. Installateur -----------------------------------------------------------
 echo.
 echo [4/4] Inno Setup : installer\tatacora.iss
-"%ISCC%" /DAppVersion=%APP_VERSION% "installer\tatacora.iss"
+"%ISCC%" /DAppVersion=%APP_VERSION% "/DAppName=%APP_NOM_COMMERCIAL%" "/DAppPublisher=%APP_EDITEUR%" "installer\tatacora.iss"
 if errorlevel 1 goto :erreur
 
 echo.
-echo === Termine : build\installer\TATACORA_Setup_%APP_VERSION%.exe ===
+echo === Termine : build\installer\LogiReStock_Setup_%APP_VERSION%.exe ===
 endlocal
 exit /b 0
 

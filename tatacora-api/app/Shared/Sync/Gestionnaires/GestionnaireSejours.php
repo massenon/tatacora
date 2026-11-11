@@ -7,6 +7,7 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Hebergement\Models\Sejour;
 use App\Domain\Hebergement\Services\SejourService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
@@ -74,7 +75,7 @@ final class GestionnaireSejours extends GestionnaireAbstrait
         $reservation = $reservationId === null ? null : Reservation::find($reservationId);
 
         if ($reservation === null) {
-            throw new RuntimeException(__('sync.sejours.reservation_inconnue'));
+            throw new DependanceManquanteException(__('sync.sejours.reservation_inconnue'));
         }
 
         $occupants = is_array($payload['occupants'] ?? null) ? array_values($payload['occupants']) : [];

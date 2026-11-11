@@ -2,7 +2,7 @@
   "smtp_mot_de_passe": "",
   "poste_id": "",
   "jeton_api": "",
-  "serveur": "",
+  "serveur": "https://logirestock.digitonpro.com/api/v1",
   "appaire_le": "",
   "compte": ""
 }

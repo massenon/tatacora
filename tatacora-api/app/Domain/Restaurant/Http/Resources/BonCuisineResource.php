@@ -24,11 +24,12 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * ## `recette_incomplete` est la seule alerte utile de ce document
  *
- * Un plat dont la fiche technique n'a aucun ingrédient fera **échouer** la
- * transmission en cuisine (`RecetteManquanteException`). Le signaler sur le
- * détail de la commande permet de corriger la fiche avant que le serveur ne se
- * heurte au refus devant le client. C'est le même chiffre que la colonne
- * « lié au stock » de la carte, calculé au même endroit.
+ * Un plat dont la fiche technique n'a aucun ingrédient se transmet et se vend,
+ * mais ne sort AUCUN stock (décision du PO du 30/10/2026, « le stock s'ajoute
+ * après » : il faisait auparavant échouer la transmission, par
+ * `RecetteManquanteException`). Le signaler sur le détail de la commande dit à
+ * la cuisine que rien n'a été décrémenté pour ce plat. C'est le même chiffre que
+ * la colonne « lié au stock » de la carte, calculé au même endroit.
  *
  * ## EF-M4-05 est servi en LECTURE, pas en temps réel
  *

@@ -37,6 +37,7 @@ extension _AlignementDocuments on AligneurCatalogue {
         TableDescendue.tablesSalle => _tableSalle(id, e),
         TableDescendue.paniers => _occupation(id, e),
         TableDescendue.factures => _facture(id, e),
+        TableDescendue.proformas => _proforma(id, e),
         TableDescendue.avoirs => _avoir(id, e),
         TableDescendue.paiements => _paiement(id, e),
         TableDescendue.commandesAchat => _commande(id, e),
@@ -48,11 +49,288 @@ extension _AlignementDocuments on AligneurCatalogue {
         TableDescendue.reservationsTour => _reservationTour(id, e),
         TableDescendue.vehicules => _vehicule(id, e),
         TableDescendue.contratsLocation => _contratLocation(id, e),
+        TableDescendue.entretiensVehicule => _entretienVehicule(id, e),
         TableDescendue.servicesRh => _serviceRh(id, e),
         TableDescendue.employes => _employe(id, e),
         TableDescendue.bulletinsPaie => _bulletin(id, e),
+        TableDescendue.plannings => _planning(id, e),
+        TableDescendue.conges => _conge(id, e),
+        TableDescendue.relancesClients => _relanceClient(id, e),
+        TableDescendue.immobilisations => _immobilisation(id, e),
+        TableDescendue.inventaires => _inventaire(id, e),
         _ => throw StateError('${e.table} n’est pas un document'),
       };
+
+  static final RegExp _heure = RegExp(r'^([01]\d|2[0-3]):[0-5]\d');
+
+  /// `HH:MM` d'une heure du serveur (`08:00` ou `08:00:00`), `null` si illisible.
+  static String? _heureCourte(Object? v) {
+    final texte = AligneurCatalogue._texte(v);
+    if (texte == null || !_heure.hasMatch(texte)) return null;
+    return texte.substring(0, 5);
+  }
+
+  /// Un créneau de planning d'un autre poste (ou de la PWA). Un créneau se crée
+  /// et ne se modifie pas : détenu, rien n'est réécrit. RG-13 s'est jouée au
+  /// serveur ; ici on ne la rejoue pas (le serveur est seul arbitre).
+  Future<IssueAlignement> _planning(String id, ElementCatalogue e) async {
+    if (await _existe(_db.planningsLocal, id)) return const Aligne();
+    final d = e.donnees;
+    final employeServeur = AligneurCatalogue._texte(d['employe_id']);
+    final serviceServeur = AligneurCatalogue._texte(d['service_id']);
+    final debut = _heureCourte(d['heure_debut']);
+    final fin = _heureCourte(d['heure_fin']);
+    if (employeServeur == null ||
+        serviceServeur == null ||
+        debut == null ||
+        fin == null ||
+        fin.compareTo(debut) <= 0) {
+      return const RefuseParLePoste('créneau incomplet');
+    }
+    final DateTime jour;
+    try {
+      jour = _jourLocal(d['date']);
+    } on FormatException {
+      return const RefuseParLePoste('date de créneau illisible');
+    }
+    final employe = await _cite(
+      TableDescendue.employes,
+      employeServeur,
+      _db.employesLocal,
+    );
+    if (employe == null) {
+      return const EnAttenteDeDependance('employé pas encore reçu');
+    }
+    final service = await _cite(
+      TableDescendue.servicesRh,
+      serviceServeur,
+      _db.servicesRhLocal,
+    );
+    if (service == null) {
+      return const EnAttenteDeDependance('service pas encore reçu');
+    }
+    await _db
+        .into(_db.planningsLocal)
+        .insert(
+          PlanningsLocalCompanion.insert(
+            id: id,
+            employeId: employe,
+            serviceId: service,
+            date: jour,
+            heureDebut: debut,
+            heureFin: fin,
+          ),
+        );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Une demande de congé d'un autre poste (ou de la PWA). Détenue : seule la
+  /// DÉCISION descend, et seulement vers l'avant (`en_attente` → `valide` |
+  /// `refuse`) — une demande décidée ne se rouvre jamais. Le validateur ne
+  /// descend pas (écart nommé : « — » à l'écran).
+  Future<IssueAlignement> _conge(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final statut = StatutConge.depuisCode(
+      AligneurCatalogue._texte(d['statut_validation']),
+    );
+    if (statut == null) {
+      return const RefuseParLePoste('statut de congé inconnu');
+    }
+    final t = _db.congesLocal;
+    final existant = await (_db.select(
+      t,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (existant != null) {
+      if (existant.statutValidation == StatutConge.enAttente.code &&
+          statut != StatutConge.enAttente) {
+        await (_db.update(t)..where((c) => c.id.equals(id))).write(
+          CongesLocalCompanion(statutValidation: Value(statut.code)),
+        );
+      }
+      return const Aligne();
+    }
+    final employeServeur = AligneurCatalogue._texte(d['employe_id']);
+    final type = TypeConge.depuisCode(AligneurCatalogue._texte(d['type']));
+    if (employeServeur == null || type == null) {
+      return const RefuseParLePoste('congé incomplet');
+    }
+    final DateTime debut;
+    final DateTime fin;
+    try {
+      debut = _jourLocal(d['date_debut']);
+      fin = _jourLocal(d['date_fin']);
+    } on FormatException {
+      return const RefuseParLePoste('dates de congé illisibles');
+    }
+    if (fin.isBefore(debut)) {
+      return const RefuseParLePoste('congé : la fin précède le début');
+    }
+    final employe = await _cite(
+      TableDescendue.employes,
+      employeServeur,
+      _db.employesLocal,
+    );
+    if (employe == null) {
+      return const EnAttenteDeDependance('employé pas encore reçu');
+    }
+    await _db
+        .into(t)
+        .insert(
+          CongesLocalCompanion.insert(
+            id: id,
+            employeId: employe,
+            type: type.code,
+            dateDebut: debut,
+            dateFin: fin,
+            statutValidation: Value(statut.code),
+          ),
+        );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Un inventaire physique CLÔTURÉ par un autre poste (ou par la PWA), avec
+  /// ses lignes comptées. Il se descend EN ENTIER ou pas du tout : un point ou
+  /// un article pas encore reçu le met en attente (jamais une ligne écrite sans
+  /// son article). Détenu, rien n'est réécrit — un inventaire clos ne se
+  /// retouche pas, et celui de ce poste revient par le flux sans effet.
+  ///
+  /// Les mouvements de sa régularisation descendent à part (`mouvements_stock`),
+  /// et ne sont JAMAIS réécrits ici : l'inventaire est un constat, pas une
+  /// source de mouvements. L'auteur ne descend pas (le serveur ne livre pas ses
+  /// comptes) : l'écran rend « — ».
+  Future<IssueAlignement> _inventaire(String id, ElementCatalogue e) async {
+    if (await _existe(_db.inventairesLocal, id)) return const Aligne();
+    final d = e.donnees;
+    final pointServeur = AligneurCatalogue._texte(d['point_id']);
+    final String? jour;
+    try {
+      jour = AligneurCatalogue._jour(d['date_inventaire']);
+    } on FormatException {
+      return const RefuseParLePoste('date d’inventaire illisible');
+    }
+    final lignes = _lignes(d);
+    if (pointServeur == null || jour == null || lignes == null) {
+      return const RefuseParLePoste('inventaire incomplet');
+    }
+    final point = await _cite(
+      TableDescendue.pointsStockage,
+      pointServeur,
+      _db.pointsStockageLocal,
+    );
+    if (point == null) {
+      return const EnAttenteDeDependance('point de stockage pas encore reçu');
+    }
+
+    final retenues =
+        <({String article, int theorique, int constate, int ecart})>[];
+    for (final l in lignes) {
+      final articleServeur = AligneurCatalogue._texte(l['article_id']);
+      final theorique = entierDepuisDecimal(l['quantite_theorique'], 2);
+      final constate = entierDepuisDecimal(l['quantite_constatee'], 2);
+      final ecart = entierDepuisDecimal(l['ecart'], 2);
+      if (articleServeur == null ||
+          theorique == null ||
+          constate == null ||
+          ecart == null) {
+        return const RefuseParLePoste(
+          'ligne d’inventaire illisible (quantité à deux décimales au plus)',
+        );
+      }
+      final article = await _cite(
+        TableDescendue.articles,
+        articleServeur,
+        _db.articlesLocal,
+      );
+      if (article == null) {
+        return const EnAttenteDeDependance('article pas encore reçu');
+      }
+      retenues.add((
+        article: article,
+        theorique: theorique,
+        constate: constate,
+        ecart: ecart,
+      ));
+    }
+
+    await _db
+        .into(_db.inventairesLocal)
+        .insert(
+          InventairesLocalCompanion.insert(
+            id: id,
+            pointId: point,
+            dateInventaire: jour,
+          ),
+        );
+    const uuid = Uuid();
+    for (final l in retenues) {
+      await _db
+          .into(_db.lignesInventaireLocal)
+          .insert(
+            LignesInventaireLocalCompanion.insert(
+              id: uuid.v4(),
+              inventaireId: id,
+              articleId: l.article,
+              quantiteTheoriqueCentiemes: l.theorique,
+              quantiteConstateeCentiemes: l.constate,
+              ecartCentiemes: l.ecart,
+            ),
+          );
+    }
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Une relance d'un autre poste (ou de la PWA) : un FAIT daté, qui ne se
+  /// modifie jamais — détenue, rien n'est réécrit. Le montant réclamé est lu
+  /// en centimes (le serveur : `DECIMAL(15,2)`, jamais un `double`). Le client
+  /// absent met la relance en ATTENTE (il descend avant elle dans le flux ;
+  /// une relance orpheline n'est pas écrite, `client_id` étant une référence
+  /// que le poste vérifie). Le login de l'auteur ne descend pas (« — »).
+  Future<IssueAlignement> _relanceClient(String id, ElementCatalogue e) async {
+    if (await _existe(_db.relancesClientsLocal, id)) return const Aligne();
+    final d = e.donnees;
+    final clientServeur = AligneurCatalogue._texte(d['client_id']);
+    final canal = CanalRelance.depuisCode(AligneurCatalogue._texte(d['canal']));
+    final montant = entierDepuisDecimal(d['montant_reclame'], 2);
+    if (clientServeur == null || canal == null || montant == null) {
+      return const RefuseParLePoste('relance incomplète (ou canal inconnu)');
+    }
+    if (montant < 0) return const RefuseParLePoste('montant réclamé négatif');
+    final String? jour;
+    final String? promesse;
+    try {
+      jour = AligneurCatalogue._jour(d['date_relance']);
+      promesse = AligneurCatalogue._jour(d['promesse']);
+    } on FormatException {
+      return const RefuseParLePoste('date de relance illisible');
+    }
+    if (jour == null) return const RefuseParLePoste('date de relance absente');
+    final client = await _cite(
+      TableDescendue.clients,
+      clientServeur,
+      _db.clientsLocal,
+    );
+    if (client == null) {
+      return const EnAttenteDeDependance('client pas encore reçu');
+    }
+    await _db
+        .into(_db.relancesClientsLocal)
+        .insert(
+          RelancesClientsLocalCompanion.insert(
+            id: id,
+            clientId: client,
+            dateRelance: jour,
+            canal: canal.code,
+            montantReclameCentimes: montant,
+            promesse: Value(promesse),
+            commentaire: Value(AligneurCatalogue._texte(d['commentaire'])),
+          ),
+        );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
 
   /* ================================================================== */
   /* Outils                                                              */
@@ -84,6 +362,36 @@ extension _AlignementDocuments on AligneurCatalogue {
     final d = DateTime.tryParse('$v'.trim().replaceFirst(' ', 'T'));
     if (d == null) throw const FormatException('instant illisible');
     return d;
+  }
+
+  /// La NORMALISATION d'une facture ou d'un avoir, telle que le serveur la rend
+  /// (boîtier d'un autre poste, ou e-MECeF au serveur) : adoptée seulement si ce
+  /// poste n'a pas déjà normalisé la pièce, et jamais renvoyée. Un statut absent
+  /// ou inconnu n'adopte rien. Jamais un secret : le serveur ne descend que le
+  /// résultat (numéro fiscal, QR, statut, voie, compteur).
+  Future<void> _adopterNormalisation(String pieceId, Map<String, Object?> d) {
+    final statut = StatutNormalisation.depuisCode(
+      AligneurCatalogue._texte(d['normalisation_statut']),
+    );
+    if (statut == null) return Future.value();
+    DateTime? date;
+    final brute = AligneurCatalogue._texte(d['normalisee_le']);
+    if (brute != null) {
+      date = DateTime.tryParse(brute.replaceFirst(' ', 'T'));
+    }
+    return FactureDao(_db).adopterNormalisationDescendue(
+      pieceId,
+      statut: statut,
+      voie: VoieNormalisation.depuisCode(
+        AligneurCatalogue._texte(d['normalisation_mode']),
+      ),
+      motif: AligneurCatalogue._texte(d['normalisation_motif']),
+      numeroMecef: AligneurCatalogue._texte(d['numero_mecef']),
+      qrCode: AligneurCatalogue._texte(d['qr_code_fiscal']),
+      codeMecef: AligneurCatalogue._texte(d['code_mecef']),
+      compteur: AligneurCatalogue._texte(d['normalisation_compteur']),
+      date: date,
+    );
   }
 
   /// Minuit LOCAL d'une date du serveur — la convention des dépenses, des
@@ -310,7 +618,13 @@ extension _AlignementDocuments on AligneurCatalogue {
   /// déjà présente n'est pas réécrite (cycle de vie : lot F6).
   Future<IssueAlignement> _vente(String id, ElementCatalogue e) async {
     final d = e.donnees;
+    final numero = AligneurCatalogue._texte(d['numero']);
     if (await _existe(_db.paniersLocal, id)) {
+      // Le numéro `V-` du serveur (v38) : celui de CETTE vente, rapporté même
+      // si la réponse de l'envoi s'est perdue.
+      if (numero != null) {
+        await PanierDao(_db).regulariserNumeroVente(id, numero);
+      }
       // Lot F6 : une vente ANNULÉE au serveur (à la PWA) — celle de CE poste
       // contre-passe sa pièce ici (le DAO du comptoir s'en charge) ; celle
       // d'un autre poste, sans pièce locale, suit en statut.
@@ -453,6 +767,11 @@ extension _AlignementDocuments on AligneurCatalogue {
               AligneurCatalogue._texte(d['motif_annulation']),
             ),
             sessionEncaissementId: Value(session),
+            // Le numéro `V-` et l'auteur de la vente, tels que le serveur les
+            // rend (v38) : `null` si le serveur n'en dit rien — « — », jamais
+            // un numéro ou un compte inventé.
+            numeroVente: Value(numero),
+            auteurLogin: Value(AligneurCatalogue._texte(d['par'])),
           ),
         );
     for (var i = 0; i < converties.length; i++) {
@@ -481,11 +800,40 @@ extension _AlignementDocuments on AligneurCatalogue {
   /* Dépenses                                                            */
   /* ================================================================== */
 
+  /// La référence du reçu d'une dépense, telle que la descente la porte
+  /// (`donnees.recu`), ou `null` : pas de reçu. Un champ illisible n'invente
+  /// rien : il vaut `null` (un reçu web d'avant les empreintes les a toutes
+  /// trois à `null`).
+  ({String? sha256, int? taille, String? type})? _referenceRecu(Object? brut) {
+    if (brut is! Map) return null;
+    final sha = AligneurCatalogue._texte(brut['sha256']);
+    final taille = brut['taille'];
+    return (
+      sha256: sha,
+      taille: taille is int ? taille : null,
+      type: AligneurCatalogue._texte(brut['type']),
+    );
+  }
+
   /// Une dépense d'un autre poste, SANS pièce (`ecriture_id` nul) : le
   /// rattrapage la refuse (`DepenseDao.comptabiliser`, origine lue ici).
   Future<IssueAlignement> _depense(String id, ElementCatalogue e) async {
     final d = e.donnees;
-    if (await _existe(_db.depensesLocal, id)) return const Aligne();
+    final reference = _referenceRecu(d['recu']);
+    if (await _existe(_db.depensesLocal, id)) {
+      // Une dépense détenue n'est jamais réécrite ; seule la RÉFÉRENCE de son
+      // reçu bouge (lot L4) : `DepenseDao` en décide (accusé implicite d'un
+      // reçu en attente dont l'empreinte revient, reçu d'un autre poste…).
+      if (reference != null) {
+        await DepenseDao(_db).retenirReferenceRecu(
+          id,
+          sha256: reference.sha256,
+          taille: reference.taille,
+          type: reference.type,
+        );
+      }
+      return const Aligne();
+    }
     final libelle = AligneurCatalogue._texte(d['libelle']);
     final tresorerie = AligneurCatalogue._texte(d['tresorerie']);
     if (libelle == null || tresorerie == null) {
@@ -536,6 +884,14 @@ extension _AlignementDocuments on AligneurCatalogue {
             tresorerie: tresorerie,
             libelle: libelle,
             saisieLe: Value(_maintenant()),
+            // Le reçu du serveur (lot L4) : la RÉFÉRENCE seule, sans fichier —
+            // il se télécharge à la demande.
+            recuStatut: Value(
+              reference == null ? null : StatutRecu.duServeur.code,
+            ),
+            recuSha256: Value(reference?.sha256),
+            recuTaille: Value(reference?.taille),
+            recuType: Value(reference?.type),
           ),
         );
     for (var i = 0; i < converties.length; i++) {
@@ -583,7 +939,9 @@ extension _AlignementDocuments on AligneurCatalogue {
   /// statut suivent (dernier écrit gagnant, une retouche locale en attente
   /// est conservée par la règle commune). Une plaque déjà au parc LOCAL est
   /// le même véhicule (le serveur fusionne) : correspondance, pas de
-  /// doublon. Année, transmission et capacité n'ont pas de colonne ici.
+  /// doublon. Année, places et transmission descendent aussi (v41, 27/10/2026) :
+  /// une année `0` du serveur (véhicule venu d'un poste d'avant, SIGNALÉ « sans
+  /// année ») est rangée à `null`, jamais 0 — « — » s'affiche, pas « 0 ».
   Future<IssueAlignement> _vehicule(String id, ElementCatalogue e) async {
     final d = e.donnees;
     final plaque = AligneurCatalogue._texte(d['immatriculation']);
@@ -599,11 +957,17 @@ extension _AlignementDocuments on AligneurCatalogue {
       );
     }
     final t = _db.vehiculesLocal;
+    final annee = _entierPositifOuNull(d['annee']);
+    final capacite = _entierPositifOuNull(d['capacite']);
+    final transmission = AligneurCatalogue._texte(d['transmission']);
     final valeurs = VehiculesLocalCompanion(
       categorie: Value(categorie!),
       immatriculation: Value(plaque),
       tarifJour: Value(tarif.toDouble()),
       statut: Value(statut!),
+      annee: Value(annee),
+      capacite: Value(capacite),
+      transmission: Value(transmission),
     );
     if (await _existe(t, id)) {
       await (_db.update(t)..where((v) => v.id.equals(id))).write(valeurs);
@@ -633,20 +997,67 @@ extension _AlignementDocuments on AligneurCatalogue {
             immatriculation: plaque,
             tarifJour: tarif.toDouble(),
             statut: statut,
+            annee: Value(annee),
+            capacite: Value(capacite),
+            transmission: Value(transmission),
           ),
         );
     await _retenirOrigine(e, id);
     return const Aligne();
   }
 
+  /// Un entier STRICTEMENT positif du serveur (année, places), ou `null` : `0`,
+  /// absent ou illisible se lisent « inconnu », jamais « zéro ».
+  static int? _entierPositifOuNull(Object? brut) {
+    final valeur = entierDepuisDecimal(brut, 0);
+    return valeur == null || valeur <= 0 ? null : valeur;
+  }
+
   /// Un contrat de location d'un autre poste (ou de la PWA) : il occupe le
   /// véhicule ici aussi (RG-08 du poste lit ces plages). Détenu : rien n'est
-  /// réécrit. Les numéros de pièce ne descendent pas.
+  /// réécrit, SAUF son annulation (v38, 26/10/2026) : un contrat annulé au
+  /// serveur — par un autre poste, par la PWA, ou par ce poste dont
+  /// l'annulation est revenue — l'est ici aussi. Vers l'avant seulement :
+  /// `annule` ne redevient jamais `actif`, comme au serveur (aucun geste ne
+  /// rouvre un contrat). Les numéros de pièce et de permis ne descendent pas.
+  ///
+  /// v41 (27/10/2026) : le N° `LOC-…`, le montant net et l'acompte descendent. Un
+  /// contrat DÉTENU les reçoit seulement là où sa colonne est NULLE (un contrat
+  /// signé ici d'avant la v41, ou dont l'accusé s'est perdu) : le montant FIGÉ à la
+  /// signature du poste n'est JAMAIS réécrit par un recalcul du serveur. La
+  /// remise ne descend pas (le serveur ne la garde pas).
   Future<IssueAlignement> _contratLocation(
     String id,
     ElementCatalogue e,
   ) async {
-    if (await _existe(_db.contratsLocationLocal, id)) return const Aligne();
+    final annuleAuServeur =
+        AligneurCatalogue._texte(e.donnees['statut']) == statutContratAnnule;
+    final numero = AligneurCatalogue._texte(e.donnees['numero']);
+    final montant = entierDepuisDecimal(e.donnees['montant'], 0);
+    final acompte = entierDepuisDecimal(e.donnees['acompte'], 0);
+    final t = _db.contratsLocationLocal;
+    final local = await (_db.select(
+      t,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (local != null) {
+      await (_db.update(t)..where((c) => c.id.equals(id))).write(
+        ContratsLocationLocalCompanion(
+          statut: annuleAuServeur
+              ? const Value(statutContratAnnule)
+              : const Value.absent(),
+          numero: local.numero == null && numero != null
+              ? Value(numero)
+              : const Value.absent(),
+          montant: local.montant == null && montant != null
+              ? Value(montant)
+              : const Value.absent(),
+          acompte: local.acompte == null && acompte != null
+              ? Value(acompte)
+              : const Value.absent(),
+        ),
+      );
+      return const Aligne();
+    }
     final d = e.donnees;
     final vehiculeServeur = AligneurCatalogue._texte(d['vehicule_id']);
     final clientServeur = AligneurCatalogue._texte(d['client_id']);
@@ -693,9 +1104,134 @@ extension _AlignementDocuments on AligneurCatalogue {
             dateDebut: debut,
             dateFin: fin,
             statutSync: const Value('synchronise'),
+            statut: Value(
+              annuleAuServeur ? statutContratAnnule : statutContratActif,
+            ),
+            numero: Value(numero),
+            montant: Value(montant),
+            acompte: Value(acompte),
           ),
         );
     await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Un entretien ou une carburation d'un autre poste (ou de la PWA). Un fait
+  /// daté, jamais modifié : détenu, rien n'est réécrit. Le coût est en francs
+  /// entiers (une fraction de franc est refusée, comme pour les prix).
+  Future<IssueAlignement> _entretienVehicule(
+    String id,
+    ElementCatalogue e,
+  ) async {
+    if (await _existe(_db.entretiensVehiculeLocal, id)) return const Aligne();
+    final d = e.donnees;
+    final vehiculeServeur = AligneurCatalogue._texte(d['vehicule_id']);
+    final type = AligneurCatalogue._texte(d['type']);
+    if (vehiculeServeur == null ||
+        (type != 'entretien' && type != 'carburation')) {
+      return const RefuseParLePoste('entretien incomplet');
+    }
+    final DateTime jour;
+    try {
+      jour = _jourLocal(d['date']);
+    } on FormatException {
+      return const RefuseParLePoste('date d’entretien illisible');
+    }
+    final cout = entierDepuisDecimal(d['cout'], 0);
+    if (cout == null || cout < 0) {
+      return RefuseParLePoste(
+        'coût « ${d['cout']} » : une fraction de franc ne se saisit pas sur '
+        'ce poste',
+      );
+    }
+    final vehicule = await _cite(
+      TableDescendue.vehicules,
+      vehiculeServeur,
+      _db.vehiculesLocal,
+    );
+    if (vehicule == null) {
+      return const EnAttenteDeDependance('véhicule pas encore reçu');
+    }
+    final chauffeurServeur = AligneurCatalogue._texte(d['chauffeur_id']);
+    await _db
+        .into(_db.entretiensVehiculeLocal)
+        .insert(
+          EntretiensVehiculeLocalCompanion.insert(
+            id: id,
+            vehiculeId: vehicule,
+            type: type!,
+            date: jour,
+            cout: cout,
+            chauffeurId: Value(
+              chauffeurServeur == null
+                  ? null
+                  : await _dao.idLocal('employes', chauffeurServeur),
+            ),
+          ),
+        );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Une immobilisation d'un autre poste (ou de la PWA). Création seule : si
+  /// la ligne est détenue, rien n'est réécrit sauf le CODE, que le serveur
+  /// attribue (celui d'une saisie de CE poste, quand l'accusé s'est perdu).
+  /// Le plan d'amortissement ne descend pas : il se calcule. Une valeur à
+  /// fraction de centime, une durée absente ou une date illisible sont refusées.
+  Future<IssueAlignement> _immobilisation(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final code = AligneurCatalogue._texte(d['code']);
+    final libelle = AligneurCatalogue._texte(d['libelle']);
+    final valeur = entierDepuisDecimal(d['valeur_origine'], 2);
+    final duree = switch (d['duree_annees']) {
+      final int n => n,
+      final String t => int.tryParse(t.trim()),
+      _ => null,
+    };
+    if (code == null ||
+        libelle == null ||
+        valeur == null ||
+        valeur <= 0 ||
+        duree == null ||
+        duree <= 0) {
+      return const RefuseParLePoste('immobilisation incomplète');
+    }
+    final String? jour;
+    try {
+      jour = AligneurCatalogue._jour(d['date_mise_service']);
+    } on FormatException {
+      return const RefuseParLePoste('date de mise en service illisible');
+    }
+    if (jour == null) {
+      return const RefuseParLePoste('date de mise en service absente');
+    }
+    final t = _db.immobilisationsLocal;
+    final existant = await (_db.select(
+      t,
+    )..where((i) => i.id.equals(id))).getSingleOrNull();
+    if (existant != null) {
+      if (existant.code != code) {
+        await (_db.update(t)..where((i) => i.id.equals(id))).write(
+          ImmobilisationsLocalCompanion(code: Value(code)),
+        );
+      }
+      return const Aligne();
+    }
+    await _db
+        .into(t)
+        .insert(
+          ImmobilisationsLocalCompanion.insert(
+            id: id,
+            code: code,
+            libelle: libelle,
+            compteImmobilisation: Value(
+              AligneurCatalogue._texte(d['compte_immobilisation']),
+            ),
+            valeurOrigineCentimes: valeur,
+            dateMiseService: jour,
+            dureeAnnees: Value(duree),
+          ),
+        );
     return const Aligne();
   }
 
@@ -774,6 +1310,7 @@ extension _AlignementDocuments on AligneurCatalogue {
       matricule: Value(matricule),
       nom: Value(nom),
       prenom: Value(AligneurCatalogue._texte(d['prenom']) ?? ''),
+      email: Value(AligneurCatalogue._texte(d['email'])),
       poste: Value(poste),
       serviceId: Value(service),
       dateEmbauche: Value(embauche),
@@ -983,6 +1520,86 @@ extension _AlignementDocuments on AligneurCatalogue {
   /* Factures, avoirs, encaissements — lots F5c et F5d                   */
   /* ================================================================== */
 
+  /// Une facture PROFORMA d'un autre poste ou de la PWA (07/11/2026). DÉTENUE : si le poste n'a
+  /// aucune opération en suspens sur elle, l'état du serveur (numéro définitif, statut, validité,
+  /// lien vers la facture, lignes) est adopté ; sinon rien n'est écrasé (la saisie locale part
+  /// d'abord). NOUVELLE : inscrite sous son numéro, sans file (elle vient du serveur).
+  Future<IssueAlignement> _proforma(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final statut = AligneurCatalogue._texte(d['statut']);
+    final clientNom = AligneurCatalogue._texte(d['client_nom']);
+    final total = entierDepuisDecimal(d['total'], 0);
+    final lignes = _lignes(d);
+    final converties = <LigneProformaSaisie>[];
+    for (final l in lignes ?? const <Map<String, Object?>>[]) {
+      final quantite = entierDepuisDecimal(l['quantite'], 0);
+      final prix = entierDepuisDecimal(l['prix_unitaire'], 0);
+      final designation = AligneurCatalogue._texte(l['designation']);
+      if (quantite == null || prix == null || designation == null) {
+        return const RefuseParLePoste('ligne de proforma illisible');
+      }
+      converties.add((
+        designation: designation,
+        quantite: quantite,
+        prixUnitaire: prix,
+      ));
+    }
+    if (!StatutProforma.values.any((s) => s.code == statut) ||
+        clientNom == null ||
+        total == null ||
+        converties.isEmpty) {
+      return const RefuseParLePoste('proforma incomplète');
+    }
+    final DateTime? emission;
+    final DateTime? validite;
+    try {
+      emission = d['date_emission'] == null
+          ? null
+          : _jourLocal(d['date_emission']);
+      validite = d['valide_jusqu_au'] == null
+          ? null
+          : _jourLocal(d['valide_jusqu_au']);
+    } on FormatException {
+      return const RefuseParLePoste('date de proforma illisible');
+    }
+    final clientServeur = AligneurCatalogue._texte(d['client_id']);
+    final clientId = clientServeur == null
+        ? null
+        : await _cite(TableDescendue.clients, clientServeur, _db.clientsLocal);
+    if (clientServeur != null && clientId == null) {
+      return const EnAttenteDeDependance('client pas encore reçu');
+    }
+    if (await OperationsSyncDao(
+      _db,
+    ).enSuspens(TableSynchronisee.proformas.nomServeur, id)) {
+      return const Aligne();
+    }
+    try {
+      await ProformaDao(_db).adopterDescendue(
+        id: id,
+        numero: AligneurCatalogue._texte(d['numero']),
+        reference: AligneurCatalogue._texte(d['reference']),
+        statut: statut!,
+        clientId: clientId,
+        clientNom: clientNom,
+        clientTelephone: AligneurCatalogue._texte(d['client_telephone']),
+        clientIfu: AligneurCatalogue._texte(d['client_ifu']),
+        objet: AligneurCatalogue._texte(d['objet']),
+        dateEmission: emission,
+        ville: AligneurCatalogue._texte(d['ville']),
+        valideJusquAu: validite,
+        total: total,
+        factureId: AligneurCatalogue._texte(d['facture_id']),
+        motifAnnulation: AligneurCatalogue._texte(d['motif_annulation']),
+        sourceModule: AligneurCatalogue._texte(d['source_module']) ?? 'libre',
+        lignes: converties,
+      );
+    } on StateError catch (err) {
+      return RefuseParLePoste(err.message);
+    }
+    return const Aligne();
+  }
+
   /// Une facture du serveur. DÉTENUE (celle de ce poste revient par le
   /// flux) : seul son numéro suit — c'est la seconde voie de la
   /// régularisation, quand la réponse de l'envoi a été perdue. NOUVELLE :
@@ -1003,6 +1620,8 @@ extension _AlignementDocuments on AligneurCatalogue {
           return RefuseParLePoste(err.message);
         }
       }
+      // Normalisée ailleurs (autre poste, e-MECeF) : adoptée, jamais écrasée.
+      await _adopterNormalisation(id, d);
       return const Aligne();
     }
     final DateTime date;
@@ -1099,7 +1718,10 @@ extension _AlignementDocuments on AligneurCatalogue {
       reservationId: reservationId,
       panierId: panierId,
       lignes: converties,
+      acheteurIfu: AligneurCatalogue._texte(d['acheteur_ifu']),
+      acheteurNom: AligneurCatalogue._texte(d['acheteur_nom']),
     );
+    await _adopterNormalisation(id, d);
     await _retenirOrigine(e, id);
     return const Aligne();
   }
@@ -1109,9 +1731,21 @@ extension _AlignementDocuments on AligneurCatalogue {
   /// inscrit sur sa facture, sans pièce.
   Future<IssueAlignement> _avoir(String id, ElementCatalogue e) async {
     final d = e.donnees;
-    if (await _existe(_db.piecesFacturationLocal, id)) return const Aligne();
     final factureServeur = AligneurCatalogue._texte(d['facture_id']);
     final numero = AligneurCatalogue._texte(d['numero']);
+    if (await _existe(_db.piecesFacturationLocal, id)) {
+      // L'avoir PARTIEL de ce poste est né au serveur sous le même identifiant :
+      // il reçoit son numéro (réponse d'envoi perdue, ou descente la première).
+      if (numero != null) {
+        try {
+          await FactureDao(_db).regulariserAvoir(id, numero);
+        } on StateError catch (err) {
+          return RefuseParLePoste(err.message);
+        }
+      }
+      await _adopterNormalisation(id, d);
+      return const Aligne();
+    }
     final montant = entierDepuisDecimal(d['montant'], 0);
     if (factureServeur == null || montant == null) {
       return const RefuseParLePoste('avoir incomplet (ou fraction de franc)');
@@ -1140,6 +1774,7 @@ extension _AlignementDocuments on AligneurCatalogue {
           return RefuseParLePoste(err.message);
         }
       }
+      await _adopterNormalisation(provisoire, d);
       return const Aligne();
     }
     await factures.inscrireAvoirDescendu(
@@ -1150,6 +1785,7 @@ extension _AlignementDocuments on AligneurCatalogue {
       montant: montant,
       dateEmission: date,
     );
+    await _adopterNormalisation(id, d);
     await _retenirOrigine(e, id);
     return const Aligne();
   }
@@ -1553,7 +2189,29 @@ extension _AlignementDocuments on AligneurCatalogue {
   Future<IssueAlignement> _mouvement(String id, ElementCatalogue e) async {
     final d = e.donnees;
     final t = _db.mouvementsStockLocal;
-    if (await _existe(t, id)) return const Aligne();
+    // Le COÛT de l'entrée valorisée (`cout_unitaire`, décimal à quatre chiffres) : le poste
+    // recalcule CMP, valeur d'achat et valeur de stock en rejouant les mouvements, il ne
+    // reçoit aucune valeur calculée. Absent ou nul = entrée non valorisée, sortie, perte.
+    final coutDixMilliemes = entierDepuisDecimal(d['cout_unitaire'], 4);
+    if (d['cout_unitaire'] != null && coutDixMilliemes == null) {
+      return RefuseParLePoste('coût « ${d['cout_unitaire']} » illisible');
+    }
+    if (await _existe(t, id)) {
+      // Une ligne déjà reçue AVANT que le coût ne descende (ou saisie ici sans coût) : le
+      // coût du serveur la complète. Jamais l'inverse — un coût local figé ne se corrige pas
+      // (un mouvement est en ajout seul) — et jamais sur une ligne qui en porte déjà un.
+      if (coutDixMilliemes != null) {
+        await (_db.update(t)..where(
+              (r) => r.id.equals(id) & r.coutUnitaireDixMilliemes.isNull(),
+            ))
+            .write(
+              MouvementsStockLocalCompanion(
+                coutUnitaireDixMilliemes: Value(coutDixMilliemes),
+              ),
+            );
+      }
+      return const Aligne();
+    }
     final type = AligneurCatalogue._texte(d['type_mouvement']);
     if (!_typesMouvement.contains(type)) {
       return RefuseParLePoste('type de mouvement inconnu « $type »');
@@ -1602,6 +2260,7 @@ extension _AlignementDocuments on AligneurCatalogue {
             quantite: centiemes / echelleQuantite,
             motif: AligneurCatalogue._texte(d['motif']) ?? '',
             dateMouvement: le,
+            coutUnitaireDixMilliemes: Value(coutDixMilliemes),
             statutSync: const Value('synchronise'),
             ordre: Value((dernier ?? 0) + 1),
           ),
@@ -1614,7 +2273,7 @@ extension _AlignementDocuments on AligneurCatalogue {
   /* Tourisme                                                            */
   /* ================================================================== */
 
-  static const _themes = {'aventure', 'culture', 'faune', 'nature'};
+  static const _themes = {'aventure', 'culture', 'faune', 'nature', 'autre'};
 
   /// Un circuit : une DÉFINITION, comme le catalogue — la version du serveur
   /// est prise (la saisie locale d'un circuit ne monte pas encore).
@@ -1656,6 +2315,10 @@ extension _AlignementDocuments on AligneurCatalogue {
   Future<IssueAlignement> _guide(String id, ElementCatalogue e) async {
     final nom = AligneurCatalogue._texte(e.donnees['nom']);
     if (nom == null) return const RefuseParLePoste('nom absent');
+    // v41 : la certification et le tarif journalier descendent. Un tarif qui n'est
+    // pas un nombre entier de francs est rangé `null` (« — »), jamais arrondi : le
+    // guide reste utilisable, il n'est pas refusé pour un tarif que ce poste ne
+    // sait pas tenir.
     await _db
         .into(_db.guidesLocal)
         .insertOnConflictUpdate(
@@ -1665,6 +2328,10 @@ extension _AlignementDocuments on AligneurCatalogue {
             zoneCompetence: Value(
               AligneurCatalogue._texte(e.donnees['zone_competence']),
             ),
+            certification: Value(
+              AligneurCatalogue._texte(e.donnees['certification']),
+            ),
+            tarifJour: Value(entierDepuisDecimal(e.donnees['tarif_jour'], 0)),
           ),
         );
     await _retenirOrigine(e, id);

@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import '../../../core/format/auteur_compte.dart';
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
@@ -10,10 +13,10 @@ import '../../../core/database/tables/hebergement_tables.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../synchronisation/data/documents_autres_postes.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/data/relance_anciens_refus.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/annulation_reservation.dart';
-import '../domain/messages_annulation.dart' show RefusAnnulation;
 import '../domain/entities/annulation_enregistree.dart';
 import '../domain/entities/periode_sejour.dart';
 import '../domain/entities/fiche_reservation.dart';
@@ -22,6 +25,7 @@ import '../domain/repositories/reservation_repository.dart'
 import '../domain/entities/reservation.dart';
 import '../domain/entities/service_reservation.dart';
 import '../domain/entities/unite_hebergement.dart';
+import 'canaux_reservation_dao.dart';
 import 'dto/parc_dto.dart';
 import 'pieces_reservation.dart';
 
@@ -153,12 +157,14 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
         .toList();
     final lignesParReservation = await _lignesDe(reservations.map((r) => r.id));
     final logins = await _loginsDe(reservations);
+    final canaux = await CanauxReservationDao(attachedDatabase).lus();
 
     return resultats
         .map(
           (l) => _versEntite(
             l.readTable(reservationsLocal),
             l.readTable(clientsLocal),
+            canaux,
             lignes:
                 lignesParReservation[l.readTable(reservationsLocal).id] ??
                 const [],
@@ -229,9 +235,20 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     return _versEntite(
       ligne.readTable(reservationsLocal),
       ligne.readTable(clientsLocal),
+      await CanauxReservationDao(attachedDatabase).lus(),
       lignes: (await _lignesDe([id]))[id] ?? const [],
       logins: await _loginsDe([ligne.readTable(reservationsLocal)]),
     );
+  }
+
+  /// Le login (brut) d'un compte de ce poste, ou `null` : ce que l'annulation envoie au serveur
+  /// pour que l'auteur soit LA PERSONNE qui a cliqué, pas le compte d'appairage.
+  Future<String?> _loginDe(String auteurId) async {
+    final u = attachedDatabase.utilisateursLocal;
+    final ligne = await (select(
+      u,
+    )..where((x) => x.id.equals(auteurId))).getSingleOrNull();
+    return ligne?.login;
   }
 
   /// Le `login` de ceux qui ont annulé — UNE requête pour toutes les lignes (un
@@ -247,7 +264,10 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     if (ids.isEmpty) return const {};
     final u = attachedDatabase.utilisateursLocal;
     final lignes = await (select(u)..where((x) => x.id.isIn(ids))).get();
-    return {for (final l in lignes) l.id: l.login};
+    return {
+      for (final l in lignes)
+        l.id: libelleAuteurCompte(l.login, supprimeLe: l.supprimeLe),
+    };
   }
 
   /// Réservations actives qui touchent la période, sur toutes les unités.
@@ -284,15 +304,21 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     ])..where(condition);
 
     final lignes = await requete.get();
-    // Sans leurs lignes de service, délibérément : l'appelant est le contrôle
-    // de chevauchement, qui ne regarde que les dates et l'unité. Les charger
-    // ici ferait une requête de plus à chaque saisie de date, pour une donnée
-    // que personne ne lit.
+    // Les lignes sont chargées : une réservation MULTI-CHAMBRES (10/11/2026) occupe aussi ses
+    // chambres supplémentaires (lignes `hebergement`), que le contrôle de chevauchement doit voir.
+    final lignesParReservation = await _lignesDe(
+      lignes.map((l) => l.readTable(reservationsLocal).id),
+    );
+    final canaux = await CanauxReservationDao(attachedDatabase).lus();
     return lignes
         .map(
           (l) => _versEntite(
             l.readTable(reservationsLocal),
             l.readTable(clientsLocal),
+            canaux,
+            lignes:
+                lignesParReservation[l.readTable(reservationsLocal).id] ??
+                const [],
           ),
         )
         .toList();
@@ -327,6 +353,14 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       final avant = await (select(
         reservationsLocal,
       )..where((x) => x.id.equals(r.id))).getSingleOrNull();
+      // La fiche telle que le serveur la reçoit, AVANT l'écriture : la différence
+      // avec la fiche écrite est ce qui doit PARTIR (clé par clé).
+      final ficheAvant = avant == null ? null : await _ficheEnvoyable(r.id);
+      // Une modification qui ne change RIEN de ce que le serveur connaît ne remet
+      // pas la ligne « en attente d'envoi » : aucune opération ne partira, le badge
+      // mentirait. Le statut de synchronisation (et le motif d'un refus) restent
+      // ceux d'avant.
+      final conserverLeStatut = avant != null && ficheAvant != null;
       await into(reservationsLocal).insertOnConflictUpdate(
         ReservationsLocalCompanion.insert(
           id: r.id,
@@ -378,38 +412,272 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       );
       await _ecrireLignes(r);
 
-      // Lot F6 : un DÉPLACEMENT (chambre, dates) d'une réservation que le
-      // serveur détient part, champs changés seulement. Les autres
-      // retouches de la fiche (tarif, services, client) restent locales :
-      // le serveur n'offre aucune modification générique (écart nommé).
-      final avantPeriode = avant == null
-          ? null
-          : PeriodeSejour(arrivee: avant.dateArrivee, depart: avant.dateDepart);
-      if (avant != null &&
+      // 09/11/2026 (décision du PO : « toute modification se propage complètement
+      // et identiquement ») : une modification d'une réservation que le serveur
+      // détient part, CHAMPS CHANGÉS seulement — chambre, dates, client, tarif,
+      // acompte, remise, mode de paiement, canal ET services. Jusqu'ici seul le
+      // déplacement partait : un service ajouté ou un prix changé restait sur ce
+      // poste pour toujours, la ligne affichant « En attente d'envoi » sans qu'aucune
+      // opération ne soit en file.
+      var enfilee = false;
+      if (ficheAvant != null &&
           await DocumentsAutresPostes(
             attachedDatabase,
           ).connuDuServeur(TableSynchronisee.reservations, r.id)) {
-        await OperationsSyncDao(attachedDatabase).enfiler(
-          table: TableSynchronisee.reservations,
-          entiteId: r.id,
-          type: TypeOperationSync.modification,
-          payload: chargeDeplacementReservation(
-            uniteId: avant.uniteId == r.uniteId ? null : r.uniteId,
-            // Le serveur ne connaît que le JOUR (`Y-m-d`) : la comparaison
-            // se fait au jour, jamais à l'instant (un fuseau ou une heure
-            // relue ne déplace pas un séjour).
-            dateArrivee:
-                jourIso(avantPeriode!.arrivee) == jourIso(r.periode.arrivee)
-                ? null
-                : r.periode.arrivee,
-            dateDepart:
-                jourIso(avantPeriode.depart) == jourIso(r.periode.depart)
-                ? null
-                : r.periode.depart,
+        final changements = _changements(
+          ficheAvant,
+          await _ficheEnvoyable(r.id),
+        );
+        if (changements.isNotEmpty) {
+          enfilee =
+              await OperationsSyncDao(attachedDatabase).enfiler(
+                table: TableSynchronisee.reservations,
+                entiteId: r.id,
+                type: TypeOperationSync.modification,
+                payload: chargeModificationReservation(changements),
+              ) !=
+              null;
+        }
+      }
+      if (conserverLeStatut && !enfilee) {
+        await (update(
+          reservationsLocal,
+        )..where((x) => x.id.equals(r.id))).write(
+          ReservationsLocalCompanion(
+            statutSync: Value(avant.statutSync),
+            motifRejet: Value(avant.motifRejet),
           ),
         );
       }
     });
+  }
+
+  /* ================================================================== */
+  /* LE BADGE DIT LA VÉRITÉ DE LA FILE (09/11/2026)                      */
+  /* ================================================================== */
+
+  /// LA règle du badge de synchronisation d'une réservation — lue de la FILE
+  /// d'envoi, jamais posée « au jugé » :
+  ///
+  ///  * une opération de cette ligne REFUSÉE, en conflit ou bloquée (et non
+  ///    remplacée par un renvoi) → [StatutSynchronisation.rejete], avec le motif
+  ///    du serveur : c'est ce que « À traiter » montre aussi ;
+  ///  * sinon une opération `en_cours` → « Envoi en cours » ; `en_attente` →
+  ///    « En attente d'envoi » ;
+  ///  * sinon, au moins une opération ACCEPTÉE → [StatutSynchronisation.synchronise] ;
+  ///  * aucune opération du tout : la ligne n'est PAS touchée (une saisie d'avant
+  ///    la file n'est pas « synchronisée » parce qu'on ne sait rien d'elle).
+  ///
+  /// Appelée par le moteur d'envoi à CHAQUE accusé (`SyncManager`) et au début de
+  /// chaque passage ([reconcilierTout]). Avant le 09/11/2026 personne ne l'appelait
+  /// en production : seul un test posait `synchronise` (piège 1), et toute
+  /// réservation créée ou modifiée sur un poste restait « En attente d'envoi » à
+  /// vie, alors que le serveur l'avait acceptée et qu'un autre poste l'avait reçue.
+  Future<void> reconcilierStatutSync(String id) async {
+    final ligne = await (select(
+      reservationsLocal,
+    )..where((r) => r.id.equals(id))).getSingleOrNull();
+    if (ligne == null) return;
+    final file = OperationsSyncDao(attachedDatabase);
+    final remplacees = await file.remplacees();
+    final actives = [
+      for (final o in await file.operations(
+        table: TableSynchronisee.reservations,
+        entiteId: id,
+      ))
+        if (!remplacees.containsKey(o.uuidOperation)) o,
+    ];
+    if (actives.isEmpty) return;
+
+    final refusees = actives.where(
+      (o) =>
+          o.statut == StatutOperationSync.rejete ||
+          o.statut == StatutOperationSync.conflit ||
+          o.statut == StatutOperationSync.bloque,
+    );
+    if (refusees.isNotEmpty) {
+      final derniere = refusees.last;
+      await majStatutSync(
+        id,
+        StatutSynchronisation.rejete,
+        motifRejet: derniere.derniereErreur ?? _motifDuResultat(derniere),
+      );
+      return;
+    }
+    if (actives.any((o) => o.statut == StatutOperationSync.enCours)) {
+      await majStatutSync(id, StatutSynchronisation.enAttente);
+      return;
+    }
+    if (actives.any((o) => o.statut == StatutOperationSync.enAttente)) {
+      await majStatutSync(id, StatutSynchronisation.local);
+      return;
+    }
+    await majStatutSync(id, StatutSynchronisation.synchronise);
+  }
+
+  static String _motifDuResultat(OperationSync o) {
+    try {
+      final brut = o.resultatJson;
+      if (brut != null) {
+        final motif = (jsonDecode(brut) as Map)['motif'];
+        if (motif is String && motif.isNotEmpty) return motif;
+      }
+    } on FormatException {
+      // Un résultat illisible : le motif générique ci-dessous.
+    }
+    return 'Refusée par le serveur.';
+  }
+
+  /// Rattrape les lignes d'AVANT la correction, puis remet chaque badge d'aplomb
+  /// avec la file. Appelée au début de chaque passage complet du moteur.
+  ///
+  /// ## Le rattrapage
+  ///
+  /// Une réservation « en attente d'envoi », SANS opération en file ni refus, que
+  /// le serveur connaît (descendue, ou dont une opération a été acceptée) porte une
+  /// modification que l'ancienne version n'a jamais enfilée (service, prix,
+  /// acompte). La fiche est comparée à ce que le serveur a REÇU de ce poste (la
+  /// somme des opérations acceptées ; rien pour une ligne descendue : toute la
+  /// fiche) et la DIFFÉRENCE part — clé par clé, dernier écrit gagnant, sans
+  /// réécrire ce qu'un autre poste ou le web a changé sur d'autres champs. Une
+  /// ligne sans différence est simplement « Synchronisée ».
+  Future<void> reconcilierTout() => transaction(() async {
+    final lignes =
+        await (select(reservationsLocal)..where(
+              (r) => r.statutSync.isIn(const ['local', 'en_attente', 'rejete']),
+            ))
+            .get();
+    for (final l in lignes) {
+      await _relancerLesRefusDeLAncienneRegle(l.id);
+      if (l.statutSync == 'local' && l.statut != 'annulee') {
+        await _rattraper(l);
+      }
+      await reconcilierStatutSync(l.id);
+    }
+  });
+
+  /// Une annulation REFUSÉE avant le 09/11/2026 par l'ancienne règle « d'un autre poste » est
+  /// RENVOYÉE d'elle-même, une fois (`RelanceDesAnciensRefus`, qui sert aussi aux ventes, factures,
+  /// paiements et règlements fournisseur). L'auteur local est ajouté à la charge renvoyée.
+  Future<void> _relancerLesRefusDeLAncienneRegle(String id) =>
+      RelanceDesAnciensRefus(
+        attachedDatabase,
+      ).relancer(tables: {TableSynchronisee.reservations}, entiteId: id);
+
+  Future<void> _rattraper(ReservationsLocalData l) async {
+    final file = OperationsSyncDao(attachedDatabase);
+    final remplacees = await file.remplacees();
+    final ops = [
+      for (final o in await file.operations(
+        table: TableSynchronisee.reservations,
+        entiteId: l.id,
+      ))
+        if (!remplacees.containsKey(o.uuidOperation)) o,
+    ];
+    final enSuspens = ops.any(
+      (o) =>
+          o.statut == StatutOperationSync.enAttente ||
+          o.statut == StatutOperationSync.enCours ||
+          o.statut == StatutOperationSync.bloque ||
+          o.statut == StatutOperationSync.rejete ||
+          o.statut == StatutOperationSync.conflit,
+    );
+    if (enSuspens) return;
+    final acceptees = ops
+        .where((o) => o.statut == StatutOperationSync.synchronise)
+        .toList();
+    if (acceptees.isEmpty &&
+        !await DocumentsAutresPostes(
+          attachedDatabase,
+        ).descendu(TableSynchronisee.reservations.nomServeur, l.id)) {
+      // Ni envoyée, ni reçue : une saisie d'avant la file, rien à rattraper.
+      return;
+    }
+    final recu = <String, Object?>{};
+    for (final o in acceptees) {
+      final charge = jsonDecode(o.payload);
+      if (charge is! Map) continue;
+      for (final cle in champsFicheReservation) {
+        if (charge.containsKey(cle)) recu[cle] = charge[cle];
+      }
+      // Une création d'avant la correction ne portait pas ses services : le
+      // serveur n'en a reçu aucun.
+      if (o.type == TypeOperationSync.creation) {
+        recu['lignes'] ??= const <Object?>[];
+      }
+    }
+    final changements = _changements(recu, await _ficheEnvoyable(l.id));
+    if (changements.isEmpty) return;
+    await OperationsSyncDao(attachedDatabase).enfiler(
+      table: TableSynchronisee.reservations,
+      entiteId: l.id,
+      type: TypeOperationSync.modification,
+      payload: chargeModificationReservation(changements),
+    );
+  }
+
+  /// Les champs de la fiche d'une réservation, dans la forme exacte que le
+  /// serveur reçoit (`GestionnaireReservations`) : de quoi comparer deux états
+  /// de la même fiche, et en tirer ce qui change.
+  ///
+  /// Les services sont les SEULS à être des lignes au serveur : l'hébergement vit
+  /// sur `unite_id` et `tarif_nuit`.
+  Future<Map<String, Object?>> _ficheEnvoyable(String id) async {
+    final r = await parId(id);
+    if (r == null) return const {};
+    final remise = r.remiseType ?? TypeRemise.aucune;
+    return {
+      'unite_id': r.uniteId,
+      'date_arrivee': jourIso(r.periode.arrivee),
+      'date_depart': jourIso(r.periode.depart),
+      'client_id': r.clientId,
+      'tarif_nuit': decimalExact(r.tarifNuit * 100, 2),
+      'acompte': decimalExact(r.acompte * 100, 2),
+      'remise_type': remise.name,
+      'remise_valeur': remise == TypeRemise.aucune || r.remiseValeur == null
+          ? '0.00'
+          : decimalExact((r.remiseValeur! * 100).round(), 2),
+      'mode_paiement': _modeServeur(r.modePaiement),
+      'canal': r.canal?.libelle,
+      'lignes': [
+        for (final l in r.lignes)
+          // L'hébergement PRINCIPAL vit sur `unite_id` ; les chambres SUPPLÉMENTAIRES
+          // (multi-chambres, 10/11/2026) partent comme lignes `hebergement`.
+          if ((l.service != ServiceReservation.hebergement ||
+                  l.itemId != r.uniteId) &&
+              l.estRenseignee)
+            chargeLigneReservation(
+              service: l.service.cle,
+              sourceId: l.itemId,
+              libelle: l.libelle,
+              quantite: l.quantite,
+              prixUnitaireFrancs: l.prixUnitaire,
+            ),
+      ],
+    };
+  }
+
+  static String? _modeServeur(ModePaiementReservation? mode) => switch (mode) {
+    null => null,
+    ModePaiementReservation.especes => 'especes',
+    ModePaiementReservation.mobileMoney => 'mobile_money',
+    ModePaiementReservation.virement => 'virement',
+    ModePaiementReservation.cheque => 'cheque',
+    ModePaiementReservation.credit => 'credit',
+  };
+
+  /// Les champs de [apres] qui diffèrent de [avant] (les `lignes` en bloc).
+  static Map<String, Object?> _changements(
+    Map<String, Object?> avant,
+    Map<String, Object?> apres,
+  ) {
+    final changes = <String, Object?>{};
+    for (final cle in champsFicheReservation) {
+      if (jsonEncode(avant[cle]) != jsonEncode(apres[cle])) {
+        changes[cle] = apres[cle];
+      }
+    }
+    return changes;
   }
 
   /// Crée la réservation ET la pièce de son acompte, dans la MÊME transaction —
@@ -458,15 +726,10 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
           tarifNuitFrancs: r.tarifNuit,
           remiseType: (r.remiseType ?? TypeRemise.aucune).name,
           remiseValeur: r.remiseValeur,
-          modePaiement: switch (r.modePaiement) {
-            null => null,
-            ModePaiementReservation.especes => 'especes',
-            ModePaiementReservation.mobileMoney => 'mobile_money',
-            ModePaiementReservation.virement => 'virement',
-            ModePaiementReservation.cheque => 'cheque',
-            ModePaiementReservation.credit => 'credit',
-          },
+          modePaiement: _modeServeur(r.modePaiement),
           canal: r.canal?.libelle,
+          lignes: ((await _ficheEnvoyable(r.id))['lignes']! as List)
+              .cast<Map<String, Object?>>(),
         ),
       );
     });
@@ -499,17 +762,11 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     // la réservation porte un acompte. Sans résolveur, rien n'est exigé ici : le
     // refus de forme garde sa priorité et le `StateError` tombe à sa place.
     final apercu = await parId(id);
-    // Q3 (lot F6) : la réservation d'un autre poste ne s'annule que par
-    // l'administration ou le comptable — la règle du serveur.
-    if (apercu != null &&
-        !await DocumentsAutresPostes(
-          attachedDatabase,
-        ).peutAnnuler('reservations', id, auteurId)) {
-      throw const RefusAnnulation(
-        DocumentsAutresPostes.refus,
-        champ: 'annulation',
-      );
-    }
+    // 09/11/2026 (décision du PO : « aucune opération ne doit bloquer la synchronisation ») : la
+    // règle Q3 du lot F6 (« la réservation d'un autre poste ne s'annule que par l'administration
+    // ou le comptable ») N'EXISTE PLUS ICI, comme elle n'existe plus au serveur. Qui peut annuler
+    // est jugé par l'ÉCRAN, sur l'utilisateur connecté et son droit local ANNULATIONS (avec M1 en
+    // écriture) : ce geste, lui, exécute.
     final resolveur = moteur;
     final moteurPrealable =
         (apercu != null && apercu.acompte > 0 && resolveur != null)
@@ -606,6 +863,7 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
           payload: chargeAnnulationReservation(
             tauxCentiemes: resultat.tauxCentiemes,
             rembourseCentimes: resultat.rembourseCentimes,
+            auteurLogin: await _loginDe(auteurId),
           ),
         );
       }
@@ -708,7 +966,8 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
 
   Reservation _versEntite(
     ReservationsLocalData d,
-    ClientsLocalData client, {
+    ClientsLocalData client,
+    List<CanalReservation> canaux, {
     List<LigneService> lignes = const [],
     Map<String, String> logins = const {},
   }) {
@@ -737,7 +996,9 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       // de client disparait, sans erreur ni trace. `name` et le `code` du
       // maitre sont, eux, des identifiants.
       typeClient: _parCode(TypeClient.values, d.typeClient, (t) => t.name),
-      canal: _parCode(CanalReservation.values, d.canal, (c) => c.code),
+      // Le canal se lit de la TABLE (`canaux_reservation_local`) : renommé, il
+      // se lit sous son nom d'aujourd'hui ; désactivé, il reste lisible.
+      canal: CanauxReservationDao.designe(d.canal, canaux),
       modePaiement: _parCode(
         ModePaiementReservation.values,
         d.modePaiement,
@@ -762,13 +1023,14 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     final total = d.montantTotalAnnulationCentimes;
     final commission = d.montantCommissionAnnulationCentimes;
     final rembourse = d.montantRembourseAnnulationCentimes;
-    final mode = d.modeSaisieRemboursement;
     final date = d.dateAnnulation;
+    // Le MODE de saisie n'est lu par aucun écran : il ne conditionne pas l'annulation
+    // (09/11/2026 — il était exigé, et une annulation REÇUE, qui ne le portait pas, s'affichait
+    // avec des tirets partout). Ce qui compte : le taux, les montants et la date.
     if (taux == null ||
         total == null ||
         commission == null ||
         rembourse == null ||
-        mode == null ||
         date == null) {
       return null;
     }
@@ -777,10 +1039,11 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       totalCentimes: total,
       commissionCentimes: commission,
       rembourseCentimes: rembourse,
-      modeSaisie: mode,
+      modeSaisie: d.modeSaisieRemboursement,
       date: date,
       auteurId: d.utilisateurAnnulationId,
-      auteurLogin: logins[d.utilisateurAnnulationId],
+      // Le compte de CE poste, sinon le login que le serveur a rendu (annulation reçue).
+      auteurLogin: logins[d.utilisateurAnnulationId] ?? d.auteurAnnulationLogin,
       ecritureRemboursementId: d.ecritureRemboursementId,
     );
   }

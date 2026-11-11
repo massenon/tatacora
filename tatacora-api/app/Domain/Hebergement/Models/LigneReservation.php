@@ -40,6 +40,14 @@ class LigneReservation extends Model
      */
     public const SERVICES = ['restauration', 'bar', 'tourisme', 'vehicule'];
 
+    /**
+     * Le service des CHAMBRES SUPPLÉMENTAIRES d'une réservation multi-chambres (10/11/2026) :
+     * `source_id` = l'unité d'hébergement. Hors de {@see self::SERVICES} à dessein : ce sont les
+     * sections de services de la fiche, la chambre n'en est pas une (la première reste sur
+     * `reservations.unite_id`).
+     */
+    public const CHAMBRE = 'hebergement';
+
     protected $fillable = [
         'id',
         'reservation_id',

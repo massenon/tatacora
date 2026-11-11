@@ -22,11 +22,17 @@ declare(strict_types=1);
 |   { "aujourdhui": "2031-06-15",
 |     "catalogue": [{"ref":"biere","id":"<uuid>","module":"M5",
 |                    "libelle":"Beninoise 65cl","prix":"1000"}, ...],
+|     (M4 : `"sans_fiche":true` = un plat dont la fiche est VIDE — decision du PO
+|      du 30/10/2026, il se vend, sans mouvement de stock)
 |     "ops": [ ... ] }
 |   {"op":"parametre","cle":"tva_active","valeur":"true"|null}
 |   {"op":"vente","canal":"comptoir"|"sejour"|"service","mode":"especes",
 |    "session":true|false,                       (comptoir et service)
+|    "remise":{"type":"pourcentage"|"montant","valeur":"10"},   (facultative)
 |    "lignes":[{"ref":"biere","quantite":3}]}    (ou {"module":"M8","id":"..."})
+|    La remise (21/10/2026) : au comptoir, par `appliquerRemise` du composant
+|    (un refus y est une erreur de champ, rendue comme refus) ; au sejour et au
+|    service, passee a `VenteService::enregistrer` (refus a l'encaissement).
 |   {"op":"retirer_du_catalogue","ref":"biere"}
 |   {"op":"retirer_centre","libelle":"Bar"}        (avant toute vente)
 |   {"op":"horloge","date":"2040-01-02"}           (change le jour courant)
@@ -34,6 +40,9 @@ declare(strict_types=1);
 |   {"op":"ventiler","taux":"18","convention":"ttc","montants":["1000.00"]}
 |                                                  (le VRAI CalculTvaService)
 |   {"op":"compter"}
+|   {"op":"sorties_derniere_vente"}    (30/10/2026 : combien de sorties de stock
+|                                       la DERNIERE vente a ecrites — 0 pour un plat
+|                                       sans fiche)
 |   {"op":"libelles"}
 | Sortie (stdout, JSON) : { "resultats": [ ... un resultat par operation ... ] }
 |   - une vente reussie : { "ok":true, "montant", "mode", "session", "piece":[..] }
@@ -43,6 +52,16 @@ declare(strict_types=1);
 */
 
 const BASE_AUTORISEE = 'tatacora_test';
+
+// Une base d'essai PRIVEE `tatacora_<nom>_test`, donnee par `TATACORA_BASE_ESSAI`,
+// remplace `tatacora_test` (30/10/2026) : jamais une autre base.
+$baseEssai = (static function (): string {
+    $voulue = getenv('TATACORA_BASE_ESSAI');
+
+    return is_string($voulue) && preg_match('/^tatacora_[a-z0-9_]*test$/', $voulue) === 1
+        ? $voulue
+        : BASE_AUTORISEE;
+})();
 
 $api = realpath(__DIR__ . '/../../../tatacora-api');
 
@@ -58,9 +77,9 @@ if (! is_array($scenario) || ! isset($scenario['ops'], $scenario['aujourdhui'], 
     exit(3);
 }
 
-putenv('DB_DATABASE=' . BASE_AUTORISEE);
-$_ENV['DB_DATABASE'] = BASE_AUTORISEE;
-$_SERVER['DB_DATABASE'] = BASE_AUTORISEE;
+putenv('DB_DATABASE=' . $baseEssai);
+$_ENV['DB_DATABASE'] = $baseEssai;
+$_SERVER['DB_DATABASE'] = $baseEssai;
 
 chdir($api);
 require $api . '/vendor/autoload.php';
@@ -79,8 +98,11 @@ use App\Domain\Restaurant\Models\Menu;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Stocks\Models\Article;
+use App\Domain\Stocks\Models\MouvementStock;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
+use App\Domain\Tourisme\Models\Circuit;
+use App\Domain\Vehicules\Models\Vehicule;
 use App\Domain\Ventes\Models\Vente;
 use App\Domain\Ventes\Services\VenteService;
 use App\Models\User;
@@ -97,8 +119,8 @@ use Livewire\Livewire;
 
 $base = (string) config('database.connections.' . config('database.default') . '.database');
 
-if ($base !== BASE_AUTORISEE) {
-    fwrite(STDERR, "Refus : la base active est \u{ab} {$base} \u{bb}, pas \u{ab} " . BASE_AUTORISEE . " \u{bb}.\n");
+if ($base !== $baseEssai) {
+    fwrite(STDERR, "Refus : la base active est \u{ab} {$base} \u{bb}, pas \u{ab} {$baseEssai} \u{bb}.\n");
     exit(1);
 }
 
@@ -238,6 +260,29 @@ try {
             // Assez de stock pour qu'AUCUNE rupture ne parle a la place de la
             // piece : la sortie de stock n'est pas portee par le poste.
             $stocks->entree($article->id, $bar->id, '100000.00', 'Reception');
+        } elseif ($a['module'] === 'M9') {
+            // Tourisme (22/10/2026) : le prix est `circuits.prix`, aucun stock.
+            Circuit::create([
+                'id' => $a['id'],
+                'nom' => $a['libelle'],
+                'theme' => 'nature',
+                'zone' => 'Atacora',
+                'duree' => '1 jour',
+                'prix' => $a['prix'],
+                'capacite_max' => 12,
+            ]);
+        } elseif ($a['module'] === 'M8') {
+            // Location (22/10/2026) : le prix est `vehicules.tarif_jour`.
+            Vehicule::create([
+                'id' => $a['id'],
+                'categorie' => '4x4',
+                'immatriculation' => $a['libelle'],
+                'annee' => 2022,
+                'transmission' => 'automatique',
+                'capacite' => 5,
+                'tarif_jour' => $a['prix'],
+                'statut' => 'disponible',
+            ]);
         } else {
             $article = Article::create([
                 'libelle' => 'Denree ' . $a['libelle'],
@@ -248,7 +293,12 @@ try {
                 'cout_moyen_pondere' => '500.0000',
             ]);
             $recette = Recette::create(['libelle' => $a['libelle'], 'cout_matiere_calcule' => '0.00']);
-            $recette->ingredients()->attach([$article->id => ['quantite_unitaire' => '0.250']]);
+
+            // 30/10/2026 (decision du PO) : une fiche VIDE n'empeche plus la vente.
+            if (! ($a['sans_fiche'] ?? false)) {
+                $recette->ingredients()->attach([$article->id => ['quantite_unitaire' => '0.250']]);
+            }
+
             Plat::create([
                 'id' => $a['id'],
                 'menu_id' => $menu->id,
@@ -263,6 +313,8 @@ try {
     }
 
     $departVentes = Vente::count();
+    $sortiesAvantDerniereVente = 0;
+    $sortiesApresDerniereVente = 0;
     $departEcritures = EcritureComptable::count();
     $ventes = $app->make(VenteService::class);
 
@@ -309,13 +361,24 @@ try {
                     $entree = $catalogue[$op['ref']];
                     if ($entree['module'] === 'M5') {
                         CarteBoisson::where('id', $entree['id'])->delete();
+                    } elseif ($entree['module'] === 'M9') {
+                        Circuit::where('id', $entree['id'])->delete();
+                    } elseif ($entree['module'] === 'M8') {
+                        Vehicule::where('id', $entree['id'])->delete();
                     } else {
                         Plat::where('id', $entree['id'])->delete();
                     }
                     $resultats[] = ['ok' => true];
                     break;
 
+                case 'sorties_derniere_vente':
+                    $resultats[] = ['ok' => true, 'sorties' => $sortiesApresDerniereVente - $sortiesAvantDerniereVente];
+                    break;
+
                 case 'vente':
+                    $sortiesAvantDerniereVente = MouvementStock::where('type_mouvement', 'sortie')->count();
+                    // Rafraichi aussi quand la vente est refusee : aucune sortie.
+                    $sortiesApresDerniereVente = $sortiesAvantDerniereVente;
                     $mode = (string) $op['mode'];
                     $lignes = $lignesDe($op['lignes']);
 
@@ -337,7 +400,44 @@ try {
 
                         foreach ($lignes as $l) {
                             for ($i = 0; $i < $l['quantite']; $i++) {
+                                if (in_array($l['module'], ['M8', 'M9'], true)) {
+                                    // Depuis le 26/10/2026 (directive du PO) le
+                                    // comptoir ne PROPOSE plus la location ni le
+                                    // tourisme : `ajouterAuPanier` les refuse.
+                                    // Le domaine, lui, les accepte toujours (vente
+                                    // deja faite, API, synchronisation) : on les
+                                    // pose par `PanierService`, sur le MEME panier
+                                    // du comptoir que le composant, dans l'ordre.
+                                    $paniersSvc = app(\App\Domain\Ventes\Services\PanierService::class);
+                                    $paniersSvc->ajouterLigne(
+                                        $paniersSvc->ouvrirPourPoste(
+                                            PosComptant::POSTE_COMPTOIR,
+                                            null,
+                                            DB::table('sessions_caisse')->where('point_vente', 'bar')->whereNull('date_cloture')->value('id'),
+                                        ),
+                                        $l['module'],
+                                        $l['reference_id'],
+                                    );
+
+                                    continue;
+                                }
+
                                 $c->call('ajouterAuPanier', $l['module'], $l['reference_id']);
+                            }
+                        }
+
+                        // La remise : posee sur le PANIER avant l'encaissement,
+                        // comme l'operateur le fait ; un refus de la formule est
+                        // une erreur du champ « Valeur de la remise ».
+                        if (isset($op['remise'])) {
+                            $c->set('remiseType', (string) $op['remise']['type'])
+                                ->set('remiseValeur', (string) $op['remise']['valeur'])
+                                ->call('appliquerRemise');
+
+                            if ($c->errors()->has('remiseValeur')) {
+                                $resultats[] = ['refus' => (string) $c->errors()->first('remiseValeur')];
+                                $c->call('abandonnerPanier');
+                                break;
                             }
                         }
 
@@ -354,6 +454,7 @@ try {
                             break;
                         }
 
+                        $sortiesApresDerniereVente = MouvementStock::where('type_mouvement', 'sortie')->count();
                         $resultats[] = $decrireVente(Vente::findOrFail($venteId));
                         break;
                     }
@@ -365,9 +466,12 @@ try {
                             'point_vente' => 'Hébergement',
                             'client_id' => $client->id,
                             'mode_paiement' => 'note_chambre',
+                            'remise_type' => (string) ($op['remise']['type'] ?? 'aucune'),
+                            'remise_valeur' => (string) ($op['remise']['valeur'] ?? '0.00'),
                             'utilisateur_id' => $gerant->id,
                             'lignes' => $lignes,
                         ]);
+                        $sortiesApresDerniereVente = MouvementStock::where('type_mouvement', 'sortie')->count();
                         $resultats[] = $decrireVente($vente);
                         break;
                     }
@@ -381,9 +485,12 @@ try {
                             ? DB::table('sessions_caisse')->where('point_vente', 'bar')->whereNull('date_cloture')->value('id')
                             : null,
                         'mode_paiement' => $mode,
+                        'remise_type' => (string) ($op['remise']['type'] ?? 'aucune'),
+                        'remise_valeur' => (string) ($op['remise']['valeur'] ?? '0.00'),
                         'utilisateur_id' => $gerant->id,
                         'lignes' => $lignes,
                     ]);
+                    $sortiesApresDerniereVente = MouvementStock::where('type_mouvement', 'sortie')->count();
                     $resultats[] = $decrireVente($vente);
                     break;
 
@@ -452,11 +559,18 @@ try {
                         'modules' => VenteService::MODULES,
                         'modules_encaissables' => VenteService::MODULES_ENCAISSABLES,
                         'journal' => VenteService::JOURNAL,
-                        'comptes_produit' => VenteService::COMPTES_PRODUIT,
-                        'comptes_tva' => VenteService::COMPTES_TVA,
+                        // Depuis le 26/10/2026 le registre porte des RÔLES (la
+                        // correspondance des comptes est modifiable), pas des numéros.
+                        'roles_produit' => VenteService::ROLES_PRODUIT,
+                        'roles_tva' => VenteService::ROLES_TVA,
                         'centres_par_module' => VenteService::CENTRES_PAR_MODULE,
                         'contreparties' => VenteService::CONTREPARTIES_TRESORERIE,
-                        'compte_clients' => VenteService::COMPTE_CLIENTS,
+                        'role_clients' => VenteService::ROLE_CLIENTS,
+                        'remise_valeur_invalide' => __('ventes.remise_valeur_invalide'),
+                        'remise_pourcentage_hors_bornes' => __('ventes.remise_pourcentage_hors_bornes'),
+                        'remise_superieure_au_total' => __('ventes.remise_superieure_au_total'),
+                        'remise_ligne_facture' => __('ventes.remise_ligne_facture'),
+                        'remise_appliquee' => __('pos_pwa.commun.remise_appliquee', ['brut' => ':brut']),
                     ]];
                     break;
 

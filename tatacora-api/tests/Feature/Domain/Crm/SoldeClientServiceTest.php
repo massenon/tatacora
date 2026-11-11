@@ -50,6 +50,24 @@ final class SoldeClientServiceTest extends TestCase
     }
 
     #[Test]
+    public function un_ticket_du_comptoir_envoye_par_un_poste_n_est_jamais_une_creance(): void
+    {
+        // 10/11/2026 : le poste envoie le ticket de la vente au comptant comme facture SANS paiement ;
+        // il a été encaissé à la vente. Web 35 850 / poste 30 000 : le web comptait ce ticket en dette.
+        $dossou = $this->client('DOSSOU', 'Nice');
+        $passage = $this->client('Client de passage', '');
+        $this->facture($dossou, '30000.00');
+        $ticket = $this->facture($passage, '5850.00');
+        DB::table('factures')->where('id', $ticket)->update(['origine' => 'pos_comptant']);
+
+        $totaux = $this->service->totaux();
+
+        $this->assertSame('30000.00', $totaux['total_du']);
+        $this->assertSame(1, $totaux['nb_pieces']);
+        $this->assertSame(1, $totaux['nb_clients']);
+    }
+
+    #[Test]
     public function le_solde_d_un_client_est_la_somme_des_restes_dus_de_ses_factures_certifiees(): void
     {
         $client = $this->client('KORA', 'Jean');

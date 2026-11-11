@@ -161,11 +161,7 @@ return [
     'col_debit' => 'Débit',
     'col_credit' => 'Crédit',
     'livre_ecriture_absente_titre' => 'Aucune écriture comptable n’est proposée ici.',
-    'livre_ecriture_absente_texte' => 'Le maître propose une écriture de paie et un bouton « Comptabiliser la paie ». '
-        .'Vérifié le 31/08/2026 : le listener « GenererEcritureDepuisPaie » que la migration RH annonce '
-        .'elle-même n’existe nulle part dans le dépôt, et écrire la pièce depuis M13 doublerait le seul '
-        .'point d’entrée d’écriture comptable, où vit l’immuabilité RG-11. La paie se comptabilise donc '
-        .'depuis l’écran Comptabilité, sur les montants de ce livre.',
+    'livre_ecriture_absente_texte' => 'La paie se comptabilise depuis l’écran Comptabilité, sur les montants de ce livre.',
 
     // ------------------------------------------------ onglet « Déclarations »
     'declarations_titre' => 'Déclarations sociales et fiscales — :periode',
@@ -255,6 +251,10 @@ return [
     'champ_numero_cnss_invite' => 'BJ-CNSS-0000000',
     'champ_salaire_base' => 'Salaire de base (FCFA)',
     'champ_statut' => 'Statut',
+    // E-mail facultatif (28/10/2026) : l'intitulé est celui de `pwa.profil.email`; ces phrases
+    // sont celles que le poste rejoue mot pour mot.
+    'email_invalide' => 'Adresse email invalide.',
+    'email_enregistre' => 'Adresse email enregistrée.',
     'apercu_cout' => 'Coût employeur :min à :max',
     'homonymes_un' => 'Un employé existant correspond déjà',
     'homonymes_plusieurs' => ':nombre employés existants correspondent',

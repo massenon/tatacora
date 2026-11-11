@@ -74,7 +74,7 @@ final class MotDePasseSmtpPwaTest extends TestCase
 
         // Et l'état, jamais la valeur, sur un nouveau rendu.
         Livewire::test(Parametres::class, ['onglet' => 'email'])
-            ->assertSee(__('pwa.parametres.email_motdepasse_renseigne', ['date' => now()->format('d/m/Y H:i'), 'par' => $admin->login]))
+            ->assertSee(__('pwa.parametres.email_motdepasse_renseigne', ['date' => \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i'), 'par' => $admin->login]))
             ->assertDontSee(self::SECRET);
     }
 

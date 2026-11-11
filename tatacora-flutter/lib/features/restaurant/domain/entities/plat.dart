@@ -24,7 +24,9 @@ final class Plat {
     required this.recetteId,
     this.menuLibelle,
     this.categorieBrute,
+    this.categorieCarteBrute,
     this.recetteLibelle,
+    this.description,
     this.prixProvisoire = false,
     this.prixCorrigeMain = false,
   });
@@ -33,6 +35,10 @@ final class Plat {
 
   /// Le champ « Nom du plat » du maître (l.131-135).
   final String libelle;
+
+  /// La description FACULTATIVE (v47, 30/10/2026, décision du PO), déjà
+  /// normalisée (trim, vide = `null`) : affichée en ligne secondaire sous le nom.
+  final String? description;
 
   /// PA-161 (b) — le tarif a été POSÉ faute de relevé. Une décision, cochée à la
   /// saisie.
@@ -48,8 +54,24 @@ final class Plat {
   final String menuId;
   final String? menuLibelle;
 
-  /// `menus.type`, projeté par le serveur. `null` si la relation manque.
+  /// `menus.type`, projeté par le serveur. `null` si la relation manque. C'est le
+  /// type du MENU (trois valeurs) — pas la catégorie du plat, voir
+  /// [categorieCarteBrute].
   final String? categorieBrute;
+
+  /// LA CATÉGORIE DU PLAT (`plats.categorie`, v41) : l'une des dix clés de
+  /// [CategorieCarte], saisie dans la modale « Nouveau plat » comme au web
+  /// (décision D1 du PO). `null` : plat d'avant la v41, jamais déduit du menu.
+  final String? categorieCarteBrute;
+
+  CategorieCarte? get categorieCarte =>
+      CategorieCarte.depuisCode(categorieCarteBrute);
+
+  /// Le libellé de la colonne « Catégorie » de la vue : le libellé du registre, la
+  /// clé brute si le registre ne la connaît pas, `null` (« — ») sans catégorie —
+  /// `$categories[$plat->categorie] ?? $plat->categorie ?? —`.
+  String? get categorieCarteLibelle =>
+      categorieCarte?.libelle ?? categorieCarteBrute;
 
   final String recetteId;
   final String? recetteLibelle;
@@ -59,6 +81,39 @@ final class Plat {
   /// Le libellé affichable — le code brut si le registre ne le connaît pas.
   /// `null` seulement quand le serveur n'a rendu aucune catégorie.
   String? get categorieLibelle => categorie?.libelle ?? categorieBrute;
+}
+
+/// Les DIX catégories d'un plat — `CarteRestaurant::CATEGORIES` de la vue.
+///
+/// Registre fermé relu du serveur par `champs_location_contre_serveur_test` (clés
+/// ET libellés) : une liste recopiée ne vérifierait qu'elle-même. L'ordre est celui
+/// de la vue (le premier est la valeur proposée à la création).
+enum CategorieCarte {
+  entrees('entrees', 'Entrées'),
+  plats('plats', 'Plats complets'),
+  sauces('sauces', 'Nos sauces'),
+  garnitures('garnitures', 'Garnitures'),
+  accompagnements('accompagnements', 'Accompagnements'),
+  sandwicherie('sandwicherie', 'Sandwicherie'),
+  pizzas('pizzas', 'Pizzas'),
+  desserts('desserts', 'Nos desserts'),
+  boissonsMaison('boissons_maison', 'Jus maison & cafés'),
+  formules('formules', 'Formules & brochettes');
+
+  const CategorieCarte(this.code, this.libelle);
+
+  /// La clé stockée (`plats.categorie`).
+  final String code;
+
+  /// Le mot de la vue, au caractère près.
+  final String libelle;
+
+  static CategorieCarte? depuisCode(String? code) {
+    for (final c in CategorieCarte.values) {
+      if (c.code == code) return c;
+    }
+    return null;
+  }
 }
 
 /// Un menu — `MenuResource`. C'est lui qui porte la **catégorie** et la
@@ -118,7 +173,17 @@ final class Recette {
     this.nbIngredients,
     this.platsServis = const [],
     this.decrementeUnStockSuivi,
+    this.compositionProvisoire = false,
   });
+
+  /// La marque « composition provisoire » (`recettes.composition_provisoire`) :
+  /// les quantités ont été POSÉES pour débloquer le service, jamais pesées.
+  ///
+  /// Lue de `recettes_local.composition_provisoire` (v35, 21/10/2026) ; posée
+  /// par le serveur (ses fiches semées, qui descendent avec la fiche), et levée
+  /// quand la composition est réenregistrée — ici (`RestaurantDao.
+  /// enregistrerRecette`) comme au serveur (`CompositionRecetteService`).
+  final bool compositionProvisoire;
 
   /// Le nombre d'ingrédients de la composition. `null` = non compté.
   final int? nbIngredients;
@@ -200,13 +265,19 @@ final class RecetteDetail {
 
 /// Ce qu'on envoie pour créer ou modifier un plat — `EnregistrerPlatRequest`.
 ///
-/// ## Trois champs du formulaire du maître N'ENTRENT PAS ici
+/// ## La catégorie du plat : portée depuis la v41 (27/10/2026, décision D1)
 ///
-/// `EnregistrerPlatRequest::CHAMPS_REFUSES` les déclare `prohibited`, et le
-/// serveur explique chacun :
+/// `EnregistrerPlatRequest::CHAMPS_REFUSES` interdit toujours `categorie` À L'API,
+/// mais le web l'écrit en direct (`Restauration::enregistrerPlat`) parmi les dix
+/// clés de [CategorieCarte] — et, depuis le lot L3-S, le chemin de SYNCHRONISATION
+/// du serveur l'accepte dans ce même registre. [categorie] est cette clé ; `null`
+/// la laisse telle quelle (importation, plat d'avant), la chaîne vide est
+/// « obligatoire » comme à la vue.
 ///
-///  - **`categorie`** — elle est celle du menu. La porter aussi sur le plat
-///    créerait une seconde vérité, qui divergerait au premier reclassement.
+/// ## Deux champs du formulaire du maître N'ENTRENT PAS ici
+///
+/// `EnregistrerPlatRequest::CHAMPS_REFUSES` déclare `prohibited` :
+///
 ///  - **`disponible`** — aucune colonne du schéma ne la porte. L'accepter sans
 ///    la stocker laisserait croire qu'elle a été enregistrée.
 ///  - **`ingredients_principaux`** — une chaîne de caractères ne se rattache à
@@ -223,7 +294,17 @@ final class SaisiePlat {
     required this.prixVente,
     this.id,
     this.prixProvisoire = false,
+    this.categorie,
+    this.description,
   });
+
+  /// La description facultative saisie (500 caractères au plus). `null` :
+  /// non soumise, la description du plat reste telle quelle ; une chaîne vide ou
+  /// d'espaces l'EFFACE (vide = `NULL`, comme `DescriptionPlat` du serveur).
+  final String? description;
+
+  /// La clé de [CategorieCarte] (`plats.categorie`), ou `null` : inchangée.
+  final String? categorie;
 
   /// PA-161 (b) — la marque « prix provisoire », une DÉCISION qui se coche.
   /// « Corrigé à la main » n'est pas ici : c'est un fait, déduit par le DAO.
@@ -251,6 +332,8 @@ final class SaisiePlat {
     'recette_id': recetteId,
     'prix_vente': prixVente,
     'prix_provisoire': prixProvisoire,
+    'categorie': ?categorie,
+    'description': ?description,
     if (!modification && id != null) 'id': id,
   };
 }

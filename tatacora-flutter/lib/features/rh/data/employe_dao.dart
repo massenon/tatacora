@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/format/adresse_email_facultative.dart';
 // Les classes de tables doivent être dans la portée du fichier : `@DriftAccessor`
 // les résout par leur type, et un import de `app_database.dart` seul ne les
 // réexporte pas. Sans cette ligne, le mixin généré est VIDE — sans erreur de
@@ -185,9 +186,11 @@ class EmployeDao extends DatabaseAccessor<AppDatabase> with _$EmployeDaoMixin {
     DateTime? dateFinContrat,
     String? numeroCnss,
     TypeContrat? typeContrat,
+    String? email,
     StatutEmploye statut = StatutEmploye.actif,
   }) async {
     if (salaireBase < 0) throw SalaireInvalide(salaireBase);
+    final adresse = _exigerEmail(email);
 
     final id = _uuid.v4();
 
@@ -200,6 +203,7 @@ class EmployeDao extends DatabaseAccessor<AppDatabase> with _$EmployeDaoMixin {
           matricule: await _matriculeSuivant(),
           nom: nom.trim(),
           prenom: Value(prenom.trim()),
+          email: Value(adresse),
           poste: poste.trim(),
           serviceId: serviceId,
           dateEmbauche: dateEmbauche,
@@ -231,9 +235,11 @@ class EmployeDao extends DatabaseAccessor<AppDatabase> with _$EmployeDaoMixin {
     DateTime? dateFinContrat,
     String? numeroCnss,
     TypeContrat? typeContrat,
+    String? email,
     required StatutEmploye statut,
   }) async {
     if (salaireBase < 0) throw SalaireInvalide(salaireBase);
+    final adresse = _exigerEmail(email);
 
     await transaction(() async {
       final existant = await (select(
@@ -247,6 +253,7 @@ class EmployeDao extends DatabaseAccessor<AppDatabase> with _$EmployeDaoMixin {
         EmployesLocalCompanion(
           nom: Value(nom.trim()),
           prenom: Value(prenom.trim()),
+          email: Value(adresse),
           poste: Value(poste.trim()),
           serviceId: Value(serviceId),
           dateEmbauche: Value(dateEmbauche),
@@ -309,6 +316,7 @@ class EmployeDao extends DatabaseAccessor<AppDatabase> with _$EmployeDaoMixin {
     final charge = chargeEmploye(
       nom: e.nom,
       prenom: e.prenom,
+      email: e.email,
       poste: e.poste,
       serviceId: e.serviceId,
       serviceLibelle: service?.libelle ?? '',
@@ -381,6 +389,15 @@ class EmployeDao extends DatabaseAccessor<AppDatabase> with _$EmployeDaoMixin {
     return '$motif${(rang + 1).toString().padLeft(_largeurMatricule, '0')}';
   }
 
+  /// L'e-mail FACULTATIF, normalisé (trim, minuscules) ; `null` s'il est vide.
+  /// Mal formé : le refus du serveur, avant toute écriture.
+  String? _exigerEmail(String? saisie) {
+    if (AdresseEmailFacultative.erreur(saisie) != null) {
+      throw const EmailInvalide();
+    }
+    return AdresseEmailFacultative.normaliser(saisie);
+  }
+
   String? _videEnNull(String? valeur) {
     final propre = (valeur ?? '').trim();
     return propre.isEmpty ? null : propre;
@@ -391,6 +408,7 @@ class EmployeDao extends DatabaseAccessor<AppDatabase> with _$EmployeDaoMixin {
     matricule: d.matricule,
     nom: d.nom,
     prenom: d.prenom,
+    email: d.email,
     poste: d.poste,
     serviceId: d.serviceId,
     serviceLibelle: service?.libelle,

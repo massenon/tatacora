@@ -1,8 +1,22 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tatacora_flutter/core/theme/app_assets.dart';
+import 'package:tatacora_flutter/core/database/app_database.dart';
+import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/navigation/trace_svg.dart';
+import 'package:tatacora_flutter/core/theme/app_colors.dart';
+import 'package:tatacora_flutter/core/theme/app_text_styles.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
+import 'package:tatacora_flutter/core/theme/mesures_connexion.dart';
+import 'package:tatacora_flutter/features/auth/data/identifiant_memorise.dart';
+import 'package:tatacora_flutter/features/parametres/data/apparence_poste.dart';
+import 'package:tatacora_flutter/features/auth/data/session_repository_local.dart';
+import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/auth/presentation/ecran_connexion.dart';
 import 'package:tatacora_flutter/features/auth/presentation/formulaire_premier_compte.dart';
 
@@ -11,36 +25,80 @@ import '../../support/vue_blade.dart';
 /// Conformité de l'écran de connexion au maître de mise en page.
 ///
 /// Le maître est la vue Blade `pwa/livewire/connexion.blade.php` (PA-182,
-/// PA-183 — l'ancien prototype ne fait plus foi). Ces cas ne jugent pas
-/// l'esthétique : ils vérifient que la **structure** et les **libellés** sont
-/// ceux de l'écran que le commanditaire voit.
+/// PA-183 — l'ancien prototype ne fait plus foi), refondue le 29/10/2026 en
+/// carte unique (`docs/HANDOFF_ECRAN_CONNEXION_LOGIRESTOCK.md`). Ces cas ne
+/// jugent pas l'esthétique : ils vérifient la **structure**, les **libellés**
+/// (confrontés à la langue du serveur, résolue par PHP), les **pictogrammes**
+/// (confrontés aux tracés de la vue) et l'**accessibilité** clavier.
 ///
 /// ## Pourquoi un test de rendu, et pas une relecture
 ///
 /// Une relecture ne voit pas un débordement. Monter l'écran à une largeur
 /// donnée le révèle, parce que le moteur de rendu lève sur un dépassement.
-/// C'est le seul contrôle qui attrape ce qu'un œil laisse passer — et c'est
-/// aussi le seul qui empêchera la mise en page de dériver au prochain
-/// changement, quand plus personne n'aura le HTML sous les yeux.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory memoire;
+  late AppDatabase base;
+
+  setUp(() async {
+    FlutterSecureStorage.setMockInitialValues({});
+    memoire = Directory.systemTemp.createTempSync('tatacora-connexion-');
+    base = AppDatabase.enMemoire();
+    // La VRAIE authentification locale, sur une base en mémoire : un compte.
+    await SessionRepositoryLocal(base).creerCompte(
+      login: 'n.nabogou',
+      nom: 'NABOGOU Noël',
+      motDePasse: 'motdepasse123',
+      role: 'receptionniste',
+      droits: const {'M1': 'C'},
+    );
+  });
+  tearDown(() async {
+    await base.close();
+    if (memoire.existsSync()) memoire.deleteSync(recursive: true);
+  });
+
+  /// Soumet le formulaire et laisse le temps RÉEL à la base de répondre.
+  Future<void> soumettre(WidgetTester tester) async {
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text(TextesConnexion.valider));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(TextesConnexion.valider));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 600)),
+    );
+    await tester.pump();
+    await tester.pump();
+  }
+
+  Session? sessionOuverte(WidgetTester tester) => ProviderScope.containerOf(
+    tester.element(find.byType(EcranConnexion)),
+  ).read(sessionProvider);
+
   /// Monte l'écran à une largeur donnée.
-  ///
-  /// La largeur est ce qui décide de tout ici : le maître bascule à `lg`,
-  /// c'est-à-dire **1024 px** chez Tailwind.
-  Future<void> monter(WidgetTester tester, double largeur) async {
-    tester.view.physicalSize = Size(largeur, 900);
+  Future<void> monter(
+    WidgetTester tester,
+    double largeur, {
+    double hauteur = 900,
+    bool aucunCompte = false,
+    Uint8List? logo,
+  }) async {
+    tester.view.physicalSize = Size(largeur, hauteur);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          // **Le poste porte deja un compte.** Depuis PA-103, l'ecran cede la
-          // place a la creation du premier compte quand la base est vierge ;
-          // sans cette declaration, ces cas monteraient le mauvais formulaire
-          // et rougiraient pour une raison qui n'est pas celle qu'ils
-          // eprouvent. La creation a ses propres cas.
-          aucunCompteProvider.overrideWith((ref) async => false),
+          // **Le poste porte déjà un compte.** Depuis PA-103, l'écran cède la
+          // place à la création du premier compte quand la base est vierge.
+          aucunCompteProvider.overrideWith((ref) async => aucunCompte),
+          baseLocaleProvider.overrideWithValue(base),
+          logoTeleverseProvider.overrideWith((ref) async => logo),
+          // La mémoire de « Se souvenir » vit dans un dossier d'essai.
+          dossierConnexionProvider.overrideWithValue(() async => memoire),
         ],
         child: MaterialApp(theme: AppTheme.clair, home: const EcranConnexion()),
       ),
@@ -49,146 +107,953 @@ void main() {
     await tester.pump();
   }
 
-  group('Structure — le maître impose DEUX colonnes', () {
-    testWidgets('au-delà de 1024 px, la colonne image est présente', (
-      tester,
-    ) async {
-      await monter(tester, 1280);
+  /// La vue, commentaires Blade retirés.
+  String vue() => VueBlade.brute(
+    'livewire/connexion',
+  ).replaceAll(RegExp(r'\{\{--.*?--\}\}', dotAll: true), '');
 
-      // `hidden lg:block lg:w-1/2` : la photo n'existe qu'au-dessus du seuil.
-      final photo = find.byWidgetPredicate(
-        (w) => w is Image && w.image is AssetImage,
-      );
-      expect(
-        photo,
-        findsNWidgets(2),
-        reason: 'la photo de couverture ET le logo doivent être montés',
+  group('Typographie — l\'échelle du PROJET, web et poste (PO, 09/11/2026)', () {
+    // Demande du PO : « uniformiser la police et la taille des contenus sur
+    // l'écran de connexion et d'inscription avec la taille par défaut du
+    // projet ». Le texte de base du projet est `text-[13px]` (la classe la
+    // plus employée des vues) ; les écrans invités sont hors `<main>`, donc à
+    // 13 px réels. L'ancrage est EXTÉRIEUR : une vue CONNECTÉE (la modale de
+    // liaison au stock) donne le champ et l'étiquette du projet, relus ici.
+
+    String sansCommentaires(String s) =>
+        s.replaceAll(RegExp(r'\{\{--.*?--\}\}', dotAll: true), '');
+
+    final vuesInvitees = <String, String>{
+      'livewire/connexion': 'livewire/connexion',
+      'livewire/code-secours': 'livewire/code-secours',
+      'livewire/changement-mot-de-passe-obligatoire':
+          'livewire/changement-mot-de-passe-obligatoire',
+      'partials/champ-invite': 'partials/champ-invite',
+      'partials/carte-invite-entete': 'partials/carte-invite-entete',
+    };
+
+    test(
+      'les jetons de la connexion SONT ceux du projet (relus de la vue connectée)',
+      () {
+        final projet = VueBlade.fichier(
+          'resources/views/components/pwa/modal-lieraustock.blade.php',
+          role: 'une vue connectée : le champ et l\'étiquette du projet',
+        );
+        final base = '${MesuresConnexion.tailleTexte.toStringAsFixed(0)}px';
+        expect(
+          projet,
+          contains('w-full text-[$base] border border-slate-300 rounded-lg'),
+          reason:
+              'le champ du projet n\'est plus à $base : la connexion a dérivé',
+        );
+        expect(
+          VueBlade.fichier(
+            'resources/views/pwa/transverse/comptes-utilisateurs.blade.php',
+          ),
+          contains('text-[$base] px-4 py-2 rounded-lg'),
+          reason: 'le bouton du projet n\'est plus à $base',
+        );
+        expect(MesuresConnexion.tailleBouton, MesuresConnexion.tailleTexte);
+        expect(MesuresConnexion.tailleEtiquette, MesuresConnexion.tailleTexte);
+        expect(MesuresConnexion.tailleTexte, Tailles.t13);
+        expect(MesuresConnexion.tailleTitre, Tailles.t20);
+        // La seule marche plus haute que le texte de base : le titre de page.
+        expect(
+          MesuresConnexion.tailleTitre,
+          lessThanOrEqualTo(Tailles.t20),
+          reason: 'plus gros que le titre de page du projet',
+        );
+      },
+    );
+
+    test(
+      'la vue WEB : aucune taille de l\'ancienne échelle (28, 30, 16, 15 px)',
+      () {
+        for (final entree in vuesInvitees.entries) {
+          final v = sansCommentaires(VueBlade.brute(entree.value));
+          for (final ancien in const [
+            'text-base',
+            'text-sm',
+            'text-3xl',
+            'text-[15px]',
+            'text-[16px]',
+            'text-[28px]',
+            'tracking-wider',
+          ]) {
+            expect(
+              v.contains(ancien),
+              isFalse,
+              reason: '${entree.key} emploie encore `$ancien`',
+            );
+          }
+        }
+        final connexion = sansCommentaires(
+          VueBlade.brute('livewire/connexion'),
+        );
+        // Saisies, étiquettes, bouton : le texte de base du projet.
+        expect(
+          connexion,
+          contains('block text-[13px] font-semibold text-slate-700 mb-1.5'),
+        );
+        expect(connexion, contains('pr-3.5 text-[13px] truncate'));
+        expect(connexion, contains('text-white text-[13px] font-semibold'));
+        expect(connexion, contains('<h2 class="text-xl font-extrabold'));
+        expect(
+          connexion,
+          contains('<p class="text-xl font-extrabold leading-none'),
+        );
+        expect(connexion, contains('<h2 class="text-xl font-bold mb-2'));
+        expect(
+          sansCommentaires(VueBlade.brute('partials/champ-invite')),
+          contains('block text-[13px] font-semibold text-slate-700 mb-1.5'),
+        );
+        expect(
+          sansCommentaires(VueBlade.brute('partials/champ-invite')),
+          contains('text-[13px] @error'),
+        );
+      },
+    );
+
+    test(
+      'le POSTE : chaque taille des écrans invités est un jeton, jamais une valeur',
+      () {
+        const fichiers = [
+          'lib/features/auth/presentation/ecran_connexion.dart',
+          'lib/features/auth/presentation/ecran_changement_mot_de_passe.dart',
+          'lib/features/auth/presentation/ecran_code_secours.dart',
+          'lib/features/auth/presentation/formulaire_premier_compte.dart',
+        ];
+        var tailles = 0;
+        for (final chemin in fichiers) {
+          final f = File(chemin);
+          expect(f.existsSync(), isTrue, reason: '$chemin introuvable');
+          for (final ligne in f.readAsLinesSync()) {
+            final t = ligne.trim();
+            if (t.startsWith('//')) continue;
+            if (t.contains('fontSize:')) {
+              tailles++;
+              expect(
+                t.contains('MesuresConnexion.taille') || t.contains('reduit'),
+                isTrue,
+                reason: '$chemin : taille hors jeton : $t',
+              );
+            }
+            if (t.contains('fontFamily:')) {
+              expect(
+                t.contains('AppTextStyles.police'),
+                isTrue,
+                reason: '$chemin : police hors Inter : $t',
+              );
+            }
+          }
+        }
+        expect(tailles, greaterThan(20), reason: 'balayage vide');
+      },
+    );
+
+    testWidgets(
+      'rendu : saisie, bouton, étiquette, accroche, liens à 13 px ; titre et marque à 20 px',
+      (tester) async {
+        for (final largeur in const [320.0, 1280.0]) {
+          await monter(tester, largeur);
+          final base = MesuresConnexion.tailleTexte;
+          for (final champ in tester.widgetList<TextField>(
+            find.byType(TextField),
+          )) {
+            expect(champ.style!.fontSize, base, reason: 'saisie à $largeur px');
+          }
+          double taille(String texte) =>
+              tester.widget<Text>(find.text(texte)).style!.fontSize!;
+          expect(taille(TextesConnexion.login), base);
+          expect(taille(TextesConnexion.motDePasse), base);
+          expect(taille(TextesConnexion.accroche), base);
+          expect(taille(TextesConnexion.seSouvenir), base);
+          expect(taille(TextesConnexion.piedDePage), base);
+          expect(
+            taille(TextesConnexion.bienvenue),
+            MesuresConnexion.tailleTitre,
+          );
+          expect(taille('Logi'), MesuresConnexion.tailleTitre);
+          expect(taille('ReStock'), MesuresConnexion.tailleTitre);
+          expect(
+            tester
+                .widget<Text>(find.text(TextesConnexion.login))
+                .style!
+                .fontWeight,
+            FontWeight.w600,
+          );
+          // Les cibles tactiles restent ≥ 48 px : seul le TEXTE a rétréci.
+          expect(
+            tester.getSize(find.byType(ElevatedButton)).height,
+            greaterThanOrEqualTo(48),
+          );
+          for (final champ in find.byType(TextField).evaluate()) {
+            expect(
+              tester.getSize(find.byWidget(champ.widget)).height,
+              greaterThanOrEqualTo(48),
+            );
+          }
+          // Le bouton, lu dans son style résolu.
+          final bouton = tester.widget<ElevatedButton>(
+            find.byType(ElevatedButton),
+          );
+          final style = bouton.style!.textStyle!.resolve(<WidgetState>{})!;
+          expect(style.fontSize, base);
+          expect(style.fontWeight, FontWeight.w600);
+          expect(tester.takeException(), isNull, reason: 'à $largeur px');
+        }
+      },
+    );
+  });
+
+  group(
+    'Structure — deux panneaux dès 1024 px, la carte dans l\'ordre de la vue',
+    () {
+      testWidgets(
+        'dès 1024 px : DEUX panneaux, la photo à gauche, la carte à droite',
+        (tester) async {
+          for (final largeur in const [1024.0, 1440.0, 2560.0]) {
+            await monter(tester, largeur);
+            final photo = find.byWidgetPredicate(
+              (w) =>
+                  w is Image &&
+                  w.image is AssetImage &&
+                  (w.image as AssetImage).assetName ==
+                      'assets/img/gite-cover.jpg',
+            );
+            expect(
+              photo,
+              findsOneWidget,
+              reason: 'photo embarquée à $largeur px',
+            );
+            expect(
+              tester.widget<Image>(photo).semanticLabel,
+              'Gîte Chez Noël, Natitingou',
+            );
+            expect(tester.widget<Image>(photo).fit, BoxFit.cover);
+            final gauche = tester.getRect(photo);
+            final carte = tester.getRect(find.byType(Form));
+            expect(
+              gauche.width,
+              closeTo(largeur / 2, 0.5),
+              reason: 'moitié gauche',
+            );
+            expect(gauche.left, 0);
+            expect(carte.left, greaterThanOrEqualTo(largeur / 2));
+            // Carte centrée dans la moitié droite.
+            expect(carte.center.dx, closeTo(largeur * 0.75, 1));
+            // Textes du panneau, relus de la langue du serveur.
+            expect(
+              find.text(
+                VueBlade.libelle(
+                  'pwa.connexion.titre_panneau',
+                )!.replaceAll('<br>', '\n'),
+              ),
+              findsOneWidget,
+            );
+            expect(
+              find.text(VueBlade.libelle('pwa.connexion.accroche_panneau')!),
+              findsOneWidget,
+            );
+            expect(tester.takeException(), isNull);
+          }
+          expect(vue(), contains('hidden lg:block lg:w-1/2 relative'));
+        },
       );
 
-      // Le titre de la colonne image, avec son retour à la ligne forcé — la
-      // vue le pose par un <br>, elle ne le laisse pas à la largeur. Le texte
-      // est la clé de la vue résolue par PHP (décision du PO du 13/10/2026,
-      // PA-208, D385 : « LogiRestock » remplacé) : remettre l'ancien nom dans
-      // l'écran fait rougir ce cas.
-      final vue = VueBlade.brute(
-        'livewire/connexion',
-      ).replaceAll(RegExp(r'\{\{--.*?--\}\}', dotAll: true), '');
-      expect(vue, contains("{!! __('pwa.connexion.titre_panneau') !!}"));
-      final titre = VueBlade.libelle('pwa.connexion.titre_panneau')!;
-      // Seconde décision du PO du 13/10/2026 (PA-209, D389) : « Système de
-      // gestion Intégré », casse exacte du PO.
-      expect(titre, 'Système de gestion Intégré<br>TATACORA AFRIQUE');
-      expect(find.text(titre.replaceAll('<br>', '\n')), findsOneWidget);
-      expect(find.textContaining('LogiRestock'), findsNothing);
-      expect(
-        find.textContaining(
-          RegExp("syst[eè]me d['’]information", caseSensitive: false),
-        ),
-        findsNothing,
-      );
-      expect(
-        find.textContaining('une seule plateforme, pour le Gîte Chez Noël'),
-        findsOneWidget,
-      );
-    });
+      testWidgets('sous 1024 px : une seule colonne, pas de photo', (
+        tester,
+      ) async {
+        for (final largeur in const [320.0, 800.0, 1023.0]) {
+          await monter(tester, largeur);
+          expect(find.byType(Image), findsNothing, reason: 'à $largeur px');
+          expect(find.text(TextesConnexion.accrochePanneau), findsNothing);
+          expect(find.text(TextesConnexion.bienvenue), findsOneWidget);
+        }
+      });
 
-    testWidgets('en deçà de 1024 px, la colonne image disparaît', (
+      testWidgets('fond BLANC uni, contenu nu : ni bordure, ni ombre, ni rayon', (
+        tester,
+      ) async {
+        for (final largeur in const [800.0, 1440.0]) {
+          await monter(tester, largeur);
+          expect(
+            tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+            AppColors.neutre0,
+            reason: 'le fond de la page est blanc, pas gris',
+          );
+          // Aucun conteneur autour du formulaire ne porte bordure, ombre ni rayon.
+          final habillages = find
+              .ancestor(of: find.byType(Form), matching: find.byType(Container))
+              .evaluate()
+              .map((e) => (e.widget as Container).decoration)
+              .whereType<BoxDecoration>();
+          for (final d in habillages) {
+            expect(d.border, isNull);
+            expect(d.boxShadow, isNull);
+            expect(d.borderRadius, isNull);
+            expect(d.color, isNull);
+          }
+          expect(
+            find.ancestor(of: find.byType(Form), matching: find.byType(Card)),
+            findsNothing,
+          );
+        }
+        final v = vue();
+        expect(v, contains('bg-white px-6 md:px-8'));
+        expect(v, isNot(contains('rounded-2xl')));
+        expect(v, isNot(contains('shadow-sm')));
+      });
+
+      testWidgets('le contenu est borné à 520 px et centré', (tester) async {
+        await monter(tester, 800);
+        final boite = tester.getRect(find.byType(Form));
+        expect(boite.width, MesuresConnexion.largeurContenu);
+        expect((boite.center.dx - 800 / 2).abs(), lessThan(1));
+        expect(vue(), contains('max-w-[520px]'));
+      });
+
+      testWidgets('AUCUN ascenseur à 1280×768 et 1024×700, centré en hauteur', (
+        tester,
+      ) async {
+        for (final taille in const [Size(1280, 768), Size(1024, 700)]) {
+          await monter(tester, taille.width, hauteur: taille.height);
+          for (final defilement in tester.stateList<ScrollableState>(
+            find.byType(Scrollable),
+          )) {
+            expect(
+              defilement.position.maxScrollExtent,
+              0,
+              reason: 'ascenseur à $taille',
+            );
+          }
+          final form = tester.getRect(find.byType(Form));
+          // Marge de sécurité de 40 px : la police Inter réelle est un peu plus
+          // haute que celle des bancs de test.
+          expect(form.height, lessThanOrEqualTo(taille.height - 40));
+          expect(form.top, greaterThanOrEqualTo(0));
+          expect(form.bottom, lessThanOrEqualTo(taille.height));
+          // Centré verticalement : même marge en haut et en bas (à 1 px près
+          // d'arrondi de ligne).
+          expect(
+            (form.top - (taille.height - form.bottom)).abs(),
+            lessThan(40),
+            reason: 'centrage vertical à $taille',
+          );
+        }
+      });
+
+      testWidgets('les deux champs ont la MÊME bordure de repos', (
+        tester,
+      ) async {
+        await monter(tester, 1280);
+        final champs = tester
+            .widgetList<TextField>(find.byType(TextField))
+            .toList();
+        expect(champs, hasLength(2));
+        final a = champs[0].decoration!.enabledBorder as OutlineInputBorder;
+        final b = champs[1].decoration!.enabledBorder as OutlineInputBorder;
+        expect(a.borderSide, b.borderSide);
+        expect(a.borderSide.width, greaterThan(0));
+        expect(a.borderRadius, b.borderRadius);
+        expect(a.borderSide.color, AppColors.neutre300);
+      });
+
+      testWidgets('les éléments se suivent de haut en bas comme dans la vue', (
+        tester,
+      ) async {
+        await monter(tester, 1280);
+        // L'ordre du handoff §1, relu dans la vue ET vérifié dans le rendu.
+        final textes = <String>[
+          TextesConnexion.slogan,
+          TextesConnexion.bienvenue,
+          TextesConnexion.accroche,
+          TextesConnexion.login,
+          TextesConnexion.motDePasse,
+          TextesConnexion.seSouvenir,
+          TextesConnexion.motDePasseOublie,
+          TextesConnexion.valider,
+          TextesConnexion.piedDePage,
+        ];
+        var yPrecedent = -1.0;
+        for (final t in textes) {
+          final y = tester.getTopLeft(find.text(t)).dy;
+          expect(y, greaterThan(yPrecedent), reason: '« $t » hors d\'ordre');
+          yPrecedent = y;
+        }
+
+        // La marque (deux tons) est AU-DESSUS du slogan.
+        final marque = find.text('Logi');
+        expect(marque, findsOneWidget);
+        expect(
+          tester.getTopLeft(marque).dy,
+          lessThan(tester.getTopLeft(find.text(TextesConnexion.slogan)).dy),
+        );
+
+        // Le même ordre, dans le document de la vue.
+        final v = VueBlade.resolue('livewire/connexion');
+        var p = 0;
+        for (final t in textes.take(8)) {
+          final i = v.indexOf(t.replaceAll("'", "'"), p);
+          expect(i, greaterThanOrEqualTo(0), reason: '« $t » absent de la vue');
+          p = i + t.length;
+        }
+      });
+
+      testWidgets('la marque est en DEUX tons : Logi navy, ReStock gold', (
+        tester,
+      ) async {
+        await monter(tester, 1280);
+        final logi = tester.widget<Text>(find.text('Logi'));
+        final restock = tester.widget<Text>(find.text('ReStock'));
+        expect(logi.style!.color, AppColors.navy);
+        expect(restock.style!.color, AppColors.gold);
+        // Collés : « LogiReStock » est UN mot, deux tons.
+        expect(
+          tester.getTopRight(find.text('Logi')).dx,
+          closeTo(tester.getTopLeft(find.text('ReStock')).dx, 0.5),
+        );
+        expect(find.text('TATACORA AFRIQUE'), findsOneWidget);
+      });
+
+      testWidgets('le bandeau porte SEPT pictogrammes, chacun avec son nom', (
+        tester,
+      ) async {
+        await monter(tester, 1280);
+        const modules = [
+          'Restauration',
+          'Hébergement',
+          'Éco-tourisme',
+          'Stock',
+          'Location',
+          'Caisse',
+          'Comptabilité',
+        ];
+        for (final m in modules) {
+          expect(find.byTooltip(m), findsOneWidget, reason: 'infobulle « $m »');
+          final icone = find.descendant(
+            of: find.byTooltip(m),
+            matching: find.byType(IconeTrace),
+          );
+          expect(icone, findsOneWidget);
+          expect(tester.widget<IconeTrace>(icone).taille, 26);
+        }
+        // Les sept se partagent la largeur à égale distance.
+        final xs = [
+          for (final m in modules) tester.getCenter(find.byTooltip(m)).dx,
+        ];
+        final pas = xs[1] - xs[0];
+        for (var i = 2; i < xs.length; i++) {
+          expect(xs[i] - xs[i - 1], closeTo(pas, 0.5));
+        }
+      });
+    },
+  );
+
+  group('Logo téléversé — décision du PO du 29/10/2026', () {
+    // PNG 1 × 1 valide.
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    );
+
+    testWidgets(
+      'sous 1024 px : il coiffe la carte (64 px), au-dessus de la marque',
+      (tester) async {
+        await monter(tester, 800, logo: png);
+        await tester.pump();
+        final image = tester.widget<Image>(find.byType(Image));
+        expect(image.height, 64);
+        expect(image.fit, BoxFit.contain);
+        expect(image.semanticLabel, 'Logo TATACORA AFRIQUE');
+        expect(
+          tester.getTopLeft(find.byType(Image)).dy,
+          lessThan(tester.getTopLeft(find.text('Logi')).dy),
+          reason: 'le logo est AU-DESSUS de la marque',
+        );
+        expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is IconeTrace &&
+                w.trace == MesuresConnexion.traceMarqueMaison,
+          ),
+          findsOneWidget, // le pictogramme s'ajoute sous le logo, il reste
+        );
+        expect(find.text('Logi'), findsOneWidget);
+        expect(find.text(TextesConnexion.slogan), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'dès 1024 px : le logo est dans le panneau gauche, PAS répété',
+      (tester) async {
+        await monter(tester, 1280, logo: png);
+        await tester.pump();
+        final panneau = find.byKey(const Key('connexion-logo-panneau'));
+        expect(panneau, findsOneWidget);
+        expect(tester.getSize(panneau), const Size(64, 64));
+        final logos = find.byWidgetPredicate(
+          (w) => w is Image && w.semanticLabel == 'Logo TATACORA AFRIQUE',
+        );
+        expect(logos, findsOneWidget, reason: 'un seul logo, jamais deux');
+        expect(tester.getRect(logos).right, lessThan(1280 / 2));
+        // La marque (pictogramme + nom) reste en tête de la carte.
+        expect(find.text('Logi'), findsOneWidget);
+        expect(tester.getTopLeft(find.text('Logi')).dx, greaterThan(1280 / 2));
+      },
+    );
+
+    testWidgets('absent : la marque seule, pictogramme compris', (
       tester,
     ) async {
       await monter(tester, 800);
-
-      // Ce n'est PAS une simplification : c'est `hidden lg:block`, le
-      // comportement responsive du maître lui-même.
+      await tester.pump();
+      expect(find.byType(Image), findsNothing);
       expect(
-        find.text('Système de gestion Intégré\nTATACORA AFRIQUE'),
-        findsNothing,
-      );
-
-      // `lg:hidden` (l.26-28) : le logo réapparaît alors au-dessus du
-      // formulaire. Un seul logo monté, jamais zéro, jamais deux.
-      final logos = find.byWidgetPredicate(
-        (w) => w is Image && w.image is AssetImage,
-      );
-      expect(
-        logos,
+        find.byWidgetPredicate(
+          (w) =>
+              w is IconeTrace && w.trace == MesuresConnexion.traceMarqueMaison,
+        ),
         findsOneWidget,
-        reason: 'privé de colonne image, le formulaire garde SON logo',
       );
-      // Décision du PO du 14/10/2026 (D392, PA-210) : le PNG paysage,
-      // contenu dans son cadre carré (`object-contain` de la vue).
-      expect(
-        (tester.widget<Image>(logos).image as AssetImage).assetName,
-        AppAssets.logo,
-      );
-      expect(tester.widget<Image>(logos).fit, BoxFit.contain);
     });
 
-    testWidgets('les deux logos de la vue sont contenus, jamais rognés', (
+    testWidgets('aucun débordement avec le logo, de 320 px au large', (
       tester,
     ) async {
-      await monter(tester, 1280);
-
-      // Décision du PO du 14/10/2026 (D392, PA-210) : la vue garde ses deux
-      // cadres carrés et passe d'`object-cover` à `object-contain`.
-      final vue = VueBlade.brute(
-        'livewire/connexion',
-      ).replaceAll(RegExp(r'\{\{--.*?--\}\}', dotAll: true), '');
-      final balises = RegExp(
-        r'<img src="\{\{ asset\(.assets/img/logo\.png.\) \}\}"[^>]*>',
-      ).allMatches(vue).map((m) => m.group(0)!).toList();
-      expect(balises, hasLength(2));
-      for (final balise in balises) {
-        expect(balise, contains('object-contain'));
-        expect(balise, isNot(contains('object-cover')));
+      for (final largeur in const [320.0, 800.0, 1440.0]) {
+        await monter(tester, largeur, logo: png);
+        expect(tester.takeException(), isNull, reason: 'à $largeur px');
       }
-
-      final logo = find.byWidgetPredicate(
-        (w) =>
-            w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName == AppAssets.logo,
-      );
-      expect(logo, findsOneWidget);
-      expect(tester.widget<Image>(logo).fit, BoxFit.contain);
     });
   });
 
-  group('Libellés — au caractère près', () {
-    testWidgets('les textes du formulaire sont ceux du maître', (tester) async {
+  group('En-tête de marque — pictogramme, LogiReStock, sous-titre', () {
+    testWidgets(
+      '« TATACORA AFRIQUE » a EXACTEMENT la largeur de « LogiReStock »',
+      (tester) async {
+        for (final largeur in const [360.0, 1280.0]) {
+          await monter(tester, largeur);
+          final logi = tester.getRect(find.text('Logi'));
+          final restock = tester.getRect(find.text('ReStock'));
+          final sous = tester.getRect(find.text('TATACORA AFRIQUE'));
+          // Les bords gauche ET droit du sous-titre épousent ceux du nom.
+          expect(
+            sous.left,
+            closeTo(logi.left, 0.6),
+            reason: 'gauche à $largeur px',
+          );
+          expect(
+            sous.right,
+            closeTo(restock.right, 0.6),
+            reason: 'droite à $largeur px',
+          );
+          expect(sous.left, closeTo(logi.left, 0.6));
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+
+    testWidgets('le pictogramme est à gauche du texte, sur une ligne', (
+      tester,
+    ) async {
       await monter(tester, 1280);
+      final pict = tester.getRect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is IconeTrace && w.trace == MesuresConnexion.traceMarqueMaison,
+        ),
+      );
+      final logi = tester.getRect(find.text('Logi'));
+      expect(pict.width, 68);
+      expect(pict.right, lessThanOrEqualTo(logi.left));
+      expect(
+        tester.getRect(find.text('Logi')).center.dy,
+        closeTo(pict.center.dy, 40),
+      );
+      // Le slogan vient APRÈS le filet qui suit la marque.
+      expect(
+        tester.getTopLeft(find.text(TextesConnexion.slogan)).dy,
+        greaterThan(tester.getRect(find.text('TATACORA AFRIQUE')).bottom),
+      );
+    });
+  });
 
-      for (final attendu in const [
-        'TATACORA AFRIQUE',
-        'Connectez-vous à votre espace de travail',
-        'Se connecter',
-        'TATACORA AFRIQUE © 2026 — PAEB / FAGUEZ SARL',
-      ]) {
-        expect(
-          find.text(attendu),
-          findsOneWidget,
-          reason: 'libellé du maître absent ou modifié : « $attendu »',
-        );
-      }
+  group('Deux panneaux — hauteur faible', () {
+    testWidgets(
+      'aucun débordement à 1024 × 300 et 2560 × 400, carte défilante',
+      (tester) async {
+        for (final taille in const [Size(1024, 300), Size(2560, 400)]) {
+          await monter(tester, taille.width, hauteur: taille.height);
+          expect(tester.takeException(), isNull, reason: '$taille');
+          await tester.ensureVisible(find.text(TextesConnexion.valider));
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+  });
 
-      // Les étiquettes sont des `<label>` au-dessus du champ, suivis d'un
-      // astérisque rouge — pas un `labelText` flottant de Material.
-      expect(find.textContaining('Identifiant'), findsWidgets);
-      expect(find.textContaining('Mot de passe'), findsWidgets);
-
-      // Les indications de saisie viennent du maître, l.35 et l.40.
-      expect(find.text('ex. n.nabogou'), findsOneWidget);
-      expect(find.text('••••••••'), findsOneWidget);
+  group('Libellés — au caractère près, relus dans la langue du serveur', () {
+    test('chaque texte de l\'écran est celui de `lang/fr/pwa.php`', () {
+      const attendu = <String, String>{
+        'pwa.connexion.titre_h1': TextesConnexion.titreH1,
+        'pwa.connexion.alt_couverture': TextesConnexion.altCouverture,
+        'pwa.connexion.accroche_panneau': TextesConnexion.accrochePanneau,
+        'pwa.connexion.marque_logi': TextesConnexion.marqueLogi,
+        'pwa.connexion.marque_restock': TextesConnexion.marqueRestock,
+        'pwa.marque': TextesConnexion.sousMarque,
+        'pwa.connexion.slogan': TextesConnexion.slogan,
+        'pwa.connexion.modules.restauration': TextesConnexion.restauration,
+        'pwa.connexion.modules.hebergement': TextesConnexion.hebergement,
+        'pwa.connexion.modules.eco_tourisme': TextesConnexion.ecoTourisme,
+        'pwa.connexion.modules.stock': TextesConnexion.stock,
+        'pwa.connexion.modules.location': TextesConnexion.location,
+        'pwa.connexion.modules.caisse': TextesConnexion.caisse,
+        'pwa.connexion.modules.comptabilite': TextesConnexion.comptabilite,
+        'pwa.connexion.bandeau_modules': TextesConnexion.bandeauModules,
+        'pwa.connexion.bienvenue': TextesConnexion.bienvenue,
+        'pwa.connexion.accroche': TextesConnexion.accroche,
+        'pwa.connexion.login': TextesConnexion.login,
+        'pwa.connexion.mot_de_passe': TextesConnexion.motDePasse,
+        'pwa.connexion.afficher_mot_de_passe':
+            TextesConnexion.afficherMotDePasse,
+        'pwa.connexion.masquer_mot_de_passe': TextesConnexion.masquerMotDePasse,
+        'pwa.connexion.se_souvenir': TextesConnexion.seSouvenir,
+        'pwa.connexion.mot_de_passe_oublie': TextesConnexion.motDePasseOublie,
+        'pwa.connexion.mot_de_passe_oublie_aide':
+            TextesConnexion.motDePasseOublieAide,
+        'pwa.connexion.valider': TextesConnexion.valider,
+        'pwa.connexion.connexion_en_cours': TextesConnexion.connexionEnCours,
+        'pwa.pied_de_page': TextesConnexion.piedDePage,
+      };
+      expect(attendu.length, greaterThan(20), reason: 'plancher');
+      attendu.forEach((cle, dart) {
+        expect(VueBlade.libelle(cle), dart, reason: 'la clé $cle a dérivé');
+      });
     });
 
-    testWidgets('les messages de refus sont ceux du maître', (tester) async {
-      await monter(tester, 1280);
+    test('la vue rend bien chacune de ces clés (aucune clé orpheline)', () {
+      final v = vue();
+      for (final cle in const [
+        'titre_h1',
+        'marque_logi',
+        'marque_restock',
+        'slogan',
+        'bandeau_modules',
+        'bienvenue',
+        'accroche',
+        'login',
+        'mot_de_passe',
+        'afficher_mot_de_passe',
+        'masquer_mot_de_passe',
+        'se_souvenir',
+        'mot_de_passe_oublie',
+        'mot_de_passe_oublie_aide',
+        'valider',
+        'connexion_en_cours',
+      ]) {
+        expect(v, contains('pwa.connexion.$cle'), reason: 'vue sans $cle');
+      }
+    });
 
-      // Soumettre à vide : `data-regle-requis` du maître, mot pour mot.
-      await tester.tap(find.text('Se connecter'));
+    testWidgets('les textes affichés sont ceux de la vue', (tester) async {
+      await monter(tester, 1280);
+      for (final t in [
+        TextesConnexion.sousMarque,
+        TextesConnexion.slogan,
+        TextesConnexion.bienvenue,
+        TextesConnexion.accroche,
+        TextesConnexion.login,
+        TextesConnexion.motDePasse,
+        TextesConnexion.seSouvenir,
+        TextesConnexion.motDePasseOublie,
+        TextesConnexion.valider,
+        TextesConnexion.piedDePage,
+      ]) {
+        expect(find.text(t), findsOneWidget, reason: '« $t » absent');
+      }
+      // Les anciens libellés ont disparu.
+      expect(find.text('Se connecter'), findsNothing);
+      expect(find.text('Identifiant'), findsNothing);
+      expect(find.textContaining('espace de travail'), findsNothing);
+      expect(find.textContaining('LogiRestock'), findsNothing);
+    });
+
+    testWidgets('les refus de saisie vide sont dits sous les champs', (
+      tester,
+    ) async {
+      await monter(tester, 1280);
+      await tester.tap(find.text(TextesConnexion.valider));
       await tester.pump();
 
       expect(find.text('Veuillez saisir votre identifiant.'), findsOneWidget);
       expect(find.text('Veuillez saisir votre mot de passe.'), findsOneWidget);
+      expect(sessionOuverte(tester), isNull, reason: 'rien ne part à vide');
+    });
+  });
+
+  group('Pictogrammes — les mêmes tracés que la vue', () {
+    /// `nom → éléments (balise, attributs sans stroke-*)` du partial Blade.
+    Map<String, List<String>> tracesDeLaVue() {
+      final source = VueBlade.brute('partials/pictogramme-connexion');
+      final blocs = RegExp(
+        r"@case\('([a-z_]+)'\)(.*?)@break",
+        dotAll: true,
+      ).allMatches(source);
+      return {for (final b in blocs) b.group(1)!: _elements(b.group(2)!)};
+    }
+
+    test('les douze tracés de Dart sont ceux du partial Blade', () {
+      final vueTraces = tracesDeLaVue();
+      final dart = <String, String>{
+        'restauration': MesuresConnexion.traceRestauration,
+        'hebergement': MesuresConnexion.traceHebergement,
+        'eco_tourisme': MesuresConnexion.traceEcoTourisme,
+        'stock': MesuresConnexion.traceStock,
+        'location': MesuresConnexion.traceLocation,
+        'caisse': MesuresConnexion.traceCaisse,
+        'comptabilite': MesuresConnexion.traceComptabilite,
+        'utilisateur': MesuresConnexion.traceUtilisateur,
+        'cadenas': MesuresConnexion.traceCadenas,
+        'cadenas_ouvert': MesuresConnexion.traceCadenasOuvert,
+        'oeil': MesuresConnexion.traceOeil,
+        'oeil_barre': MesuresConnexion.traceOeilBarre,
+      };
+      // Plancher : sans lui, un partial renommé rendrait la boucle vide.
+      expect(vueTraces.keys.toSet(), dart.keys.toSet());
+      dart.forEach((nom, trace) {
+        expect(_elements(trace), vueTraces[nom], reason: 'tracé « $nom »');
+        // Et le lecteur de tracés sait les dessiner (il lève sinon).
+        expect(TraceSvg.lire(trace).elements, isNotEmpty);
+      });
+    });
+
+    test('le pictogramme de marque : mêmes tracés navy et or que la vue', () {
+      final source = VueBlade.brute('partials/pictogramme-marque');
+      final groupes = RegExp(
+        r'<g stroke="var\(--(navy|gold)\)">(.*?)</g>',
+        dotAll: true,
+      ).allMatches(source).toList();
+      expect(groupes.map((g) => g.group(1)), ['navy', 'gold']);
+      expect(source, contains('viewBox="0 0 64 64"'));
+      expect(source, contains('stroke-width="3.2"'));
+      expect(source, contains('aria-hidden="true"'));
+      expect(
+        _elements(MesuresConnexion.traceMarqueMaison),
+        _elements(groupes[0].group(2)!),
+      );
+      expect(
+        _elements(MesuresConnexion.traceMarqueCloche),
+        _elements(groupes[1].group(2)!),
+      );
+      expect(MesuresConnexion.coteMarque, 64);
+      expect(MesuresConnexion.epaisseurMarque, 3.2);
+    });
+
+    test('la vue pose le fil arrondi de 2 sur chaque pictogramme', () {
+      final source = VueBlade.brute('partials/pictogramme-connexion');
+      expect(source, contains('stroke-width="2"'));
+      expect(source, contains('stroke-linecap="round"'));
+      expect(source, contains('aria-hidden="true"'));
+      // Aucune dépendance : pas d'image, pas de CDN.
+      expect(source, isNot(contains('http')));
+    });
+  });
+
+  group('Accessibilité — clavier, étiquettes, œil', () {
+    testWidgets('l\'ordre de tabulation est celui du handoff §8', (
+      tester,
+    ) async {
+      await monter(tester, 1280);
+      await tester.pump();
+
+      bool sur<T extends Widget>() =>
+          FocusManager.instance.primaryFocus?.context
+              ?.findAncestorWidgetOfExactType<T>() !=
+          null;
+
+      // L'identifiant a le focus d'emblée (`autofocus`).
+      expect(sur<EditableText>(), isTrue);
+      final premier = FocusManager.instance.primaryFocus!.context!
+          .findAncestorWidgetOfExactType<EditableText>()!;
+      expect(
+        premier.autofocus && !premier.obscureText,
+        isTrue,
+        reason: 'le premier arrêt est l\'identifiant',
+      );
+
+      Future<void> tab() async {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+
+      await tab(); // mot de passe
+      expect(sur<EditableText>(), isTrue);
+      expect(
+        FocusManager.instance.primaryFocus!.context!
+            .findAncestorWidgetOfExactType<EditableText>()!
+            .obscureText,
+        isTrue,
+        reason: 'le deuxième arrêt est le mot de passe',
+      );
+      await tab(); // œil
+      expect(sur<IconButton>(), isTrue, reason: 'l\'œil vient après le champ');
+      await tab(); // case
+      expect(sur<Checkbox>(), isTrue, reason: '« Se souvenir de moi »');
+      await tab(); // lien
+      expect(sur<TextButton>(), isTrue, reason: '« Mot de passe oublié ? »');
+      await tab(); // bouton
+      expect(sur<ElevatedButton>(), isTrue, reason: '« SE CONNECTER »');
+    });
+
+    testWidgets('chaque champ porte son étiquette en sémantique', (
+      tester,
+    ) async {
+      final poignee = tester.ensureSemantics();
+      await monter(tester, 1280);
+      for (final etiquette in [
+        TextesConnexion.login,
+        TextesConnexion.motDePasse,
+      ]) {
+        final i = [
+          TextesConnexion.login,
+          TextesConnexion.motDePasse,
+        ].indexOf(etiquette);
+        final noeud = tester.getSemantics(find.byType(TextFormField).at(i));
+        expect(noeud.label, contains(etiquette), reason: 'champ $i');
+      }
+      poignee.dispose();
+    });
+
+    testWidgets(
+      'l\'œil bascule le texte, nomme l\'action et se pose en bouton',
+      (tester) async {
+        await monter(tester, 1280);
+        EditableText champMotDePasse() => tester.widget<EditableText>(
+          find.descendant(
+            of: find.byType(TextFormField).last,
+            matching: find.byType(EditableText),
+          ),
+        );
+
+        expect(champMotDePasse().obscureText, isTrue);
+        expect(find.byTooltip('Afficher le mot de passe'), findsOneWidget);
+        await tester.tap(find.byTooltip('Afficher le mot de passe'));
+        await tester.pump();
+        expect(champMotDePasse().obscureText, isFalse);
+        expect(find.byTooltip('Masquer le mot de passe'), findsOneWidget);
+        expect(find.byTooltip('Afficher le mot de passe'), findsNothing);
+
+        // Au clavier : Entrée et Espace activent l'œil focalisé.
+        // Deux Tab depuis l'identifiant (autofocus) : mot de passe, puis œil.
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        expect(champMotDePasse().obscureText, isTrue);
+        await tester.sendKeyEvent(LogicalKeyboardKey.space);
+        await tester.pump();
+        expect(champMotDePasse().obscureText, isFalse);
+      },
+    );
+
+    testWidgets(
+      '« Mot de passe oublié ? » dit de contacter l\'administrateur',
+      (tester) async {
+        await monter(tester, 1280);
+        expect(find.text("Contactez l'administrateur"), findsNothing);
+        await tester.tap(find.text('Mot de passe oublié ?'));
+        await tester.pump();
+        expect(find.text("Contactez l'administrateur"), findsOneWidget);
+        await tester.tap(find.text('Mot de passe oublié ?'));
+        await tester.pump();
+        expect(find.text("Contactez l'administrateur"), findsNothing);
+      },
+    );
+
+    testWidgets('Entrée dans un champ soumet le formulaire', (tester) async {
+      await monter(tester, 1280);
+      await tester.enterText(find.byType(TextFormField).first, 'n.nabogou');
+      await tester.enterText(find.byType(TextFormField).last, 'motdepasse123');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 600)),
+      );
+      await tester.pump();
+      expect(sessionOuverte(tester)?.login, 'n.nabogou');
+    });
+
+    testWidgets('un refus s\'annonce, et aucun message « réseau » n\'existe', (
+      tester,
+    ) async {
+      await monter(tester, 1280);
+      await tester.enterText(find.byType(TextFormField).first, 'n.nabogou');
+      await tester.enterText(
+        find.byType(TextFormField).last,
+        'faux-mot-de-passe',
+      );
+      await soumettre(tester);
+      expect(find.textContaining('⚠ '), findsOneWidget);
+      expect(sessionOuverte(tester), isNull);
+      expect(find.textContaining('réseau'), findsNothing);
+      expect(find.textContaining('injoignable'), findsNothing);
+    });
+  });
+
+  group('« Se souvenir de moi » — l\'identifiant seul', () {
+    testWidgets('coché, l\'identifiant est mémorisé, jamais le mot de passe', (
+      tester,
+    ) async {
+      await monter(tester, 1280);
+      await tester.tap(find.text(TextesConnexion.seSouvenir));
+      await tester.pump();
+      await tester.enterText(find.byType(TextFormField).first, 'n.nabogou');
+      await tester.enterText(
+        find.byType(TextFormField).last,
+        'motdepasse-secret',
+      );
+      await soumettre(tester);
+
+      final fichiers = memoire.listSync(recursive: true).whereType<File>();
+      expect(fichiers, hasLength(1));
+      expect(fichiers.single.readAsStringSync(), 'n.nabogou');
+      for (final f in fichiers) {
+        expect(
+          f.readAsStringSync(),
+          isNot(contains('motdepasse-secret')),
+          reason: 'le mot de passe ne touche JAMAIS le disque',
+        );
+      }
+    });
+
+    testWidgets(
+      'au lancement suivant, l\'identifiant revient, pas le mot de passe',
+      (tester) async {
+        File('${memoire.path}/identifiant.txt').writeAsStringSync('n.nabogou');
+        await monter(tester, 1280);
+        await tester.pump();
+
+        final champs = tester
+            .widgetList<TextFormField>(find.byType(TextFormField))
+            .toList();
+        expect(champs.first.controller!.text, 'n.nabogou');
+        expect(champs.last.controller!.text, isEmpty);
+        final case_ = tester.widget<Checkbox>(find.byType(Checkbox));
+        expect(case_.value, isTrue, reason: 'la case reflète la mémoire');
+      },
+    );
+
+    testWidgets('décoché, la mémoire est effacée', (tester) async {
+      File('${memoire.path}/identifiant.txt').writeAsStringSync('n.nabogou');
+      await monter(tester, 1280);
+      await tester.pump();
+      await tester.tap(find.text(TextesConnexion.seSouvenir)); // décoche
+      await tester.pump();
+      await tester.enterText(find.byType(TextFormField).last, 'x');
+      await soumettre(tester);
+      expect(File('${memoire.path}/identifiant.txt').existsSync(), isFalse);
     });
   });
 
@@ -197,19 +1062,13 @@ void main() {
       await monter(tester, 1280);
 
       // `SECURITY_STRICT.md` §12 : interdite dans TOUT environnement, y
-      // compris `demo`. Le maître en affiche une (l.54-67) ; c'est la seule
-      // exclusion assumée de cet écran.
+      // compris `demo`.
       expect(find.text('Comptes de démonstration (RBAC)'), findsNothing);
       expect(find.textContaining('cliquez pour vous connecter'), findsNothing);
-
-      // Le séparateur part AVEC la grille : il n'annonce qu'elle. Le garder
-      // laisserait un intitulé qui n'introduit rien — moins fidèle que de
-      // retirer les deux.
       expect(find.textContaining('démonstration'), findsNothing);
 
       // Aucun identifiant ne doit être pré-rempli, par quelque chemin que ce
-      // soit — c'est la garantie que la grille visait, et elle vaut même sans
-      // grille : un champ pré-rempli fuit à la première capture d'écran.
+      // soit : un champ pré-rempli fuit à la première capture d'écran.
       for (final champ in tester.widgetList<TextField>(
         find.byType(TextField),
       )) {
@@ -222,21 +1081,95 @@ void main() {
     });
   });
 
-  group('Mise en page — ce qu\'une relecture ne voit pas', () {
-    testWidgets('aucun débordement, du plus étroit au plus large', (
+  group('Poste vierge — seul l\'en-tête de marque est repris', () {
+    testWidgets('le formulaire de premier compte garde son écran', (
       tester,
     ) async {
-      // Trois largeurs qui encadrent le seuil : bien en deçà, juste en deçà,
-      // et au-delà. Le bord du seuil est l'endroit où les mises en page
-      // cassent — pas le milieu des paliers.
-      for (final largeur in const [360.0, 1023.0, 1440.0]) {
+      await monter(tester, 1280, aucunCompte: true);
+      expect(find.byType(FormulairePremierCompte), findsOneWidget);
+      expect(
+        find.text('Logi'),
+        findsOneWidget,
+        reason: 'la marque reste en tête',
+      );
+      expect(find.text('ReStock'), findsOneWidget);
+      // Ni slogan, ni bandeau, ni champs de connexion.
+      expect(find.text(TextesConnexion.slogan), findsNothing);
+      expect(find.text(TextesConnexion.valider), findsNothing);
+    });
+  });
+
+  group('Mise en page — ce qu\'une relecture ne voit pas', () {
+    testWidgets('aucun débordement, de 320 px au plus large', (tester) async {
+      // Du plus étroit des téléphones aux écrans larges, en passant par les
+      // deux seuils de la vue (`md` 768 pour les marges, 560 + marges pour la
+      // carte pleine).
+      for (final largeur in const [
+        320.0,
+        360.0,
+        480.0,
+        767.0,
+        768.0,
+        1023.0,
+        1440.0,
+        2560.0,
+      ]) {
         await monter(tester, largeur);
         expect(
           tester.takeException(),
           isNull,
           reason: 'débordement ou contrainte non satisfaite à $largeur px',
         );
+        // Aucun défilement horizontal : la carte ne dépasse jamais l'écran.
+        final carte = tester.getRect(find.byType(Form));
+        expect(carte.left, greaterThanOrEqualTo(0));
+        expect(carte.right, lessThanOrEqualTo(largeur));
       }
     });
+
+    testWidgets(
+      'aucun débordement en cours de connexion, erreur et aide ouvertes',
+      (tester) async {
+        for (final largeur in const [320.0, 1440.0]) {
+          await monter(tester, largeur, hauteur: 500);
+          await tester.ensureVisible(find.text('Mot de passe oublié ?'));
+          await tester.tap(find.text('Mot de passe oublié ?'));
+          await tester.enterText(find.byType(TextFormField).first, 'x' * 80);
+          await tester.enterText(find.byType(TextFormField).last, 'y');
+          // Un identifiant de 80 caractères : refusé, le bandeau d'erreur se
+          // montre avec l'aide ouverte, hauteur réduite à 500 px.
+          await soumettre(tester);
+          expect(find.textContaining('⚠ '), findsOneWidget);
+          expect(tester.takeException(), isNull, reason: 'à $largeur px');
+        }
+      },
+    );
+
+    testWidgets('le champ et le bouton font au moins 48 px (cible tactile)', (
+      tester,
+    ) async {
+      await monter(tester, 360);
+      for (final f in tester.widgetList(find.byType(TextFormField))) {
+        final h = tester.getSize(find.byWidget(f)).height;
+        expect(h, greaterThanOrEqualTo(48));
+      }
+      expect(
+        tester.getSize(find.byType(ElevatedButton)).height,
+        greaterThanOrEqualTo(48),
+      );
+    });
   });
+}
+
+/// Les éléments d'un tracé, sans les attributs `stroke-*` (la vue les pose sur
+/// le `<svg>`, Dart sur chaque élément), attributs triés : deux tracés égaux
+/// donnent la même liste.
+List<String> _elements(String source) {
+  final balise = RegExp(r'<\s*(path|rect|circle)\b([^>]*?)/?>');
+  final attribut = RegExp(r'([a-zA-Z][\w-]*)\s*=\s*"([^"]*)"');
+  return [
+    for (final m in balise.allMatches(source))
+      '${m.group(1)} '
+          '${(attribut.allMatches(m.group(2)!).where((a) => !a.group(1)!.startsWith('stroke')).map((a) => '${a.group(1)}=${a.group(2)}').toList()..sort()).join(' ')}',
+  ];
 }

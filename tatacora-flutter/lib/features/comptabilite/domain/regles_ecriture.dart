@@ -126,6 +126,17 @@ bool ouvertureAutomatiquePermise(int annee, DateTime maintenant) =>
 ExerciceComptable exerciceOuvertPour(
   Iterable<ExerciceComptable> exercices,
   String date,
+) => exerciceAdmisPour(exercices, date, const {StatutExercice.ouvert});
+
+/// L'exercice qui couvre la date ET dont le statut est ADMIS (26/10/2026) —
+/// `PasserEcritureService::exerciceOuvert($date, $statutsAdmis)`. Les modules ne
+/// passent que dans un exercice `ouvert` ; la clôture et l'écriture d'inventaire
+/// du comptable admettent aussi `en_cloture`. Un exercice `cloture` n'est jamais
+/// admis par un geste de saisie : seule la réouverture le rend écrivable.
+ExerciceComptable exerciceAdmisPour(
+  Iterable<ExerciceComptable> exercices,
+  String date,
+  Set<StatutExercice> admis,
 ) {
   final exercice = exerciceCouvrant(exercices, date);
   if (exercice == null) {
@@ -135,7 +146,7 @@ ExerciceComptable exerciceOuvertPour(
       {'date': date},
     );
   }
-  if (exercice.statut != StatutExercice.ouvert) {
+  if (!admis.contains(exercice.statut)) {
     throw RefusComptable.dit(
       MotifRefus.exerciceNonOuvert,
       'depenses.exercice_clos',

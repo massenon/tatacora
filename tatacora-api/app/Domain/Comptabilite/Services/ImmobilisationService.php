@@ -81,7 +81,11 @@ class ImmobilisationService
      * revalide chaque valeur lui-même plutôt que de faire confiance à un
      * type PHPDoc qu'aucune signature ne garantit réellement.
      *
-     * @param  array{libelle?: mixed, valeur_origine?: mixed, duree_annees?: mixed, date_mise_service?: mixed, compte_immobilisation?: mixed}  $donnees
+     * `id` (facultatif) : l'UUID né sur un poste hors ligne — la création le
+     * garde tel quel, c'est ce qui rend le rejeu idempotent (lot du
+     * 21/10/2026, `GestionnaireImmobilisations`). La PWA n'en passe pas.
+     *
+     * @param  array{id?: mixed, libelle?: mixed, valeur_origine?: mixed, duree_annees?: mixed, date_mise_service?: mixed, compte_immobilisation?: mixed}  $donnees
      *
      * @throws RuntimeException libellé absent, valeur ou durée non positive, date absente, compte inconnu
      */
@@ -119,7 +123,9 @@ class ImmobilisationService
             throw new RuntimeException(__('comptabilite.compte_inconnu', ['numero' => $compte]));
         }
 
-        return DB::transaction(function () use ($libelle, $valeur, $duree, $dateMiseService, $compte): Immobilisation {
+        $id = isset($donnees['id']) && $donnees['id'] !== '' ? (string) $donnees['id'] : null;
+
+        return DB::transaction(function () use ($id, $libelle, $valeur, $duree, $dateMiseService, $compte): Immobilisation {
             $code = $this->sequences->suivant(
                 'immobilisations',
                 'IMMO',
@@ -128,6 +134,7 @@ class ImmobilisationService
             );
 
             return Immobilisation::create([
+                ...($id === null ? [] : ['id' => $id]),
                 'code' => $code,
                 'libelle' => $libelle,
                 'valeur_origine' => $valeur,

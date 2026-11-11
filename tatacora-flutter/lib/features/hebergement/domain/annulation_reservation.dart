@@ -11,8 +11,9 @@
 ///
 /// ## Ce que dit le serveur, et que ce fichier reprend
 ///
-/// * la commission porte sur le MONTANT GLOBAL (sous-total moins remise), jamais
-///   sur l'acompte (compte rendu client §4.3, non négociable) ;
+/// * la commission porte sur le MONTANT TOTAL (décision du PO du 09/11/2026 : le
+///   « montant initial » est le total) et se retient sur ce qui a été payé :
+///   remboursé = max(0, payé − commission), jamais plus que le payé ;
 /// * le remboursement se saisit en POURCENTAGE de l'acompte ou en FCFA, jamais
 ///   les deux, et ne dépasse jamais l'acompte réellement encaissé ;
 /// * le taux de 50 % « à moins de 24 h » n'est PAS un automatisme : le délai est
@@ -44,8 +45,55 @@ abstract final class ReglesAnnulation {
   /// quand l'Administrateur n'a jamais renseigné le paramètre.
   static const String tauxReference = '50.00';
 
-  /// « Moins de 24 heures avant la prestation ».
+  /// « Moins de 24 heures avant la prestation » — repli quand le paramètre
+  /// `hebergement_annulation_seuil_heures` n'a jamais été renseigné.
   static const int seuilHeures = 24;
+
+  /// Taux au-delà du seuil — repli de `hebergement_annulation_taux_au_dela` : on
+  /// n'invente pas de pénalité quand l'annulation est faite à temps.
+  static const String tauxAuDelaReference = '0.00';
+
+  static const String cleSeuilHeures = 'hebergement_annulation_seuil_heures';
+  static const String cleTauxSousSeuil =
+      'hebergement_taux_annulation_moins_24h';
+  static const String cleTauxAuDela = 'hebergement_annulation_taux_au_dela';
+}
+
+/// La GRILLE par délai (décision du PO du 09/11/2026), paramétrable par
+/// l'administrateur (web et poste, synchronisée) : avant le seuil d'heures, le
+/// taux « sous seuil » (référence 50 %) ; au-delà, le taux « au-delà » (0 % par
+/// défaut). Le taux est appliqué AUTOMATIQUEMENT à l'ouverture du formulaire.
+final class GrilleAnnulation {
+  const GrilleAnnulation({
+    required this.seuilHeures,
+    required this.tauxSousSeuil,
+    required this.tauxAuDela,
+  });
+
+  final int seuilHeures;
+  final String tauxSousSeuil;
+  final String tauxAuDela;
+
+  /// Le taux pour un délai donné, en heures avant l'arrivée (négatif : déjà passée).
+  String tauxPour(double delaiHeures) =>
+      delaiHeures < seuilHeures ? tauxSousSeuil : tauxAuDela;
+
+  bool estSousLeSeuil(double delaiHeures) => delaiHeures < seuilHeures;
+}
+
+GrilleAnnulation grilleAnnulation(Map<String, String> valeurs) {
+  final seuil = int.tryParse(valeurs[ReglesAnnulation.cleSeuilHeures] ?? '');
+  return GrilleAnnulation(
+    seuilHeures: seuil != null && seuil >= 0
+        ? seuil
+        : ReglesAnnulation.seuilHeures,
+    tauxSousSeuil:
+        valeurs[ReglesAnnulation.cleTauxSousSeuil] ??
+        ReglesAnnulation.tauxReference,
+    tauxAuDela:
+        valeurs[ReglesAnnulation.cleTauxAuDela] ??
+        ReglesAnnulation.tauxAuDelaReference,
+  );
 }
 
 /// Le taux à PRÉ-REMPLIR : le paramètre, ou `50.00` à défaut. Jamais imposé,

@@ -10,7 +10,7 @@
             },
             {
                 "type": "p",
-                "texte": "Le panier reste ouvert de l’arrivée au départ. Bar, restaurant, tourisme et location y entrent ensemble — un seul panier, une seule facture à la clôture."
+                "texte": "Le panier reste ouvert de l’arrivée au départ. Bar et restaurant y entrent ensemble — un seul panier, une seule facture à la clôture."
             },
             {
                 "type": "p",
@@ -51,10 +51,6 @@
             {
                 "type": "h2",
                 "texte": "Panier"
-            },
-            {
-                "type": "p",
-                "texte": "Panier ouvert de l’arrivée au départ : il survit au changement d’équipe et de navigateur. Enregistré sur ce poste — il ne part vers aucun autre."
             },
             {
                 "type": "p",

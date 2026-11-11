@@ -208,6 +208,43 @@ final class ParametresMecanismesPwaTest extends TestCase
         $this->assertSame('smtp', config('mail.default'));
     }
 
+    /**
+     * 09/11/2026 : le message du transport reste affiché TEL QUEL (il est fidèle) et une AIDE
+     * en français vient dessous — jamais un secret : le mot de passe SMTP éventuellement cité
+     * par le transport est masqué.
+     */
+    #[Test]
+    public function un_echec_du_transport_garde_son_message_et_ajoute_l_aide_du_cas(): void
+    {
+        $this->actingAs($this->utilisateur('administrateur'));
+        ParametreSysteme::create(['cle' => ReportHeaderService::CLE_EMAIL, 'valeur' => 'contact@tatacora.test']);
+        ParametreSysteme::create(['cle' => ConfigurationMailService::CLE_SMTP_HOTE, 'valeur' => 'mail.inconnu.test']);
+        ParametreSysteme::create(['cle' => ConfigurationMailService::CLE_SMTP_PORT, 'valeur' => '587']);
+        app(\App\Shared\Secrets\Services\SecretsConfigurationService::class)
+            ->enregistrer(\App\Shared\Secrets\Services\SecretsConfigurationService::SMTP_MOT_DE_PASSE, 'M0t-de-passe-S3cret', $this->utilisateur('administrateur'));
+
+        // Le transport est substitué : `raw` échoue ; `purge` (réinitialisation du mailer) est neutre.
+        Mail::shouldReceive('purge')->zeroOrMoreTimes()->andReturnNull();
+
+        foreach ([
+            "Failed host lookup: 'mail.inconnu.test' (M0t-de-passe-S3cret)" => 'hote',
+            'Unable to connect (Connection refused)' => 'connexion',
+            'Failed to authenticate on SMTP server' => 'authentification',
+        ] as $erreur => $cas) {
+            Mail::shouldReceive('raw')->once()->andThrow(new \RuntimeException($erreur));
+
+            $composant = Livewire::withQueryParams(['onglet' => 'email'])->test(Parametres::class)->call('envoyerEmailTest');
+            $resultat = $composant->get('resultatTestEmail');
+
+            $this->assertFalse($resultat['succes']);
+            $attendu = str_replace('M0t-de-passe-S3cret', '***', $erreur);
+            $this->assertSame(__('pwa.parametres.email_test_echec', ['erreur' => $attendu]), $resultat['detail']);
+            $this->assertSame(__('pwa.parametres.email_test_aide_' . $cas), $resultat['aide']);
+            $composant->assertSee(__('pwa.parametres.email_test_aide_' . $cas))
+                ->assertDontSee('M0t-de-passe-S3cret');
+        }
+    }
+
     // =====================================================================
     // Logo & Apparence — remplacé, jamais accumulé
     // =====================================================================

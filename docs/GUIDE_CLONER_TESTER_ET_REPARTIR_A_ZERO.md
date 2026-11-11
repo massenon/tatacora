@@ -193,7 +193,7 @@ La mise à jour du 20/10/2026 ajoute, via `migrate` :
 | Situation | Commande / geste | Ce qui est effacé |
 |---|---|---|
 | **PC de test** | `php artisan migrate:fresh --seed`, puis `php artisan db:seed --class=ComptesReelsSeeder` | **Tout**, comptes compris (recréés par le seeder). Supprimer aussi `storage/app/private/archives/` s'il existe. |
-| **Production pendant les essais** | PWA : Paramètres → Activation & Sécurité → ouvrir « Réinitialisation des données de test », puis Import & Export → onglet « Réinitialiser les données de test » → « Réinitialiser comme neuf », taper `VIDER`. Une sauvegarde est faite juste avant. | Toutes les opérations (clients, ventes, factures, écritures…). Les **comptes, paramètres, chambres, cartes, plan comptable sont gardés**. Les exercices clôturés pendant les essais redeviennent ouverts, et les archives d'essai sont effacées. |
+| **Production pendant les essais** | PWA : Paramètres → Activation & Sécurité → ouvrir « Réinitialisation des données de test », puis, juste en dessous, « Réinitialiser les données de test » → « Réinitialiser comme neuf », taper `VIDER`. Une sauvegarde est faite juste avant. | Toutes les opérations (clients, ventes, factures, écritures…). Les **comptes, paramètres, chambres, cartes, plan comptable sont gardés**. Les exercices clôturés pendant les essais redeviennent ouverts, et les archives d'essai sont effacées. |
 | **Production après les essais** | Impossible, par conception. | — |
 
 ⚠ **Ne lancez jamais `migrate:fresh` sur la production.** Il efface tout, y
@@ -249,7 +249,7 @@ cd tatacora\tatacora-flutter
 build_windows.bat
 ```
 
-Le résultat est `build\installer\TATACORA_Setup_<version>.exe`.
+Le résultat est `build\installer\LogiReStock_Setup_<version>.exe`.
 
 1. Installez-le sur chaque poste, en commençant par un poste de test.
 2. Créez le compte administrateur du poste, puis appairez-le (B3, étape 2)
@@ -284,7 +284,7 @@ Exemple de ce que cette mise à jour apporte au poste :
 
 | Situation | Geste |
 |---|---|
-| **Après la réinitialisation du serveur (essais)** | (1) « Synchroniser maintenant » : le voyant passe au **rouge** (« Le serveur a été réinitialisé… »). (2) En administrateur du poste : Import & Export → onglet « Réinitialiser les données de test » → « Réinitialiser comme neuf », taper `VIDER`. (3) « Synchroniser maintenant » : le catalogue remis à neuf descend, le voyant passe au **vert**. Les comptes et l'appairage du poste sont gardés. |
+| **Après la réinitialisation du serveur (essais)** | (1) « Synchroniser maintenant » : le voyant passe au **rouge** (« Le serveur a été réinitialisé… »). (2) En administrateur du poste : Paramètres → Activation & Sécurité → « Réinitialiser les données de test » → « Réinitialiser comme neuf », taper `VIDER`. (3) « Synchroniser maintenant » : le catalogue remis à neuf descend, le voyant passe au **vert**. Les comptes et l'appairage du poste sont gardés. |
 | **PC de test : tout effacer, comme une première installation** | Fermer TATACORA, puis supprimer les fichiers du tableau ci-dessous. Au lancement suivant, le poste repart vierge : il faut recréer le compte administrateur et réappairer. |
 
 Fichiers à supprimer pour tout effacer sur un PC de test (Windows + R, puis
@@ -368,6 +368,8 @@ Heures en UTC : ajoutez 1 h pour l'heure du Bénin.
 | Purge de la déduplication | chaque jour à 03:00 | Nettoie la synchronisation (7 jours). |
 | Purge du journal d'audit | le 1er du mois à 04:00 | Inerte tant que la durée n'est pas fixée. |
 | `contact-editeur:rejouer` | chaque heure | Renvoie les messages « Contactez l'éditeur » en échec. |
+| `notifications:relancer-emails` | toutes les 15 min | Relance les e-mails de notification dont l'envoi a échoué. |
+| `notifications:detecter` | chaque heure | Compose les notifications et met les e-mails en file d'envoi. |
 
 **Vérifier** que le cron tourne :
 
@@ -418,9 +420,16 @@ Les tests, mesurés le 20/10/2026, sont tous verts : serveur 1 787, poste
    refuse leurs pièces datées de N.
 3. **Libellés de la PWA à reprendre sur le poste.** Il en reste 438, sur 101
    blocs d'écran.
-4. **Synchronisation encore absente** : congés, plannings, entretiens de
-   véhicules, indisponibilités de la carte.
-5. **Sortie de stock à la vente sur le poste (RG-05).**
+4. ~~**Synchronisation encore absente** : congés, plannings, entretiens de
+   véhicules, indisponibilités de la carte.~~ Fait le 21/10/2026, bar et
+   restaurant compris. L'écran « Congés & Plannings » existe désormais à la
+   PWA **et** sur le poste, avec les mêmes règles (RG-13 pas de double
+   planification, RG-14 préavis et couverture). Pour valider un congé il faut
+   renseigner dans Paramètres le préavis (`delai_preavis_conge_jours`) et la
+   couverture minimale (`couverture_minimale_par_service`) : sans eux la
+   validation est refusée, volontairement.
+5. ~~**Sortie de stock à la vente sur le poste (RG-05).**~~ Fait le
+   21/10/2026 : le poste affiche « −X en attente d'envoi » sous le stock.
 6. **Compte de résultat, bilan et comparatif sur le poste.** Cela
    exigerait de faire descendre les écritures du serveur, ce qui revient sur
    la décision « Q1 = A ». À trancher par vous.

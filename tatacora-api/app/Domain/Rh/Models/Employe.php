@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $date_fin_contrat
  * @property string $nom
  * @property string|null $prenom
+ * @property string|null $email
  * @property string $poste
  * @property string $service_id
  * @property \Illuminate\Support\Carbon $date_embauche
@@ -55,6 +56,7 @@ class Employe extends Model
         'matricule',
         'nom',
         'prenom',
+        'email',
         'poste',
         'service_id',
         'date_embauche',

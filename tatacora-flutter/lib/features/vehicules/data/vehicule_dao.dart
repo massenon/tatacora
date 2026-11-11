@@ -30,19 +30,16 @@ import '../domain/regles_vehicules.dart';
 /// lit : **qui l'écrit, qui la descend ?** Ici, ce fichier l'écrit, et personne
 /// ne la descend — il n'y a plus de descente.
 ///
-/// ## Rien ne part, et aucun écran ne doit annoncer le contraire
+/// ## Ce qui part (depuis la file d'envoi, lot F1) et ce qui ne s'affiche jamais
 ///
-/// Ni `vehicules` ni `contrats_location` n'ont jamais été au registre
-/// `TABLES_SYNCHRONISABLES`, et il n'existe plus de file du tout. Deux
-/// conséquences tenues ici :
-///
-/// 1. **aucune entrée de file** n'est écrite ;
-/// 2. `statutSync` est écrit à [statutSyncLocal] et **jamais affiché**. Le
-///    schéma lui donne pour défaut `synchronise` sur `contrats_location_local`,
-///    ce qui serait faux — rien n'a jamais été synchronisé —, et le piège
-///    inverse de `MouvementsStockLocal` (PA-134), dont le défaut annonce une
-///    attente sans fin. On l'écrase à l'insertion plutôt que de le laisser
-///    mentir en base.
+/// Le véhicule (création, retouches, statut), le contrat (création, puis son
+/// ANNULATION depuis la v38) et l'entretien partent dans la file, dans la
+/// transaction du geste. `statutSync` est écrit à [statutSyncLocal] et **jamais
+/// affiché** : le schéma lui donne pour défaut `synchronise` sur
+/// `contrats_location_local`, ce qui serait faux, et le piège inverse de
+/// `MouvementsStockLocal` (PA-134) annonce une attente sans fin. On l'écrase à
+/// l'insertion plutôt que de le laisser mentir en base ; l'état d'envoi se lit
+/// dans la file.
 ///
 /// ## RG-08 : le verrou pessimiste n'existe plus, et ce qui le remplace
 ///
@@ -54,21 +51,26 @@ import '../domain/regles_vehicules.dart';
 /// contrepartie exacte de la décision, et elle est structurelle, pas un défaut
 /// de ce code.
 ///
-/// ## Trois colonnes manquent au schéma local, et elles ne sont pas inventées
+/// ## Ce que la v41 (27/10/2026) a porté — et ce qui reste un « — »
 ///
-/// - `vehicules_local` n'a **ni `annee`, ni `transmission`, ni `capacite`** ;
-///   l'entité les porte à `null` et l'écran affiche « — ».
-/// - `contrats_location_local` n'a **aucune colonne de montant ni de tarif** :
-///   le montant est donc **recalculé** au tarif COURANT du véhicule, et non
-///   figé à la signature. Un changement de grille réécrit le montant d'un
-///   contrat déjà signé — c'est le défaut exact que PA-55 a corrigé sur
-///   `tarifNuit`, et il ne peut pas l'être ici sans colonne. L'écran le dit.
-/// - `contrats_location_local` ne porte que des **chemins de fichier**
+/// - `vehicules_local` porte `annee`, `capacite` (les places) et `transmission`
+///   (NULLABLES) : [enregistrerVehicule] les écrit, les enfile et les valide aux
+///   bornes et aux phrases du serveur. Un véhicule d'avant la v41 les a à `null`
+///   (« — »), la migration n'en fabrique aucun.
+/// - `contrats_location_local` porte `numero` (`LOC-…`, rendu par le serveur à
+///   l'accusé : le poste n'en invente aucun), `remise`, `acompte` et `montant`,
+///   le montant NET **FIGÉ à la signature** (tarif du jour × jours − remise).
+///   Il n'est plus recalculé au tarif courant : modifier la grille ne réécrit
+///   plus un contrat signé. Le reste dû en est la différence avec l'acompte. Un
+///   contrat d'avant a ces quatre colonnes nulles : « — », jamais un chiffre
+///   déduit du tarif d'aujourd'hui.
+/// - `contrats_location_local` ne porte toujours que des **chemins de fichier**
 ///   (`cheminPieceIdentiteLocal`), pas les NUMÉROS de pièce et de permis. RG-09
 ///   est donc vérifiée à la saisie — sans numéro, pas de contrat — mais le
-///   numéro n'est **conservé nulle part**. Aucune de ces deux colonnes n'est
-///   détournée pour l'y ranger : écrire un numéro de CNI dans une colonne
-///   nommée « chemin » serait une divergence que personne ne verrait.
+///   numéro n'est **conservé nulle part** (il part dans la charge du serveur).
+///   Aucune de ces colonnes n'est détournée pour l'y ranger : écrire un numéro
+///   de CNI dans une colonne nommée « chemin » serait une divergence que
+///   personne ne verrait.
 class VehiculeDao extends DatabaseAccessor<AppDatabase> {
   VehiculeDao(super.db, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
@@ -167,11 +169,12 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
             debut: _iso(l.dateDebut),
             fin: _iso(l.dateFin),
             nombreJours: jours,
-            // ⚠ RECALCULÉ au tarif COURANT — voir l'en-tête de cette classe : la
-            // table ne porte aucun montant, il n'y a donc rien à figer.
-            montant: v == null
-                ? '0.00'
-                : _decimale(_francs(v.tarifJour) * jours),
+            // Le montant NET FIGÉ à la signature (v41) : `null` pour un contrat
+            // d'avant, JAMAIS recalculé au tarif courant — « — » à l'écran.
+            montant: _francsOuNull(l.montant),
+            numero: l.numero,
+            remise: _francsOuNull(l.remise),
+            acompte: _francsOuNull(l.acompte),
             packageAvecGuide: l.guideId != null,
             clientNom: client == null
                 ? null
@@ -179,6 +182,7 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
                     client.nom,
                     client.prenom,
                   ].whereType<String>().join(' ').trim(),
+            statut: l.statut,
           );
         })
         .toList(growable: false);
@@ -201,6 +205,9 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     required CategorieVehicule categorie,
     required int tarifJour,
     StatutVehicule statut = StatutVehicule.disponible,
+    int? annee,
+    int? capacite,
+    String? transmission,
   }) async {
     final plaque = immatriculation.trim();
     if (plaque.isEmpty) {
@@ -209,6 +216,16 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     if (tarifJour <= 0) {
       throw const RefusVehicule(MessagesVehicules.tarifInvalide);
     }
+    // Année, places, transmission (v41) : les bornes et les PHRASES du serveur
+    // (`GestionnaireVehicules`, relues par `tool/vehicules/rejouer_champs_location.php`).
+    // Un paramètre absent (`null`) laisse la colonne telle qu'elle est ; la
+    // transmission vide l'efface (chaîne vide).
+    final refusChamp =
+        (annee == null ? null : refusAnneeEntiere(annee)) ??
+        (capacite == null ? null : refusPlacesEntieres(capacite)) ??
+        refusTransmission(transmission);
+    if (refusChamp != null) throw RefusVehicule(refusChamp);
+    final transmissionNette = transmission?.trim();
 
     final identifiant = id ?? _uuid.v4();
 
@@ -231,6 +248,11 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
       }
 
       final avant = await _ligneVehicule(identifiant);
+      final anneeFinale = annee ?? avant?.annee;
+      final capaciteFinale = capacite ?? avant?.capacite;
+      final transmissionFinale = transmissionNette == null
+          ? avant?.transmission
+          : (transmissionNette.isEmpty ? null : transmissionNette);
       await into(attachedDatabase.vehiculesLocal).insertOnConflictUpdate(
         VehiculesLocalCompanion.insert(
           id: identifiant,
@@ -238,6 +260,9 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
           immatriculation: plaque,
           tarifJour: tarifJour.toDouble(),
           statut: statut.code,
+          annee: Value(anneeFinale),
+          capacite: Value(capaciteFinale),
+          transmission: Value(transmissionFinale),
         ),
       );
       await _envoyer(identifiant, {
@@ -248,6 +273,16 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         if (avant != null && avant.tarifJour.round() != tarifJour)
           'tarif_jour': tarifJour,
         if (avant != null && avant.statut != statut.code) 'statut': statut.code,
+        // Les trois champs de la v41 : seulement ceux qui ont CHANGÉ ; vider la
+        // transmission part en `null` explicite.
+        if (avant != null && anneeFinale != null && avant.annee != anneeFinale)
+          'annee': anneeFinale,
+        if (avant != null &&
+            capaciteFinale != null &&
+            avant.capacite != capaciteFinale)
+          'capacite': capaciteFinale,
+        if (avant != null && avant.transmission != transmissionFinale)
+          'transmission': transmissionFinale,
       });
 
       return Vehicule(
@@ -255,10 +290,9 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         immatriculation: plaque,
         categorie: categorie,
         categorieBrute: categorie.code,
-        // Trois colonnes que la table locale n'a pas — voir l'en-tête.
-        annee: null,
-        transmission: null,
-        capacite: null,
+        annee: anneeFinale,
+        transmission: transmissionFinale,
+        capacite: capaciteFinale,
         tarifJour: _decimale(tarifJour),
         statut: statut,
         statutBrut: statut.code,
@@ -267,13 +301,105 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     });
   }
 
-  /// Change le statut d'un véhicule — immobilisation et remise en service.
+  /// Les immobilisations (entretiens et carburations), de la plus récente à la
+  /// plus ancienne, immatriculation résolue.
+  Future<List<EntretienVehicule>> entretiens() async {
+    final lignes = await (select(
+      attachedDatabase.entretiensVehiculeLocal,
+    )..orderBy([(e) => OrderingTerm.desc(e.date)])).get();
+    if (lignes.isEmpty) return const [];
+
+    final plaques = {
+      for (final v in await select(attachedDatabase.vehiculesLocal).get())
+        v.id: v.immatriculation,
+    };
+
+    return [
+      for (final l in lignes)
+        EntretienVehicule(
+          id: l.id,
+          vehiculeId: l.vehiculeId,
+          immatriculation: plaques[l.vehiculeId] ?? '—',
+          type: TypeEntretien.values.firstWhere(
+            (t) => t.code == l.type,
+            orElse: () => TypeEntretien.entretien,
+          ),
+          date: _iso(l.date),
+          coutFrancs: l.cout,
+          auteur: l.auteur,
+        ),
+    ];
+  }
+
+  /// Enregistre une immobilisation — « Immobiliser » de la PWA
+  /// (`Locations::enregistrerImmobilisation`, EF-M8-05).
   ///
-  /// C'est le SEUL effet qu'une immobilisation peut avoir sur ce poste :
-  /// `entretiens_vehicule` n'a **aucune table locale**, ni motif, ni date, ni
-  /// coût à écrire. Le véhicule cesse d'être louable, ce que [creerContrat]
-  /// oppose ensuite à toute location — le reste du formulaire du maître est
-  /// rendu inerte avec sa raison, plutôt que collecté puis jeté.
+  /// Comme la PWA, elle écrit UNE ligne datée et **ne touche pas au statut** du
+  /// véhicule (statut ≠ disponibilité). La ligne part au serveur (`creation`,
+  /// jamais modifiée). [coutFrancs] : francs entiers, zéro ou plus.
+  Future<EntretienVehicule> enregistrerEntretien({
+    required String vehiculeId,
+    required TypeEntretien type,
+    required DateTime date,
+    required int coutFrancs,
+    String? auteur,
+  }) async {
+    if (coutFrancs < 0) {
+      throw const RefusVehicule(MessagesVehicules.coutEntretienInvalide);
+    }
+    return transaction(() async {
+      final ligne = await _ligneVehicule(vehiculeId);
+      if (ligne == null) {
+        throw const RefusVehicule(MessagesVehicules.vehiculeInexistant);
+      }
+      final id = _uuid.v4();
+      final jour = DateTime(date.year, date.month, date.day);
+
+      await into(attachedDatabase.entretiensVehiculeLocal).insert(
+        EntretiensVehiculeLocalCompanion.insert(
+          id: id,
+          vehiculeId: vehiculeId,
+          type: type.code,
+          date: jour,
+          cout: coutFrancs,
+          auteur: Value(auteur),
+        ),
+      );
+      // Le véhicule part AVANT son entretien : s'il n'est pas encore connu du
+      // serveur, sa création est enfilée ici, devant celle de l'entretien.
+      await _envoyer(vehiculeId, const {});
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.entretiensVehicule,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeEntretienVehicule(
+          vehiculeId: vehiculeId,
+          type: type.code,
+          date: jour,
+          coutFrancs: coutFrancs,
+        ),
+      );
+
+      return EntretienVehicule(
+        id: id,
+        vehiculeId: vehiculeId,
+        immatriculation: ligne.immatriculation,
+        type: type,
+        date: _iso(jour),
+        coutFrancs: coutFrancs,
+        auteur: auteur,
+      );
+    });
+  }
+
+  /// Change le statut d'un véhicule — sortie du parc louable et remise en
+  /// service (depuis sa ligne du parc).
+  ///
+  /// ⚠ Une IMMOBILISATION n'est plus ce geste (relu le 27/10/2026) : depuis la
+  /// v32 elle écrit une ligne `entretiens_vehicule_local` par
+  /// [enregistrerEntretien] et ne touche PAS au statut, comme la PWA (statut ≠
+  /// disponibilité). Le véhicule cesse d'être louable par ce statut-ci, ce que
+  /// [creerContrat] oppose ensuite à toute location.
   Future<Vehicule> changerStatut(String vehiculeId, StatutVehicule statut) {
     return transaction(() async {
       final ligne = await _ligneVehicule(vehiculeId);
@@ -320,10 +446,16 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         attachedDatabase.contratsLocationLocal,
       )..where((c) => c.vehiculeId.equals(vehiculeId))).get();
 
-      // Un contrat dont la restitution est passée n'engage plus rien : bornes
-      // demi-ouvertes, le jour de restitution est déjà libre.
+      // Règle UNIQUE avec le serveur : un contrat engage le véhicule tant que
+      // `date_fin >= aujourd'hui` — le jour de restitution COMPTE encore (le
+      // véhicule peut être dehors). Un contrat ANNULÉ n'engage plus rien non plus (`ParcVehiculeService::contratsEngages`
+      // : `statut != annule`).
       final encours = engagements
-          .where((c) => c.dateFin.isAfter(jour))
+          .where(
+            (c) =>
+                c.statut != statutContratAnnule &&
+                !jourDe(c.dateFin).isBefore(jour),
+          )
           .toList(growable: false);
 
       if (encours.isNotEmpty) {
@@ -340,6 +472,95 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
       return _versVehicule(ligne.copyWith(statut: 'hors_service'));
     });
   }
+
+  /// « Purger » définitivement un véhicule ARCHIVÉ (A5, 28/10/2026) —
+  /// `ParcVehiculeService::purger`, les mêmes verrous dans le même ordre et aux
+  /// mots du serveur :
+  ///
+  /// 1. le véhicule doit être archivé (`hors_service`) ;
+  /// 2. aucun contrat non annulé ne l'engage (fin du contrat AUJOURD'HUI ou
+  ///    plus tard — `date_fin >= aujourd'hui`, plus large que l'archivage) :
+  ///    la phrase `vehicules.verrou`, avec ses trois premiers contrats ;
+  /// 3. aucun contrat (même annulé ou passé) ni entretien ne le cite.
+  ///
+  /// La suppression et son enfilement sont UNE transaction. Rend l'immatriculation.
+  Future<String> purger(String vehiculeId, {DateTime? aujourdHui}) {
+    final jour = jourDe(aujourdHui ?? DateTime.now());
+
+    return transaction(() async {
+      final ligne = await _ligneVehicule(vehiculeId);
+      if (ligne == null) {
+        throw const RefusVehicule(MessagesVehicules.vehiculeInexistant);
+      }
+      if (ligne.statut != 'hors_service') {
+        throw const RefusVehicule(MessagesVehicules.purgeRefuseeNonArchive);
+      }
+
+      final contrats =
+          await (select(attachedDatabase.contratsLocationLocal)
+                ..where((c) => c.vehiculeId.equals(vehiculeId))
+                ..orderBy([(c) => OrderingTerm.asc(c.dateDebut)]))
+              .get();
+      final engages = contrats
+          .where(
+            (c) =>
+                c.statut != statutContratAnnule &&
+                !jourDe(c.dateFin).isBefore(jour),
+          )
+          .toList(growable: false);
+      if (engages.isNotEmpty) {
+        throw RefusVehicule(
+          MessagesVehicules.purgeVerrouille([
+            for (final c in engages)
+              (numero: c.numero ?? c.id, debut: c.dateDebut, fin: c.dateFin),
+          ]),
+        );
+      }
+      if (contrats.isNotEmpty || await _citeParUnEntretien(vehiculeId)) {
+        throw const RefusVehicule(MessagesVehicules.purgeRefuseeReferencee);
+      }
+
+      await (delete(
+        attachedDatabase.vehiculesLocal,
+      )..where((v) => v.id.equals(vehiculeId))).go();
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.vehicules,
+        entiteId: vehiculeId,
+        type: TypeOperationSync.suppression,
+        payload: {'libelle': ligne.immatriculation},
+      );
+      return ligne.immatriculation;
+    });
+  }
+
+  /// La DESCENTE d'une purge faite ailleurs (A5) : le véhicule est retiré de CE
+  /// poste SEULEMENT si aucun contrat ni entretien local ne le cite. `true` si
+  /// retiré (ou déjà absent), `false` si une saisie locale y est rattachée.
+  /// N'enfile rien : le serveur a déjà purgé.
+  Future<bool> retirerVehiculePurgeAilleurs(String vehiculeId) {
+    return transaction(() async {
+      if (await _ligneVehicule(vehiculeId) == null) return true;
+      final cite =
+          (await (select(attachedDatabase.contratsLocationLocal)
+                    ..where((c) => c.vehiculeId.equals(vehiculeId))
+                    ..limit(1))
+                  .get())
+              .isNotEmpty ||
+          await _citeParUnEntretien(vehiculeId);
+      if (cite) return false;
+      await (delete(
+        attachedDatabase.vehiculesLocal,
+      )..where((v) => v.id.equals(vehiculeId))).go();
+      return true;
+    });
+  }
+
+  Future<bool> _citeParUnEntretien(String vehiculeId) async =>
+      (await (select(attachedDatabase.entretiensVehiculeLocal)
+                ..where((e) => e.vehiculeId.equals(vehiculeId))
+                ..limit(1))
+              .get())
+          .isNotEmpty;
 
   /// Établit un contrat de location — **RG-08 et RG-09 dans la transaction qui
   /// écrit**.
@@ -365,13 +586,18 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     final fin = jourDe(saisie.fin);
 
     return transaction(() async {
+      // L'ORDRE DU SERVEUR (`GestionnaireContratsLocation`, rejoué par
+      // `tool/vehicules/rejouer_champs_location.php`) : dates, véhicule, client,
+      // remise, acompte — puis seulement les refus du service (louable, pièces,
+      // permis, chevauchement).
+      final jours = nombreDeJoursEntre(debut, fin);
+      if (jours == null) {
+        throw const RefusVehicule(MessagesVehicules.finApresDebut);
+      }
+
       final vehicule = await _ligneVehicule(saisie.vehiculeId);
       if (vehicule == null) {
         throw const RefusVehicule(MessagesVehicules.vehiculeInexistant);
-      }
-
-      if (!statutsLouables.contains(vehicule.statut)) {
-        throw RefusVehicule(MessagesVehicules.nonLouable(vehicule.statut));
       }
 
       final client = await (select(
@@ -381,9 +607,35 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         throw const RefusVehicule(MessagesVehicules.clientInexistant);
       }
 
-      final jours = nombreDeJoursEntre(debut, fin);
-      if (jours == null) {
-        throw const RefusVehicule(MessagesVehicules.finApresDebut);
+      // La remise puis l'acompte, comme `Locations::enregistrerContrat` : une
+      // remise supérieure au brut produirait un montant négatif ; un acompte
+      // supérieur au net, un reste dû négatif présenté comme une créance du
+      // client sur le gîte. Le montant NET est FIGÉ ici, une fois.
+      if (saisie.remiseFrancs < 0) {
+        throw RefusVehicule(
+          MessagesVehicules.champMinimum(MessagesVehicules.libelleRemise, 0),
+        );
+      }
+      if (saisie.acompteFrancs < 0) {
+        throw RefusVehicule(
+          MessagesVehicules.champMinimum(MessagesVehicules.libelleAcompte, 0),
+        );
+      }
+      final brut = _francs(vehicule.tarifJour) * jours;
+      if (saisie.remiseFrancs > brut) {
+        throw RefusVehicule(
+          MessagesVehicules.remiseSuperieureAuBrut(_decimale(brut)),
+        );
+      }
+      final net = brut - saisie.remiseFrancs;
+      if (saisie.acompteFrancs > net) {
+        throw RefusVehicule(
+          MessagesVehicules.acompteSuperieurAuNet(_decimale(net)),
+        );
+      }
+
+      if (!statutsLouables.contains(vehicule.statut)) {
+        throw RefusVehicule(MessagesVehicules.nonLouable(vehicule.statut));
       }
 
       // RG-09 — la pièce d'identité est exigée quelle que soit la catégorie.
@@ -421,6 +673,13 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
           // table ne porte que des chemins de fichier. Les y ranger serait
           // écrire un numéro de CNI dans une colonne nommée « chemin ».
           statutSync: const Value(statutSyncLocal),
+          // Comme le serveur à la création (`GestionnaireContratsLocation`).
+          statut: const Value(statutContratActif),
+          // v41 : le montant NET figé, la remise et l'acompte de la signature.
+          // Le N° `LOC-` reste NUL : il vient du serveur, à l'accusé.
+          montant: Value(net),
+          remise: Value(saisie.remiseFrancs),
+          acompte: Value(saisie.acompteFrancs),
         ),
       );
 
@@ -447,6 +706,10 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
           fin: fin,
           pieceIdentite: saisie.pieceIdentite.trim(),
           permisConduire: saisie.permisConduire?.trim(),
+          // Envoyées quand elles existent : un serveur d'avant le lot L3-S
+          // ignorerait ces clés, et zéro n'a rien à dire.
+          remiseFrancs: saisie.remiseFrancs > 0 ? saisie.remiseFrancs : null,
+          acompteFrancs: saisie.acompteFrancs > 0 ? saisie.acompteFrancs : null,
         ),
       );
 
@@ -457,13 +720,72 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         debut: _iso(debut),
         fin: _iso(fin),
         nombreJours: jours,
-        montant: _decimale(_francs(vehicule.tarifJour) * jours),
+        montant: _decimale(net),
+        remise: _decimale(saisie.remiseFrancs),
+        acompte: _decimale(saisie.acompteFrancs),
         packageAvecGuide: saisie.guideId != null,
         clientNom: [
           client.nom,
           client.prenom,
         ].whereType<String>().join(' ').trim(),
+        statut: statutContratActif,
       );
+    });
+  }
+
+  /// Pose le N° `LOC-…` rendu par le serveur à l'accusé de la création du contrat
+  /// (`SyncManager`) : le poste n'en invente aucun. Une ligne qui porte déjà un
+  /// numéro n'est pas réécrite (un rejeu d'accusé ne change rien).
+  Future<void> regulariserNumero(String contratId, String numero) async {
+    await (update(attachedDatabase.contratsLocationLocal)
+          ..where((c) => c.id.equals(contratId) & c.numero.isNull()))
+        .write(ContratsLocationLocalCompanion(numero: Value(numero)));
+  }
+
+  /// Annule un contrat — « Annuler » de la vue (`Locations::executerSuppression`,
+  /// `ContratLocationService::annuler` au serveur), le SEUL écrivain de saisie du
+  /// statut d'un contrat.
+  ///
+  /// Le contrat passe `annule`, il n'est jamais supprimé : la pièce reste lisible
+  /// et le véhicule redevient libre sur sa plage (RG-08). Un contrat déjà annulé
+  /// est refusé avec la phrase de la vue. La modification `{statut: annule}` part
+  /// dans la file, dans la MÊME transaction — seulement si le serveur détient le
+  /// contrat (descendu, ou création en file non rejetée) : sinon il répondrait
+  /// « inconnu » à chaque essai.
+  ///
+  /// Comme la PWA, aucune restriction « document d'un autre poste » : la vue
+  /// laisse tout compte qui écrit sur M8 annuler tout contrat.
+  Future<ContratLocation> annulerContrat(String contratId) {
+    return transaction(() async {
+      final ligne = await (select(
+        attachedDatabase.contratsLocationLocal,
+      )..where((c) => c.id.equals(contratId))).getSingleOrNull();
+      if (ligne == null) {
+        throw const RefusVehicule(MessagesVehicules.contratInexistant);
+      }
+      if (ligne.statut == statutContratAnnule) {
+        throw const RefusVehicule(MessagesVehicules.contratDejaAnnule);
+      }
+
+      await (update(
+        attachedDatabase.contratsLocationLocal,
+      )..where((c) => c.id.equals(contratId))).write(
+        const ContratsLocationLocalCompanion(
+          statut: Value(statutContratAnnule),
+        ),
+      );
+      if (await DocumentsAutresPostes(
+        attachedDatabase,
+      ).connuDuServeur(TableSynchronisee.contratsLocation, contratId)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.contratsLocation,
+          entiteId: contratId,
+          type: TypeOperationSync.modification,
+          payload: chargeAnnulationContratLocation(),
+        );
+      }
+
+      return (await contrats()).firstWhere((c) => c.id == contratId);
     });
   }
 
@@ -501,6 +823,9 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         immatriculation: v.immatriculation,
         categorie: v.categorie,
         tarifJour: v.tarifJour.round(),
+        annee: v.annee,
+        capacite: v.capacite,
+        transmission: v.transmission,
       ),
     );
     if (v.statut != 'disponible' && v.statut != 'loue') {
@@ -519,12 +844,13 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
 
   /// Les contrats qui chevauchent [debut]..[fin] sur ce véhicule.
   ///
-  /// ## Le filtre est fait en Dart, et c'est délibéré
+  /// ## Un contrat ANNULÉ ne bloque plus (v38, 26/10/2026)
   ///
-  /// `contrats_location` n'a **aucune colonne de statut** (PA-50) : il n'existe
-  /// pas de contrat inactif à exclure, et la clause `statutsInactifs` du
-  /// service serveur est vide pour la même raison. Tous les contrats du
-  /// véhicule comptent, sans exception.
+  /// `ContratLocationService` écarte `statut = annule` de RG-08 depuis la même
+  /// date (sa liste de statuts inactifs était vide : un contrat annulé bloquait
+  /// encore son véhicule, pendant que l'écran disait « le véhicule redevient
+  /// disponible »). Le filtre est fait en Dart : un contrat sans statut (d'avant
+  /// la v38) est actif.
   Future<List<ContratsLocationLocalData>> _contratsEnConflit({
     required String vehiculeId,
     required DateTime debut,
@@ -536,12 +862,14 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
 
     return lignes
         .where(
-          (c) => plagesSeChevauchent(
-            debutA: c.dateDebut,
-            finA: c.dateFin,
-            debutB: debut,
-            finB: fin,
-          ),
+          (c) =>
+              c.statut != statutContratAnnule &&
+              plagesSeChevauchent(
+                debutA: c.dateDebut,
+                finA: c.dateFin,
+                debutB: debut,
+                finB: fin,
+              ),
         )
         .toList(growable: false);
   }
@@ -551,12 +879,11 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     immatriculation: v.immatriculation,
     categorie: CategorieVehicule.depuisCode(v.categorie),
     categorieBrute: v.categorie,
-    // Aucune de ces trois colonnes n'existe dans `vehicules_local`. On rend
-    // `null` plutôt qu'une valeur plausible : l'écran affiche « — » et dit
-    // pourquoi, là où un « 5 places » inventé se lirait comme une mesure.
-    annee: null,
-    transmission: null,
-    capacite: null,
+    // Les trois colonnes de la v41 : `null` pour un véhicule d'avant, jamais une
+    // valeur plausible (un « 5 places » inventé se lirait comme une mesure).
+    annee: v.annee,
+    transmission: v.transmission,
+    capacite: v.capacite,
     tarifJour: _decimale(_francs(v.tarifJour)),
     statut: StatutVehicule.depuisCode(v.statut),
     statutBrut: v.statut,
@@ -569,6 +896,11 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
   /// Ce DAO n'écrit que des entiers ; l'arrondi ne sert qu'à une base qui
   /// porterait une valeur héritée. Le XOF n'a pas de sous-unité en circulation.
   static int _francs(double valeur) => valeur.round();
+
+  /// Des francs entiers stockés (v41), en décimal du domaine ; `null` reste `null`
+  /// (jamais « 0.00 » : un contrat d'avant n'a pas de montant, il ne vaut pas zéro).
+  static String? _francsOuNull(int? francs) =>
+      francs == null ? null : _decimale(francs);
 
   /// Le montant décimal attendu par le domaine (« 25000.00 »).
   ///

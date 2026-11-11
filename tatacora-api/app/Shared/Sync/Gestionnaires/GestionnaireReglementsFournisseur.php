@@ -7,10 +7,10 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Achats\Models\CommandeAchat;
 use App\Domain\Achats\Models\ReglementFournisseur;
 use App\Domain\Achats\Services\ReglementFournisseurService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
-use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use RuntimeException;
 
@@ -23,8 +23,8 @@ use RuntimeException;
  * (Dr 4011 / Cr trésorerie), sous l'UUID du poste, à SA date ; le reste dû
  * de la commande est recalculé. Les refus du service (trésorerie inconnue,
  * montant invalide ou supérieur au reste dû) sont rendus avec leur phrase.
- * Modification : l'ANNULATION seulement (contre-passation), règle Q3 pour
- * un règlement d'un autre poste.
+ * Modification : l'ANNULATION seulement (contre-passation), le droit d'annuler
+ * se juge au poste (09/11/2026).
  */
 final class GestionnaireReglementsFournisseur extends GestionnaireDocumentAbstrait
 {
@@ -32,7 +32,6 @@ final class GestionnaireReglementsFournisseur extends GestionnaireDocumentAbstra
         private readonly ReglementFournisseurService $reglements,
         ResolveurCorrespondances $correspondances,
         SignalementAnomalies $anomalies,
-        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
         parent::__construct($correspondances, $anomalies);
     }
@@ -81,7 +80,7 @@ final class GestionnaireReglementsFournisseur extends GestionnaireDocumentAbstra
         $commande = CommandeAchat::find($this->resoudre('commandes_achat', $donnees['commande_id']));
 
         if ($commande === null) {
-            throw new RuntimeException(__('sync.reglements.commande_inconnue'));
+            throw new DependanceManquanteException(__('sync.reglements.commande_inconnue'));
         }
 
         $this->reglements->regler(
@@ -108,7 +107,6 @@ final class GestionnaireReglementsFournisseur extends GestionnaireDocumentAbstra
         $reglement = ReglementFournisseur::query()->findOrFail($entiteId);
 
         if ($reglement->statut !== 'annule') {
-            $this->autresPostes->verifierAnnulation('reglements_fournisseur', $entiteId, $contexte);
             $this->reglements->annuler($reglement, $motif === '' ? __('sync.factures.motif_absent') : $motif);
         }
 

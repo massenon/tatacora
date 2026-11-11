@@ -27,19 +27,19 @@
 /// annoncerait un chiffre d'affaires que personne n'a encore réalisé. L'écran
 /// **dit** que ces paniers en sont exclus, plutôt que de les taire.
 ///
-/// ## ⚠ Une vente annulée ici n'a JAMAIS été encaissée
+/// ## Une vente annulée a deux origines, et elles se distinguent
 ///
-/// Divergence de fond avec le maître, et elle doit rester visible :
-/// `VentesEngine.annuler` annule une vente **déjà encaissée** et compense les
-/// sorties de stock par des entrées. Sur ce client, `PanierDao.annuler`
-/// n'accepte qu'un panier **ouvert** (`_enteteModifiable`) : une vente annulée
-/// est donc un service abandonné avant paiement. Aucun argent n'est sorti de
-/// la caisse, et il n'y a rien à contre-passer.
+/// Depuis le 21/10/2026 (ordre du PO : « tout doit être au complet »), le poste
+/// annule aussi une vente DÉJÀ ENCAISSÉE, comme `VenteService::annuler` :
+/// `PanierDao.annulerVente` contre-passe la pièce et passe le panier à `annule`
+/// en gardant son montant figé, son mode et sa session. Reste l'autre origine,
+/// `PanierDao.annuler` : un service abandonné avant paiement, qui n'écrit
+/// aucun `montantCloture`.
 ///
-/// La conséquence tenue par ce fichier : une vente annulée porte un montant de
-/// lignes, **jamais un montant figé** — [Vente.montantFige] est faux, parce que
-/// `PanierDao.annuler` n'écrit pas `montantCloture`. Présenter les deux de la
-/// même façon laisserait croire qu'un montant annulé a été encaissé puis rendu.
+/// La conséquence tenue par ce fichier : [Vente.montantFige] dit laquelle des
+/// deux on lit. Vrai = la vente avait été encaissée puis annulée ; faux = elle
+/// n'a jamais été payée. Présenter les deux de la même façon laisserait croire
+/// qu'un montant abandonné a été encaissé puis rendu.
 ///
 /// @see prototype_v2/pages/historique-ventes.html
 /// @see prototype_v2/assets/js/ventes-engine.js
@@ -97,7 +97,13 @@ final class LigneVente {
     required this.module,
     required this.prixUnitaire,
     required this.quantite,
+    this.sansLienStock = false,
   });
+
+  /// La ligne ne sortirait AUCUN stock : boisson sans article de stock, plat dont
+  /// la fiche n'a aucun ingrédient (`stock_non_impacte` du serveur). Lue du
+  /// catalogue d'AUJOURD'HUI — voir `CatalogueDao.referencesSansLienDeStock`.
+  final bool sansLienStock;
 
   final String libelle;
 
@@ -131,6 +137,7 @@ final class Vente {
     this.reservationId,
     this.motifAnnulation,
     this.numeroFacture,
+    this.numero,
   });
 
   /// Compose une vente depuis un panier. Rend `null` pour un panier **ouvert**.
@@ -143,6 +150,7 @@ final class Vente {
     Panier panier, {
     String? libelleTable,
     String? numeroFacture,
+    Set<String> sansLienStock = const {},
   }) {
     final statut = StatutVente.depuisPanier(panier.statut);
     if (statut == null) return null;
@@ -167,6 +175,7 @@ final class Vente {
             module: l.reference.module,
             prixUnitaire: l.prixUnitaire,
             quantite: l.quantite,
+            sansLienStock: sansLienStock.contains(l.reference.toString()),
           ),
       ],
       // Le montant FIGÉ à la clôture l'emporte : c'est celui qui a été annoncé
@@ -184,6 +193,7 @@ final class Vente {
       reservationId: panier.reservationId,
       motifAnnulation: panier.motifAnnulation,
       numeroFacture: numeroFacture,
+      numero: panier.numeroVente,
     );
   }
 
@@ -200,6 +210,16 @@ final class Vente {
 
   /// Montant de la vente, en francs CFA.
   final int montant;
+
+  /// La remise, DÉRIVÉE — lignes brutes − net encaissé
+  /// (`Vente::remiseDeduite()`), jamais une colonne recopiée. Zéro quand
+  /// aucune remise ne s'applique, ou quand le montant n'est pas figé (vente
+  /// annulée, panier d'avant la clôture).
+  int get remiseDeduite {
+    if (!montantFige) return 0;
+    final brut = lignes.fold<int>(0, (t, l) => t + l.montant);
+    return brut > montant ? brut - montant : 0;
+  }
 
   /// [montant] vient-il du montant **figé à la clôture** ?
   ///
@@ -251,11 +271,25 @@ final class Vente {
   /// s'afficher comme un manquement.
   final String? numeroFacture;
 
+  /// Le numéro `V-AAAA-NNNNN` du SERVEUR (v38), `null` tant qu'il ne l'a pas
+  /// rendu : le poste n'en invente aucun.
+  final String? numero;
+
   bool get estValidee => statut == StatutVente.validee;
 
   bool get estAnnulee => statut == StatutVente.annulee;
 
   bool get aUneFacture => numeroFacture != null;
+
+  /// Les libellés des lignes qui n'ont décrémenté aucun stock
+  /// (`stock_non_impacte`, colonne `ligne`).
+  List<String> get lignesSansImpactStock => [
+    for (final l in lignes)
+      if (l.sansLienStock) l.libelle,
+  ];
+
+  /// `Vente::aDesLignesSansImpactStock()`.
+  bool get aDesLignesSansImpactStock => lignes.any((l) => l.sansLienStock);
 
   /// L'argent est-il entré en caisse ? **`null` = on ne sait pas.**
   ///

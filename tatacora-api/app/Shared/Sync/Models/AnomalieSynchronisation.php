@@ -47,6 +47,11 @@ class AnomalieSynchronisation extends Model
      * composition (fiche vide, aucun lien direct) ne fait pas rejeter la
      * vente — la ligne n'a rien sorti du stock, et c'est signalé ici, une
      * anomalie par plat (`reference` = id du plat).
+     *
+     * ⚠ N'EST PLUS ENREGISTRÉE depuis le 30/10/2026 (décision du PO, « le stock
+     * s'ajoute après ») : un plat sans composition se vend partout, sans
+     * mouvement de stock, ce n'est plus un écart à examiner. Le type reste pour
+     * lire et libeller les anciennes anomalies.
      */
     public const PLAT_SANS_COMPOSITION = 'plat_sans_composition';
 
@@ -92,6 +97,13 @@ class AnomalieSynchronisation extends Model
      * serveur ; le paiement est rattaché à la caisse ouverte du serveur.
      */
     public const PAIEMENT_SESSION_INCONNUE = 'paiement_session_inconnue';
+
+    /**
+     * 10/11/2026 : un poste a encaissé 0,01 F de PLUS que le reste dû du serveur (arrondi d'une
+     * facture émise avant la règle « TTC = somme des prix vendus »). L'encaissement est plafonné au
+     * reste dû — la facture est soldée — et l'écart d'un centime est signalé ici, jamais refusé.
+     */
+    public const PAIEMENT_ARRONDI_PLAFONNE = 'paiement_arrondi_plafonne';
 
     /**
      * Lot 10f (18/10/2026) : une sortie (ou perte) faite sur un poste, que le

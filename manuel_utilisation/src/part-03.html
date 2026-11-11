@@ -1,0 +1,416 @@
+<!-- ============================ CHAPITRE 1 ============================ -->
+<section class="chapitre" id="ch1">
+  <h1 class="chapitre"><span class="numero">Chapitre 1</span>Présentation générale de LogiRestock</h1>
+
+  <p class="chapeau">
+    LogiRestock réunit dans une seule application les métiers du Gîte Chez Noël : le stock,
+    les réservations, la vente au comptoir, la facturation, le suivi client, la comptabilité et la paie.
+    Vous saisissez une information une fois ; tous les écrans qui en dépendent se mettent à jour.
+    Le logiciel s'utilise de deux manières — dans un navigateur, et sur le <strong>poste Windows</strong> installé
+    au comptoir, qui continue de travailler quand la connexion internet tombe.
+  </p>
+
+  <h2>1.1 Ce que fait le logiciel</h2>
+  <p>Quatre gestes structurent la journée de travail.</p>
+  <ol class="etapes">
+    <li><strong>Vous enregistrez ce qui se passe</strong> — une réservation, une consommation au bar, une réception de marchandise, une dépense de marché.</li>
+    <li><strong>Le logiciel calcule</strong> — le stock restant, le solde du client, le nombre de nuits, le net à payer, le résultat comptable.</li>
+    <li><strong>Vous consultez</strong> — le tableau de bord, la fiche d'un article, la balance âgée des créances.</li>
+    <li><strong>Vous éditez</strong> — une facture, un état PDF ou tableur, la fiche des prix remise au client.</li>
+  </ol>
+
+  <h2>1.2 Les seize modules</h2>
+  <p>
+    Quatorze modules métier et deux modules d'administration. Chaque module porte un code
+    (M1 à M14) que vous retrouvez sur les écrans, les états et les droits d'accès.
+  </p>
+
+  <table>
+    <thead><tr><th>Code</th><th>Module</th><th>Ce que vous y faites</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille">M1</span></td><td><strong>Hébergement &amp; Réservations</strong></td><td>Unités, disponibilités, séjours, check-in et check-out. Deux réservations ne peuvent pas occuper la même chambre aux mêmes dates.</td></tr>
+      <tr><td><span class="pastille">M2</span></td><td><strong>Facturation</strong></td><td>Registre des factures, avoirs, factures proforma et normalisation fiscale MECeF. Une facture émise ne se modifie pas : elle se corrige par un avoir.</td></tr>
+      <tr><td><span class="pastille">M3</span></td><td><strong>Clients &amp; Créances</strong></td><td>Fiche client unique, balance âgée, recouvrements et relances.</td></tr>
+      <tr><td><span class="pastille">M4</span></td><td><strong>Restaurant</strong></td><td>Carte, fiches techniques des plats, menus, disponibilité du jour.</td></tr>
+      <tr><td><span class="pastille">M5</span></td><td><strong>Bar &amp; Point de vente</strong></td><td>Carte des boissons et encaissement. Une boisson vendue sort du stock.</td></tr>
+      <tr><td><span class="pastille">M6</span></td><td><strong>Stocks</strong></td><td>Articles, mouvements, inventaires, seuils d'alerte, valorisation au coût moyen pondéré.</td></tr>
+      <tr><td><span class="pastille">M7</span></td><td><strong>Achats &amp; Fournisseurs</strong></td><td>Commandes, réceptions, fournisseurs, dettes fournisseurs.</td></tr>
+      <tr><td><span class="pastille">M8</span></td><td><strong>Véhicules &amp; Locations</strong></td><td>Parc, contrats, planning, entretiens et immobilisations.</td></tr>
+      <tr><td><span class="pastille">M9</span></td><td><strong>Tourisme</strong></td><td>Circuits, départs, guides et capacités.</td></tr>
+      <tr><td><span class="pastille">M10</span></td><td><strong>Comptabilité SYSCOHADA</strong></td><td>Plan comptable, écritures, grand livre, balance, résultat, bilan, clôture d'exercice.</td></tr>
+      <tr><td><span class="pastille">M11</span></td><td><strong>Tableau de bord</strong></td><td>Indicateurs consolidés de toute l'exploitation.</td></tr>
+      <tr><td><span class="pastille">M12</span></td><td><strong>Notifications</strong></td><td>Modèles de messages WhatsApp, e-mail et Android, et leurs déclencheurs.</td></tr>
+      <tr><td><span class="pastille">M13</span></td><td><strong>Personnel &amp; Paie</strong></td><td>Employés, congés et plannings, bulletins, livre de paie, déclarations sociales.</td></tr>
+      <tr><td><span class="pastille">M14</span></td><td><strong>États &amp; Rapports</strong></td><td>Catalogue d'états exportables en PDF et en tableur, en-tête normalisée unique.</td></tr>
+      <tr><td><span class="pastille gris">RÔLES</span></td><td><strong>Rôles &amp; Permissions</strong></td><td>Matrice des droits par module et par rôle, et comptes utilisateurs.</td></tr>
+      <tr><td><span class="pastille gris">PARAM</span></td><td><strong>Paramètres, Import &amp; Export</strong></td><td>Identité de l'entreprise, canaux, facturation normalisée, sécurité, sauvegardes, import de tableurs et restauration.</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Vous ne voyez au menu que les modules sur lesquels votre profil a un droit. L'écran
+    <strong>Aide &amp; À propos</strong> affiche en revanche les seize modules, ceux auxquels vous n'avez pas
+    accès étant grisés : savoir qu'un module existe n'est pas y accéder.
+  </span>
+
+  <h2>1.3 Les six principes de fonctionnement</h2>
+  <p>Ils expliquent la plupart des questions que se posent les nouveaux utilisateurs.</p>
+
+  <h3>Principe 1 — Rien de calculable ne se saisit</h3>
+  <p>
+    Le stock disponible, le solde d'un client, le nombre de nuits, le net à payer d'un salarié
+    et le résultat comptable sont <strong>calculés</strong>. Vous ne pouvez pas les taper.
+    Un champ grisé n'est pas une limitation : c'est la garantie que le chiffre affiché correspond
+    aux pièces enregistrées.
+  </p>
+
+  <h3>Principe 2 — Supprimer, c'est archiver</h3>
+  <p>
+    Une ligne « supprimée » part aux archives et se restaure depuis
+    <strong>Import &amp; Export ➔ Restaurer</strong>. Rien n'est effacé : seul un administrateur peut
+    purger définitivement une archive, et c'est le seul endroit du logiciel où une donnée disparaît vraiment.
+    Un élément déjà engagé dans une réservation ou une vente est refusé à l'archivage.
+  </p>
+
+  <h3>Principe 3 — Les actions destructrices sont fermées par défaut</h3>
+  <p>
+    Le bouton <strong>Supprimer</strong> n'apparaît pas tant qu'un administrateur n'a pas ouvert la bascule
+    <strong>Suppression d'un enregistrement</strong> dans <strong>Paramètres ➔ Activation &amp; Sécurité</strong>.
+    Une action désactivée est retirée de l'écran, jamais grisée. Ces bascules s'ajoutent aux droits de chaque
+    profil : quand les deux s'appliquent, la plus restrictive gagne.
+  </p>
+
+  <h3>Principe 4 — La couleur porte une décision</h3>
+  <table>
+    <thead><tr><th>Couleur</th><th>Signification à l'écran</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille vert">Vert</span></td><td>Confirmé, disponible, encaissé, équilibré.</td></tr>
+      <tr><td><span class="pastille or">Or / ambre</span></td><td>Réservé, en attente, incomplet, provisoire.</td></tr>
+      <tr><td><span class="pastille rouge">Rouge</span></td><td>Refus, rupture de stock, déséquilibre, écart négatif.</td></tr>
+      <tr><td><span class="pastille">Marine</span></td><td>Identité, en-têtes, totaux et action principale de l'écran.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Principe 5 — Le logiciel déclare ce qu'il ne sait pas</h3>
+  <p>
+    Certains chiffres reposent sur un taux ou une donnée qui n'est pas encore arrêtée.
+    Le logiciel ne les devine pas : il les <strong>annonce</strong>, dans un encadré ambre ou dans la
+    section « Ce que ces chiffres ne disent pas » du tableau de bord. Une valeur non lue s'affiche
+    <em>« Non consulté »</em>, jamais « 0 » : un zéro se lirait comme un vrai chiffre. Le chapitre consacré
+    aux limites connues du logiciel les récapitule.
+  </p>
+
+  <h3>Principe 6 — Toute action sensible est tracée</h3>
+  <p>
+    Connexion, sauvegarde, modification de droits, réinitialisation : chaque action part au
+    <strong>Journal d'Audit</strong>, en lecture seule pour tous les profils, administrateur compris.
+    Aucun mot de passe, aucun code secret n'y est jamais écrit.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Deux fonctions dépendent de réglages et d'abonnements extérieurs au logiciel.
+    <strong>L'envoi des notifications</strong> : seul le canal <strong>e-mail</strong> part réellement, une fois le
+    relais SMTP du Gîte renseigné aux Paramètres ; WhatsApp, SMS et Android n'ont aucun canal contracté et restent
+    « à transmettre à la main ». <strong>La certification fiscale MECeF</strong> des factures : elle suit le mode de
+    facturation choisi par l'administrateur (désactivé, e-MECeF ou boîtier CC300) et n'est effective que si
+    l'inscription auprès de la DGI est faite. En mode désactivé, la facture est une facture <strong>simple</strong>, sans
+    aucune mention fiscale. Voir le chapitre consacré à la facturation normalisée.
+  </span>
+
+  <h2>1.4 Le web et le poste Windows</h2>
+  <p>
+    Le même logiciel existe sous deux formes. L'application <strong>web</strong> s'ouvre dans un navigateur et exige
+    la connexion au serveur. Le <strong>poste Windows</strong> est un programme installé sur l'ordinateur du comptoir :
+    il garde sa propre base de données et <strong>fonctionne sans internet, sur tous les modules</strong>.
+    Les deux présentent les mêmes écrans, aux mêmes endroits, avec les mêmes mots ; ce manuel signale
+    chaque fois qu'ils diffèrent.
+  </p>
+
+  <table>
+    <thead><tr><th>Sujet</th><th>Sur le web</th><th>Sur le poste Windows</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Connexion internet</strong></td><td>Indispensable.</td><td>Facultative. Rien ne s'efface si elle tombe : vos saisies sont conservées sur le poste.</td></tr>
+      <tr><td><strong>Envoi des saisies au serveur</strong></td><td>Sans objet : la saisie est enregistrée directement.</td><td>Les saisies partent dans une file d'attente, dans l'ordre, dès que la synchronisation est possible. Le bouton <strong>Synchronisation</strong> de la barre supérieure dit où l'on en est.</td></tr>
+      <tr><td><strong>Numéro des factures</strong></td><td>Numéro officiel attribué par le serveur.</td><td>Numéro <strong>provisoire</strong> (commençant par <code>PROV-</code>) tant que le poste n'a pas rejoint le serveur, qui le régularise ensuite.</td></tr>
+      <tr><td><strong>Stock après une vente</strong></td><td>La sortie de stock est écrite immédiatement.</td><td>Le serveur sort le stock à réception de la vente. D'ici là, l'écran Stocks indique pour les boissons ce qui va sortir (« −X en attente d'envoi »).</td></tr>
+      <tr><td><strong>Ventes des autres postes</strong></td><td>Toutes visibles.</td><td>Le poste reçoit du serveur le catalogue, les clients et les réservations des autres postes ; les ventes, dépenses et caisses des autres postes se consultent sur le serveur.</td></tr>
+      <tr><td><strong>Exports</strong></td><td>PDF, ou tableur Excel.</td><td>PDF, ou tableur au format CSV (séparateur point-virgule), que Excel ouvre directement.</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Sur le poste, un <strong>clic droit</strong> dans l'écran propose <strong>Actualiser</strong>, qui relit la base du poste
+    et remet l'écran à jour sans vous déconnecter ni perdre vos filtres. Les touches <strong>F5</strong> et
+    <strong>Ctrl + R</strong> font la même chose. Les chapitres consacrés au poste Windows et à la synchronisation
+    décrivent l'installation, l'appairage avec le serveur et la lecture de la file d'attente.
+  </span>
+
+  <h2>1.5 Une convention à connaître : tous les prix sont TTC</h2>
+  <p>
+    Tous les prix saisis dans LogiRestock — carte du restaurant et du bar, tarif d'une chambre, d'un véhicule ou d'un
+    circuit, prix d'une ligne de facture — sont des prix <strong>toutes taxes comprises (TTC)</strong>. Le logiciel
+    n'ajoute donc rien au montant que le client voit : quand la TVA est active aux Paramètres, c'est lui qui en
+    déduit la part hors taxe et la part de TVA, et la facture affiche <strong>Total HT</strong>, <strong>TVA</strong>
+    et <strong>Total TTC</strong>. Saisissez toujours le prix que paie le client.
+  </p>
+</section>
+
+<!-- ============================ CHAPITRE 2 ============================ -->
+<section class="chapitre" id="ch2">
+  <h1 class="chapitre"><span class="numero">Chapitre 2</span>Se connecter et se repérer dans l'écran</h1>
+
+  <p class="chapeau">
+    Tous les écrans partagent la même ossature : une barre supérieure marine, un menu latéral
+    filtré par vos droits, et la zone de travail. Une fois ce chapitre lu, vous savez où cliquer
+    dans n'importe quel module.
+  </p>
+
+  <h2>2.1 Démarrer le logiciel</h2>
+  <p>
+    À l'ouverture, l'écran de démarrage affiche le logo, la marque <strong>TATACORA AFRIQUE</strong>, la mention
+    <strong>Gîte Chez Noël — Agence de voyages &amp; hébergement</strong> et la ligne
+    <strong>Natitingou, Bénin — Système de gestion Intégré</strong>, puis une courte progression
+    (« Initialisation du système… », « Vérification de la session utilisateur… ») avant de basculer
+    automatiquement sur l'écran de connexion. Vous n'avez rien à cliquer.
+  </p>
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Au tout premier lancement d'un poste neuf, l'écran <strong>Premier démarrage</strong> remplace la connexion :
+    le poste ne contient encore aucun compte, et vous créez celui de l'administrateur
+    (identifiant, nom complet, mot de passe d'au moins 8 caractères, confirmation).
+    Si le programme ne peut pas démarrer, un écran « L'application ne peut pas démarrer » l'explique en clair.
+  </span>
+
+  <h2>2.2 Se connecter</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Écran de démarrage <span class="fleche">➔</span> Connexion <span class="fleche">➔</span> Se connecter
+  </span>
+
+  <p>
+    L'écran de connexion présente la marque <strong>LogiReStock</strong> (en deux tons, avec la mention TATACORA AFRIQUE),
+    le slogan <em>« Votre logiciel de gestion intégrée »</em> et une rangée de sept pictogrammes — Restauration,
+    Hébergement, Éco-tourisme, Stock, Location, Caisse, Comptabilité —, puis le message de bienvenue.
+    Sur grand écran, une photo du Gîte s'affiche en plus à gauche du formulaire.
+  </p>
+
+  <ol class="etapes">
+    <li>Saisissez votre <strong>Nom d'utilisateur</strong> — l'identifiant que l'administrateur vous a remis.</li>
+    <li>Saisissez votre <strong>Mot de passe</strong>. L'icône en forme d'œil, à droite du champ, l'affiche ou le masque.</li>
+    <li>Cochez <strong>Se souvenir de moi</strong> si vous voulez que l'identifiant soit prérempli la prochaine fois
+      (jamais le mot de passe).</li>
+    <li>Cliquez sur <strong>SE CONNECTER</strong>, ou appuyez sur la touche Entrée.</li>
+  </ol>
+  <p>Le logiciel vous ouvre le premier écran auquel votre profil a droit.</p>
+
+  <figure>
+    <img src="../captures/a-connexion.png" alt="Écran de connexion annoté">
+    <figcaption><b>Figure 2.1</b> — L'écran de connexion.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>Champ <strong>Identifiant</strong> (nom d'utilisateur).</li>
+      <li><span class="n">2</span>Champ <strong>Mot de passe</strong>.</li>
+      <li><span class="n">3</span>Bouton <strong>Se connecter</strong>.</li>
+    </ul>
+  </figure>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Votre identifiant est <strong>nominatif</strong>. Toutes vos saisies — ventes, encaissements, écritures —
+    portent votre nom au journal d'audit. Ne prêtez jamais votre compte : la vente encaissée par un
+    collègue sur votre session vous sera imputée.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Si le message <strong>« Identifiant ou mot de passe incorrect. »</strong> s'affiche, vérifiez d'abord la casse du mot de
+    passe et la touche <em>Verr. Maj</em>. Le logiciel ne dit volontairement pas lequel des deux est faux.
+    Un compte désactivé reçoit le même refus. Sur le web, après plusieurs échecs, le message
+    « Trop de tentatives de connexion » vous demande d'attendre quelques secondes.
+  </span>
+
+  <h3>Mot de passe oublié</h3>
+  <p>
+    Cliquez sur <strong>Mot de passe oublié ?</strong>, sous le champ du mot de passe. Le logiciel affiche
+    <em>« Contactez l'administrateur »</em> : aucun message de réinitialisation n'est envoyé par e-mail.
+    L'administrateur vous remet alors un <strong>mot de passe temporaire</strong>, valable 24 heures.
+    Ce mot de passe n'ouvre qu'un seul écran, <strong>« Définissez votre nouveau mot de passe »</strong> : saisissez
+    un nouveau mot de passe (8 caractères au moins, différent du mot de passe temporaire et de l'ancien),
+    confirmez-le, puis cliquez sur <strong>ENREGISTRER</strong> et reconnectez-vous avec lui. Si les 24 heures sont passées,
+    demandez-en un autre.
+  </p>
+  <p>
+    Si c'est <strong>l'administrateur lui-même</strong> qui a perdu son mot de passe, le lien
+    <strong>« J'ai perdu mon mot de passe administrateur »</strong>, sous « Contactez l'administrateur », ouvre un écran qui demande son
+    nom d'utilisateur, son <strong>code de secours</strong> (rangé au coffre) et un nouveau mot de passe. Le code
+    ne sert qu'une fois : le logiciel en affiche un nouveau, une seule fois, à copier ou imprimer. Après cinq essais
+    manqués, l'écran se bloque quelques minutes. Voir le chapitre consacré aux comptes utilisateurs.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    La connexion du poste est <strong>locale</strong> : elle vérifie votre mot de passe sur le poste et fonctionne sans
+    internet. Un compte créé sur un autre ordinateur ne se connecte pas tant qu'il n'existe pas sur ce poste. Aucun message
+    « réseau » ne bloque jamais la connexion.
+  </span>
+
+  <h2>2.3 La barre supérieure</h2>
+  <p>Elle ne change jamais, quel que soit l'écran ouvert.</p>
+
+  <figure class="compact">
+    <img src="../captures/a-navigation.png" alt="Barre supérieure et menu latéral annotés">
+    <figcaption><b>Figure 2.2</b> — L'ossature commune à tous les écrans.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>Le <strong>logo</strong> : un clic vous ramène au tableau de bord depuis n'importe quel écran.</li>
+      <li><span class="n">2</span>Le bouton <strong>Vente</strong>, or sur marine : l'accès le plus rapide à la caisse.</li>
+      <li><span class="n">3</span>Le <strong>menu latéral</strong>, filtré selon vos droits.</li>
+    </ul>
+  </figure>
+
+  <p>La barre supérieure porte, de gauche à droite :</p>
+  <ul class="puces">
+    <li>le bouton qui <strong>masque ou affiche le menu latéral</strong> (vue plein écran, sur grand écran) ;</li>
+    <li>le <strong>logo</strong> et la marque, qui ramènent au tableau de bord ;</li>
+    <li><strong>Rechercher partout…</strong> — la recherche globale, qui atteint les clients, les articles, les ventes et les réservations que votre profil a le droit de lire ;</li>
+    <li>le <strong>sélecteur d'exercice</strong> (voir plus bas), présent seulement sur les écrans qui le suivent ;</li>
+    <li>sur le web, la pastille verte <strong>Réseau</strong>, qui dit que la page vient d'être servie par le serveur ;</li>
+    <li>l'état de la <strong>caisse</strong> du poste : <em>Caisse fermée</em> ou <em>Clôturer la caisse</em>. C'est un lien vers le point de vente, où l'on ouvre et clôture la caisse (chapitre 6) ; un point rouge s'affiche si la caisse reste ouverte depuis plus de 24 heures ;</li>
+    <li>le bouton <strong>Vente</strong>, qui ouvre le point de vente au comptant ;</li>
+    <li>l'icône <strong>Synchronisation</strong>, avec son voyant de couleur (voir plus bas) ;</li>
+    <li>la <strong>cloche des notifications</strong>, avec le nombre d'alertes non lues ;</li>
+    <li>votre <strong>avatar</strong> : il ouvre Mon profil, Paramètres du compte, Import &amp; Export, <strong>Journal d'Audit</strong>, Synchroniser les postes (web), Aide &amp; À propos, Contactez l'éditeur et Déconnexion. Une entrée dont vous n'avez pas le droit reste affichée mais inactive, avec la raison en infobulle.</li>
+  </ul>
+
+  <h3>Le sélecteur d'exercice</h3>
+  <p>
+    Quand vous ouvrez le <strong>tableau de bord</strong>, la <strong>comptabilité</strong>, les <strong>états</strong>, les
+    <strong>dépenses</strong>, la <strong>facturation</strong>, l'<strong>approvisionnement</strong> ou la <strong>paie</strong>, une liste
+    <strong>Exercice</strong> apparaît dans la barre : elle propose chaque année comptable avec son état — <em>ouvert</em>,
+    <em>en clôture</em> ou <em>clôturé</em>. L'exercice choisi s'applique <strong>à tous ces écrans à la fois</strong> : vous ne le
+    rechoisissez pas écran par écran. Quand l'année consultée n'est pas l'année en cours, une pastille
+    <em>« Vous consultez 2025 (clôturé) »</em> le rappelle et un lien <strong>Revenir à 2026</strong> vous ramène à l'année en cours.
+  </p>
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Consulter une autre année <strong>ne change jamais</strong> l'exercice dans lequel une opération s'enregistre :
+    c'est toujours la <strong>date</strong> de l'opération qui décide. Le sélecteur est absent des écrans du jour
+    (plan des chambres, point de vente, caisse) : y appliquer l'an passé masquerait les clients présents aujourd'hui.
+  </span>
+
+  <h3>L'icône Synchronisation</h3>
+  <p>
+    Sur le <strong>web</strong>, elle ouvre l'état des postes appairés : voyant gris (aucun poste appairé), vert (tous les
+    postes ont donné signe de vie il y a moins de quelques minutes) ou orange (au moins un poste est en retard), avec un lien vers
+    l'écran Postes &amp; Appairage. Sur le <strong>poste Windows</strong>, elle remplace la pastille Réseau : le logiciel ne prétend pas
+    savoir s'il est « en réseau », il dit ce qui attend de partir. La fenêtre indique le nombre d'opérations
+    <em>envoyées au serveur</em>, <em>en attente d'envoi</em> et <em>à traiter</em>, la dernière synchronisation et la dernière
+    réception, et propose <strong>Synchroniser maintenant</strong>. Voir le chapitre consacré à la synchronisation.
+  </p>
+
+  <h2>2.4 Le menu latéral</h2>
+  <p>
+    Le menu commence par <strong>cinq raccourcis épinglés</strong> — ceux que l'on ouvre plusieurs fois par jour —
+    puis huit groupes thématiques, soit <strong>27 entrées</strong> au total pour un administrateur.
+  </p>
+
+  <table>
+    <thead><tr><th>Groupe</th><th>Entrées</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Épinglés</strong></td><td>Tableau de bord · Point de vente · POS clients hébergés · Historique des ventes · Dépense courante</td></tr>
+      <tr><td><strong>Réservations &amp; séjours</strong></td><td>Réservations · Hébergement</td></tr>
+      <tr><td><strong>Clients &amp; facturation</strong></td><td>Clients &amp; Créances · Facturation</td></tr>
+      <tr><td><strong>Stocks &amp; achats</strong></td><td>Stocks · Inventaires &amp; Fiches · Approvisionnement · Fournisseurs</td></tr>
+      <tr><td><strong>Restauration &amp; bar</strong></td><td>Restaurant · Bar</td></tr>
+      <tr><td><strong>Tourisme &amp; véhicules</strong></td><td>Tourisme · Véhicules &amp; Locations</td></tr>
+      <tr><td><strong>Finance</strong></td><td>Comptabilité</td></tr>
+      <tr><td><strong>Ressources humaines</strong></td><td>Personnel &amp; Paie · Congés &amp; Plannings</td></tr>
+      <tr><td><strong>Pilotage &amp; administration</strong></td><td>États &amp; Rapports · Notifications · Import &amp; Export · Rôles &amp; Permissions · Comptes utilisateurs · Paramètres · Synchronisation</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    <strong>Une entrée absente n'est pas une panne.</strong> Le menu n'affiche que les modules ouverts à votre
+    profil. Un barman ne voit ni la comptabilité ni la paie. Si un écran vous manque pour travailler,
+    demandez le droit à l'administrateur — ne cherchez pas un contournement.
+  </span>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    Le raccourci clavier <strong>Alt + A</strong> ouvre le <strong>panneau d'accès rapide</strong> : une liste de
+    raccourcis adaptés à l'écran ouvert (par exemple, depuis le tableau de bord : nouvelle réservation, encaisser au bar,
+    stocks critiques, générer un état), sans passer par le menu. <strong>Échap</strong> le referme. Le bouton rond en bas à droite
+    de l'écran fait la même chose à la souris.
+  </span>
+
+  <h2>2.5 Mon profil</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Avatar (en haut à droite) <span class="fleche">➔</span> Mon profil
+  </span>
+  <p>Cet écran regroupe quatre blocs.</p>
+  <ul class="puces">
+    <li><strong>Métadonnées de session</strong> — votre dernière connexion, l'adresse IP et le statut du compte (<em>Actif</em> ou <em>Désactivé</em>).</li>
+    <li><strong>Informations personnelles</strong> — nom complet, <strong>e-mail</strong>, téléphone, fonction et intitulé de poste. Modifiez, puis cliquez sur <strong>Enregistrer les informations</strong>.
+      L'<strong>e-mail est facultatif</strong> : laissez-le vide si vous n'en avez pas ; s'il est rempli, il doit être valide. Chaque champ n'est modifiable que si votre rôle en a le droit ; sinon l'écran vous renvoie à l'administrateur.</li>
+    <li><strong>Modifier le mot de passe</strong> — ancien mot de passe, nouveau (8 caractères au moins), confirmation, puis <strong>Mettre à jour le mot de passe</strong>. Le changement est immédiat et ne ferme pas votre session.</li>
+    <li><strong>Journal d'audit — 10 dernières actions</strong> — vos actions seulement. Le lien <strong>Journal complet →</strong> n'est offert qu'aux profils qui y ont droit.</li>
+  </ul>
+  <p>
+    Les <strong>administrateurs</strong> y trouvent un cinquième bloc, <strong>Code de secours</strong> : il dit si un code est enregistré
+    et permet d'en <strong>Générer un code de secours</strong> (il faut confirmer votre mot de passe actuel). Le code s'affiche une seule fois :
+    notez-le ou imprimez-le et rangez-le au coffre, l'ancien code ne fonctionne plus.
+  </p>
+  <figure>
+    <img src="../captures/mon-profil.png" alt="L'écran Mon profil.">
+    <figcaption><b>Figure 2.3</b> — L'écran <b>Mon profil</b>.</figcaption>
+  </figure>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Vous ne pouvez pas modifier votre propre <strong>fonction</strong> (c'est votre rôle) ni vos droits : ils sont gérés par
+    l'administrateur, dans <strong>Rôles &amp; Permissions</strong>. Un utilisateur qui pourrait s'attribuer un droit
+    contournerait toute la matrice en un clic. L'<strong>intitulé de poste</strong>, lui, est un texte libre sans effet sur vos droits.
+  </span>
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Le profil est <strong>propre au poste</strong> : ce que vous y modifiez (nom, e-mail, téléphone, mot de passe) n'est jamais
+    envoyé aux autres postes ni au serveur. Le journal affiche seulement ce que ce poste a enregistré à votre nom.
+  </span>
+
+  <h2>2.6 Se déconnecter</h2>
+  <p>
+    Cliquez sur <strong>Déconnexion</strong>, en bas du menu latéral ou dans le menu de votre avatar.
+    Déconnectez-vous systématiquement en quittant un poste partagé : la réception, le bar et le
+    magasin utilisent souvent le même ordinateur.
+  </p>
+
+  <h2>2.7 Session verrouillée et alertes d'ouverture</h2>
+  <p>
+    Après <strong>15 minutes sans toucher l'écran</strong>, un voile <strong>« Session verrouillée »</strong> recouvre la page :
+    <em>« Votre session est suspendue, pas fermée. »</em> Ressaisissez votre mot de passe et cliquez sur
+    <strong>Déverrouiller</strong> pour reprendre exactement où vous en étiez : un panier ouvert ou un formulaire en cours ne sont pas perdus.
+    Après trop d'essais, le logiciel vous demande d'attendre quelques secondes.
+  </p>
+  <p>
+    À l'ouverture de votre session, une ou deux fenêtres d'<strong>alertes</strong> peuvent s'afficher : <strong>Stock critique</strong>
+    (les articles au niveau ou sous leur seuil, en rouge ceux déjà en rupture, avec un lien <em>Ouvrir les stocks</em>) puis
+    <strong>Opérations du jour à traiter</strong> (les <em>Réservations arrivées à échéance</em>, où le bouton <em>Check-out</em> clôt le séjour sur place, et les
+    <em>Créances à relancer</em>, où <em>Relancer</em> trace la relance). Rien n'y est bloquant. L'administrateur peut les désactiver avec la bascule
+    <strong>Alertes à l'ouverture de session</strong>, dans Paramètres ➔ Activation &amp; Sécurité.
+  </p>
+</section>

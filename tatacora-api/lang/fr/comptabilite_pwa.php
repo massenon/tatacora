@@ -145,6 +145,13 @@ return [
     'colonne_exercice_precedent' => 'Exercice :annee',
     'a_nouveaux_provisoires' => 'Cette balance comprend les à-nouveaux PROVISOIRES de l’exercice :annee, qui n’est pas encore clôturé : ils sont calculés à chaque lecture et deviendront définitifs à sa clôture.',
 
+    // --- Alerte avant de démarrer une clôture ----------------------------
+    'alerte_postes_titre' => 'Des postes n’ont peut-être pas tout envoyé.',
+    'alerte_postes_detail' => 'Une fois l’exercice :annee en clôture, le serveur refuse les pièces datées de :annee que ces postes enverraient encore. Demandez-leur de synchroniser (« Synchroniser les postes ») avant de démarrer.',
+    'alerte_postes_en_attente' => ':nombre opération(s) à envoyer',
+    'alerte_postes_jamais' => 'aucun état reçu : on ne sait pas',
+    'alerte_postes_silencieux' => 'sans nouvelles depuis le :date : on ne sait pas',
+
     // --- Archive légale de clôture (lot 4) --------------------------------
     'archive_titre' => 'Archive de clôture — exercice :annee',
     'archive_ecran' => 'Archive légale',
@@ -182,4 +189,59 @@ return [
     'col_centre' => 'Centre',
     'col_debit' => 'Débit',
     'col_credit' => 'Crédit',
+
+    // --- Affectation du résultat de l'exercice clôturé (09/11/2026) ---------
+
+    'affectation_titre' => 'Affectation du résultat de l’exercice :annee',
+    'affectation_note' => 'La clôture laisse le résultat en :compte ; l’assemblée qui approuve les comptes le ventile. Une pièce du journal OD, datée de l’approbation, est passée dans l’exercice :suivant ; elle est validée, donc immuable (on la corrige par contre-passation).',
+    'affectation_note_ei' => 'La clôture laisse le résultat en :compte ; l’exploitant en décide le sort (compte de l’exploitant, report à nouveau, réserves) : une entreprise individuelle n’a ni réserve légale, ni dividendes, ni assemblée. Une pièce du journal OD, datée de la décision de l’exploitant, est passée dans l’exercice :suivant ; elle est validée, donc immuable (on la corrige par contre-passation).',
+    'affectation_forme' => 'Forme juridique : :forme',
+    'affectation_resultat' => 'Résultat à affecter',
+    'affectation_resultat_benefice' => 'Bénéfice, compte :compte',
+    'affectation_resultat_perte' => 'Perte, compte :compte',
+    'affectation_date' => 'Date d’approbation des comptes',
+    'affectation_date_ei' => 'Date de la décision de l’exploitant',
+    'affectation_ventilation' => 'Ventilation',
+    'affectation_ventilation_perte' => 'Imputation de la perte',
+    'affectation_total' => 'Total ventilé',
+    'affectation_reste' => 'Reste à ventiler',
+    'affectation_somme_ok' => 'La ventilation égale le résultat.',
+    'affectation_somme_ecart' => 'La ventilation diffère du résultat de :ecart.',
+    'affectation_reserve_proposee' => 'Réserve légale obligatoire : au moins 10 % du bénéfice net des pertes antérieures, tant qu’elle n’atteint pas 20 % du capital. En dessous, l’affectation est refusée ; le report à nouveau reçoit le reste.',
+    'affectation_reserve_plafond' => 'La réserve légale a atteint 20 % du capital : aucune réserve légale n’est due.',
+    'affectation_passer' => 'Passer l’affectation',
+    'affectation_confirmer_titre' => 'Passer l’affectation du résultat de l’exercice :annee ?',
+    'affectation_confirmer_texte' => 'Une pièce de :montant sera passée au journal OD le :date. Elle sera validée donc immuable : seule une contre-passation la corrige.',
+    'affectation_confirmer' => 'Confirmer l’affectation',
+    'affectation_annuler' => 'Annuler',
+    'affectation_passee' => 'Affectation passée le :date par :auteur (pièce n° :piece).',
+    'affectation_passee_ventilation' => ':poste : :montant',
+    'affectation_contrepasser' => 'Contre-passer l’affectation',
+    'affectation_contrepasser_note' => 'Réservé au comptable. La pièce d’affectation est inversée (rien ne s’efface) ; le résultat pourra être affecté de nouveau.',
+    'affectation_contrepasser_motif' => 'Motif de la contre-passation',
+    'affectation_contrepasser_reference' => 'Référence de la décision (PV d’assemblée / décision de l’exploitant)',
+    'affectation_reserve_comptable' => 'Seul le comptable peut passer ou contre-passer l’affectation du résultat.',
+    'affectation_non_affectable' => 'L’affectation se passe dans l’exercice :suivant, qui doit exister et être ouvert.',
+    'affectation_faite' => 'Affectation du résultat de l’exercice :annee passée (pièce :piece).',
+    'affectation_contrepassee' => 'Affectation du résultat de l’exercice :annee contre-passée.',
+
+    // --- Tableau des flux de trésorerie : les trois lignes du financement et des cessions (10/11/2026) ---
+    //
+    // Mots LUS par le poste (`TextesEtatsComptables`) : un test relit ce fichier
+    // et exige les mêmes mots des deux côtés.
+
+    'flux_produits_cessions' => "Produits des cessions d'immobilisations",
+    'flux_variation_emprunts' => 'Emprunts (variation nette)',
+    // Les dividendes ET les prélèvements de l'exploitant (compte 104) : une
+    // entreprise individuelle ne verse pas de dividendes, elle prélève
+    // (avis de l'expert-comptable, 10/11/2026).
+    'flux_dividendes_verses' => "Dividendes versés et prélèvements de l'exploitant",
+    // Ligne du financement NON AFFICHÉE quand elle est nulle (sans groupe).
+    'flux_variation_dettes_participations' => 'Dettes liées à des participations et comptes de liaison (variation nette)',
+
+    // --- Bilan : le compte 465 dans le passif circulant (10/11/2026) ---
+    //
+    // Mot LU par le poste (`TextesEtatsFinanciers`). Sous-ligne du poste
+    // « Passif circulant », qui compte déjà ce montant : jamais additionnée.
+    'bilan_dont_dividendes_a_payer' => 'dont dividendes à payer',
 ];

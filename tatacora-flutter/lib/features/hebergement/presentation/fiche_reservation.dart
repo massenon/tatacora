@@ -148,8 +148,14 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
   // Les listes du maître. Chacune a une valeur initiale, comme les `<select>`
   // du maître qui affichent tous leur première option.
   TypeClient _typeClient = TypeClient.parDefaut;
-  CanalReservation _canal = CanalReservation.parDefaut;
-  ModePaiementReservation _modePaiement = ModePaiementReservation.parDefaut;
+
+  /// Canal et mode de paiement partent VIDES, comme les `<select>` de la vue
+  /// dont la première option est « Choisissez un canal » / « Choisissez un
+  /// mode » : les deux sont `nullable` au serveur (`rCanalId`,
+  /// `rModePaiement`). Une origine ou un mode devinés fausseraient l'analyse
+  /// par canal et la pièce de l'acompte sans que rien ne le signale.
+  CanalReservation? _canal;
+  ModePaiementReservation? _modePaiement;
   TypeRemise _typeRemise = TypeRemise.aucune;
 
   DateTime? _arrivee;
@@ -408,6 +414,15 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
 
     _preremplirDepuisReservation(reservation);
 
+    // Les canaux viennent de la TABLE (Paramètres › Canaux de réservation), pas
+    // d'une liste écrite en dur — et, comme le client ci-dessous, ils doivent
+    // être LUS avant que la liste ne se monte : une liste déroulante ne retient
+    // pas une valeur qui arrive après ses options (piège 6).
+    final canauxLus = ref.watch(canauxReservationProvider);
+    if (canauxLus.isLoading && !canauxLus.hasValue) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     // Le client pré-rempli est résolu contre le RÉFÉRENTIEL, dès qu'il est
     // lisible. C'est encore une question d'ordre : la liste déroulante ne peut
     // retenir une valeur qui n'est pas dans ses options, et les options
@@ -441,6 +456,15 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
     return _formulaire_(rayons.requireValue, reservation);
   }
 
+  /// Les canaux PROPOSABLES : les actifs, plus celui déjà retenu par la fiche
+  /// rouverte — un canal désactivé après coup ne disparaît pas d'une réservation
+  /// qui le porte (`CanalReservation::proposables`). Sans table lisible, le jeu
+  /// initial du maître.
+  List<CanalReservation> _canauxProposables(List<CanalReservation>? lus) => [
+    for (final c in lus ?? CanalReservation.jeuInitial)
+      if (c.actif || c.memeQue(_canal)) c,
+  ];
+
   /// Remplit le formulaire depuis la réservation à modifier — une seule fois.
   ///
   /// Refaire le remplissage à chaque rendu réécrirait la ligne, la date ou le
@@ -461,9 +485,8 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
       _clientPrerempli = existante.clientId;
       _acompte.text = '${existante.acompte}';
       _typeClient = existante.typeClient ?? TypeClient.parDefaut;
-      _canal = existante.canal ?? CanalReservation.parDefaut;
-      _modePaiement =
-          existante.modePaiement ?? ModePaiementReservation.parDefaut;
+      _canal = existante.canal;
+      _modePaiement = existante.modePaiement;
       _typeRemise = existante.remiseType ?? TypeRemise.aucune;
       _remiseValeur.text = '${existante.remiseValeur ?? 0}';
       _arrivee = existante.periode.arrivee;
@@ -538,17 +561,35 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
           child: Row(
             children: [
               Flexible(
-                child: Text(
-                  // Le titre porte le NOM du client en modification
-                  // (« Modifier — KORA Jean ») : sur une fiche qui ressemble
-                  // trait pour trait à celle de la création, c'est la seule
-                  // chose qui dise qu'on réécrit une fiche existante.
-                  existante == null
-                      ? 'Nouvelle réservation'
-                      : 'Modifier — ${existante.clientNom}',
-                  key: const Key('titre-modale-reservation'),
-                  overflow: TextOverflow.ellipsis,
-                  style: textes.titleMedium?.copyWith(color: AppColors.navy),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      // Le titre de la vue, au mot : `modale_titre_creation` ou
+                      // `modale_titre_modification` (« Modifier la
+                      // réservation »). Le nom du client, qui figurait ici en
+                      // modification, est dans le champ « Client » juste
+                      // dessous.
+                      existante == null
+                          ? 'Nouvelle réservation'
+                          : 'Modifier la réservation',
+                      key: const Key('titre-modale-reservation'),
+                      overflow: TextOverflow.ellipsis,
+                      style: textes.titleMedium?.copyWith(
+                        color: AppColors.navy,
+                      ),
+                    ),
+                    // `:sousTitre="__('hebergement_pwa.reservations.modale_sous_titre')"`.
+                    Text(
+                      'Renseignez les informations de la réservation.',
+                      key: const Key('sous-titre-modale-reservation'),
+                      overflow: TextOverflow.ellipsis,
+                      style: textes.labelSmall?.copyWith(
+                        color: AppColors.neutre500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
@@ -598,7 +639,8 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
                       valeur: _typeClient,
                       options: TypeClient.values,
                       libelle: (t) => t.libelle,
-                      onChange: (t) => setState(() => _typeClient = t),
+                      onChange: (t) =>
+                          setState(() => _typeClient = t ?? _typeClient),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -606,8 +648,13 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
                     gauche: _Liste<CanalReservation>(
                       cle: const Key('champ-canal'),
                       etiquette: 'Canal de réservation',
-                      valeur: _canal,
-                      options: CanalReservation.values,
+                      invite: 'Choisissez un canal',
+                      valeur: _canauxProposables(
+                        ref.watch(canauxReservationProvider).value,
+                      ).where((c) => c.memeQue(_canal)).firstOrNull,
+                      options: _canauxProposables(
+                        ref.watch(canauxReservationProvider).value,
+                      ),
                       libelle: (c) => c.libelle,
                       onChange: (c) => setState(() => _canal = c),
                     ),
@@ -702,6 +749,7 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
                   _Liste<ModePaiementReservation>(
                     cle: const Key('champ-mode-paiement'),
                     etiquette: 'Mode de paiement',
+                    invite: 'Choisissez un mode',
                     valeur: _modePaiement,
                     options: ModePaiementReservation.values,
                     libelle: (m) => m.libelle,
@@ -832,24 +880,27 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
     final chambres = lignes
         .where((l) => l.service == ServiceReservation.hebergement)
         .toList();
-    if (chambres.length != 1) {
-      // Voir l'en-tête de classe : le schéma serveur ne représente qu'une
-      // unité par réservation. On refuse et on dit pourquoi.
+    if (chambres.isEmpty) {
+      // Le serveur écrit `unite_id` NOT NULL : une fiche sans chambre ne peut pas exister.
+      // Plusieurs chambres sont permises (décision du PO du 10/11/2026) ; zéro, non.
       setState(
-        () => _erreur = chambres.isEmpty
-            ? 'Une réservation doit porter exactement une chambre : le serveur '
-                  'l’enregistre sur une unité d’hébergement. Pour un circuit '
-                  'ou une location seuls, passez par leur module.'
-            : 'Une réservation ne peut porter qu’une seule chambre : le '
-                  'serveur n’en enregistre qu’une, et les suivantes seraient '
-                  'perdues sans que rien ne le signale. Créez une réservation '
-                  'par chambre.',
+        () => _erreur =
+            'Une réservation doit porter au moins une chambre : le serveur '
+            'l’enregistre sur une unité d’hébergement. Pour un circuit ou une '
+            'location seuls, passez par leur module.',
       );
       return;
     }
 
     final unites = await ref.read(depotReservationProvider).unites();
-    final visees = unites.where((u) => u.id == chambres.single.itemId);
+    // La chambre PRINCIPALE (`unite_id`) : celle que la fiche avait déjà si elle y est encore,
+    // sinon la première de la liste.
+    final existanteAvant = _existante;
+    final principale = chambres.firstWhere(
+      (l) => existanteAvant != null && l.itemId == existanteAvant.uniteId,
+      orElse: () => chambres.first,
+    );
+    final visees = unites.where((u) => u.id == principale.itemId);
     if (visees.isEmpty) {
       setState(() => _erreur = 'Chambre introuvable sur ce poste.');
       return;
@@ -1312,13 +1363,20 @@ class _Liste<T> extends StatelessWidget {
     required this.options,
     required this.libelle,
     required this.onChange,
+    this.invite,
   }) : super(key: cle);
 
   final String etiquette;
-  final T valeur;
+
+  /// `null` : aucune option choisie — seulement quand [invite] existe.
+  final T? valeur;
   final List<T> options;
   final String Function(T) libelle;
-  final void Function(T) onChange;
+  final void Function(T?) onChange;
+
+  /// La PREMIÈRE option de la vue, à valeur vide (« Choisissez un canal »).
+  /// Absente : la liste n'a pas d'option vide (« Type de client »).
+  final String? invite;
 
   @override
   Widget build(BuildContext context) {
@@ -1327,7 +1385,7 @@ class _Liste<T> extends StatelessWidget {
       children: [
         Text(etiquette, style: Theme.of(context).textTheme.labelMedium),
         const SizedBox(height: AppSpacing.unit),
-        DropdownButtonFormField<T>(
+        DropdownButtonFormField<T?>(
           initialValue: valeur,
           // Le panneau peut être étroit : sans ces deux réglages, « Agence
           // partenaire » déborde au lieu d'être tronqué.
@@ -1337,15 +1395,19 @@ class _Liste<T> extends StatelessWidget {
             isDense: true,
           ),
           items: [
+            if (invite != null)
+              DropdownMenuItem<T?>(
+                child: Text(invite!, overflow: TextOverflow.ellipsis),
+              ),
             for (final o in options)
-              DropdownMenuItem(
+              DropdownMenuItem<T?>(
                 value: o,
                 child: Text(libelle(o), overflow: TextOverflow.ellipsis),
               ),
           ],
-          onChanged: (v) {
-            if (v != null) onChange(v);
-          },
+          // L'option vide (`null`) remet la saisie à « non choisi » ; une liste
+          // sans [invite] n'en propose pas, et ne reçoit donc jamais `null`.
+          onChanged: onChange,
         ),
       ],
     );

@@ -23,14 +23,26 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/auth/data/code_secours_local.dart';
 import '../../features/auth/data/session_repository_local.dart';
 import '../../features/auth/domain/session.dart';
 import '../../features/auth/domain/session_repository.dart';
 import '../database/app_database.dart';
+import '../database/auteur_ecriture.dart';
 import '../rbac/garde_acces.dart';
 
+/// La base déjà ouverte ET migrée par le démarrage résilient (`main.dart`,
+/// PRD réinstallation R1) ; `null` partout ailleurs (tests, démo).
+final baseDemarrageProvider = Provider<AppDatabase?>((ref) => null);
+
 final baseLocaleProvider = Provider<AppDatabase>((ref) {
-  final base = AppDatabase();
+  final base = ref.watch(baseDemarrageProvider) ?? AppDatabase();
+  // QUI écrit, depuis quel poste (v38) : le compte CONNECTÉ à l'instant de
+  // l'écriture — relu à chaque fois, jamais capturé ici (une session qui change
+  // entre deux gestes ne doit pas écrire sous l'identité de la précédente,
+  // RG-15) — et le nom de la machine. Voir `auteur_ecriture.dart`.
+  base.auteurEcriture = () =>
+      (login: ref.read(sessionProvider)?.login, poste: nomDuPosteLocal());
   ref.onDispose(base.close);
   return base;
 });
@@ -47,6 +59,29 @@ final baseLocaleProvider = Provider<AppDatabase>((ref) {
 final depotSessionProvider = Provider<SessionRepositoryLocal>((ref) {
   return SessionRepositoryLocal(ref.watch(baseLocaleProvider));
 });
+
+/// Le code de secours de l'administrateur (29/10/2026, option A du PO) — le
+/// recours du DERNIER administrateur qui a perdu son mot de passe. Local, comme
+/// tout le reste de l'authentification.
+final codeSecoursProvider = Provider<CodeSecoursLocal>((ref) {
+  return CodeSecoursLocal(ref.watch(baseLocaleProvider));
+});
+
+/// Une information dite UNE fois sur l'écran de connexion (comme le flash
+/// `pwa-connexion-info` du web) : « Mot de passe défini. Connectez-vous… » après
+/// un changement forcé. L'écran de connexion la lit, puis la consomme.
+final infoConnexionProvider = NotifierProvider<InfoConnexionNotifier, String?>(
+  InfoConnexionNotifier.new,
+);
+
+final class InfoConnexionNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void dire(String message) => state = message;
+
+  void consommer() => state = null;
+}
 
 /// Session active, `null` si personne n'est connecte.
 final sessionProvider = NotifierProvider<SessionNotifier, Session?>(
@@ -73,6 +108,10 @@ final class SessionNotifier extends Notifier<Session?> {
   /// n'atteignait cet ecran.
   Future<void> connecter(String identifiant, String motDePasse) async {
     state = await _depot.connecter(identifiant, motDePasse);
+    // `Connexion::seConnecter()` pose le drapeau des modales d'ouverture de
+    // session : une CONNEXION les déclenche, une session restaurée au
+    // démarrage ne le fait pas.
+    ref.read(ouvertureEnAttenteProvider.notifier).poser();
   }
 
   Future<void> deconnecter() async {
@@ -90,6 +129,42 @@ final class SessionNotifier extends Notifier<Session?> {
     if (courante == null) return;
     state = await ref.read(depotSessionProvider).relire(courante.login);
   }
+
+  /// Après une DESCENTE du serveur (10/11/2026, PO : « si l'admin modifie le RBAC, l'application
+  /// doit prendre en compte le rôle modifié ») : un rôle reçu est recopié sur les comptes du
+  /// poste ; la session OUVERTE relit ses droits sans que l'utilisateur se reconnecte. Ne change
+  /// l'état QUE si les droits ou le rôle ont changé (aucune reconstruction inutile toutes les
+  /// 30 s) et ne ferme JAMAIS la session : un compte introuvable reste l'affaire de `restaurer()`.
+  Future<void> relireDroitsSiChange() async {
+    final courante = state;
+    if (courante == null) return;
+    final relue = await ref.read(depotSessionProvider).relire(courante.login);
+    if (relue == null || state != courante) return;
+    if (relue.role == courante.role &&
+        relue.droits.memesDroitsQue(courante.droits)) {
+      return;
+    }
+    state = relue;
+  }
+}
+
+/// Le drapeau « modales d'ouverture de session en attente » — le
+/// `alertes_ouverture_en_attente` que `Connexion::seConnecter()` met en session
+/// et qu'`AlertesOuvertureModales` consomme : vrai de la connexion jusqu'au
+/// moment où les modales ont été montrées (ou jugées inutiles). Jamais posé par
+/// la restauration d'une session au démarrage.
+final ouvertureEnAttenteProvider =
+    NotifierProvider<OuvertureEnAttenteNotifier, bool>(
+      OuvertureEnAttenteNotifier.new,
+    );
+
+final class OuvertureEnAttenteNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void poser() => state = true;
+
+  void consommer() => state = false;
 }
 
 /// Droits de la session — jamais `null`, pour eviter un `?.` a chaque usage.
@@ -99,4 +174,18 @@ final class SessionNotifier extends Notifier<Session?> {
 final droitsProvider = Provider<GardeAcces>((ref) {
   final session = ref.watch(sessionProvider);
   return session?.droits ?? const GardeAcces.deconnecte();
+});
+
+/// Qui peut ANNULER un document de [module] sur ce poste (09/11/2026, décision du PO) : l'écriture
+/// sur le module ET le droit local `ANNULATIONS` de l'utilisateur CONNECTÉ. C'est le SEUL contrôle
+/// de « qui annule » : la règle « le document d'un autre poste ne s'annule que par l'administration
+/// ou le comptable » a disparu du poste comme du serveur, et le serveur ne juge plus le compte
+/// d'appairage. Réservations (M1), ventes (M5), factures (M2) passent toutes par ici.
+final peutAnnulerProvider = Provider.family<bool, ModuleTatacora>((
+  ref,
+  module,
+) {
+  final droits = ref.watch(droitsProvider);
+  return droits.peutEcrire(module) &&
+      droits.peutEcrire(ModuleTatacora.annulations);
 });

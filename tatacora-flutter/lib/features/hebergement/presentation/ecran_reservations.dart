@@ -45,8 +45,10 @@ import 'widgets/modale_annulation_reservation.dart';
 ///
 /// Il liste les réservations annulées du poste. Les colonnes de la vue qui
 /// supposent le calcul d'annulation du serveur (total, taux, commission
-/// retenue, remboursé, auteur) n'ont pas de source ici : le poste ne stocke que
-/// le motif. Elles rendent « — », jamais « 0 » (PA-126).
+/// retenue, remboursé, date, auteur) ont une source depuis la v19 : huit
+/// colonnes d'annulation fixées par `ReservationDao.annulerAvecConditions`
+/// (`AnnulationEnregistree`). Seule une annulation D'AVANT la v19 rend « — »,
+/// jamais « 0 » (PA-126) : voir `_cellulesDAnnulation`.
 class EcranReservations extends ConsumerStatefulWidget {
   const EcranReservations({super.key});
 
@@ -441,6 +443,9 @@ class _Grille extends ConsumerWidget {
                       child: VueCarteReservation(
                         carte: carte,
                         peutAnnuler: peutAnnuler,
+                        annulationPermise: ref.watch(
+                          peutAnnulerReservationProvider,
+                        ),
                         onAnnuler: () =>
                             _annuler(context, ref, carte.reservation),
                       ),
@@ -477,7 +482,7 @@ class _CarteVide extends StatelessWidget {
         // Le message de la vue, mot pour mot. Il vaut aussi quand la recherche
         // ne rend rien : une grille vide sans phrase se lit comme un écran
         // cassé.
-        message ?? 'Aucune réservation pour l’instant.',
+        message ?? "Aucune réservation pour l'instant.",
         key: cle,
         textAlign: TextAlign.center,
         style: _t(TaillesContenu.sm, couleur: AppColors.neutre400),
@@ -617,7 +622,11 @@ class _EtatOngletAnnulations extends ConsumerState<_OngletAnnulations> {
                         style: _t(TaillesContenu.sm),
                       ),
                     ),
-                    for (final c in CanalReservation.values)
+                    // Les canaux de la TABLE (Paramètres › Canaux de réservation),
+                    // désactivés compris : une annulation garde son canal.
+                    for (final c
+                        in ref.watch(canauxReservationProvider).value ??
+                            CanalReservation.jeuInitial)
                       DropdownMenuItem<CanalReservation?>(
                         value: c,
                         child: Text(c.libelle, style: _t(TaillesContenu.sm)),
@@ -636,7 +645,7 @@ class _EtatOngletAnnulations extends ConsumerState<_OngletAnnulations> {
             final lignes = [
               for (final c in toutes)
                 if (!c.reservation.estActive &&
-                    (_canal == null || c.reservation.canal == _canal) &&
+                    (_canal == null || _canal!.memeQue(c.reservation.canal)) &&
                     (terme.isEmpty ||
                         c.reservation.clientNom.toLowerCase().contains(terme)))
                   c.reservation,
@@ -736,12 +745,18 @@ class _Table extends StatelessWidget {
           for (var i = 0; i < cellules.length; i++)
             Expanded(
               flex: parts[i],
-              child: Text(
-                cellules[i],
-                textAlign: droite.contains(i) ? TextAlign.right : null,
-                style: couleurs.containsKey(i)
-                    ? style.copyWith(color: couleurs[i])
-                    : style,
+              // `px-4` de chaque `<th>`/`<td>` de la vue (reservations.blade.php
+              // l.303-311) : sans cette marge, une colonne alignée à droite
+              // (« Remboursé ») touchait la suivante (« Annulée le »).
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                child: Text(
+                  cellules[i],
+                  textAlign: droite.contains(i) ? TextAlign.right : null,
+                  style: couleurs.containsKey(i)
+                      ? style.copyWith(color: couleurs[i])
+                      : style,
+                ),
               ),
             ),
         ],

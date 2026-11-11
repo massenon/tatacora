@@ -157,6 +157,25 @@
                     @endforeach
                   </tr>
                 @endforeach
+
+                {{-- Section « Profil » (03/11/2026, décision du PO) : les trois
+                     droits de modifier SES PROPRES champs de « Mon profil ».
+                     Binaires : `C` autorisé, `-` refusé. --}}
+                <tr class="border-t border-slate-200 bg-slate-100" id="section-profil-matrice">
+                  <td class="px-4 py-2 text-[13px] font-bold uppercase tracking-wide text-slate-500 sticky left-0 bg-slate-100" colspan="{{ count($cartes) + 1 }}">{{ __('pwa.roles.section_profil') }}</td>
+                </tr>
+                @foreach (RolesPermissions::PROFIL as $code => $libelleDroit)
+                  @php($impair = $loop->index % 2 === 1)
+                  <tr class="{{ $impair ? 'bg-slate-50/50' : '' }} border-t border-slate-100" data-droit-profil="{{ $code }}">
+                    <td class="px-4 py-2.5 font-semibold text-slate-700 sticky left-0 {{ $impair ? 'bg-slate-50' : 'bg-white' }}">{{ __('pwa.roles.profil_'.$code) }}</td>
+                    @foreach ($cartes as $carte)
+                      @php($niveau = $matrice[$carte['code']][$code] ?? '-')
+                      <td class="px-3 py-2.5 text-center">
+                        <span class="inline-block w-6 h-6 leading-6 rounded font-bold {{ $niveau === 'C' ? 'bg-green-50 text-green-700' : 'bg-slate-50 text-slate-300' }}">{{ $niveau }}</span>
+                      </td>
+                    @endforeach
+                  </tr>
+                @endforeach
               </tbody>
             </table>
           </div>
@@ -211,6 +230,18 @@
                 <option value="-">—</option>
               </select>
             @endif
+          </div>
+        @endforeach
+
+        {{-- Section « Profil » : trois interrupteurs binaires. --}}
+        <p id="section-profil-modale" class="pt-3 pb-1 text-[12px] font-bold uppercase tracking-wide text-slate-400">{{ __('pwa.roles.section_profil') }}</p>
+        @foreach (RolesPermissions::PROFIL as $code => $libelleDroit)
+          <div class="flex items-center justify-between py-2 gap-3" data-droit-profil="{{ $code }}">
+            <span class="text-[13px] text-slate-700">{{ __('pwa.roles.profil_'.$code) }}</span>
+            <select wire:model="niveauxSaisis.{{ $code }}" class="text-[13px] border border-slate-300 rounded-lg px-2.5 py-1.5">
+              <option value="C">{{ __('pwa.roles.profil_autorise') }}</option>
+              <option value="-">{{ __('pwa.roles.profil_refuse') }}</option>
+            </select>
           </div>
         @endforeach
       </div>

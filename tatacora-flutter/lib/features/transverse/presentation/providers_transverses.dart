@@ -1,10 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
+import '../../synchronisation/domain/operation_sync.dart';
+import '../../synchronisation/presentation/providers_synchronisation.dart';
 import '../data/comptes_utilisateurs_dao.dart';
+import '../data/journal_securite_dao.dart';
 import '../data/lecteur_comptes_poste.dart';
 import '../data/roles_dao.dart';
 import '../domain/comptes_utilisateurs.dart';
+import '../domain/journal_poste.dart';
 import '../domain/roles_du_poste.dart';
 
 /// Le lecteur des comptes du poste (lot D, 14/10/2026).
@@ -45,6 +49,11 @@ final compteSessionActifProvider = FutureProvider.autoDispose<bool?>((ref) {
   return ref.watch(lecteurComptesPosteProvider).estActif(session.utilisateurId);
 });
 
+/// Le journal de sécurité du poste (v46) — son seul écrivain.
+final journalSecuriteDaoProvider = Provider<JournalSecuriteDao>(
+  (ref) => JournalSecuriteDao(ref.watch(baseLocaleProvider)),
+);
+
 /// L'écrivain des comptes du poste (Lot J2, 14/10/2026).
 final comptesUtilisateursDaoProvider = Provider<ComptesUtilisateursDao>(
   (ref) => ComptesUtilisateursDao(ref.watch(baseLocaleProvider)),
@@ -70,4 +79,31 @@ final comptesEtRolesProvider = FutureProvider.autoDispose<ComptesEtRoles>((
     comptes: await ref.watch(comptesUtilisateursDaoProvider).comptes(),
     roles: await roles.roles(),
   );
+});
+
+/// Le Journal d'Audit de ce poste : la file d'envoi, relue à chaque visite
+/// (aucun cache). Lecture seule, par `OperationsSyncDao` — le seul qui lise la
+/// file.
+final journalDuPosteProvider = FutureProvider.autoDispose<List<EntreeJournalPoste>>((
+  ref,
+) async {
+  final operations = await ref.watch(operationsSyncDaoProvider).operations();
+  // Les gestes sur les comptes (v46) : journal LOCAL, jamais dans la file.
+  final securite = await ref.watch(journalSecuriteDaoProvider).entrees();
+  return [
+    // La suppression d'un compte est consignée au journal de SÉCURITÉ (« Compte
+    // supprimé ») : son opération de file ne s'y ajoute pas une seconde fois.
+    for (final o in operations)
+      if (o.table != TableSynchronisee.utilisateurs)
+        EntreeJournalPoste.depuisOperation(o),
+    for (final e in securite)
+      ?entreeDepuisSecurite(
+        action: e.action,
+        creeLe: e.creeLe,
+        auteurLogin: e.auteurLogin,
+        posteNom: e.posteNom,
+        cibleId: e.cibleId,
+        cibleLogin: e.cibleLogin,
+      ),
+  ];
 });

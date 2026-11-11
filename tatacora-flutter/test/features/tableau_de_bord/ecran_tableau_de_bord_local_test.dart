@@ -9,6 +9,7 @@ import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/format/formats.dart';
 import 'package:tatacora_flutter/core/impression/texte_ticket.dart';
 import 'package:tatacora_flutter/core/navigation/trace_svg.dart';
+import 'package:tatacora_flutter/features/tableau_de_bord/presentation/widgets/traces_accueil.dart';
 import 'package:tatacora_flutter/core/theme/app_colors.dart';
 import 'package:tatacora_flutter/core/theme/app_spacing.dart';
 import 'package:tatacora_flutter/features/depenses/domain/categories_depense.dart';
@@ -372,13 +373,16 @@ void main() {
     List<dynamic> surcharges = const [],
     DateTime? maintenant,
     AppDatabase? base,
+    Widget? ecran,
+    Size? taille,
   }) async {
     await monterCoquille(
       tester,
       role: 'administrateur',
       droits: droits,
       routeActive: '/tableau-de-bord',
-      enfant: const EcranTableauDeBord(),
+      taille: taille ?? const Size(1600, 1400),
+      enfant: ecran ?? const EcranTableauDeBord(),
       surcharges: [
         baseLocaleProvider.overrideWithValue(base ?? db),
         horlogeTableauDeBordProvider.overrideWithValue(
@@ -449,47 +453,19 @@ void main() {
     // NOTE DE LA VUE, pas la raison datée — qui grandissait la carte et
     // descendait la seconde rangée de 173 px (géométrie `livewire/accueil`).
     testWidgets(
-      'une seule carte reste sans source : les dépenses cumulées, '
-      '« — » jamais un zéro, la note de la vue et la HAUTEUR de ses voisines',
+      'les dépenses cumulées sont CALCULÉES sur les pièces de ce poste : un '
+      'montant, la note de la vue, jamais « — » (26/10/2026)',
       (tester) async {
         await monter(tester);
 
         const cle = 'depenses_cumulees';
-        expect(valeur(tester, cle), '—');
-        // La note de la vue, relue par PHP — ni la raison, ni rien d'inventé.
+        // Sans pièce de charge, c'est un FAIT (aucune dépense passée), dit en
+        // montant — et non plus un « — » qui prétendait ne pas savoir.
+        expect(valeur(tester, cle), contains('FCFA'));
         expect(
           note(tester, cle),
           VueBlade.libelle('accueil_pwa.kpi.$cle.note'),
         );
-        // (La série mensuelle, plus bas, garde la sienne : elle n'est pas une
-        // carte de la bande.)
-        expect(
-          find.descendant(
-            of: find.byKey(const Key('tdb-$cle')),
-            matching: find.textContaining('constaté le 10/10/2026'),
-          ),
-          findsNothing,
-        );
-        // Aucun montant dans la carte : ni « 0 FCFA » ni autre.
-        expect(texte(tester, Key('tdb-$cle')), isNot(contains('FCFA')));
-        // Pas de ligne de variation sur un chiffre qui n'existe pas.
-        expect(find.byKey(Key('tdb-variation-$cle')), findsNothing);
-
-        // La hauteur. Les cartes d'une rangée s'étirent à la plus haute
-        // (`GrilleAccueil`) : comparer deux cartes de la même rangée ne
-        // prouverait rien. On compare donc les NOTES : celle de la carte sans
-        // source tient dans l'ordre de grandeur de la note courte d'une carte
-        // établie (« Somme des paiements reçus sur la période ») — la raison
-        // datée, une dizaine de fois plus longue, la ferait exploser.
-        final hauteurNote = tester
-            .getSize(find.byKey(const Key('tdb-note-$cle')))
-            .height;
-        final hauteurNoteEtablie = tester
-            .getSize(
-              find.byKey(const Key('tdb-note-chiffre_affaires_encaisse')),
-            )
-            .height;
-        expect(hauteurNote, lessThanOrEqualTo(2 * hauteurNoteEtablie));
       },
     );
 
@@ -608,6 +584,90 @@ void main() {
         expect(ys, orderedEquals([...ys]..sort()), reason: cle);
       }
     });
+
+    testWidgets('une période DEMANDÉE que le sélecteur ne connaît pas retombe '
+        'sur « Ce mois » ET le nomme', (tester) async {
+      await monter(
+        tester,
+        ecran: const EcranTableauDeBord(periodeDemandee: 'siecle'),
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const Key('tdb-periode-inconnue')),
+                matching: find.byType(Text),
+              ),
+            )
+            .data,
+        "La période demandée (« siecle ») n'existe pas. Les chiffres ci-dessous sont ceux de la période par défaut, « Ce mois » — ils ne répondent pas à la demande qui a été faite.",
+      );
+      expect(
+        tester
+            .state<FormFieldState<PeriodeTableauDeBord>>(
+              find.byKey(const Key('tdb-periode')),
+            )
+            .value,
+        PeriodeTableauDeBord.mois,
+      );
+    });
+
+    testWidgets('une période demandée CONNUE est appliquée UNE fois, sans '
+        'bandeau ; le sélecteur reste libre ensuite', (tester) async {
+      await monter(
+        tester,
+        ecran: const EcranTableauDeBord(periodeDemandee: 'trimestre'),
+      );
+      expect(find.byKey(const Key('tdb-periode-inconnue')), findsNothing);
+      PeriodeTableauDeBord? choisie() => tester
+          .state<FormFieldState<PeriodeTableauDeBord>>(
+            find.byKey(const Key('tdb-periode')),
+          )
+          .value;
+      expect(choisie(), PeriodeTableauDeBord.trimestre);
+
+      await tester.tap(find.byKey(const Key('tdb-periode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ce mois').last);
+      await tester.pumpAndSettle();
+      expect(choisie(), PeriodeTableauDeBord.mois, reason: 'jamais réécrasé');
+    });
+
+    testWidgets('sous `lg`, les huit cartes sont repliées derrière « '
+        'Indicateurs clés (8) » ; à partir de `lg`, la grille', (tester) async {
+      // La barre supérieure déborde sous ~1 100 px (poste de bureau, décision
+      // du PO du 08/10/2026) : ce débordement-là n'est pas l'objet du cas.
+      final ancien = FlutterError.onError;
+      FlutterError.onError = (d) {
+        if (!d.toString().contains('overflowed')) ancien?.call(d);
+      };
+      addTearDown(() => FlutterError.onError = ancien);
+      await monter(tester, taille: const Size(1020, 1800));
+      expect(find.byKey(const Key('tdb-kpis-accordeon')), findsOneWidget);
+      expect(find.text('Indicateurs clés (8)'), findsOneWidget);
+      expect(find.byKey(const Key('tdb-valeur-taux_occupation')), findsNothing);
+      await tester.tap(find.byKey(const Key('tdb-kpis-accordeon-bouton')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('tdb-valeur-taux_occupation')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('tdb-kpis-accordeon-bouton')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('tdb-valeur-taux_occupation')), findsNothing);
+    });
+
+    testWidgets(
+      'à partir de `lg`, aucun accordéon : la grille des huit cartes',
+      (tester) async {
+        await monter(tester);
+        expect(find.byKey(const Key('tdb-kpis-accordeon')), findsNothing);
+        expect(
+          find.byKey(const Key('tdb-valeur-taux_occupation')),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets('à l’ouverture, la période est celle de la VUE : « Ce mois », '
         'le mois civil ENTIER', (tester) async {
@@ -782,24 +842,11 @@ void main() {
       expect(find.text('Bar'), findsWidgets);
     });
 
-    testWidgets('la série mensuelle est « non calculable » et le dit, sans '
-        'boutons d’étendue inertes', (tester) async {
+    testWidgets('la série mensuelle est CALCULÉE sur ce poste (plus de « non '
+        'disponible »)', (tester) async {
       await monter(tester);
 
-      final raison = tester
-          .widget<Text>(find.byKey(const Key('tdb-ca-indisponible')))
-          .data!;
-      expect(raison, contains('constaté le 10/10/2026'));
-      // La raison RENDUE est la raison revue (D282, puis D414 le 14/10/2026) :
-      // la courbe des dépenses serait un minorant tracé comme le total.
-      expect(raison, contains('revu le 14/10/2026'));
-      expect(raison, contains('Celle des dépenses lit la comptabilité'));
-      expect(raison, contains('minorant'));
-      expect(raison, isNot(contains('paiements')));
-      expect(find.byKey(const Key('tdb-ca-vide')), findsNothing);
-      for (final mois in [3, 6, 12]) {
-        expect(find.byKey(Key('tdb-mois-$mois')), findsNothing);
-      }
+      expect(find.byKey(const Key('tdb-ca-indisponible')), findsNothing);
     });
   });
 
@@ -1111,19 +1158,17 @@ void main() {
       );
     });
 
-    testWidgets('R1 — « Résultat net » reste sur sa voie M10 : « Non '
-        'consulté », les mots de la vue, et la raison DATÉE — jamais un zéro', (
-      tester,
-    ) async {
+    testWidgets('R1 — « Résultat net » est CALCULÉ sur ce poste (26/10/2026) : '
+        'un montant, l’exercice, « avant impôt » tant que la classe 89 est '
+        'vide — plus de « Non consulté »', (tester) async {
       await ouvrirPilotage(tester);
 
       final carte = texte(tester, const Key('pilotage-kpi-resultat'));
-      expect(carte, startsWith('RÉSULTAT NET | Non consulté | '));
-      expect(carte, contains('Comptabilité non consultée'));
-      expect(carte, contains('constaté le 13/10/2026'));
-      expect(carte, isNot(contains('FCFA')));
-      // La raison VRAIE : un calcul non porté, pas un serveur disparu.
-      expect(carte, contains('ne sont pas calculés sur ce poste'));
+      expect(carte, startsWith('RÉSULTAT NET | '));
+      expect(carte, contains('FCFA'));
+      expect(carte, contains('avant impôt'));
+      expect(carte, isNot(contains('Non consulté')));
+      expect(carte, isNot(contains('Comptabilité non consultée')));
     });
 
     PeriodeTableauDeBord selecteur(WidgetTester tester) => tester
@@ -1361,20 +1406,18 @@ void main() {
         'Réapprovisionnement à déclencher.',
       );
       expect(find.byKey(const Key('pilotage-alerte-4')), findsNothing);
-      // M3, M11 et M6 lus ; M10 non évalué sur ce poste, et la ligne le dit.
+      // M3, M11, M6 ET M10 lus : la comptabilité se calcule sur ce poste, plus
+      // aucune ligne grise « alertes non évaluées ».
       expect(
         tester
             .widget<Text>(find.byKey(const Key('pilotage-alertes-sources')))
             .data,
-        '3 source(s) consultée(s) sur 4 — celles que votre rôle vous donne le '
+        '4 source(s) consultée(s) sur 4 — celles que votre rôle vous donne le '
         'droit de lire.',
       );
       expect(
-        texte(tester, const Key('pilotage-alertes-indisponible-0')),
-        startsWith(
-          'Comptabilité — alertes non évaluées : le compte de '
-          'résultat',
-        ),
+        find.byKey(const Key('pilotage-alertes-indisponible-0')),
+        findsNothing,
       );
       expect(find.byKey(const Key('pilotage-alertes-aucune')), findsNothing);
     });
@@ -1389,7 +1432,7 @@ void main() {
         tester
             .widget<Text>(find.byKey(const Key('pilotage-alertes-sources')))
             .data,
-        startsWith('2 source(s) consultée(s) sur 4'),
+        startsWith('3 source(s) consultée(s) sur 4'),
       );
     });
 
@@ -1662,12 +1705,12 @@ void main() {
 
       expect(find.textContaining('Stocks — '), findsNothing);
       expect(find.textContaining('sous le seuil de'), findsNothing);
-      // M11 seule (M3 et M6 non lisibles ; M10 non évaluée, ligne grise).
+      // M11 et M10 (M3 et M6 non lisibles).
       expect(
         tester
             .widget<Text>(find.byKey(const Key('pilotage-alertes-sources')))
             .data,
-        startsWith('1 source(s) consultée(s) sur 4'),
+        startsWith('2 source(s) consultée(s) sur 4'),
       );
     });
 
@@ -2022,6 +2065,7 @@ void main() {
           'pilotage-kpi-ca',
           'pilotage-kpi-tresorerie',
           'pilotage-kpi-stock',
+          'pilotage-kpi-resultat',
         ])
           cle: texte(tester, Key(cle)).split(' | ')[1],
       };
@@ -2049,7 +2093,13 @@ void main() {
       // Les anciennes clés M10 ne sont plus au document.
       expect(etat.kpis.containsKey('Chiffre d’affaires'), isFalse);
       expect(etat.kpis.containsKey('Trésorerie'), isFalse);
-      expect(etat.kpis['Résultat net'], '—');
+      // Le résultat net est calculé sur ce poste : le papier dit la carte.
+      expect(
+        etat.kpis['Résultat net'],
+        startsWith(carte('pilotage-kpi-resultat')),
+        reason: 'le papier ajoute « (avant impôt) » à la valeur affichée',
+      );
+      expect(etat.kpis['Résultat net'], isNot('—'));
       // « Valeur du stock » : la carte affichée, lue de la BANDE comme elle,
       // ancrée sur le montant (riz 12 505 F ; le sel n'a aucun coût) — et ce
       // qu'elle ne comprend pas part avec le papier, en réserve.
@@ -2071,15 +2121,11 @@ void main() {
         etat.lignes.where((l) => l[1] == 'Valeur au coût moyen pondéré'),
         isEmpty,
       );
-      // La réserve du document porte la raison datée de la carte.
+      // La comptabilité se calcule sur ce poste : plus de réserve « non
+      // consultée » au document.
       expect(
-        etat.lignes.where(
-          (l) =>
-              l[0] == 'RÉSERVE' &&
-              l[1].startsWith('Comptabilité non consultée à l’édition : ') &&
-              l[1].contains('constaté le 13/10/2026'),
-        ),
-        hasLength(1),
+        etat.lignes.where((l) => l[1].startsWith('Comptabilité non consultée')),
+        isEmpty,
       );
       expect(
         etat.lignes,
@@ -2110,6 +2156,13 @@ void main() {
       // Et le document est réellement composé (octets PDF, pas une promesse).
       final octets = await etat.pdf();
       expect(String.fromCharCodes(octets.take(5)), '%PDF-');
+      // La rubrique des cartes de la bande, en tête du document
+      // (`accueil_pwa.etat_consolide.rubrique_indicateurs`), imprimable.
+      expect(EtatPilotage.rubriqueIndicateurs, 'Indicateurs consolidés');
+      expect(
+        caracteresNonImprimables(texteTicket(EtatPilotage.rubriqueIndicateurs)),
+        isEmpty,
+      );
     });
   });
 
@@ -2147,80 +2200,87 @@ void main() {
     Text texteDe(WidgetTester tester, Key cle) =>
         tester.widget<Text>(find.byKey(cle));
 
-    testWidgets('l’en-tête est celui de la vue : titre SANS icône (même x que '
-        'le sous-titre), sous-titre, trois onglets, période À DROITE des '
-        'onglets et alignée en bas, « Actualiser » et « Exporter »', (
-      tester,
-    ) async {
-      await monter(tester);
+    testWidgets(
+      'l’en-tête est celui de la vue : icône et titre, sous-titre, trois onglets, période À DROITE des '
+      'onglets et alignée en bas, « Actualiser » et « Exporter »',
+      (tester) async {
+        await monter(tester);
 
-      final titre = find.byKey(const Key('tdb-titre'));
-      expect(texteDe(tester, const Key('tdb-titre')).data, 'Tableau de bord');
-      expect(
-        texteDe(tester, const Key('tdb-sous-titre')).data,
-        'Vision consolidée et en temps réel de la performance de chaque '
-        'activité',
-      );
-      // Aucune icône devant le titre : la vue écrit un `<h1>` nu, et son
-      // relevé place titre et sous-titre au même x.
-      expect(
-        tester.getTopLeft(titre).dx,
-        tester.getTopLeft(find.byKey(const Key('tdb-sous-titre'))).dx,
-      );
-      expect(find.byIcon(Icons.insights_outlined), findsNothing);
-      // Les trois onglets, sous le sous-titre, dans l'ordre de la vue.
-      final onglets = [
-        for (final o in OngletTableauDeBord.values)
-          tester.getTopLeft(find.byKey(Key('tdb-onglet-${o.name}'))),
-      ];
-      expect(onglets[0].dy, greaterThan(tester.getTopLeft(titre).dy));
-      // Ordre de LECTURE (la police de test, plus large qu'Inter, peut faire
-      // passer un onglet à la ligne : `flex` de la vue rétrécit de même).
-      bool avant(Offset a, Offset b) =>
-          a.dy < b.dy || (a.dy == b.dy && a.dx < b.dx);
-      expect(avant(onglets[0], onglets[1]), isTrue);
-      expect(avant(onglets[1], onglets[2]), isTrue);
-      // `lg:self-end` : la période est À DROITE du dernier onglet et son bas
-      // est celui de la rangée d'onglets.
-      final periode = find.byKey(const Key('tdb-libelle-periode'));
-      expect(
-        tester.getTopLeft(periode).dx,
-        greaterThan(
-          tester.getTopRight(find.byKey(const Key('tdb-onglet-croise'))).dx,
-        ),
-      );
-      expect(
-        tester.getBottomLeft(periode).dy,
-        moreOrLessEquals(
-          tester.getBottomLeft(find.byKey(const Key('tdb-onglet-croise'))).dy,
-          epsilon: 1,
-        ),
-      );
-      // `lg:ml-auto` : « Exporter » est le dernier élément, au bord droit.
-      final exporter = find.byKey(const Key('tdb-exporter'));
-      expect(
-        tester.getTopLeft(exporter).dx,
-        greaterThan(
-          tester.getTopRight(find.byKey(const Key('tdb-actualiser'))).dx,
-        ),
-      );
-      expect(
-        find.descendant(of: exporter, matching: find.text('Exporter')),
-        findsOneWidget,
-      );
-      // Le style de l'onglet actif : fond navy, texte blanc, `rounded-lg`.
-      final actif = tester.widget<Container>(
-        find
-            .descendant(
-              of: find.byKey(const Key('tdb-onglet-exploitation')),
-              matching: find.byType(Container),
-            )
-            .first,
-      );
-      final deco = actif.decoration! as BoxDecoration;
-      expect(deco.color, AppColors.navy);
-      expect(deco.borderRadius, BorderRadius.circular(AppRadius.roundedLg));
-    });
+        final titre = find.byKey(const Key('tdb-titre'));
+        expect(texteDe(tester, const Key('tdb-titre')).data, 'Tableau de bord');
+        expect(
+          texteDe(tester, const Key('tdb-sous-titre')).data,
+          'Vision consolidée et en temps réel de la performance de chaque '
+          'activité',
+        );
+        // L'icône « dashboard » précède le titre (directive du PO du
+        // 26/10/2026) : elle est au x du sous-titre, le titre est décalé.
+        final icone = find.byKey(const Key('tdb-icone-titre'));
+        expect(icone, findsOneWidget);
+        expect(tester.widget<IconeTrace>(icone).trace, TracesAccueil.titre);
+        expect(
+          tester.getTopLeft(icone).dx,
+          tester.getTopLeft(find.byKey(const Key('tdb-sous-titre'))).dx,
+        );
+        expect(
+          tester.getTopLeft(titre).dx,
+          greaterThan(tester.getTopLeft(icone).dx),
+        );
+        expect(find.byIcon(Icons.insights_outlined), findsNothing);
+        // Les trois onglets, sous le sous-titre, dans l'ordre de la vue.
+        final onglets = [
+          for (final o in OngletTableauDeBord.values)
+            tester.getTopLeft(find.byKey(Key('tdb-onglet-${o.name}'))),
+        ];
+        expect(onglets[0].dy, greaterThan(tester.getTopLeft(titre).dy));
+        // Ordre de LECTURE (la police de test, plus large qu'Inter, peut faire
+        // passer un onglet à la ligne : `flex` de la vue rétrécit de même).
+        bool avant(Offset a, Offset b) =>
+            a.dy < b.dy || (a.dy == b.dy && a.dx < b.dx);
+        expect(avant(onglets[0], onglets[1]), isTrue);
+        expect(avant(onglets[1], onglets[2]), isTrue);
+        // `lg:self-end` : la période est À DROITE du dernier onglet et son bas
+        // est celui de la rangée d'onglets.
+        final periode = find.byKey(const Key('tdb-libelle-periode'));
+        expect(
+          tester.getTopLeft(periode).dx,
+          greaterThan(
+            tester.getTopRight(find.byKey(const Key('tdb-onglet-croise'))).dx,
+          ),
+        );
+        expect(
+          tester.getBottomLeft(periode).dy,
+          moreOrLessEquals(
+            tester.getBottomLeft(find.byKey(const Key('tdb-onglet-croise'))).dy,
+            epsilon: 1,
+          ),
+        );
+        // `lg:ml-auto` : « Exporter » est le dernier élément, au bord droit.
+        final exporter = find.byKey(const Key('tdb-exporter'));
+        expect(
+          tester.getTopLeft(exporter).dx,
+          greaterThan(
+            tester.getTopRight(find.byKey(const Key('tdb-actualiser'))).dx,
+          ),
+        );
+        expect(
+          find.descendant(of: exporter, matching: find.text('Exporter')),
+          findsOneWidget,
+        );
+        // Le style de l'onglet actif : fond navy, texte blanc, `rounded-lg`.
+        final actif = tester.widget<Container>(
+          find
+              .descendant(
+                of: find.byKey(const Key('tdb-onglet-exploitation')),
+                matching: find.byType(Container),
+              )
+              .first,
+        );
+        final deco = actif.decoration! as BoxDecoration;
+        expect(deco.color, AppColors.navy);
+        expect(deco.borderRadius, BorderRadius.circular(AppRadius.roundedLg));
+      },
+    );
 
     testWidgets('les blocs sont dans l’ORDRE de la vue : accès rapides, '
         'bande, alertes, récapitulatif, graphiques (CA et anneau sur la même '

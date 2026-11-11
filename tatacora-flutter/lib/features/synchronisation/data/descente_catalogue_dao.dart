@@ -100,6 +100,15 @@ class DescenteCatalogueDao extends DatabaseAccessor<AppDatabase> {
   /// Vrai si le serveur a annoncé, à sa dernière réponse, la phase d'essais.
   Future<bool> phaseEssaisServeur() async => await _lire(clePhaseEssais) == '1';
 
+  /// L'empreinte de la définition du catalogue que ce poste a LUE EN ENTIER (10/11/2026) : le
+  /// serveur l'annonce à chaque page (`X-Tatacora-Descente`) ; différente de celle-ci, la
+  /// descente repart du début une fois, pour que les colonnes ajoutées côté serveur arrivent
+  /// aussi sur les lignes déjà reçues.
+  Future<String?> empreinteLue() => _lire('descente.empreinte');
+
+  Future<void> retenirEmpreinte(String empreinte) =>
+      _ecrire('descente.empreinte', empreinte);
+
   /// Le curseur OPAQUE du serveur, ou `null` (depuis le début).
   Future<String?> curseur() => _lire(cleCurseur);
 
@@ -148,6 +157,14 @@ class DescenteCatalogueDao extends DatabaseAccessor<AppDatabase> {
       return null;
     }
   }
+
+  /// Le DERNIER contrôle de cohérence (JSON de `coherence_persistee.dart`),
+  /// rangé pour la partie « Réception » de l'écran de synchronisation.
+  static const cleCoherence = 'coherence.dernier';
+
+  Future<void> consignerCoherence(String json) => _ecrire(cleCoherence, json);
+
+  Future<String?> derniereCoherence() => _lire(cleCoherence);
 
   /* ================================================================== */
   /* Éléments gardés pour une reprise                                    */

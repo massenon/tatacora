@@ -1,11 +1,10 @@
 import '../../comptabilite/data/moteur_comptable.dart';
-import '../../comptabilite/domain/comptes_syscohada.dart';
 import '../../depenses/domain/categories_depense.dart';
 
 /// La pièce comptable d'un règlement fournisseur — **fonction pure**, réplique
 /// des lignes de `ReglementFournisseurService::regler`.
 ///
-/// * un DÉBIT de `4011` Fournisseurs (la dette diminue) ;
+/// * un DÉBIT du rôle `FOURNISSEURS` (4011 par défaut ; la dette diminue) ;
 /// * un CRÉDIT de la trésorerie qui décaisse, au journal de cette trésorerie
 ///   (CAI pour la caisse, BQ pour le mobile money et la banque : le compte et le
 ///   journal font foi chez `TresorerieDepense`, réplique de
@@ -29,11 +28,8 @@ DemandePiece pieceDuReglement({
     date: dateIso,
     libelle: libelle,
     lignes: [
-      LigneDemandee(
-        compte: ComptesSyscohada.fournisseurs,
-        debitCentimes: montantCentimes,
-      ),
-      LigneDemandee(compte: tresorerie.compte, creditCentimes: montantCentimes),
+      LigneDemandee(role: 'FOURNISSEURS', debitCentimes: montantCentimes),
+      LigneDemandee(role: tresorerie.role, creditCentimes: montantCentimes),
     ],
   );
 }

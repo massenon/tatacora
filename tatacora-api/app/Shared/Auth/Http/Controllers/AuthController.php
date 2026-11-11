@@ -56,6 +56,12 @@ final class AuthController extends Controller
         'M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7',
         'M8', 'M9', 'M10', 'M11', 'M12', 'M13', 'M14',
         'ROLES', 'PARAM',
+        // « Mon profil » (03/11/2026) : trois droits transverses, binaires
+        // (`C` autorisé, `-` refusé) — le poste les relit pour rendre ses
+        // champs modifiables.
+        'PROFIL_NOM', 'PROFIL_TELEPHONE', 'PROFIL_INTITULE',
+        // Trois entrées de menu ouvertes à tous (09/11/2026), hors écran.
+        'SYNCHRO', 'APPAIRAGE', 'IMPORT_EXPORT',
     ];
 
     /**
@@ -118,6 +124,17 @@ final class AuthController extends Controller
 
             throw ValidationException::withMessages([
                 'identifiant' => __('auth.compte_desactive'),
+            ])->status(403);
+        }
+
+        // Mot de passe TEMPORAIRE posé par un administrateur (29/10/2026) : aucun
+        // jeton d'API tant que le titulaire n'a pas défini le sien (écran web).
+        // Refus prononcé APRÈS validation du mot de passe, comme le précédent.
+        if ($utilisateur->must_change_password) {
+            RateLimiter::hit($cle, self::BLOCAGE_SECONDES);
+
+            throw ValidationException::withMessages([
+                'identifiant' => __('auth.changement_requis'),
             ])->status(403);
         }
 

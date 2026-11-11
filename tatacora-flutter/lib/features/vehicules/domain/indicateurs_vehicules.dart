@@ -25,13 +25,15 @@ import 'entities/vehicule.dart';
 
 /// Additionne des montants décimaux en chaîne, **exactement**.
 ///
-/// Rend `null` si la liste est vide ou si **une seule** valeur est illisible :
-/// mieux vaut ne rien afficher qu'un total silencieusement incomplet.
-String? sommeDecimales(Iterable<String> montants) {
+/// Rend `null` si la liste est vide ou si **une seule** valeur est illisible OU
+/// ABSENTE (`null`, depuis la v41 : le montant d'un contrat d'avant n'est pas
+/// connu) : mieux vaut ne rien afficher qu'un total silencieusement incomplet.
+String? sommeDecimales(Iterable<String?> montants) {
   var centimes = 0;
   var vus = 0;
 
   for (final brut in montants) {
+    if (brut == null) return null;
     final c = _enCentimes(brut);
     if (c == null) return null;
     centimes += c;
@@ -102,19 +104,17 @@ final class IndicateursVehicules {
   /// source — et il décrit **aujourd'hui**, pas la période choisie.
   final int immobilises;
 
-  /// Les contrats qui chevauchent la période.
-  ///
-  /// Le maître dit « Contrats actifs ». Faute de colonne `statut` (PA-50),
-  /// **tout contrat est actif** : le mot est donc exact, mais pour une raison
-  /// qui n'est pas celle du maître.
+  /// Les contrats ACTIFS (`statut != annule`) qui chevauchent la période —
+  /// `$agregats['contrats_actifs']` de la vue (`ParcVehiculeService::
+  /// agregerContratsActifs`).
   final int contratsSurPeriode;
 
-  /// **Toujours `null`.** Aucun contrat ne peut être annulé : ni colonne
-  /// `statut`, ni route, ni méthode `annuler()` sur le modèle (PA-50).
-  /// Afficher « 0 » annoncerait « aucune annulation », c'est-à-dire une bonne
-  /// nouvelle vérifiée par personne — alors que la vérité est « l'annulation
-  /// n'existe pas ».
-  final int? contratsAnnules;
+  /// Les contrats ANNULÉS de l'ensemble affiché — `contratsAnnulesCount` de la
+  /// vue : `$contrats->count() - $agregats['contrats_actifs']`, où `$contrats`
+  /// est déjà FILTRÉ par le statut choisi. Avec le filtre par défaut « Contrats
+  /// actifs » la vue dit donc « 0 annulé(s) » ; c'est « Tous » ou « Annulés » qui
+  /// les compte. Le poste fait de même — la même phrase, le même chiffre.
+  final int contratsAnnules;
 
   /// Somme des `montant` des contrats de la période, en chaîne décimale.
   ///
@@ -133,10 +133,12 @@ final class IndicateursVehicules {
   /// « Choisissez une période », jamais « 0 % ».
   final int? tauxOccupation;
 
-  /// **Toujours `null`.** `contrats_location` n'a **aucune colonne d'acompte**,
-  /// et `CreerContratLocationRequest` n'en accepte aucun. Sans acompte, aucun
-  /// reste à encaisser ne se calcule. Afficher « 0 F » dirait « tout est
-  /// soldé » sur un écran où l'on décide de relancer un client.
+  /// Somme des restes dus (montant figé − acompte) des contrats ACTIFS de la
+  /// période — `agregerContratsActifs()['reste_a_encaisser']` de la vue. `'0.00'`
+  /// quand aucun contrat actif ne compte ; `null` si UN SEUL contrat n'a pas de
+  /// montant ou d'acompte connu (signé avant la v41 et pas encore reçu du
+  /// serveur) : une somme amputée dirait « tout est soldé » sur un écran où l'on
+  /// décide de relancer un client.
   final String? resteAEncaisser;
 
   final int joursLoues;
@@ -144,17 +146,10 @@ final class IndicateursVehicules {
   /// Ce que chaque indicateur absent doit dire à l'écran. Une seule source :
   /// la carte lit cette table, elle ne réécrit pas la phrase.
   static const Map<String, String> raisons = {
-    'contrats_annules':
-        // Texte visible : sans code interne ni nom de table (directive du
-        // PO, 14/10/2026). Raison technique : aucune colonne de statut sur
-        // les contrats de ce poste (PA-50).
-        'Un contrat ne peut pas être annulé sur ce poste : le nombre '
-        'd’annulations n’existe pas. « 0 » se lirait « aucune annulation » ; '
-        'la vérité est « aucune annulation n’est possible ».',
     'reste_a_encaisser':
-        // Raison technique : aucune colonne d'acompte sur les contrats.
-        'Ce poste n’enregistre aucun acompte sur un contrat de location : '
-        'le reste à encaisser n’est pas connu. « 0 FCFA » se lirait « tout '
+        'Au moins un contrat de la période n’a ni montant ni acompte connus '
+        '(signé avant que ce poste les enregistre, et pas encore reçu du '
+        'serveur) : la somme serait amputée, et « 0 FCFA » se lirait « tout '
         'est soldé ».',
     // ⚠ Corrigé le 09/10/2026 : le texte disait « Choisissez une période »
     // alors que le taux est aussi `null` sur un parc VIDE, période choisie —
@@ -163,8 +158,9 @@ final class IndicateursVehicules {
         'Aucun taux sans période choisie ni véhicule au parc : « 0 % » se '
         'lirait comme un parc inoccupé.',
     'chiffre_affaires':
-        'Un montant de contrat que ce client n’a pas su lire — une somme '
-        'amputée serait plausible et fausse.',
+        'Au moins un contrat de la période n’a pas de montant connu (signé '
+        'avant que ce poste le fige, et pas encore reçu du serveur) : une '
+        'somme amputée serait plausible et fausse.',
     'immobilises':
         'Compté sur le statut courant des véhicules (« Entretien », « Hors '
         'service »), et non sur les immobilisations de la période, que ce '
@@ -175,19 +171,33 @@ final class IndicateursVehicules {
 /// Calcule les six indicateurs. Fonction **pure** : éprouvable sans réseau.
 ///
 /// [debut] et [fin] sont `Y-m-d` ou `null`. [joursPeriode] est le nombre de
-/// jours de la période choisie, `null` si elle ne l'est pas.
+/// jours de la période choisie, `null` si elle ne l'est pas. [statut] est le
+/// filtre de la vue (`actif` par défaut, `annule`, ou vide pour « Tous ») : la
+/// vue calcule ses chiffres sur les contrats DÉJÀ filtrés (`contratsFiltres`),
+/// puis n'en compte comme actifs que ceux qui ne sont pas annulés.
 IndicateursVehicules calculerIndicateurs({
   required List<Vehicule> parc,
   required List<ContratLocation> contrats,
   required String? debut,
   required String? fin,
   required int? joursPeriode,
+  String statut = statutContratActif,
 }) {
   final retenus = contrats
       .where((c) => c.chevauche(debut, fin))
+      .where(
+        (c) => switch (statut) {
+          statutContratActif => !c.annule,
+          statutContratAnnule => c.annule,
+          _ => true,
+        },
+      )
       .toList(growable: false);
+  // `agregerContratsActifs` : « actif » = `statut !== 'annule'`, la seule
+  // définition du dépôt.
+  final actifs = retenus.where((c) => !c.annule).toList(growable: false);
 
-  final joursLoues = retenus.fold(0, (s, c) => s + c.nombreJours);
+  final joursLoues = actifs.fold(0, (s, c) => s + c.nombreJours);
 
   // Le dénominateur du maître : parc × jours de la période. Un parc vide ou
   // une période absente rendent le taux insensé — `null`, jamais 0 %.
@@ -198,17 +208,17 @@ IndicateursVehicules calculerIndicateurs({
   return IndicateursVehicules(
     parc: parc.length,
     immobilises: parc.where((v) => v.statut?.estImmobilise ?? false).length,
-    contratsSurPeriode: retenus.length,
-    // Structurellement absent — voir le champ.
-    contratsAnnules: null,
-    chiffreAffaires: retenus.isEmpty
+    contratsSurPeriode: actifs.length,
+    contratsAnnules: retenus.length - actifs.length,
+    chiffreAffaires: actifs.isEmpty
         ? '0.00'
-        : sommeDecimales(retenus.map((c) => c.montant)),
+        : sommeDecimales(actifs.map((c) => c.montant)),
     tauxOccupation: denominateur == null || denominateur == 0
         ? null
         : ((joursLoues * 100) / denominateur).round(),
-    // Structurellement absent — voir le champ.
-    resteAEncaisser: null,
+    resteAEncaisser: actifs.isEmpty
+        ? '0.00'
+        : sommeDecimales(actifs.map((c) => c.resteDu)),
     joursLoues: joursLoues,
   );
 }

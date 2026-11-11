@@ -3,12 +3,16 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/format/cle_comparaison.dart';
+import '../../pos/data/historique_prix_carte_dao.dart';
+import '../../pos/data/indisponibilites_carte_dao.dart';
+import '../../pos/domain/changement_prix_carte.dart';
 import '../../stocks/data/stocks_dao.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
 import '../../stocks/domain/calcul_stock.dart';
 import '../../stocks/domain/entities/etat_stock.dart' show SuiviArticle;
+import '../../bar/domain/entities/trace_prix.dart';
 import '../domain/calcul_restaurant.dart';
 import '../domain/entities/plat.dart';
 import '../domain/messages_restaurant.dart';
@@ -199,6 +203,38 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     return resultat;
   }
 
+  /// Le lien direct d'un plat, valorisé au point cuisine, ou `null` : pas de
+  /// lien, ou un article que ce poste n'a pas (encore) reçu — on ne l'invente
+  /// pas, le plat retombe sur sa fiche.
+  LienDirectCalcule? _lien(
+    PlatsLocalData p,
+    ({
+      String? pointId,
+      Map<String, ArticleCalcul> articles,
+      Map<String, int> stockAuPoint,
+      Map<String, int> cmp,
+    })
+    stock,
+  ) {
+    final articleId = p.articleId;
+    final unites = p.unitesVendables == null
+        ? null
+        : lireDixMilliemes(p.unitesVendables!);
+    if (articleId == null || unites == null || unites <= 0) return null;
+    final a = stock.articles[articleId];
+    if (a == null) return null;
+    return LienDirectCalcule(
+      articleId: a.id,
+      libelle: a.libelle,
+      uniteMesure: a.uniteMesure,
+      suivi: a.suivi,
+      unitesVendables: ecrireDixMilliemes(unites),
+      unitesDixMilliemes: unites,
+      stockCentiemes: stock.stockAuPoint[a.id] ?? 0,
+      seuilCentiemes: a.seuilCentiemes,
+    );
+  }
+
   /// Les plats, leur composition valorisée et le point cuisine : tout ce que
   /// `calculerCarte` consomme.
   Future<DonneesCarte> donneesCarte() async {
@@ -208,6 +244,10 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
       for (final r in await select(attachedDatabase.recettesLocal).get())
         r.id: r.libelle,
     };
+
+    final retraits = await IndisponibilitesCarteDao(
+      attachedDatabase,
+    ).platsRetires();
 
     final p = attachedDatabase.platsLocal;
     final m = attachedDatabase.menusLocal;
@@ -222,13 +262,16 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
           PlatCalcule(
             id: l.readTable(p).id,
             libelle: l.readTable(p).libelle,
+            description: l.readTable(p).description,
             menuId: l.readTable(p).menuId,
-            menuType: l.readTable(m).type,
+            categorie: l.readTable(p).categorie,
             recetteId: l.readTable(p).recetteId,
             recetteLibelle: libellesFiches[l.readTable(p).recetteId],
             prixFrancs: l.readTable(p).prixVente,
             prixProvisoire: l.readTable(p).prixProvisoire,
             prixCorrigeMain: l.readTable(p).prixCorrigeMain,
+            indisponibilite: retraits[l.readTable(p).id],
+            lien: _lien(l.readTable(p), stock),
             composition: _ingredients(
               compositions[l.readTable(p).recetteId] ?? const [],
               stock,
@@ -261,6 +304,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
           libelle: r.libelle,
           composition: _ingredients(compositions[r.id] ?? const [], stock),
           platsServis: platsParFiche[r.id] ?? const [],
+          compositionProvisoire: r.compositionProvisoire == true,
         ),
     ];
   }
@@ -276,10 +320,12 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
   Plat _plat(PlatsLocalData p, MenusLocalData m, RecettesLocalData r) => Plat(
     id: p.id,
     libelle: p.libelle,
+    description: p.description,
     prixVente: ecrirePrix(p.prixVente),
     menuId: p.menuId,
     menuLibelle: m.libelle,
     categorieBrute: m.type,
+    categorieCarteBrute: p.categorie,
     recetteId: p.recetteId,
     recetteLibelle: r.libelle,
     prixProvisoire: p.prixProvisoire,
@@ -306,9 +352,11 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     final terme = cleDeComparaison((recherche ?? '').trim());
     final plats = [
       for (final l in lignes)
+        // Le filtre « Toutes les catégories » du catalogue porte sur la CATÉGORIE
+        // du plat (`plats.categorie`, v41), comme la vue — plus sur le type du menu.
         if ((categorie == null ||
                 categorie.isEmpty ||
-                l.readTable(m).type == categorie) &&
+                l.readTable(p).categorie == categorie) &&
             (menuId == null || l.readTable(p).menuId == menuId) &&
             (terme.isEmpty ||
                 cleDeComparaison(l.readTable(p).libelle).contains(terme)))
@@ -533,6 +581,17 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
       // Lot F1 : le document AVANT l'écriture, pour n'envoyer que ce qui
       // change (`null` = création).
       final avant = cible == null ? null : await _chargeRecette(cible);
+      // La marque « composition provisoire » (v35) : posée par le serveur (ses
+      // fiches semées), elle TOMBE d'elle-même quand la composition est
+      // réenregistrée (`CompositionRecetteService::remplacerComposition`, seul
+      // auteur) — c'est le geste de la lever depuis « Fiches techniques ».
+      final etaitProvisoire =
+          cible != null &&
+          (await (select(
+                    attachedDatabase.recettesLocal,
+                  )..where((r) => r.id.equals(cible))).getSingleOrNull())
+                  ?.compositionProvisoire ==
+              true;
       if (cible == null) {
         recetteId = _uuid.v4();
         await into(attachedDatabase.recettesLocal).insert(
@@ -558,6 +617,12 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
             libelle: Value(lue.libelle),
             modifieLe: Value(_maintenant()),
             modifiePar: Value(auteurId),
+            // Une composition réenregistrée n'est plus « posée, jamais pesée ».
+            // Une fiche laissée sans ingrédient n'a rien relevé : sa marque
+            // reste ce qu'elle était.
+            compositionProvisoire: lue.lignes.isEmpty
+                ? const Value.absent()
+                : const Value(false),
           ),
         );
       }
@@ -575,13 +640,20 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
         );
       }
       final apres = (await _chargeRecette(recetteId))!;
+      // Lever la marque d'une fiche provisoire demande au serveur de REMPLACER
+      // la composition, même inchangée : la modification porte donc `lignes`
+      // (sinon le serveur garderait la marque que ce poste vient de lever).
+      final leve = etaitProvisoire && lue.lignes.isNotEmpty;
+      final differences = avant == null ? apres : champsModifies(avant, apres);
       await _file.enfiler(
         table: TableSynchronisee.recettes,
         entiteId: recetteId,
         type: avant == null
             ? TypeOperationSync.creation
             : TypeOperationSync.modification,
-        payload: avant == null ? apres : champsModifies(avant, apres),
+        payload: leve && avant != null
+            ? {...differences, 'lignes': apres['lignes']}
+            : differences,
       );
       return recetteId;
     });
@@ -641,8 +713,10 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
             menuId: saisie.menuId,
             recetteId: saisie.recetteId,
             libelle: lue.libelle,
+            description: Value(lue.description),
             prixVente: lue.prixFrancs,
             prixProvisoire: Value(saisie.prixProvisoire),
+            categorie: Value(saisie.categorie),
             creeLe: _maintenant(),
             creePar: auteurId!,
           ),
@@ -668,8 +742,17 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
           menuId: Value(saisie.menuId),
           recetteId: Value(saisie.recetteId),
           libelle: Value(lue.libelle),
+          // `null` (non soumise) : la description reste telle quelle ; soumise vide,
+          // elle est EFFACÉE (vide = NULL), comme `Restauration::enregistrerPlat`.
+          description: saisie.description == null
+              ? const Value.absent()
+              : Value(lue.description),
           prixVente: Value(lue.prixFrancs),
           prixProvisoire: Value(saisie.prixProvisoire),
+          // `null` : la catégorie est laissée telle quelle (jamais effacée).
+          categorie: saisie.categorie == null
+              ? const Value.absent()
+              : Value(saisie.categorie),
           prixCorrigeMain: Value(
             prixCorrigeMainApres(
               corrigeActuel: existant.prixCorrigeMain,
@@ -687,6 +770,213 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     });
 
     return (await plat(id))!;
+  }
+
+  /// « Prix » de la carte — `CarteRestaurant::enregistrerModificationPrix` :
+  /// `CartePlatMenuService::modifierPlat($plat, ['prix_vente' => $prix])`, le prix
+  /// SEUL (le libellé, le menu, la fiche et le lien restent ceux du plat).
+  ///
+  /// Mêmes règles que la modale de la vue (`required|numeric|gt:0`) : un prix à
+  /// ZÉRO est refusé — suspendre la vente est le geste « Retirer de la carte »,
+  /// qui porte son motif. Le franc CFA n'a pas de sous-unité : une fraction de
+  /// franc est refusée plutôt qu'arrondie. « Corrigé à la main » se DÉDUIT
+  /// (`MarquesDePrix::completer`), et le changement est TRACÉ dans la même
+  /// transaction (`_enfilerPlat`), puis enfilé en modification du plat.
+  Future<Plat> modifierPrix({
+    required String platId,
+    required String prix,
+    required String? auteurId,
+  }) async {
+    _exigerAuteur(auteurId);
+
+    final lu = lirePrix(prix);
+    if (lu.erreur != null) {
+      throw RefusRestaurant(lu.erreur!, erreurs: {'prix_vente': lu.erreur!});
+    }
+    if (lu.francs! <= 0) {
+      throw const RefusRestaurant(
+        MessagesRestaurant.prixNul,
+        erreurs: {'prix_vente': MessagesRestaurant.prixNul},
+      );
+    }
+
+    await transaction(() async {
+      final existant = await (select(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).getSingleOrNull();
+      if (existant == null) {
+        throw const RefusRestaurant(MessagesRestaurant.platIntrouvable);
+      }
+      await (update(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).write(
+        PlatsLocalCompanion(
+          prixVente: Value(lu.francs!),
+          prixCorrigeMain: Value(
+            prixCorrigeMainApres(
+              corrigeActuel: existant.prixCorrigeMain,
+              provisoireActuel: existant.prixProvisoire,
+              prixActuelFrancs: existant.prixVente,
+              prixSoumisFrancs: lu.francs!,
+            ),
+          ),
+          modifieLe: Value(_maintenant()),
+          modifiePar: Value(auteurId),
+        ),
+      );
+      await _enfilerPlat(platId, avant: existant);
+    });
+
+    return (await plat(platId))!;
+  }
+
+  /// L'historique des prix d'UN plat, du plus récent au plus ancien — la table
+  /// locale (`HistoriquePrixCarteDao`), alimentée par les changements faits ici
+  /// et par la descente.
+  Future<List<TracePrix>> historiquePrix(String platId) =>
+      HistoriquePrixCarteDao(
+        attachedDatabase,
+      ).deLArticle(SourceCarte.plat, platId);
+
+  /* ================================================================== */
+  /* « Lier au stock » (v36) — le lien DIRECT d'un plat à un article      */
+  /* ================================================================== */
+
+  /// Les articles que « Lier au stock » propose : actifs ET en suivi
+  /// PERMANENT (la phrase de la vue : un article en achat journalier n'est pas
+  /// suivi, le rattacher ne décrémenterait rien).
+  Future<List<ArticleChoix>> articlesLiables() async =>
+      [
+        for (final a in await _stocks.articles())
+          if (a.actif && a.suivi == SuiviArticle.permanent)
+            ArticleChoix(
+              id: a.id,
+              libelle: a.libelle,
+              uniteMesure: a.uniteMesure,
+              suivi: a.suivi,
+            ),
+      ]..sort((a, b) {
+        final c = cleDeComparaison(
+          a.libelle,
+        ).compareTo(cleDeComparaison(b.libelle));
+        return c != 0 ? c : a.id.compareTo(b.id);
+      });
+
+  /// Le solde de [articleId] au point cuisine, en centièmes ; `null` quand
+  /// aucun point cuisine n'existe (on ne sait pas, ce n'est pas zéro).
+  Future<int?> stockCuisineDe(String articleId) async {
+    final stock = await _stockDesIngredients();
+    return stock.pointId == null ? null : (stock.stockAuPoint[articleId] ?? 0);
+  }
+
+  /// Le lien enregistré d'un plat : l'article et le conditionnement (texte
+  /// décimal), ou `null`.
+  Future<({String articleId, String unitesVendables})?> lienDe(
+    String platId,
+  ) async {
+    final p = await (select(
+      attachedDatabase.platsLocal,
+    )..where((x) => x.id.equals(platId))).getSingleOrNull();
+    if (p == null || p.articleId == null || p.unitesVendables == null) {
+      return null;
+    }
+    return (articleId: p.articleId!, unitesVendables: p.unitesVendables!);
+  }
+
+  /// `CartePlatMenuService::lierAuStock` : l'article ET son conditionnement
+  /// vont ENSEMBLE ; le lien se REMPLACE. Le conditionnement est strictement
+  /// positif, l'article existe. Enfilé (modification du plat) dans la même
+  /// transaction.
+  Future<Plat> lierAuStock({
+    required String platId,
+    required String articleId,
+    required String conditionnement,
+    required String? auteurId,
+  }) async {
+    _exigerAuteur(auteurId);
+
+    await transaction(() async {
+      final existant = await (select(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).getSingleOrNull();
+      if (existant == null) {
+        throw const RefusRestaurant(MessagesRestaurant.platIntrouvable);
+      }
+
+      final erreurs = <String, String>{};
+      if (articleId.trim().isEmpty) {
+        erreurs['article_stock_id'] = MessagesRestaurant.articleLienObligatoire;
+      } else if (await (select(
+            attachedDatabase.articlesLocal,
+          )..where((a) => a.id.equals(articleId))).getSingleOrNull() ==
+          null) {
+        erreurs['article_stock_id'] = MessagesRestaurant.articleLienInconnu;
+      }
+
+      final texte = conditionnement.trim();
+      final unites = lireDixMilliemes(texte);
+      if (texte.isEmpty) {
+        erreurs['unites_vendables'] = MessagesRestaurant.conversionRequise(
+          existant.libelle,
+        );
+      } else if (unites == null) {
+        erreurs['unites_vendables'] = MessagesRestaurant.conversionIllisible;
+      } else if (unites <= 0) {
+        erreurs['unites_vendables'] = MessagesRestaurant.conversionInvalide(
+          existant.libelle,
+        );
+      }
+      if (erreurs.isNotEmpty) {
+        throw RefusRestaurant(erreurs.values.first, erreurs: erreurs);
+      }
+
+      await (update(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).write(
+        PlatsLocalCompanion(
+          articleId: Value(articleId),
+          unitesVendables: Value(ecrireDixMilliemes(unites!)),
+          modifieLe: Value(_maintenant()),
+          modifiePar: Value(auteurId),
+        ),
+      );
+      await _enfilerPlat(platId, avant: existant);
+    });
+
+    return (await plat(platId))!;
+  }
+
+  /// `CartePlatMenuService::delierDuStock` : les DEUX colonnes partent
+  /// ensemble (un taux de conversion sur un plat qui ne décrémente plus rien
+  /// par ce chemin serait faux). Sans lien : rien n'est écrit.
+  Future<Plat> delierDuStock({
+    required String platId,
+    required String? auteurId,
+  }) async {
+    _exigerAuteur(auteurId);
+
+    await transaction(() async {
+      final existant = await (select(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).getSingleOrNull();
+      if (existant == null) {
+        throw const RefusRestaurant(MessagesRestaurant.platIntrouvable);
+      }
+      if (existant.articleId == null) return;
+      await (update(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).write(
+        PlatsLocalCompanion(
+          articleId: const Value(null),
+          unitesVendables: const Value(null),
+          modifieLe: Value(_maintenant()),
+          modifiePar: Value(auteurId),
+        ),
+      );
+      await _enfilerPlat(platId, avant: existant);
+    });
+
+    return (await plat(platId))!;
   }
 
   /* ================================================================== */
@@ -745,26 +1035,63 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
 
   static Map<String, Object?> _chargePlat(PlatsLocalData p) => chargePlat(
     libelle: p.libelle,
+    description: p.description,
     menuId: p.menuId,
     recetteId: p.recetteId,
     prixVenteFrancs: p.prixVente,
     prixProvisoire: p.prixProvisoire,
     prixCorrigeMain: p.prixCorrigeMain,
+    articleId: p.articleId,
+    unitesVendables: p.unitesVendables,
+    categorie: p.categorie,
   );
+
+  /// Les deux colonnes du lien, retirées : elles repartent en `null`
+  /// EXPLICITE (`champsModifies` ne voit que les clés présentes après).
+  static Map<String, Object?> _differences(
+    PlatsLocalData avant,
+    PlatsLocalData apres,
+  ) {
+    final d = champsModifies(_chargePlat(avant), _chargePlat(apres));
+    // La description effacée repart en `null` EXPLICITE (même raison que le lien).
+    if (avant.description != null && apres.description == null) {
+      d['description'] = null;
+    }
+    if (avant.articleId != null && apres.articleId == null) {
+      d['article_id'] = null;
+      d['unites_vendables_par_unite_stock'] = null;
+    }
+    return d;
+  }
 
   Future<void> _enfilerPlat(String id, {required PlatsLocalData? avant}) async {
     final apres = await (select(
       attachedDatabase.platsLocal,
     )..where((p) => p.id.equals(id))).getSingle();
+    // La TRACE du changement de prix (v38) : TOUT chemin qui réécrit un plat
+    // passe ici, donc aucun ne peut changer le prix sans la laisser — comme
+    // l'observateur du serveur (`PlatObserver`), elle ne naît qu'à la
+    // MODIFICATION d'un plat existant. La comparaison est celle de
+    // `TraceurHistoriquePrix` : le prix, puis la marque « corrigé à la main ».
+    if (avant != null) {
+      await HistoriquePrixCarteDao(attachedDatabase).tracer(
+        source: SourceCarte.plat,
+        sourceId: id,
+        changements: changementsDePrix(
+          prixAvant: avant.prixVente,
+          prixApres: apres.prixVente,
+          corrigeAvant: avant.prixCorrigeMain,
+          corrigeApres: apres.prixCorrigeMain,
+        ),
+      );
+    }
     await _file.enfiler(
       table: TableSynchronisee.plats,
       entiteId: id,
       type: avant == null
           ? TypeOperationSync.creation
           : TypeOperationSync.modification,
-      payload: avant == null
-          ? _chargePlat(apres)
-          : champsModifies(_chargePlat(avant), _chargePlat(apres)),
+      payload: avant == null ? _chargePlat(apres) : _differences(avant, apres),
     );
   }
 }

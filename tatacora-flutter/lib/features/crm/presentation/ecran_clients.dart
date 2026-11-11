@@ -9,22 +9,32 @@ import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/donnees_absentes.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/liste_paginee.dart';
-import '../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
+import '../../caisse/domain/montant_caisse.dart'
+    show formaterCentimesEnFcfa, formaterCentimesExact;
 import '../../facturation/domain/creances.dart';
 import '../../facturation/domain/entities/paiement_facture.dart';
 import '../../facturation/domain/messages_encaissement.dart';
 import '../../facturation/domain/regles_encaissement.dart';
 import '../../facturation/presentation/providers_paiements.dart';
+import '../../hebergement/domain/entities/reservation.dart';
+import '../../achats/domain/entities/archivage_fournisseur.dart'
+    show LotArchivage;
+import '../../achats/presentation/widgets/modale_archivage_achats.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
 import '../domain/entities/client.dart';
+import '../data/archivage_clients.dart' show RefusArchivageClient;
 import '../domain/entities/registre_clients.dart';
+import '../domain/entities/relance.dart';
+import '../domain/messages_archivage_client.dart';
+import '../domain/regles_relance.dart';
 import 'providers_crm.dart';
 import 'widgets/barre_exports_clients.dart';
+import 'widgets/modale_historique_client.dart';
 import 'widgets/modale_nouveau_client.dart';
 import 'widgets/modale_recouvrement.dart';
+import 'widgets/modale_relance.dart';
 import 'widgets/table_clients.dart';
 
 /// L'écran **Clients & Créances** — la vue `crm/clients-creances`.
@@ -50,28 +60,29 @@ import 'widgets/table_clients.dart';
 ///    personne n'a décidée ») n'était déjà plus celle du serveur, et la phrase
 ///    qui la refusait à l'écran serait devenue fausse.
 ///
-/// Les relances supposent un historique de relances, donc M12, module vide : elles
-/// restent sans source, et le disent (`donneeNonDisponible`) au lieu d'afficher
-/// « Aucun client à relancer », qui affirmerait que personne n'est en retard.
+/// ## Les relances et l'archivage d'un client sont portés (21/10/2026)
 ///
-/// Les avances et acomptes (réservations à acompte) ont leur source depuis
-/// toujours (`reservations_local.acompte`) et n'étaient refusées qu'à cause d'une
-/// prémisse fausse (« elles supposent des encaissements ») : le TABLEAU des
-/// avances n'est pas porté dans ce lot, nommé ici et au ticket (D236) plutôt que
-/// dissimulé.
+/// **Les relances** (`relances_clients`, EF-M3-03) : « Relancer » ouvre la
+/// modale « Tracer une relance » (canal, montant réclamé, promesse, compte
+/// rendu), `RelancesClientsDao` écrit le fait daté et l'enfile, et l'onglet
+/// « Relances clients » rend « Clients à relancer » (les débiteurs sans relance
+/// depuis 30 jours : « Jamais relancé » ou la date) et l'historique. La carte
+/// « Clients à relancer » les compte.
 ///
-/// ## Les cartes sans source rendent « — », jamais « 0 »
+/// **L'archivage** (« Supprimer », case de sélection, barre de sélection
+/// groupée, « Restaurer », badge « Archivé ») : `clients_local.actif` (v35),
+/// écrit par le seul `ArchivageClients`, qui rejoue les quatre verrous du
+/// serveur (séjour, location, circuit, facture non soldée). La case et le
+/// bouton n'existent que pour qui peut archiver (`regle_archivage.dart`).
 ///
-/// « Créances totales », « Dont + de 90 jours », « 0 à 30 jours » et « Encaissé
-/// sur 30 j » ont une source ; seule « Clients à relancer » n'en a pas (M12 est
-/// vide). Les deux cartes de la balance âgée suivent `MontantFcfa::formatOuTiret`
-/// du serveur : un montant NUL est un tiret, jamais « 0 FCFA » — la vue le fait,
-/// et un zéro plausible se lirait comme « aucune dette douteuse » (PA-126).
+/// ## Ce que ce poste fait en plus de l'encaissement
 ///
-/// Deux modales du maître restent refusées (les relances et l'historique d'un
-/// client), pour la raison dite plus haut :
-///  - maitre-refuse:m3-clients-creances.html#modale-relance
-///  - maitre-refuse:m3-clients-creances.html#modale-hist
+///  - **Historique d'un client** : « Historique » (liste des clients) et
+///    « Détail » (suivi des dettes) ouvrent la modale du relevé, aux
+///    encaissements puis aux relances du client ; « Imprimer PDF » écrit le
+///    relevé de compte (document remis au client), relances comprises.
+///  - **Avances et acomptes** : le tableau est rendu, depuis les réservations
+///    non annulées qui portent un acompte (`reservations_local.acompte`).
 const _onglets = <(String, String)>[
   ('clients', 'Liste des clients'),
   ('dettes', 'Suivi des dettes'),
@@ -125,6 +136,117 @@ class _EtatEcranClients extends ConsumerState<EcranClients> {
     );
   }
 
+  /// `ClientsCreances::ouvrirRelance` : le solde vivant du client est proposé
+  /// comme montant réclamé (`soldeDuClient()`).
+  Future<void> _relancer(String clientId, String clientNom) async {
+    final creances = await lireCreances(ref.read);
+    if (!mounted) return;
+    await tracerUneRelance(
+      context,
+      clientId: clientId,
+      clientNom: clientNom,
+      montantProposeCentimes: montantProposeCentimes(clientId, creances),
+    );
+  }
+
+  /// `confirmerArchivageClient` puis `archiverClients` : une ligne (son
+  /// identifiant) ou la sélection AFFICHÉE — cocher tout puis changer de filtre
+  /// n'archive pas des clients que l'écran ne montre plus.
+  ///
+  /// Le droit d'archiver est exigé DÈS l'ouverture ; le lot vient de
+  /// `ArchivageClients` (verrous : séjour, location, circuit, facture non
+  /// soldée) et la modale rend les trois états de la vue : BLOQUÉ (le bouton
+  /// disparaît), PARTIEL (le décompte des conservés) ou NOMINAL.
+  Future<void> _confirmerArchivage({String? client}) async {
+    final affiches = {
+      for (final l
+          in ref.read(registreFiltreProvider).value ?? const <LigneClient>[])
+        l.client.id,
+    };
+    final ids = client != null
+        ? [client]
+        : [
+            for (final id in ref.read(selectionClientsProvider))
+              if (affiches.contains(id)) id,
+          ];
+    if (ids.isEmpty) return;
+
+    final LotArchivage lot;
+    try {
+      lot = await ref.read(preparerArchivageClientsProvider)(ids);
+    } on RefusArchivageClient catch (e) {
+      _toastRefus(e.message);
+      return;
+    }
+    if (!mounted) return;
+
+    final confirme = await ouvrirArchivageAchats(
+      context,
+      element: lot.element,
+      nombre: lot.nombre,
+      messagesVerrou: lot.motifs,
+      bloque: lot.bloque,
+      conserves: lot.conserves,
+    );
+    if (confirme != true || !mounted) return;
+
+    try {
+      final resultat = await ref.read(archiverClientsProvider)(lot.ids);
+      if (!mounted) return;
+      // Le succès ET le refus coexistent : un client devenu engagé entre
+      // l'ouverture et le clic n'empêche pas les autres archivages du lot.
+      final succes = resultat.archives > 0
+          ? MessagesArchivageClient.succes(resultat.archives)
+          : null;
+      if (resultat.refus != null) {
+        _toastRefus(resultat.refus!, succes: succes);
+      } else if (succes != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            key: const Key('clients-archivage-succes'),
+            content: Text(succes),
+          ),
+        );
+      }
+    } on RefusArchivageClient catch (e) {
+      _toastRefus(e.message);
+    }
+  }
+
+  Future<void> _restaurer(Client client) async {
+    try {
+      final message = await ref.read(restaurerClientProvider)(client.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } on RefusArchivageClient catch (e) {
+      _toastRefus(e.message);
+    }
+  }
+
+  /// Le refus rendu HORS de la modale (`@error('archivage')`, vue l.807) : le
+  /// geste ferme la modale avant de rendre, un message posé dedans
+  /// n'apparaîtrait jamais.
+  void _toastRefus(String motif, {String? succes}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        key: const Key('clients-archivage-refus'),
+        backgroundColor: AppColors.erreur,
+        content: succes == null
+            ? Text(motif)
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(succes, key: const Key('clients-archivage-succes')),
+                  Text(motif),
+                ],
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final registre = ref.watch(registreFiltreProvider);
@@ -132,6 +254,10 @@ class _EtatEcranClients extends ConsumerState<EcranClients> {
     final peutEcrire = droits.peutEcrire(ModuleTatacora.m3Crm);
     // Le `$peutEncaisser` de la vue : M3 (l'écran) ET M2 (l'écriture).
     final peutEncaisser = peutEncaisserUneFacture(droits);
+    // Le `$peutArchiver` de la vue : la règle UNIQUE, reçue — jamais recalculée.
+    final peutArchiver = ref.watch(peutArchiverClientsProvider);
+    final selection = ref.watch(selectionClientsProvider);
+    final aRelancer = ref.watch(clientsARelancerProvider).value;
     final maintenant = ref.watch(horlogeCreancesProvider)();
     final paiements = ref.watch(paiementsFactureProvider).value;
     // La balance âgée COMPLÈTE sert l'onglet ET les deux cartes (une seule
@@ -190,6 +316,9 @@ class _EtatEcranClients extends ConsumerState<EcranClients> {
                         paiements,
                         ilYa30Jours(maintenant),
                       ),
+                // « — » tant que les relances ne sont pas lues : un « 0 » se
+                // lirait comme « personne à relancer ».
+                aRelancer: aRelancer?.length,
               ),
               _BarreOnglets(
                 actif: _onglet,
@@ -204,11 +333,15 @@ class _EtatEcranClients extends ConsumerState<EcranClients> {
                       ? null
                       : totauxCreances(creances).totalDuCentimes,
                 ),
-                'relances' => const _OngletRelances(),
+                'relances' => _OngletRelances(
+                  peutEcrire: peutEcrire,
+                  onRelancer: _relancer,
+                ),
                 'avances' => _OngletAvances(
                   paiements: paiements,
                   clients: ref.watch(clientsProvider).value ?? const [],
                   creances: ref.watch(creancesProvider).value ?? const [],
+                  reservations: ref.watch(reservationsProvider).value,
                 ),
                 _ => registre.when(
                   loading: () => const Padding(
@@ -218,18 +351,48 @@ class _EtatEcranClients extends ConsumerState<EcranClients> {
                   error: (e, _) => Center(child: Text('$e')),
                   // Dix lignes par page (PO, 14/10/2026) ; « Exporter » lit
                   // `registreFiltreProvider`, la liste ENTIÈRE.
-                  data: (lignes) => ListePaginee<LigneClient>(
-                    key: const Key('clients-registre-pagine'),
-                    elements: lignes,
-                    prefixeCle: 'clients-pagination',
-                    cleRemiseAZero: (terme, ref.watch(etatCreanceProvider)),
-                    masquerSiVide: true,
-                    constructeur: (_, page) => TableClients(
-                      lignes: page,
-                      maintenant: maintenant,
-                      peutEncaisser: peutEncaisser,
-                      onRecouvrement: _ouvrirRecouvrement,
-                    ),
+                  data: (lignes) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // La barre de sélection groupée : « N sélectionné(s) »,
+                      // « Supprimer », ✕ (rendue à qui peut archiver, quand la
+                      // sélection n'est pas vide).
+                      if (peutArchiver && selection.isNotEmpty)
+                        _BarreSelection(
+                          nombre: selection.length,
+                          onSupprimer: () => _confirmerArchivage(),
+                          onVider: () => ref
+                              .read(selectionClientsProvider.notifier)
+                              .vider(),
+                        ),
+                      ListePaginee<LigneClient>(
+                        key: const Key('clients-registre-pagine'),
+                        elements: lignes,
+                        prefixeCle: 'clients-pagination',
+                        cleRemiseAZero: (terme, ref.watch(etatCreanceProvider)),
+                        masquerSiVide: true,
+                        constructeur: (_, page) => TableClients(
+                          lignes: page,
+                          maintenant: maintenant,
+                          peutEncaisser: peutEncaisser,
+                          peutArchiver: peutArchiver,
+                          peutRestaurer: peutEcrire,
+                          selection: selection,
+                          onBasculerSelection: (l) => ref
+                              .read(selectionClientsProvider.notifier)
+                              .basculer(l.client.id),
+                          onSupprimer: (l) =>
+                              _confirmerArchivage(client: l.client.id),
+                          onRestaurer: (l) => _restaurer(l.client),
+                          onRecouvrement: _ouvrirRecouvrement,
+                          onHistorique: (l) => ouvrirHistoriqueClient(
+                            context,
+                            clientId: l.client.id,
+                            clientNom: l.client.nomComplet,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               },
@@ -414,6 +577,7 @@ class _Kpis extends StatelessWidget {
     required this.encaisse30j,
     required this.douteux,
     required this.recent,
+    required this.aRelancer,
   });
 
   final KpisClients kpis;
@@ -427,12 +591,16 @@ class _Kpis extends StatelessWidget {
   /// sont pas lus.
   final int? encaisse30j;
 
+  /// Combien de clients sont « à relancer », ou `null` tant que les relances ne
+  /// sont pas lues.
+  final int? aRelancer;
+
   @override
   Widget build(BuildContext context) {
     final cartes = <(String, String, String, Color?)>[
       (
         'Créances totales',
-        formaterCentimesEnFcfa(kpis.totalDuCentimes),
+        formaterCentimesExact(kpis.totalDuCentimes),
         '${kpis.nbPieces} pièce(s) · ${kpis.nbDebiteurs} client(s)',
         kpis.totalDuCentimes > 0 ? AppColors.erreur : null,
       ),
@@ -450,7 +618,13 @@ class _Kpis extends StatelessWidget {
         'Recouvrements réellement enregistrés',
         null,
       ),
-      ('Clients à relancer', '—', 'Plus de 30 j sans relance récente', null),
+      (
+        'Clients à relancer',
+        aRelancer == null ? '—' : '$aRelancer',
+        'Plus de 30 j sans relance récente',
+        // `text-amber-600` quand il y en a, `text-slate-400` sinon.
+        (aRelancer ?? 0) > 0 ? PaletteMaitre.ambre600 : Ardoise.c400,
+      ),
     ];
 
     return Padding(
@@ -719,82 +893,9 @@ class _FiltresState extends ConsumerState<_Filtres> {
   }
 }
 
-/* ====================================================================== */
-/* Les trois onglets sans source locale                                    */
-/* ====================================================================== */
-
-/// Le tableau de la vue : en-têtes marine TOUJOURS rendus, corps qui dit que la
-/// donnée n'a pas de source sur ce poste.
-class _TableauSansSource extends StatelessWidget {
-  const _TableauSansSource({
-    required this.cle,
-    required this.colonnes,
-    required this.sujet,
-    this.aDroite = const {},
-  });
-
-  final String cle;
-  final List<String> colonnes;
-  final String sujet;
-  final Set<String> aDroite;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: Key(cle),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.neutre0,
-        borderRadius: BorderRadius.circular(AppRadius.roundedXl),
-        border: Border.all(color: AppColors.neutre200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            color: AppColors.navy,
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsPlus),
-            child: Row(
-              children: [
-                for (final c in colonnes)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm, // px-3
-                      ),
-                      child: Text(
-                        c.toUpperCase(),
-                        textAlign: aDroite.contains(c)
-                            ? TextAlign.right
-                            : TextAlign.left,
-                        style: _t(
-                          TaillesContenu.t11,
-                          poids: FontWeight.w600,
-                          couleur: AppColors.neutre0.withValues(alpha: 0.90),
-                          espacement: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: Text(
-              donneeNonDisponible(sujet),
-              textAlign: TextAlign.center,
-              style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// `<h3 class="text-[15px] font-bold mb-2.5">`. Le nombre de lignes n'est PAS
-/// rendu : « (0) » affirmerait qu'il n'y en a aucune (PA-126).
+/// `<h3 class="text-[15px] font-bold mb-2.5">`. Le nombre de lignes n'est rendu
+/// QUE quand la source est lue : « (0) » avant la lecture affirmerait qu'il n'y
+/// en a aucune (PA-126).
 class _TitreSection extends StatelessWidget {
   const _TitreSection(this.texte);
 
@@ -885,10 +986,10 @@ class _OngletDettes extends StatelessWidget {
             TextSpan(
               text:
                   'Les tranches classent chaque pièce par ancienneté depuis sa '
-                  'date d’émission. Au-delà de 90 jours, le recouvrement '
+                  'date d\'émission. Au-delà de 90 jours, le recouvrement '
                   'devient incertain et une provision pour dépréciation doit '
-                  'être envisagée — son taux relève d’une décision du Comptable '
-                  'et du Gérant, il n’est pas calculé ici.',
+                  'être envisagée — son taux relève d\'une décision du Comptable '
+                  'et du Gérant, il n\'est pas calculé ici.',
             ),
           ],
         ),
@@ -937,6 +1038,8 @@ class _TableauDettes extends StatelessWidget {
     '61 à 90 jours',
     'Plus de 90 jours',
     'Total dû',
+    // La colonne d'actions de la vue (entête vide) : « Détail ».
+    '',
   ];
 
   @override
@@ -1032,12 +1135,32 @@ class _TableauDettes extends StatelessWidget {
                         ),
                       ),
                     _cellule(
-                      formaterCentimesEnFcfa(ligne.totalCentimes),
+                      formaterCentimesExact(ligne.totalCentimes),
                       droite: true,
                       style: _t(
                         TaillesContenu.t13,
                         poids: FontWeight.bold,
                         couleur: AppColors.navy,
+                      ),
+                    ),
+                    // « Détail » : l'historique du client (`action_detail`).
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _BoutonLigneClient(
+                            cle: Key('clients-detail-${ligne.clientId}'),
+                            libelle: 'Détail',
+                            onTap: () => ouvrirHistoriqueClient(
+                              context,
+                              clientId: ligne.clientId,
+                              clientNom: ligne.nom,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -1071,7 +1194,7 @@ class _TableauDettes extends StatelessWidget {
                   _cellule(
                     totalDuCentimes == null
                         ? '—'
-                        : formaterCentimesEnFcfa(totalDuCentimes!),
+                        : formaterCentimesExact(totalDuCentimes!),
                     droite: true,
                     style: _t(
                       TaillesContenu.t13,
@@ -1079,6 +1202,7 @@ class _TableauDettes extends StatelessWidget {
                       couleur: AppColors.navy,
                     ),
                   ),
+                  const Expanded(child: SizedBox.shrink()),
                 ],
               ),
             ),
@@ -1104,11 +1228,64 @@ class _TableauDettes extends StatelessWidget {
   );
 }
 
-class _OngletRelances extends StatelessWidget {
-  const _OngletRelances();
+/// `text-[12px] px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-white` :
+/// le bouton de lecture d'une ligne (« Détail »).
+class _BoutonLigneClient extends StatelessWidget {
+  const _BoutonLigneClient({
+    required Key cle,
+    required this.libelle,
+    required this.onTap,
+  }) : super(key: cle);
+
+  final String libelle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.neutre0,
+      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xsPlus,
+            vertical: AppSpacing.unit,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+            border: Border.all(color: AppColors.neutre300),
+          ),
+          child: Text(
+            libelle,
+            style: _t(TaillesContenu.t12, couleur: AppColors.neutre700),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// L'onglet **« Relances clients »** (`clients-creances.blade.php` l.421-471) :
+/// l'encadré (« La relance est tracée, pas envoyée… »), « Clients à relancer
+/// (N) » puis « Historique des relances (N) ».
+///
+/// « Clients à relancer » : les débiteurs sans relance depuis 30 jours, avec
+/// leur ancienneté (rouge au-delà de 90 jours, ambre sinon) et leur dernière
+/// relance — « Jamais relancé » quand il n'y en a aucune. « Relancer » n'est
+/// offert qu'à qui écrit sur M3.
+class _OngletRelances extends ConsumerWidget {
+  const _OngletRelances({required this.peutEcrire, required this.onRelancer});
+
+  final bool peutEcrire;
+  final void Function(String clientId, String clientNom) onRelancer;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final aRelancer = ref.watch(clientsARelancerProvider).value;
+    final historique = ref.watch(historiqueRelancesProvider).value;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1120,42 +1297,390 @@ class _OngletRelances extends StatelessWidget {
             TextSpan(
               text:
                   'La relance est tracée, pas envoyée. Aucun canal (WhatsApp, '
-                  'e-mail) n’est branché sur ce système : enregistrer un envoi '
-                  'qui n’a pas eu lieu ferait croire à un suivi inexistant.',
+                  'e-mail) n\'est branché sur ce système : enregistrer un envoi '
+                  'qui n\'a pas eu lieu ferait croire à un suivi inexistant.',
             ),
           ],
         ),
-        const _TitreSection('Clients à relancer'),
-        const Padding(
-          padding: EdgeInsets.only(bottom: AppSpacing.lg), // mb-6
-          child: _TableauSansSource(
-            cle: 'clients-relances-tableau',
-            colonnes: [
-              'Client',
-              'Montant dû',
-              'Ancienneté max',
-              'Dernière relance',
-              '',
-            ],
-            aDroite: {'Montant dû', 'Ancienneté max'},
-            sujet: 'Les relances',
+        _TitreSection(
+          aRelancer == null
+              ? 'Clients à relancer'
+              : 'Clients à relancer (${aRelancer.length})',
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.lg), // mb-6
+          child: aRelancer == null
+              ? const _TableauJournal(
+                  cle: 'clients-relances-tableau',
+                  colonnes: _colonnesARelancer,
+                  aDroite: {'Montant dû', 'Ancienneté max'},
+                  lignes: null,
+                  vide: '',
+                )
+              : ListePaginee<ClientARelancer>(
+                  elements: aRelancer,
+                  prefixeCle: 'clients-relances-pagination',
+                  masquerSiVide: true,
+                  constructeur: (_, page) => _TableauJournal(
+                    cle: 'clients-relances-tableau',
+                    colonnes: _colonnesARelancer,
+                    aDroite: const {'Montant dû', 'Ancienneté max'},
+                    vide:
+                        'Aucun client à relancer : toutes les créances de plus '
+                        'de 30 jours ont été relancées récemment.',
+                    cleVide: 'clients-relances-vide',
+                    lignes: [for (final c in page) _ligneARelancer(c)],
+                  ),
+                ),
+        ),
+        _TitreSection(
+          historique == null
+              ? 'Historique des relances'
+              : 'Historique des relances (${historique.length})',
+        ),
+        historique == null
+            ? const _TableauJournal(
+                cle: 'clients-historique-relances-tableau',
+                colonnes: _colonnesHistorique,
+                aDroite: {'Montant réclamé'},
+                lignes: null,
+                vide: '',
+              )
+            : ListePaginee<Relance>(
+                elements: historique,
+                prefixeCle: 'clients-historique-relances-pagination',
+                masquerSiVide: true,
+                constructeur: (_, page) => _TableauJournal(
+                  cle: 'clients-historique-relances-tableau',
+                  colonnes: _colonnesHistorique,
+                  aDroite: const {'Montant réclamé'},
+                  vide: 'Aucune relance enregistrée.',
+                  cleVide: 'clients-historique-relances-vide',
+                  lignes: [for (final r in page) _ligneHistorique(r)],
+                ),
+              ),
+      ],
+    );
+  }
+
+  static const _colonnesARelancer = [
+    'Client',
+    'Montant dû',
+    'Ancienneté max',
+    'Dernière relance',
+    '',
+  ];
+
+  static const _colonnesHistorique = [
+    'Date',
+    'Client',
+    'Canal',
+    'Montant réclamé',
+    'Promesse',
+    'Par',
+  ];
+
+  _LigneJournal _ligneARelancer(ClientARelancer c) {
+    final j = c.ancienneteMaxJours;
+    return _LigneJournal(
+      cle: 'clients-arelancer-${c.clientId}',
+      cellules: [
+        Text(
+          c.nom,
+          style: _t(
+            TaillesContenu.t13,
+            poids: FontWeight.w600,
+            couleur: Ardoise.c800,
           ),
         ),
-        const _TitreSection('Historique des relances'),
-        const _TableauSansSource(
-          cle: 'clients-historique-relances-tableau',
-          colonnes: [
-            'Date',
-            'Client',
-            'Canal',
-            'Montant réclamé',
-            'Promesse',
-            'Par',
-          ],
-          aDroite: {'Montant réclamé'},
-          sujet: 'L’historique des relances',
+        Text(
+          formaterCentimesExact(c.soldeCentimes),
+          style: _t(
+            TaillesContenu.t13,
+            poids: FontWeight.w600,
+            couleur: PaletteMaitre.rouge600,
+          ),
         ),
+        // Seuils du maître : rouge au-delà de 90 j, ambre sinon.
+        Text(
+          '$j j',
+          style: _t(
+            TaillesContenu.t13,
+            poids: j > 90 ? FontWeight.w600 : null,
+            couleur: j > 90 ? PaletteMaitre.rouge600 : PaletteMaitre.ambre600,
+          ),
+        ),
+        Text(
+          c.derniereRelance == null
+              ? 'Jamais relancé'
+              : formaterDate(c.derniereRelance!),
+          style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
+        ),
+        if (peutEcrire)
+          _BoutonRelancer(
+            cle: Key('clients-relancer-${c.clientId}'),
+            onTap: () => onRelancer(c.clientId, c.nom),
+          )
+        else
+          const SizedBox.shrink(),
       ],
+    );
+  }
+
+  _LigneJournal _ligneHistorique(Relance r) => _LigneJournal(
+    cle: 'clients-relance-ligne-${r.id}',
+    cellules: [
+      Text(
+        formaterDate(r.dateRelance),
+        style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
+      ),
+      Text(
+        r.clientNom ?? '—',
+        style: _t(
+          TaillesContenu.t13,
+          poids: FontWeight.w600,
+          couleur: Ardoise.c800,
+        ),
+      ),
+      Text(
+        CanalRelance.libelleDe(r.canal),
+        style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
+      ),
+      Text(
+        formaterCentimesExact(r.montantReclameCentimes),
+        style: _t(TaillesContenu.t13, couleur: Ardoise.c700),
+      ),
+      Text(
+        r.promesse == null ? '—' : formaterDate(r.promesse!),
+        style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
+      ),
+      Text(
+        r.creePar ?? '—',
+        style: _t(TaillesContenu.t12, couleur: AppColors.neutre500),
+      ),
+    ],
+  );
+}
+
+/// Une ligne d'un tableau de l'onglet : ses cellules, dans l'ordre des
+/// colonnes.
+class _LigneJournal {
+  const _LigneJournal({required this.cle, required this.cellules});
+
+  final String cle;
+  final List<Widget> cellules;
+}
+
+/// Un tableau de la vue (`bg-white rounded-xl border`, en-têtes marine) : les
+/// cellules s'alignent à droite pour les colonnes de [aDroite]. [lignes] nul :
+/// la source n'est pas encore lue (un chargement, jamais « aucun »).
+class _TableauJournal extends StatelessWidget {
+  const _TableauJournal({
+    required this.cle,
+    required this.colonnes,
+    required this.aDroite,
+    required this.lignes,
+    required this.vide,
+    this.cleVide,
+  });
+
+  final String cle;
+  final List<String> colonnes;
+  final Set<String> aDroite;
+  final List<_LigneJournal>? lignes;
+  final String vide;
+  final String? cleVide;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = lignes;
+
+    return Container(
+      key: Key(cle),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.neutre0,
+        borderRadius: BorderRadius.circular(AppRadius.roundedXl),
+        border: Border.all(color: AppColors.neutre200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            color: AppColors.navy,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsPlus),
+            child: Row(
+              children: [
+                for (final c in colonnes)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm, // px-3
+                      ),
+                      child: Text(
+                        c.toUpperCase(),
+                        textAlign: aDroite.contains(c)
+                            ? TextAlign.right
+                            : TextAlign.left,
+                        style: _t(
+                          TaillesContenu.t11,
+                          poids: FontWeight.w600,
+                          couleur: AppColors.neutre0.withValues(alpha: 0.90),
+                          espacement: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (l == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (l.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Text(
+                vide,
+                key: cleVide == null ? null : Key(cleVide!),
+                textAlign: TextAlign.center,
+                style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
+              ),
+            )
+          else
+            for (final ligne in l)
+              Container(
+                key: Key(ligne.cle),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.neutre100)),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.xsPlus,
+                ),
+                child: Row(
+                  children: [
+                    for (var i = 0; i < ligne.cellules.length; i++)
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                          ),
+                          child: Align(
+                            alignment:
+                                aDroite.contains(colonnes[i]) ||
+                                    colonnes[i].isEmpty
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: ligne.cellules[i],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+/// `text-[12px] px-2.5 py-1 rounded-lg bg-[var(--gold)] text-white` :
+/// « Relancer ».
+class _BoutonRelancer extends StatelessWidget {
+  const _BoutonRelancer({required Key cle, required this.onTap})
+    : super(key: cle);
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.gold,
+      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xsPlus,
+            vertical: AppSpacing.unit,
+          ),
+          child: Text(
+            'Relancer',
+            style: _t(TaillesContenu.t12, couleur: AppColors.neutre0),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// La barre de sélection groupée (`crud-ui.js` l.36-46 ; vue l.276-286) : « N
+/// sélectionné(s) » (le nombre en gras), « Supprimer » souligné, ✕. Elle
+/// ARCHIVE — « supprimer = archiver ».
+class _BarreSelection extends StatelessWidget {
+  const _BarreSelection({
+    required this.nombre,
+    required this.onSupprimer,
+    required this.onVider,
+  });
+
+  final int nombre;
+  final VoidCallback onSupprimer;
+  final VoidCallback onVider;
+
+  @override
+  Widget build(BuildContext context) {
+    final blanc = _t(TaillesContenu.t12, couleur: AppColors.neutre0);
+    return Container(
+      key: const Key('clients-barre-selection'),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm), // mb-3
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xsPlus,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.navy,
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+      ),
+      child: Row(
+        children: [
+          Text.rich(
+            TextSpan(
+              style: blanc,
+              children: [
+                TextSpan(
+                  text: '$nombre',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const TextSpan(text: ' sélectionné(s)'),
+              ],
+            ),
+          ),
+          const Spacer(),
+          InkWell(
+            key: const Key('clients-selection-supprimer'),
+            onTap: onSupprimer,
+            child: Text(
+              'Supprimer',
+              style: blanc.copyWith(decoration: TextDecoration.underline),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          InkWell(
+            key: const Key('clients-selection-vider'),
+            onTap: onVider,
+            child: Text(
+              '✕',
+              style: blanc.copyWith(
+                color: AppColors.neutre0.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1165,6 +1690,7 @@ class _OngletAvances extends StatelessWidget {
     required this.paiements,
     required this.clients,
     required this.creances,
+    required this.reservations,
   });
 
   /// Les encaissements, ou `null` tant qu'ils ne sont pas lus.
@@ -1172,34 +1698,51 @@ class _OngletAvances extends StatelessWidget {
   final List<Client> clients;
   final List<CreanceFacture> creances;
 
+  /// Les réservations, ou `null` tant qu'elles ne sont pas lues : un « (0) »
+  /// avant la lecture affirmerait qu'il n'y a aucune avance.
+  final List<Reservation>? reservations;
+
   /// Le plafond des journaux de la vue (`ClientsCreances::PLAFOND`).
   static const int plafond = 200;
+
+  /// `ClientsCreances::avances()` : les réservations dont l'acompte est
+  /// strictement positif, hors annulées, de la plus récente arrivée à la plus
+  /// ancienne, au plus [plafond].
+  static List<Reservation>? avances(List<Reservation>? toutes) {
+    if (toutes == null) return null;
+    final retenues = [
+      for (final r in toutes)
+        if (r.acompte > 0 && r.estActive) r,
+    ]..sort((a, b) => b.periode.arrivee.compareTo(a.periode.arrivee));
+    return retenues.take(plafond).toList(growable: false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final affiches = paiements?.take(plafond).toList(growable: false);
+    final lesAvances = avances(reservations);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _TitreSection('Avances et acomptes'),
-        const Padding(
-          padding: EdgeInsets.only(bottom: AppSpacing.lg),
-          child: _TableauSansSource(
-            cle: 'clients-avances-tableau',
-            colonnes: [
-              'Date',
-              'Client',
-              'Origine',
-              'Avance versée',
-              'Reste dû',
-            ],
-            aDroite: {'Avance versée', 'Reste dû'},
-            sujet: 'Les avances',
-          ),
+        // Le nombre de lignes est rendu SEULEMENT quand la source est lue :
+        // « (0) » avant la lecture affirmerait qu'il n'y en a aucune.
+        _TitreSection(
+          lesAvances == null
+              ? 'Avances et acomptes'
+              : 'Avances et acomptes (${lesAvances.length})',
         ),
-        // Le nombre de lignes est rendu SEULEMENT quand les encaissements sont
-        // lus : « (0) » avant la lecture affirmerait qu'il n'y en a aucun.
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.lg), // mb-6
+          child: lesAvances == null
+              ? const _TableauAvances(avances: null)
+              : ListePaginee<Reservation>(
+                  elements: lesAvances,
+                  prefixeCle: 'clients-avances-pagination',
+                  masquerSiVide: true,
+                  constructeur: (_, page) => _TableauAvances(avances: page),
+                ),
+        ),
         _TitreSection(
           affiches == null
               ? 'Recouvrements encaissés'
@@ -1225,6 +1768,174 @@ class _OngletAvances extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Le tableau « Avances et acomptes » (`clients-creances.blade.php` l.478-497) :
+/// `Date · Client · Origine · Avance versée · Reste dû`.
+///
+/// La date est l'ARRIVÉE du séjour (`date_arrivee`), l'origine le canal de la
+/// réservation (« — » quand il est vide), l'avance l'acompte versé. Le reste dû
+/// est celui de la réservation : « — » quand son montant est inconnu, « Soldé »
+/// quand il est nul, le montant en rouge sinon.
+///
+/// ## Un montant inconnu se dit « — », jamais un négatif
+///
+/// Une réservation descendue d'un autre poste sans tarif ni ligne (`tarifNuit` à
+/// zéro, précédent `ReservationDto`) a un montant total de zéro : son « reste »
+/// vaudrait `−acompte`. La vue rend `null` dans ce cas (`resteAPayer()` sans
+/// `tarif_nuit` figé) ; le poste fait de même plutôt que d'afficher une dette
+/// négative qui n'existe pas.
+class _TableauAvances extends StatelessWidget {
+  const _TableauAvances({required this.avances});
+
+  final List<Reservation>? avances;
+
+  static const _colonnes = [
+    'Date',
+    'Client',
+    'Origine',
+    'Avance versée',
+    'Reste dû',
+  ];
+
+  /// Le reste dû affiché, ou `null` quand le montant de la réservation est
+  /// inconnu.
+  static int? resteDu(Reservation r) =>
+      r.lignes.isEmpty && r.tarifNuit == 0 ? null : r.resteAPayer;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = avances;
+
+    return Container(
+      key: const Key('clients-avances-tableau'),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.neutre0,
+        borderRadius: BorderRadius.circular(AppRadius.roundedXl),
+        border: Border.all(color: AppColors.neutre200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            color: AppColors.navy,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsPlus),
+            child: Row(
+              children: [
+                for (final c in _colonnes)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                      ),
+                      child: Text(
+                        c.toUpperCase(),
+                        textAlign: c == 'Avance versée' || c == 'Reste dû'
+                            ? TextAlign.right
+                            : TextAlign.left,
+                        style: _t(
+                          TaillesContenu.t11,
+                          poids: FontWeight.w600,
+                          couleur: AppColors.neutre0.withValues(alpha: 0.90),
+                          espacement: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (l == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (l.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Text(
+                'Aucune avance enregistrée.',
+                key: const Key('clients-avances-vide'),
+                textAlign: TextAlign.center,
+                style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
+              ),
+            )
+          else
+            for (final r in l) _ligne(r),
+        ],
+      ),
+    );
+  }
+
+  Widget _ligne(Reservation r) {
+    final reste = resteDu(r);
+    final texteReste = reste == null
+        ? '—'
+        : (reste == 0 ? 'Soldé' : formaterFcfa(reste));
+    final enRouge = reste != null && reste != 0;
+
+    return Container(
+      key: Key('clients-avance-ligne-${r.id}'),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.neutre100)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsPlus),
+      child: Row(
+        children: [
+          _cellule(
+            formaterDate(r.periode.arrivee),
+            style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
+          ),
+          _cellule(
+            r.clientNom.isEmpty ? '—' : r.clientNom,
+            style: _t(
+              TaillesContenu.t13,
+              poids: FontWeight.w600,
+              couleur: Ardoise.c800,
+            ),
+          ),
+          _cellule(
+            r.canal?.libelle ?? '—',
+            style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
+          ),
+          _cellule(
+            formaterFcfa(r.acompte),
+            droite: true,
+            style: _t(
+              TaillesContenu.t13,
+              poids: FontWeight.w600,
+              couleur: PaletteMaitre.emeraude600,
+            ),
+          ),
+          _cellule(
+            texteReste,
+            droite: true,
+            style: _t(
+              TaillesContenu.t13,
+              poids: enRouge ? FontWeight.w600 : null,
+              couleur: enRouge ? PaletteMaitre.rouge600 : Ardoise.c400,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _cellule(
+    String texte, {
+    required TextStyle style,
+    bool droite = false,
+  }) => Expanded(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      child: Text(
+        texte,
+        textAlign: droite ? TextAlign.right : TextAlign.left,
+        style: style,
+      ),
+    ),
+  );
 }
 
 /// Le tableau « Recouvrements encaissés » (`clients-creances.blade.php`

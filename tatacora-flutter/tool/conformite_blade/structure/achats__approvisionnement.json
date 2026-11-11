@@ -310,7 +310,7 @@
             },
             {
                 "type": "p",
-                "texte": "Chaque réception a généré une entrée de stock valorisée au prix de la commande, qui a recalculé le coût moyen pondéré de l'article."
+                "texte": "Chaque réception a généré une entrée de stock, non valorisée : le coût moyen pondéré de l'article n'est pas recalculé à la réception."
             },
             {
                 "type": "th",

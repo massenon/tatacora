@@ -100,7 +100,7 @@ use Livewire\Attributes\Title;
  *
  * @see EF-M10-06
  */
-#[Title('Compte de Résultat — TATACORA AFRIQUE')]
+#[Title('Compte de Résultat — LogiReStock — TATACORA AFRIQUE')]
 class CompteResultat extends PageComptabilite
 {
     public function render(): View

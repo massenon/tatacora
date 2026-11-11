@@ -6,6 +6,13 @@ namespace App\Shared\Parametres\Data;
 
 use App\Domain\Achats\Services\ReceptionService;
 use App\Domain\Comptabilite\Services\CalculTvaService;
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
+use App\Domain\Comptabilite\Services\PlanComptableService;
+use App\Domain\Comptabilite\Support\FormeJuridique;
+use App\Domain\Comptabilite\Support\RolesCorrespondance;
+use App\Domain\Facturation\Services\ModeFacturation;
+use App\Domain\Facturation\Services\ReglagesDocuments;
+use App\Domain\Facturation\Services\ReglagesMecef;
 use App\Domain\Hebergement\Services\AnnulationReservationService;
 use App\Domain\Rh\Services\CalculPaieService;
 use App\Domain\Rh\Services\CongeService;
@@ -75,6 +82,22 @@ final class RegistreParametres
     public const GROUPE_ACTIVATION = 'activation';
 
     /**
+     * La facturation normalisée du Bénin (07/11/2026) : le MODE et les réglages
+     * non secrets de la voie e-MECeF. Le JETON n'est PAS ici : il vit chiffré
+     * dans `secrets_configuration` ({@see \App\Shared\Secrets\Services\SecretsConfigurationService}).
+     */
+    public const GROUPE_MECEF = 'mecef';
+
+    /**
+     * La correspondance rôle -> compte comptable (26/10/2026). Ses clés
+     * `compte_<rôle>` sont déclarées ICI pour que l'écriture, l'audit et la
+     * synchronisation des postes passent par le chemin des autres paramètres ;
+     * elles ne se montrent PAS dans l'écran Paramètres, qui a son propre écran
+     * (« Correspondance des comptes »).
+     */
+    public const GROUPE_COMPTES = 'comptes';
+
+    /**
      * Motifs interdits dans une clé — le filet du test structurel.
      *
      * @var list<string>
@@ -88,6 +111,43 @@ final class RegistreParametres
      * @return list<DefinitionParametre>
      */
     public static function definitions(): array
+    {
+        return array_merge(self::definitionsGenerales(), self::definitionsComptes());
+    }
+
+    /**
+     * Un paramètre par rôle de {@see RolesCorrespondance::ROLES}.
+     *
+     * Le texte est un NUMÉRO de compte (`PlanComptableService::NUMERO_COMPTE_FORMAT`,
+     * la règle unique) ; son existence au plan et la classe du rôle sont
+     * jugées par {@see CorrespondanceComptesService::verifier()}, appelée par
+     * `EnregistrerParametreService`. Vide : le rôle revient à son défaut.
+     *
+     * @return list<DefinitionParametre>
+     */
+    private static function definitionsComptes(): array
+    {
+        $definitions = [];
+
+        foreach (RolesCorrespondance::ROLES as $role => $description) {
+            $definitions[] = new DefinitionParametre(
+                cle: CorrespondanceComptesService::cle($role),
+                groupe: self::GROUPE_COMPTES,
+                libelle: 'Compte — ' . $description['libelle'],
+                type: 'texte',
+                regles: ['string', 'regex:' . PlanComptableService::NUMERO_COMPTE_FORMAT],
+                aide: $description['aide'] . ' Vide : le compte par défaut (' . RolesCorrespondance::defaut($role)
+                    . '). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+            );
+        }
+
+        return $definitions;
+    }
+
+    /**
+     * @return list<DefinitionParametre>
+     */
+    private static function definitionsGenerales(): array
     {
         return [
             // --- Identité de l'établissement : en-tête de tous les états.
@@ -157,7 +217,9 @@ final class RegistreParametres
                 groupe: self::GROUPE_ENTREPRISE,
                 libelle: 'IFU (Identifiant Fiscal Unique)',
                 type: 'texte',
-                regles: ['string', 'max:30'],
+                // 13 chiffres depuis le 07/11/2026 (facturation normalisée : le
+                // même IFU sert aux deux voies, boîtier et e-MECeF) ; vide reste permis.
+                regles: ['nullable', 'string', 'regex:' . ReglagesMecef::FORMAT_IFU],
                 // Première phrase : l'aide du maître (`data-regle-requis`,
                 // parametres.html l.57). La clé reste effaçable malgré tout —
                 // MECeF est `en_attente_implementation`, et interdire de vider
@@ -186,6 +248,135 @@ final class RegistreParametres
                 aide: 'Fourni par la DGI. Identifiant, donc paramétrable — la '
                     . 'CLÉ D’API MECeF, elle, vit en configuration serveur et '
                     . 'n’apparaîtra jamais ici.',
+            ),
+            new DefinitionParametre(
+                cle: FormeJuridique::CLE,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Forme juridique',
+                type: 'choix',
+                choix: FormeJuridique::valeurs(),
+                choixLibelles: [
+                    FormeJuridique::EntrepriseIndividuelle->value => 'Entreprise individuelle',
+                    FormeJuridique::Sarl->value => 'SARL',
+                    FormeJuridique::Sa->value => 'SA',
+                ],
+                aide: 'Commande l’affectation du résultat. Entreprise individuelle (défaut du Gîte) : ni réserve légale, '
+                    . 'ni dividendes, ni procès-verbal d’assemblée ; le bénéfice revient à l’exploitant, au report à nouveau '
+                    . 'ou aux réserves. SARL et SA : réserve légale obligatoire, dividendes encadrés. '
+                    . 'Réservé aux Administrateurs ; refusé tant qu’une affectation du résultat est active.',
+            ),
+
+            // --- Documents commerciaux (factures A4, proformas) — décisions du PO du 07/11/2026.
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_ACTIVITES,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Activités (en-tête des factures)',
+                type: 'texte',
+                regles: ['string', 'max:255'],
+                aide: 'Ligne en gras souligné de l’en-tête, ex. « Tourisme, Hébergement, Restauration ». Vide : absente.',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_FACEBOOK,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Page Facebook',
+                type: 'texte',
+                regles: ['string', 'max:150'],
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_VILLE_EMISSION,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Ville du lieu d’émission',
+                type: 'texte',
+                regles: ['string', 'max:80'],
+                aide: 'Imprimée avant la date, ex. « Natitingou, le 02 Novembre 2026 ».',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_REFERENCE_FACTURE,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Référence facture',
+                type: 'texte',
+                regles: ['nullable', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
+                aide: 'Porte le numéro des proformas : N°0045 FP-GCN/2026. Vide : GCN. '
+                    . 'Ne renumérote jamais une proforma déjà émise.',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_SIGNATAIRE_NOM,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Signataire — nom',
+                type: 'texte',
+                regles: ['string', 'max:100'],
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_SIGNATAIRE_FONCTION,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Signataire — fonction',
+                type: 'texte',
+                regles: ['string', 'max:100'],
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_SIGNATURE_AFFICHEE,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Afficher la signature et le cachet sur les factures',
+                type: 'booleen',
+                aide: 'Vaut pour les proformas ET les factures (PDF A4 ; le ticket n’en porte jamais). '
+                    . 'Non : aucun bloc signature. Oui sans image déposée : nom et fonction seulement.',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_VALIDITE_AFFICHEE,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Afficher la date de validité sur les proformas',
+                type: 'booleen',
+                aide: 'Défaut Non. Calculée à l’émission et enregistrée sur la proforma : '
+                    . 'changer ce réglage ne modifie pas les proformas déjà émises.',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_VALIDITE_JOURS,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Durée de validité d’une proforma (jours)',
+                type: 'entier',
+                regles: ['nullable', 'integer', 'min:1', 'max:365'],
+                aide: 'Défaut 30 jours.',
+            ),
+
+            // --- Facturation normalisée (MECeF) — mode et réglages non secrets.
+            new DefinitionParametre(
+                cle: ModeFacturation::CLE,
+                groupe: self::GROUPE_MECEF,
+                libelle: 'Mode',
+                type: 'choix',
+                choix: ModeFacturation::valeurs(),
+                choixLibelles: [
+                    ModeFacturation::Desactive->value => 'Désactivé',
+                    ModeFacturation::Emecef->value => 'e-MECeF (en ligne)',
+                    ModeFacturation::Boitier->value => 'Boîtier CC300 (poste)',
+                ],
+                aide: 'Désactivé : factures de démonstration, sans valeur fiscale. '
+                    . 'e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). '
+                    . 'Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, '
+                    . 'même hors ligne. Réservé aux Administrateurs.',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesMecef::CLE_API_URL,
+                groupe: self::GROUPE_MECEF,
+                libelle: 'Adresse de l’API de la DGI',
+                type: 'texte',
+                regles: ['nullable', 'string', 'max:255', 'regex:/^https:\/\/[^\s]+$/i'],
+                aide: 'https:// exigé. Vide : ' . preg_replace('#^https://#', '', ReglagesMecef::URL_API_PAR_DEFAUT) . ' (adresse de la DGI).',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesMecef::CLE_OPERATEUR_ID,
+                groupe: self::GROUPE_MECEF,
+                libelle: 'Identifiant de l’opérateur',
+                type: 'texte',
+                regles: ['nullable', 'string', 'max:30'],
+            ),
+            new DefinitionParametre(
+                cle: ReglagesMecef::CLE_OPERATEUR_NOM,
+                groupe: self::GROUPE_MECEF,
+                libelle: 'Nom de l’opérateur',
+                type: 'texte',
+                regles: ['nullable', 'string', 'max:30'],
+                aide: '30 caractères au plus (limite du boîtier).',
             ),
 
             // --- Fiscalité.
@@ -316,6 +507,26 @@ final class RegistreParametres
                     . '24h de la prestation (référence client : 50 %). Reste modifiable au '
                     . 'cas par cas dans le formulaire — ce paramètre ne change jamais une '
                     . 'annulation déjà enregistrée.',
+            ),
+            new DefinitionParametre(
+                cle: AnnulationReservationService::CLE_SEUIL_HEURES,
+                groupe: self::GROUPE_EXPLOITATION,
+                libelle: 'Annulation — seuil du délai avant l’arrivée (heures)',
+                type: 'entier',
+                regles: ['integer', 'min:0', 'max:8760'],
+                aide: 'Grille d’annulation : une annulation faite à moins de ce nombre d’heures '
+                    . 'avant la date d’arrivée prend le taux « moins de 24h » ; au-delà, le taux '
+                    . '« au-delà du seuil ». Appliqué automatiquement à l’ouverture du formulaire '
+                    . '(reste corrigeable). Référence : 24 h.',
+            ),
+            new DefinitionParametre(
+                cle: AnnulationReservationService::CLE_TAUX_AU_DELA,
+                groupe: self::GROUPE_EXPLOITATION,
+                libelle: 'Annulation — taux au-delà du seuil (%)',
+                type: 'decimal',
+                regles: ['numeric', 'min:0', 'max:100'],
+                aide: 'Taux de commission d’une annulation faite avant le seuil d’heures (0 % par '
+                    . 'défaut). La commission se retient sur le montant déjà payé.',
             ),
             new DefinitionParametre(
                 cle: CongeService::CLE_PREAVIS,

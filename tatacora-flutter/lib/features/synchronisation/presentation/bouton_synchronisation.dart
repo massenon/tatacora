@@ -4,8 +4,16 @@
 /// synchronisation automatique — démarrage, toutes les 5 min, après une
 /// clôture de caisse — qui ne change pas).
 ///
-/// AJOUT à la vue : la barre supérieure de la PWA n'a pas de bouton de
-/// synchronisation (elle est servie par le serveur). Il se pose à gauche de la
+/// AJOUT à la vue au 16/10/2026 ; depuis le 03/11/2026 (demande du PO, « je ne
+/// vois plus l'icône de synchronisation » au web) la PWA porte la sienne,
+/// entre « Vente » et la cloche (`livewire:pwa.synchronisation-barre`, tracé
+/// identique à [TracesCoquille.synchronisation]). Les deux modales ne disent
+/// pas la même chose, et c'est voulu : le web liste les postes APPAIRÉS (le
+/// serveur les connaît) et demande leur synchronisation ; ce poste ne connaît
+/// que LUI-MÊME (sa file, son dernier passage) et se synchronise. Les libellés
+/// propres à la modale web (liste des postes, « En retard », « Appairage
+/// révoqué », règle des 15 minutes) ne sont donc pas portés ici :
+/// blade-refuse:chassis#synchronisation-barre. Il se pose à gauche de la
 /// cloche, avec la forme de la cloche (`p-2`, tracé 20 px, badge `h-3.5`).
 ///
 /// ## Le bouton

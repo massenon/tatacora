@@ -98,7 +98,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * @see RG-06 Rupture assumee, jamais subie en silence
  */
 #[Layout('layouts.pwa')]
-#[Title('Point de vente comptant — TATACORA AFRIQUE')]
+#[Title('Point de vente comptant — LogiReStock — TATACORA AFRIQUE')]
 class PosComptant extends PageMetier
 {
     use ComposePanier;
@@ -571,6 +571,17 @@ class PosComptant extends PageMetier
         }
 
         /*
+         * Un panier ouvert AVANT le 26/10/2026 peut encore porter une ligne de
+         * location (M8) ou de tourisme (M9) : plus aucune carte ne les propose,
+         * mais la cloture ne les laisse pas passer sans le droit d'ecriture.
+         */
+        foreach (['M8', 'M9'] as $moduleDePrestation) {
+            if (in_array($moduleDePrestation, $panier->modules(), true)) {
+                $this->exigerEcriture($moduleDePrestation);
+            }
+        }
+
+        /*
          * « Porté sur la note de chambre » n'existe pas au comptoir — aucune
          * chambre n'y porte de note (directive PO du 02/09/2026). Le mode a
          * disparu du sélecteur, mais une propriété Livewire se pose depuis le
@@ -699,7 +710,7 @@ class PosComptant extends PageMetier
 
         $pdf = Pdf::loadView('pdf.facture-ticket', [
             'vente' => $vente,
-            'quand' => now()->format('d/m/Y H:i'),
+            'quand' => \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i'),
             'auteur' => $this->auteur(),
             // En-tete etablissement — source unique RG-19, jamais recopiee en dur.
             'entete' => $entetes->genererEnTete(
@@ -978,7 +989,12 @@ class PosComptant extends PageMetier
         $session = $this->sessionOuverte();
         $pointBar = PointStockage::where('type', self::POINT_CAISSE)->first();
 
-        $catalogueComplet = $this->catalogue([self::MODULE_BAR, self::MODULE_RESTAURANT]);
+        // Bar et restaurant seulement (directive PO du 26/10/2026 : plus de
+        // « Tourisme » ni de « Location » a la selection).
+        $catalogueComplet = $this->catalogue([
+            self::MODULE_BAR,
+            self::MODULE_RESTAURANT,
+        ]);
 
         $catalogueAffiche = $this->filtrerCatalogue(
             $catalogueComplet,

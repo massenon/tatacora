@@ -20,7 +20,21 @@ final class ArticleVendable {
     required this.prix,
     this.categorie,
     this.detail,
+    this.sansLienStock = false,
+    this.compositionProvisoire = false,
   });
+
+  /// Le point orange de la vue (`pos.html` l.488) : l'article est vendable
+  /// mais ne décrémente aucun stock — un plat dont la fiche technique n'a aucun
+  /// ingrédient. Les autres rayons ne le portent jamais (`lien_stock`).
+  final bool sansLienStock;
+
+  /// La marque « P » de la vue (`composition_provisoire`) : la fiche du plat est
+  /// provisoire, le stock décrémenté est approximatif. Lue de
+  /// `recettes_local.composition_provisoire` (v35, 21/10/2026) par le
+  /// catalogue ; elle se lève depuis Restaurant & Cuisine, onglet « Fiches
+  /// techniques » (réenregistrer la composition).
+  final bool compositionProvisoire;
 
   /// ⚠ Q1 — voir `reference_catalogue.dart`.
   final ReferenceCatalogue reference;

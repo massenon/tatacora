@@ -7,6 +7,13 @@ declare(strict_types=1);
  */
 return [
     /*
+     * Le fuseau des HEURES AFFICHÉES (décision du PO du 09/11/2026 : heure locale du Bénin).
+     * La base et `app.timezone` restent en UTC : on ne convertit qu'à l'affichage
+     * (`App\Shared\Support\HeureLocale`). Une simple DATE n'est jamais convertie.
+     */
+    'fuseau_affichage' => env('TATACORA_FUSEAU_AFFICHAGE', 'Africa/Porto-Novo'),
+
+    /*
      * La PHASE D'ESSAIS EN PRODUCTION (décision du Product Owner du
      * 19/10/2026 : « les essais en production suivis de la réinitialisation »).
      *

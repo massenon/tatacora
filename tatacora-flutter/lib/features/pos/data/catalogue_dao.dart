@@ -5,10 +5,12 @@ import '../../../core/format/cle_comparaison.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
+import '../domain/changement_prix_carte.dart';
 import '../domain/entities/article_vendable.dart';
 import '../domain/entities/reference_catalogue.dart';
 import '../domain/repositories/panier_repository.dart';
 import 'dto/catalogue_dto.dart';
+import 'historique_prix_carte_dao.dart';
 
 /// Le catalogue vendable, lu **dans la base locale**.
 ///
@@ -41,8 +43,8 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
   static const String motifRestaurantVide =
       "Aucun plat n'est encore au catalogue du restaurant de ce poste. Créez-en "
       'dans Restaurant et Cuisine : un plat appartient à un menu et porte une '
-      'fiche technique. Les consommations du bar, du tourisme et de la '
-      'location restent disponibles.';
+      'fiche technique. Les consommations du bar restent '
+      'disponibles.';
 
   /// Ce que le rayon dit d'un plat dont la fiche technique est vide.
   static const String detailFicheVide = 'Fiche vide : ne décrémente rien';
@@ -152,6 +154,82 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
     };
   }
 
+  /// Les articles de stock auxquels une boisson peut se lier — ceux de
+  /// `articles_local` en **suivi permanent** et non archivés, triés par libellé
+  /// (`articlesDeStock()` de la PWA : un article en achat journalier n'est pas
+  /// suivi, le rattacher ne décrémenterait rien). [terme] filtre sur le libellé,
+  /// sans casse ni accents (la recherche du maître).
+  Future<List<ArticleDeStock>> articlesDeStockLiables({
+    String terme = '',
+  }) async {
+    final cherche = cleDeComparaison(terme);
+    final lignes = await select(attachedDatabase.articlesLocal).get();
+    final retenus =
+        [
+          for (final a in lignes)
+            if (a.suivi == 'permanent' &&
+                a.actif != false &&
+                (cherche.isEmpty ||
+                    cleDeComparaison(a.libelle).contains(cherche)))
+              a,
+        ]..sort(
+          (a, b) => cleDeComparaison(
+            a.libelle,
+          ).compareTo(cleDeComparaison(b.libelle)),
+        );
+    return [
+      for (final a in retenus)
+        ArticleDeStock(
+          id: a.id,
+          libelle: a.libelle,
+          uniteMesure: a.uniteMesure,
+        ),
+    ];
+  }
+
+  /// Un article de stock par identifiant, quel que soit son suivi — sert à
+  /// NOMMER un lien déjà posé (colonne « Article de stock » de la carte).
+  Future<ArticleDeStock?> articleDeStock(String id) async {
+    final a = await (select(
+      attachedDatabase.articlesLocal,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return a == null
+        ? null
+        : ArticleDeStock(
+            id: a.id,
+            libelle: a.libelle,
+            uniteMesure: a.uniteMesure,
+          );
+  }
+
+  /// Les références du catalogue dont la vente ne sortirait AUCUN stock — la
+  /// lecture qui rend `stock_non_impacte` (« Articles sans lien au stock »,
+  /// journal des ventes et ticket) : une boisson sans article de stock, un plat
+  /// dont la fiche technique n'a aucun ingrédient. Clés de la forme `M5:<id>` /
+  /// `M4:<id>` ([ReferenceCatalogue.toString]).
+  ///
+  /// ⚠ Écart nommé : le serveur écrit cette liste sur la vente AU MOMENT de la
+  /// vente (`ventes.stock_non_impacte`) ; ce poste la relit du catalogue
+  /// d'AUJOURD'HUI. Un lien posé après la vente la ferait disparaître d'ici.
+  Future<Set<String>> referencesSansLienDeStock() async {
+    final sans = <String>{};
+    for (final b in await select(attachedDatabase.cartesBoissonLocal).get()) {
+      if (b.articleId.isEmpty) sans.add('${ModuleVendable.m5Bar.code}:${b.id}');
+    }
+    final composees = {
+      for (final i in await select(
+        attachedDatabase.ingredientsRecetteLocal,
+      ).get())
+        i.recetteId,
+    };
+    for (final p in await select(attachedDatabase.platsLocal).get()) {
+      if (!composees.contains(p.recetteId)) {
+        sans.add('${ModuleVendable.m4Restaurant.code}:${p.id}');
+      }
+    }
+    return sans;
+  }
+
   /* ================================================================== */
   /* La SAISIE locale des boissons — 14/09/2026                          */
   /* ================================================================== */
@@ -182,6 +260,21 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
       final apres = await (select(
         attachedDatabase.cartesBoissonLocal,
       )..where((c) => c.id.equals(boisson.id))).getSingle();
+      // La TRACE du changement de prix (v38) : dans la même transaction que le
+      // prix, par son seul écrivain — comme l'observateur du serveur, elle ne
+      // naît qu'à la MODIFICATION d'une boisson existante, jamais à sa création.
+      // Les boissons du poste n'ont pas de marque « corrigé à la main » : seul
+      // `prix_vente` peut être tracé ici.
+      if (avant != null) {
+        await HistoriquePrixCarteDao(attachedDatabase).tracer(
+          source: SourceCarte.boisson,
+          sourceId: boisson.id,
+          changements: changementsDePrix(
+            prixAvant: avant.prixVente.round(),
+            prixApres: apres.prixVente.round(),
+          ),
+        );
+      }
       await OperationsSyncDao(attachedDatabase).enfiler(
         table: TableSynchronisee.cartesBoisson,
         entiteId: boisson.id,
@@ -203,6 +296,7 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
         articleId: b.articleId.isEmpty ? null : b.articleId,
         categorie: b.categorie,
         prixVenteFrancs: b.prixVente.round(),
+        unitesVendables: b.unitesVendables,
       );
 
   /// Les boissons du catalogue local, triées par libellé.
@@ -265,6 +359,10 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
           libelle: b.libelle,
           categorie: b.categorie,
           prixVente: b.prixVente,
+          // `absentIfNull` : une écriture qui ne connaît pas le
+          // conditionnement (l'amorçage, une descente sans lui) ne EFFACE
+          // jamais celui que le poste a saisi.
+          unitesVendables: Value.absentIfNull(b.unitesVendables),
         ),
       );
 
@@ -277,6 +375,7 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
     prixVente: b.prixVente,
     // Jamais stocké, donc jamais relu — voir [boissonsDuCatalogue].
     stockDisponible: null,
+    unitesVendables: b.unitesVendables,
   );
 
   /// Le rayon du restaurant : les plats de `plats_local`, au prix du jour.
@@ -307,6 +406,13 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
         i.recetteId,
     };
 
+    // La marque « P » de la vue : la fiche du plat est PROVISOIRE (quantités
+    // posées, jamais pesées) — lue de `recettes_local.composition_provisoire`.
+    final provisoires = {
+      for (final r in await select(attachedDatabase.recettesLocal).get())
+        if (r.compositionProvisoire == true) r.id,
+    };
+
     final articles = [
       for (final l in lignes)
         ArticleVendable(
@@ -322,6 +428,10 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
           detail: composees.contains(l.readTable(p).recetteId)
               ? null
               : detailFicheVide,
+          // Le point orange de la vue : un plat sans ingrédient ne décrémente
+          // rien (`lien_stock` faux).
+          sansLienStock: !composees.contains(l.readTable(p).recetteId),
+          compositionProvisoire: provisoires.contains(l.readTable(p).recetteId),
         ),
     ];
     // Le même ordre que la carte : libellé sans accent, puis identifiant.

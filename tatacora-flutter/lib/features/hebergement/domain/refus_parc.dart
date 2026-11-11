@@ -143,6 +143,27 @@ final class UniteDejaArchivee extends RefusParc {
   final String numero;
 }
 
+/// La purge d'une unité qui n'est pas archivée
+/// (`pwa.import_export.purge_refusee_non_archive`).
+final class PurgeRefuseeNonArchive extends RefusParc {
+  const PurgeRefuseeNonArchive();
+
+  @override
+  String get message => 'Purge refusée : seul un élément archivé se purge.';
+}
+
+/// La purge d'une unité que des réservations PASSÉES citent encore
+/// (`pwa.import_export.purge_refusee_referencee`) : l'effacer les rendrait
+/// illisibles. Le verrou d'engagement (réservation à venir) est [UniteEngagee].
+final class PurgeRefuseeReferencee extends RefusParc {
+  const PurgeRefuseeReferencee();
+
+  @override
+  String get message =>
+      'Purge refusée : des enregistrements passés référencent encore cet '
+      "élément, et l'effacer les rendrait illisibles.";
+}
+
 /* ====================================================================== */
 /* Parc — catégories                                                       */
 /* ====================================================================== */

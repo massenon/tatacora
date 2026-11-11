@@ -29,6 +29,7 @@
 library;
 
 import '../certification_mecef.dart';
+import '../statut_normalisation.dart';
 
 /// D'où vient la pièce — **registre fermé**, jamais une chaîne libre.
 ///
@@ -268,6 +269,16 @@ final class PieceFacturation {
     this.motifAvoir,
     this.motifAnnulation,
     this.dateAnnulation,
+    this.normalisationStatut,
+    this.normalisationMotif,
+    this.normalisationMode,
+    this.normalisationCompteur,
+    this.normalisationCompteurAvant,
+    this.codeMecef,
+    this.qrCodeFiscal,
+    this.normaliseeLe,
+    this.acheteurIfu,
+    this.acheteurNom,
   });
 
   final String id;
@@ -307,6 +318,34 @@ final class PieceFacturation {
   final String? motifAnnulation;
   final DateTime? dateAnnulation;
 
+  /// La NORMALISATION fiscale (v50, 07/11/2026) : `null` = non concernée
+  /// (démonstration, mode désactivé, pièce d'avant).
+  final StatutNormalisation? normalisationStatut;
+
+  /// Le motif, en français, d'une pièce en attente, refusée ou à vérifier.
+  final String? normalisationMotif;
+
+  /// La voie qui a normalisé (ou tenté de) : boîtier ou e-MECeF.
+  final VoieNormalisation? normalisationMode;
+
+  /// « TC », le compteur de la pièce au boîtier.
+  final String? normalisationCompteur;
+
+  /// Le compteur noté AVANT l'envoi d'une tentative dont l'issue n'est pas
+  /// tranchée : le rejeu le compare avant de reposter.
+  final String? normalisationCompteurAvant;
+
+  final String? codeMecef;
+
+  /// Le contenu du QR code fiscal (`F;NIM;code;IFU;date`).
+  final String? qrCodeFiscal;
+  final DateTime? normaliseeLe;
+
+  /// L'ACHETEUR saisi pour cette facture (v51, 07/11/2026) : l'IFU du client (13 chiffres,
+  /// facultatif, `null` = client sans IFU) et son nom. Figés avec la pièce.
+  final String? acheteurIfu;
+  final String? acheteurNom;
+
   /// Montant total, en francs CFA — **calculé depuis les lignes figées**.
   ///
   /// Il est stable parce que les lignes le sont : aucune écriture du registre
@@ -321,6 +360,18 @@ final class PieceFacturation {
   /// du 17/10/2026) : le numéro continu est attribué par le serveur, et la
   /// synchronisation le pose ici. Le papier le dit (« Facture provisoire »).
   bool get estProvisoire => numero.startsWith(prefixeNumeroProvisoire);
+
+  /// La pièce porte-t-elle un numéro FISCAL réel (NIM-TC / numéro MECeF, hors démonstration) ?
+  bool get aNumeroFiscal => CertificationMecef.estReelle(numeroMecef);
+
+  /// Le numéro de la colonne « N° » du registre (PO, 09/11/2026) : le numéro FISCAL quand la pièce est normalisée,
+  /// SINON le numéro INTERNE ([numero] : `F-…` régularisé par le serveur, ou `PROV-…` tant qu'il ne l'a pas fait ;
+  /// `AV-…` pour un avoir) — jamais « — ». Même règle que `NumeroRegistre::pour` au web, confrontée au vrai PHP
+  /// par `numero_registre_test.dart`. Écran, PDF et tableur du registre lisent cette seule valeur.
+  String get numeroRegistre => aNumeroFiscal ? numeroMecef!.trim() : numero;
+
+  /// La valeur affichée est le numéro interne : l'écran la fait suivre de la légende « n° interne ».
+  bool get numeroRegistreEstInterne => !aNumeroFiscal;
 
   bool get estEmise => statut == StatutPiece.emise;
 
@@ -340,10 +391,25 @@ final class PieceFacturation {
   /// Toujours `false` aujourd'hui. La règle vit dans un seul fichier —
   /// `../certification_mecef.dart` — pour qu'elle reste trouvable le jour de
   /// l'inscription DGI (PA-17).
-  bool get estCertifiee => CertificationMecef.estReelle(numeroMecef);
+  ///
+  /// Depuis le 07/11/2026 : le statut de normalisation ET un numéro réel ET le QR
+  /// fiscal — jamais l'un sans les autres (un indicateur se dérive de ce qui est
+  /// en place). [estNormalisee] dit la même chose, sous le mot du lot 2.
+  bool get estCertifiee => estNormalisee;
 
-  /// Le libellé à afficher, qui **dit la vérité** plutôt que de la supposer.
-  String get libelleCertification => CertificationMecef.libelle(numeroMecef);
+  /// La pièce est RÉELLEMENT normalisée : QR et mentions fiscales sur le papier
+  /// seulement dans ce cas ; sinon le bandeau DEMO reste.
+  bool get estNormalisee =>
+      normalisationStatut == StatutNormalisation.normalisee &&
+      CertificationMecef.estReelle(numeroMecef) &&
+      (qrCodeFiscal ?? '').trim().isNotEmpty;
+
+  /// Le libellé fiscal à afficher : celui d'une pièce RÉELLEMENT normalisée, sinon `null` —
+  /// décision du PO du 07/11/2026 : une facture SIMPLE (mode désactivé) ne porte AUCUNE mention
+  /// (ni démonstration, ni « non normalisé »), et une facture normalisable pas encore normalisée
+  /// dit seulement « en attente de normalisation » (voir `TextesFacturationModes`).
+  String? get libelleCertification =>
+      estNormalisee ? CertificationMecef.libelle(numeroMecef) : null;
 
   @override
   bool operator ==(Object other) => other is PieceFacturation && other.id == id;

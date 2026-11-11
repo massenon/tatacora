@@ -23,9 +23,9 @@ class ServiceAppairage {
 
   final TransportSynchronisation _transport;
 
-  /// L'adresse de l'API du BUILD (`Environnement.actuel.baseUrl`) — jamais
-  /// une saisie : un build de production ne doit pas pouvoir pointer
-  /// ailleurs depuis l'interface. `null` en démonstration.
+  /// L'adresse de l'API du BUILD (`Environnement.actuel.baseUrl`), valeur par
+  /// défaut tant qu'aucune adresse n'a été choisie à l'écran (`poste.json`,
+  /// `ServiceAdresseServeur`). `null` en démonstration.
   final String? _url;
   final LecteurConfigurationPoste _lecteur;
   final EcrivainConfigurationPoste _ecrivain;
@@ -42,9 +42,17 @@ class ServiceAppairage {
     required String motDePasse,
     required String nomPoste,
   }) async {
-    final url = _url;
-    if (url == null) {
+    final parDefaut = _url;
+    if (parDefaut == null) {
       return const AppairageRefuse(TextesAppairage.demonstration);
+    }
+    // L'adresse choisie à l'écran (Paramètres → Synchronisation) l'emporte
+    // sur celle du build ; sinon celle du build, comme avant.
+    final url = await _lecteur.adresseServeurChoisie()
+        ? (await _lecteur.adresseServeur() ?? parDefaut)
+        : parDefaut;
+    if (!await _lecteur.synchronisationActivee()) {
+      return const AppairageRefuse(TextesAppairage.desactivee);
     }
     final login = identifiant.trim();
     if (login.isEmpty || motDePasse.isEmpty || nomPoste.trim().isEmpty) {
@@ -96,6 +104,9 @@ class ServiceAppairage {
   /// `GET /utilisateur` avec le jeton du poste. Rend la phrase à afficher. Un
   /// succès efface un refus consigné : le moteur d'envoi reprend.
   Future<String> testerConnexion() async {
+    if (!await _lecteur.synchronisationActivee()) {
+      return TextesAppairage.desactivee;
+    }
     final appairage = await _lecteur.appairage();
     if (appairage == null) return TextesAppairage.nonAppaire;
     final issue = await _transport.get(
@@ -130,7 +141,10 @@ class ServiceAppairage {
   /// fichier. La file d'envoi n'est pas touchée.
   Future<String> dissocier() async {
     final appairage = await _lecteur.appairage();
-    if (appairage != null) {
+    // Synchronisation désactivée : aucune requête, le jeton est retiré du
+    // poste (le serveur le gardera valide jusqu'à son expiration ou sa
+    // révocation depuis « Postes & Appairage »).
+    if (appairage != null && await _lecteur.synchronisationActivee()) {
       try {
         await _transport.post(
           urlServeur(appairage.serveur, '/logout'),

@@ -27,6 +27,7 @@ declare(strict_types=1);
 |       {"op": "poser_centre_defaut", "compte": "6052", "centre": "Structure"},
 |       {"op": "ouvrir_exercice", "annee": 2032},
 |       {"op": "poser_statut_exercice", "annee": 2032, "statut": "en_cloture"},
+|       {"op": "parametre", "cle": "compte_caisse", "valeur": "5712"|null},
 |       {"op": "compter"}, {"op": "tresoreries"} ] }
 | Sortie (stdout, JSON) : { "resultats": [ ... un resultat par operation ... ] }
 |   chaque resultat : { "ok": true, ... } ou { "refus": "<classe>", "message": "..." }.
@@ -76,6 +77,7 @@ use Database\Seeders\ComptabiliteReferentielSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 $base = (string) config('database.connections.' . config('database.default') . '.database');
 
@@ -259,6 +261,24 @@ try {
                             'depense' => $decrire($heritee),
                         ];
                     }
+                    break;
+
+                case 'parametre':
+                    // La correspondance des comptes (26/10/2026) : une cle
+                    // `compte_<role>` posee DIRECTEMENT en base — c'est la LECTURE
+                    // au moment de passer la piece qu'on mesure, pas l'ecran.
+                    // `null` retire la ligne : le defaut.
+                    DB::table('parametres_systeme')->where('cle', $op['cle'])->delete();
+                    if ($op['valeur'] !== null) {
+                        DB::table('parametres_systeme')->insert([
+                            'id' => (string) Str::uuid(),
+                            'cle' => $op['cle'],
+                            'valeur' => $op['valeur'],
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                    $resultats[] = ['ok' => true];
                     break;
 
                 case 'poser_centre_defaut':

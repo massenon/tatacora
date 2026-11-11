@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Contracts;
 
+use App\Models\User;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 
@@ -53,21 +54,57 @@ interface GestionnaireSynchronisation
     /** La table du registre `TABLES_SYNCHRONISABLES` que ce gestionnaire sert. */
     public function table(): string;
 
-    /** Module RBAC (`M1`…`M14`) dont le droit est exigé pour écrire. */
+    /**
+     * Module RBAC (`M1`…`M14`) de la table : il classe l'opération (journal de
+     * réception, droit de CORRIGER au web, filtrage de la descente). Il n'est PLUS un
+     * droit exigé du compte d'appairage (décision du PO du 09/11/2026).
+     */
     public function module(): string;
 
     /**
-     * Tous les modules dont l'écriture est exigée pour CE payload — au moins
-     * `module()`. Une vente portant des plats exige aussi M4 (lot S3,
-     * 15/10/2026), comme l'écran en ligne.
+     * Les modules dont le compte du JETON D'APPAIRAGE doit avoir l'écriture pour CE
+     * payload — **vide pour toute opération d'usage et de saisie courante**.
+     *
+     * Décision du PO du 09/11/2026 : « le jeton du poste porte un seul compte ; tout
+     * ce qui sort d'un poste appairé par le barman est jugé sur les droits du barman :
+     * NON, ÇA NE DOIT PAS JUGER ». Le contrôle des droits se fait AU POSTE, sur
+     * l'utilisateur connecté (RBAC local) ; le serveur reçoit les opérations d'un
+     * poste de confiance (appairé par un administrateur, jeton révocable). Une
+     * valeur non vide est donc une exception explicite, de la liste fermée des
+     * opérations SENSIBLES (`OperationsSensibles`) — rejetée seule, lisiblement.
      *
      * @param  array<string, mixed>  $payload
      * @return list<string>
      */
     public function modulesRequis(array $payload): array;
 
+    /**
+     * Les modules que l'utilisateur WEB doit écrire pour CORRIGER, relancer ou ignorer
+     * cette opération depuis la page de réception (`CorrectionReceptionService`) — le RBAC
+     * du WEB, par module, qui ne change pas (décision du PO du 09/11/2026 : le web garde
+     * le RBAC par module et par action). Au moins `module()`. Distinct de
+     * `modulesRequis()`, qui ne juge plus le compte d'appairage d'un poste.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return list<string>
+     */
+    public function modulesDeLaCorrection(array $payload): array;
+
     /** Niveau exigé sur ce module — `C` : toute opération synchronisée écrit. */
     public function niveauRequis(): string;
+
+    /**
+     * Le droit PARTICULIER d'une opération SENSIBLE (liste fermée
+     * `OperationsSensibles`) : la PHRASE du refus si le compte du jeton d'appairage
+     * n'y a pas droit, sinon `null` (09/11/2026 : les réglages de la facturation
+     * normalisée et la forme juridique n'acceptent d'un poste que le compte d'un
+     * administrateur). `null` pour tout le reste. Le
+     * moteur rejette alors l'opération `droit_manquant`, trace l'accès refusé,
+     * et n'appelle pas `creer()`.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function refusDeDroit(array $payload, User $utilisateur): ?string;
 
     /**
      * Service de domaine par lequel passent les écritures.
@@ -81,6 +118,13 @@ interface GestionnaireSynchronisation
 
     /** `false` : toute `modification` est rejetée, `modifier()` n'est jamais appelé. */
     public function accepteModification(): bool;
+
+    /**
+     * `false` (défaut) : toute `suppression` est rejetée, `supprimer()` n'est
+     * jamais appelé. Le registre est FERMÉ (A5, 28/10/2026) : `vrai` pour les
+     * seules unités d'hébergement et véhicules, par leur purge définitive.
+     */
+    public function accepteSuppression(): bool;
 
     /** Champ du payload portant la date métier du document, ou `null`. */
     public function champDateDocument(): ?string;
@@ -147,4 +191,15 @@ interface GestionnaireSynchronisation
      * @throws \LogicException si `accepteModification()` est faux
      */
     public function modifier(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee;
+
+    /**
+     * Rejoue la PURGE DÉFINITIVE d'un élément archivé, par le service de parc
+     * (mêmes verrous, mêmes phrases que l'écran web). L'élément existe
+     * (identifiant serveur résolu) ; l'absence est traitée par le moteur
+     * (idempotence).
+     *
+     * @throws \RuntimeException refus métier (non archivé, engagé, référencé)
+     * @throws \LogicException si `accepteSuppression()` est faux
+     */
+    public function supprimer(string $entiteId, ContexteSynchronisation $contexte): EcritureSynchronisee;
 }

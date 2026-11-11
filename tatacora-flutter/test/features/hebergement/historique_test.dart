@@ -69,6 +69,103 @@ void main() {
   }) => filtrerHistorique(liste, filtre: filtre, maintenant: maintenant);
 
   /* ================================================================== */
+  group('Les unités et les services d’une réservation SANS ligne (reçue d’un '
+      'autre poste, 09/11/2026)', () {
+    final recue = reservation(
+      id: 'r-recue',
+      arrivee: DateTime(2026, 9, 20),
+      depart: DateTime(2026, 9, 22),
+    );
+
+    test('l’unité vient de la réservation, pas des lignes : jamais « — »', () {
+      final l = historique([recue]).single;
+      expect(recue.lignes, isEmpty);
+      expect(l.unites, ['u-1']);
+    });
+
+    test('le NOM de l’unité s’affiche (numéro — catégorie), jamais son '
+        'identifiant', () {
+      final l = filtrerHistorique(
+        [recue],
+        filtre: const FiltreHistorique(),
+        maintenant: maintenant,
+        nomsUnites: const {'u-1': 'Amarante — Chambre triple'},
+      ).single;
+      expect(l.unitesAffichees, ['Amarante — Chambre triple']);
+    });
+
+    test('une unité que ce poste ne connaît pas s’écrit « Unité inconnue », '
+        'jamais un UUID', () {
+      final l = historique([recue]).single;
+      expect(l.unitesAffichees, [LigneHistorique.unitesInconnue]);
+      expect(LigneHistorique.unitesInconnue, 'Unité inconnue');
+      expect(l.unitesAffichees.join(' '), isNot(contains('u-1')));
+    });
+
+    test('toute réservation porte de l’hébergement : le service ne dépend '
+        'pas des lignes', () {
+      final l = historique([recue]).single;
+      expect(l.services, [ServiceReservation.hebergement]);
+      expect(
+        historique(
+          [recue],
+          filtre: const FiltreHistorique(
+            service: ServiceReservation.hebergement,
+          ),
+        ),
+        hasLength(1),
+      );
+    });
+
+    test('une chambre ET sa ligne : une seule unité, jamais comptée deux '
+        'fois', () {
+      final r = reservation(
+        id: 'r-ligne',
+        arrivee: DateTime(2026, 9, 20),
+        depart: DateTime(2026, 9, 22),
+        lignes: [chambre()],
+      );
+      expect(historique([r]).single.unites, ['u-1']);
+    });
+  });
+
+  group('TOTAL et RESTE DÛ de l’historique — mêmes chiffres que le web (PO, '
+      '09/11/2026)', () {
+    test('2 nuits × 40 000, remise 10 %, acompte 30 000 : total 72 000, reste '
+        '42 000', () {
+      final l = historique([
+        reservation(
+          id: 'r-total',
+          arrivee: DateTime(2026, 12, 10),
+          depart: DateTime(2026, 12, 12),
+          tarifNuit: 40000,
+          acompte: 30000,
+          remiseType: TypeRemise.pourcentage,
+          remiseValeur: 10,
+        ),
+      ]).single;
+      expect(l.totalAPayer, 72000);
+      expect(l.resteAPayer, 42000);
+    });
+
+    test(
+      'un acompte supérieur au total : le reste dû est 0, jamais négatif',
+      () {
+        final l = historique([
+          reservation(
+            id: 'r-trop',
+            arrivee: DateTime(2026, 12, 20),
+            depart: DateTime(2026, 12, 21),
+            tarifNuit: 40000,
+            acompte: 60000,
+          ),
+        ]).single;
+        expect(l.totalAPayer, 40000);
+        expect(l.resteAPayer, 0);
+      },
+    );
+  });
+
   group('L’état se déduit des dates, jamais d’une colonne', () {
     test('un séjour à venir', () {
       final l = historique([

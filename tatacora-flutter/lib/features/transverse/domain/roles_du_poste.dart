@@ -56,6 +56,9 @@ final class RoleDuPoste {
   /// Les droits, relus par la MÊME fabrique que la session.
   GardeAcces get droits => GardeAcces.depuisJson(niveaux);
 
+  /// Le droit de profil [code] (`PROFIL_NOM`…) est-il accordé ? Binaire : seul `C`.
+  bool droitProfil(String code) => niveaux[code] == NiveauAcces.complet.code;
+
   /// `RolesPermissions::render()` : le nombre de modules de l'écran à `C`.
   int get complet => [
     for (final m in libellesModulesMatrice.keys)
@@ -159,9 +162,12 @@ const Map<ModuleTatacora, String> libellesModulesMatrice = {
 };
 
 /// `RolePermissionSeeder::MATRICE`, recopiée À L'IDENTIQUE (14/10/2026) :
-/// DOUZE rôles (dont `super_admin`, directive du PO du 03/09/2026) et DIX-SEPT
+/// DOUZE rôles (dont `super_admin`, directive du PO du 03/09/2026) et VINGT
 /// colonnes (dont `ANNULATIONS`, droit transverse que l'écran n'affiche pas,
-/// mais que le socle pose et que « Rétablir » rétablit). Une divergence avec
+/// mais que le socle pose et que « Rétablir » rétablit, et — depuis le
+/// 03/11/2026 — les trois droits de « Mon profil » : `PROFIL_NOM`,
+/// `PROFIL_TELEPHONE` pour tous les rôles, `PROFIL_INTITULE` pour les rôles
+/// d'administration). Une divergence avec
 /// le seeder se corrige ICI, jamais acceptée comme « presque pareil ».
 const Map<String, Map<String, String>> socleRbacCdcf = {
   'super_admin': {
@@ -182,6 +188,12 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': 'C',
     'PARAM': 'C',
     'ANNULATIONS': 'C',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': 'C',
+    'SYNCHRO': 'C',
+    'APPAIRAGE': 'C',
+    'IMPORT_EXPORT': 'C',
   },
   'administrateur': {
     'M1': 'C',
@@ -201,6 +213,12 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': 'C',
     'PARAM': 'C',
     'ANNULATIONS': 'C',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': 'C',
+    'SYNCHRO': 'C',
+    'APPAIRAGE': 'C',
+    'IMPORT_EXPORT': 'C',
   },
   'gerant': {
     'M1': 'C',
@@ -220,6 +238,12 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': 'L',
     'PARAM': 'L',
     'ANNULATIONS': 'C',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'receptionniste': {
     'M1': 'C',
@@ -239,6 +263,12 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': 'L',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'cuisine': {
     'M1': '-',
@@ -258,6 +288,12 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'barman': {
     'M1': '-',
@@ -277,6 +313,12 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'magasinier': {
     'M1': '-',
@@ -296,6 +338,12 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'achats': {
     'M1': '-',
@@ -315,6 +363,12 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'vehicules': {
     'M1': '-',
@@ -334,6 +388,12 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'guide': {
     'M1': '-',
@@ -353,6 +413,12 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'rh': {
     'M1': '-',
@@ -372,25 +438,37 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'comptable': {
-    'M1': 'L',
-    'M2': 'L',
-    'M3': 'L',
-    'M4': 'L',
-    'M5': 'L',
-    'M6': 'L',
-    'M7': 'L',
-    'M8': 'L',
-    'M9': 'L',
+    'M1': 'C',
+    'M2': 'C',
+    'M3': 'C',
+    'M4': 'C',
+    'M5': 'C',
+    'M6': 'C',
+    'M7': 'C',
+    'M8': 'C',
+    'M9': 'C',
     'M10': 'C',
-    'M11': 'L',
-    'M12': '-',
-    'M13': 'L',
+    'M11': 'C',
+    'M12': 'C',
+    'M13': 'C',
     'M14': 'C',
-    'ROLES': '-',
-    'PARAM': '-',
-    'ANNULATIONS': 'L',
+    'ROLES': 'L',
+    'PARAM': 'L',
+    'ANNULATIONS': 'C',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
 };
 
@@ -404,7 +482,7 @@ List<String> get codesModulesSocle =>
 /// (`lang/fr/pwa.php` `roles.*`, `lang/fr/validation.php`, `auth.php`).
 abstract final class MessagesRoles {
   /// `auth.module_refuse` — `exigerEcriture('ROLES')`.
-  static const String refusDroit = 'Vous n avez pas acces a ce module.';
+  static const String refusDroit = "Vous n'avez pas accès à ce module.";
 
   /// `validation.required` sur `libelleRoleSaisi` : Laravel n'a pas de nom
   /// d'attribut pour ce champ et affiche le nom technique (« libelle role

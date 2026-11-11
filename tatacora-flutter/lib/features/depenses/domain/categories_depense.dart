@@ -33,21 +33,39 @@ import '../../comptabilite/domain/comptes_syscohada.dart';
 /// (journal CAI), mobile money -> 552 (journal BQ), banque -> 5211 (journal BQ).
 /// Le rattachement du mobile money au journal de banque est un choix
 /// d'organisation signalé au Comptable côté serveur, répliqué tel quel ici ; les
-/// numéros viennent de `ComptesSyscohada` (« à valider par le comptable »), pas
-/// d'une seconde liste. `depenses_contre_serveur_test.dart` EXÉCUTE PHP et
+/// numéros viennent de `ComptesSyscohada` (comptes validés par le PO le
+/// 26/10/2026), pas d'une seconde liste. Ce sont des DÉFAUTS : le compte qu'une
+/// pièce utilise est celui de la correspondance (rôle [role]), lu par le moteur
+/// au moment de passer la pièce. `depenses_contre_serveur_test.dart` EXÉCUTE PHP et
 /// exige l'égalité des trois couples.
 enum TresorerieDepense {
-  caisse('caisse', 'Caisse', ComptesSyscohada.caisse, 'CAI'),
-  momo('momo', 'Mobile Money', ComptesSyscohada.mobileMoney, 'BQ'),
-  banque('banque', 'Compte bancaire', ComptesSyscohada.banque, 'BQ');
+  caisse('caisse', 'Caisse', ComptesSyscohada.caisse, 'CAI', 'CAISSE'),
+  momo(
+    'momo',
+    'Mobile Money',
+    ComptesSyscohada.mobileMoney,
+    'BQ',
+    'MOBILE_MONEY',
+  ),
+  banque('banque', 'Compte bancaire', ComptesSyscohada.banque, 'BQ', 'BANQUE');
 
-  const TresorerieDepense(this.code, this.libelle, this.compte, this.journal);
+  const TresorerieDepense(
+    this.code,
+    this.libelle,
+    this.compte,
+    this.journal,
+    this.role,
+  );
 
   final String code;
   final String libelle;
 
-  /// Le compte de contrepartie de la pièce (crédité par la dépense).
+  /// Le compte de contrepartie PAR DÉFAUT de la pièce (crédité par la dépense).
   final String compte;
+
+  /// Le rôle comptable de cette trésorerie (`CAISSE`, `MOBILE_MONEY`,
+  /// `BANQUE`) : le compte réel est celui de la correspondance.
+  final String role;
 
   /// Le code du journal où la pièce est passée.
   final String journal;

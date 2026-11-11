@@ -70,7 +70,7 @@ void main() {
   final scenario = <Map<String, Object?>>[
     {'op': 'libelles'},
     {'op': 'utilisateur', 'ref': 'g', 'role': 'gerant'},
-    {'op': 'utilisateur', 'ref': 'c', 'role': 'comptable'},
+    {'op': 'utilisateur', 'ref': 'c', 'role': 'lecteur'},
     {'op': 'utilisateur', 'ref': 'r', 'role': 'receptionniste'},
     {'op': 'utilisateur', 'ref': 'b', 'role': 'barman'},
 
@@ -243,7 +243,7 @@ void main() {
     // des rôles qui n'y écrivent pas (leur droit est LU du serveur).
     expect(niveaux['gerant'], 'C');
     expect(niveaux['barman'], 'C');
-    expect(niveaux['comptable'], isNot('C'));
+    expect(niveaux['lecteur'], isNot('C'));
     expect(niveaux['receptionniste'], isNot('C'));
     final issues = [
       for (final r in serveur) _normaliserServeur(r as Map<String, dynamic>),

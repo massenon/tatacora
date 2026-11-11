@@ -6,7 +6,7 @@
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1200px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         <div class="mb-6">
           <div class="flex items-center gap-2.5">
@@ -68,12 +68,15 @@
                         <p class="text-[15px] font-semibold text-slate-700">{{ $envoi->objet }}</p>
                         <p class="text-[13px] text-slate-500 mt-0.5 leading-relaxed">{{ \Illuminate\Support\Str::limit($envoi->corps, 180) }}</p>
                         <p class="text-[12px] text-slate-400 mt-1">
-                          {{ $envoi->date_creation?->format('d/m/Y H:i') }}
+                          {{ \App\Shared\Support\HeureLocale::formater($envoi->date_creation, 'd/m/Y H:i') }}
                           @if ($envoi->capture_nom)
                             · {{ __('pwa.contact.envois_capture') }}
                           @endif
                           · <span style="color:{{ $envoi->estTransmis() ? 'var(--succes)' : 'var(--alerte)' }}">{{ $envoi->estTransmis() ? __('pwa.contact.envois_statut_transmis') : __('pwa.contact.envois_statut_a_transmettre') }}</span>
                         </p>
+                        @if (! $envoi->estTransmis() && $envoi->derniere_erreur)
+                          <p class="text-[12px] mt-1" style="color:var(--erreur)">{{ __('pwa.contact.envois_derniere_erreur', ['erreur' => $envoi->derniere_erreur]) }}</p>
+                        @endif
                       </div>
                     </div>
                   </div>

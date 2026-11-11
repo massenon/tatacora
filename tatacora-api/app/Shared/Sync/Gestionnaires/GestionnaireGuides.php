@@ -15,13 +15,14 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Guides (M9) créés ou modifiés sur un poste — lot F4 (17/10/2026).
  *
- * Règles du catalogue (fusion sur le nom, dernier écrit gagnant). Le poste
- * ne saisit pas le TARIF JOURNALIER (`guides_local` n'a pas la colonne) ; la
- * colonne du serveur est obligatoire. Un guide créé par un poste est donc
- * rangé à 0 et SIGNALÉ (`guide_sans_tarif`) — la règle du PO du 15/10/2026
- * (« ne bride pas les postes » : enregistré et signalé, jamais refusé), et
- * jamais un tarif deviné. Une modification venue du poste ne touche jamais
- * le tarif saisi au serveur.
+ * Règles du catalogue (fusion sur le nom, dernier écrit gagnant). Depuis le lot
+ * L3 (27/10/2026, v41 du poste) le poste saisit la CERTIFICATION et le TARIF
+ * JOURNALIER comme `Departs::enregistrerGuide` : ils partent, `EnregistrerGuideRequest`
+ * les valide et le serveur les range, et ils redescendent (`CatalogueDescendantService`).
+ * Un poste d'AVANT la v41 n'envoie pas le tarif (colonne obligatoire du serveur) : le
+ * guide est alors rangé à 0 et SIGNALÉ (`guide_sans_tarif`) — la règle du PO du
+ * 15/10/2026 (« ne bride pas les postes » : enregistré et signalé, jamais refusé), et
+ * jamais un tarif deviné. Une modification n'écrase jamais un tarif absent du payload.
  */
 final class GestionnaireGuides extends GestionnaireReferentielAbstrait
 {

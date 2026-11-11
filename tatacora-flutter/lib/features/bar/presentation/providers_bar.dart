@@ -2,15 +2,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
+import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
 import '../impression/etat_carte.dart';
 import '../impression/etat_ventes_bar.dart';
 
 import '../../pos/data/dto/catalogue_dto.dart';
+import '../../pos/data/indisponibilites_carte_dao.dart';
 import '../../pos/domain/entities/reference_catalogue.dart';
 import '../../pos/presentation/providers_pos.dart';
+import '../../stocks/domain/entities/etat_stock.dart' show LigneStock;
+import '../../stocks/presentation/providers_stocks.dart' show stocksDaoProvider;
 import '../data/boissons_api.dart';
+import '../domain/apercu_lien.dart';
 import '../domain/entities/boisson.dart';
 import '../domain/entities/carte_bar.dart';
 import '../domain/entities/trace_prix.dart';
@@ -31,19 +36,82 @@ final carteLocaleProvider = FutureProvider<List<LigneCarte>>((ref) async {
   // compté toute la carte « sans lien ». La réponse serveur, quand elle
   // arrive, le remplace ([composerCarte]).
   final liens = await catalogue.liensDeStockDesBoissons();
+  // Les retraits EN COURS, écrits ici ou descendus : le poste SAIT l'état de
+  // chaque ligne, donc « Rendre indispo. » / « Remettre » sont offerts.
+  final retraits = await IndisponibilitesCarteDao(
+    ref.watch(baseLocaleProvider),
+  ).boissonsRetirees();
+
+  // La colonne « Article de stock » (vue l.373-380) : le libellé de l'article
+  // lié et son conditionnement en clair (« 24 par casier »), lus des tables
+  // LOCALES — `articles_local` et `cartes_boisson_local.unites_vendables`.
+  // Un lien dont l'article n'est pas (encore) sur ce poste reste lié, sans
+  // libellé : la cellule dit « non consulté », pas « aucun article ».
+  final dao = ref.watch(catalogueDaoProvider);
+  final facteurs = {
+    for (final b in await dao.boissonsDuCatalogue()) b.id: b.unitesVendables,
+  };
+  final articles = <String, ArticleDeStock?>{
+    for (final articleId in liens.values.toSet())
+      articleId: await dao.articleDeStock(articleId),
+  };
+
+  // Le STOCK VENDABLE, calculé ICI depuis les mouvements répliqués (10/11/2026, constat du PO :
+  // « non consulté » alors que la synchronisation est faite). Même règle que la carte du web
+  // (`StockDeCarteService::etat`) : le solde de l'article lié AU POINT « bar », converti en unités
+  // vendables par le facteur de la boisson ; sous seuil = solde ≤ seuil d'alerte ; rupture = solde ≤ 0.
+  // « non consulté » ne reste que si le poste n'a AUCUN point de type bar (ou pas encore l'article).
+  final stocksDao = ref.watch(stocksDaoProvider);
+  final points = await stocksDao.points();
+  final pointsBar = points.where((p) => p.type == 'bar').toList()
+    ..sort((a, b) => a.libelle.compareTo(b.libelle));
+  final etat = pointsBar.isEmpty
+      ? null
+      : await stocksDao.etat(pointId: pointsBar.first.id);
+  final soldes = <String, LigneStock>{
+    for (final l in etat?.lignes ?? const <LigneStock>[]) l.id: l,
+  };
 
   return bar
       .expand((r) => r.articles)
-      .map(
-        (a) => LigneCarte(
+      .map((a) {
+        final article = articles[liens[a.reference.code]];
+        final facteur = facteurs[a.reference.code];
+        final ligneStock = liens[a.reference.code] == null
+            ? null
+            : soldes[liens[a.reference.code]];
+        final solde = ligneStock == null
+            ? null
+            : double.tryParse(ligneStock.stock);
+        final multiplicateur = facteur == null
+            ? null
+            : double.tryParse(facteur);
+        final calculable =
+            solde != null && multiplicateur != null && facteur != null;
+        final lieSansPoint =
+            liens[a.reference.code] != null &&
+            multiplicateur != null &&
+            etat == null;
+        return LigneCarte(
           id: a.reference.code,
           libelle: a.libelle,
           categorie: a.categorie ?? '',
           prix: a.prix ?? 0,
           articleId: liens[a.reference.code],
-          stock: null,
-        ),
-      )
+          stock: calculable ? solde * multiplicateur : null,
+          rupture: calculable ? solde <= 0 : null,
+          sousSeuil:
+              calculable &&
+              solde <= (double.tryParse(ligneStock!.seuilAlerte) ?? 0),
+          stockNonConsulte: lieSansPoint,
+          indisponibilite: retraits[a.reference.code],
+          disponibiliteConnue: true,
+          lienLibelle: article?.libelle,
+          lienDetail: article == null || facteur == null
+              ? null
+              : conversionLisible(facteur, article.uniteMesure),
+        );
+      })
       .toList(growable: false);
 });
 
@@ -206,6 +274,25 @@ final creerBoissonProvider =
       },
     );
 
+/// Renomme et reclasse une boisson — la modale « Modifier la boisson — » de la
+/// vue. Le prix et le lien au stock ne bougent pas (`BoissonsApi.modifier`).
+final modifierBoissonProvider =
+    Provider<
+      Future<ResultatBar<Boisson>> Function(
+        String id, {
+        required String libelle,
+        required CategorieBoisson categorie,
+      })
+    >(
+      (ref) => (id, {required libelle, required categorie}) async {
+        final resultat = await ref
+            .read(boissonsApiProvider)
+            .modifier(id, libelle: libelle, categorie: categorie);
+        if (resultat is BarRecu<Boisson>) _rafraichirCatalogue(ref);
+        return resultat;
+      },
+    );
+
 /// Change le PRIX d'une boisson — la modale « Modifier le prix — » de la vue.
 ///
 /// @see EF-M5-02 Carte des boissons
@@ -234,46 +321,95 @@ final modifierPrixBoissonProvider =
       },
     );
 
-// ⚠ `lierAuStockProvider` a été RETIRÉ le 14/09/2026, avec les deux
-// fournisseurs qui alimentaient sa modale — `boissonServeurProvider` (qui
-// relisait le conditionnement ENREGISTRÉ au serveur) et
-// `referentielLienProvider` (les articles en suivi permanent, avec leur solde
-// au point « bar »).
-//
-// Deux manques, et chacun suffirait : aucun article n'est répliqué ici
-// (`articles_local` est délibérément vide, PA-134), et la table du catalogue
-// local ne porte pas le conditionnement — qui est la raison d'être du geste,
-// un casier de 24 et une bouteille à l'unité ne décrémentant pas pareil.
-//
-// La modale énonce le refus (`TextesCatalogueLocal.lienSansColonne`) et
-// n'appelle plus rien : un fournisseur que seul un refus traverse serait un
-// chemin que rien n'emprunte. `BoissonsApi.lierAuStock` demeure — c'est là que
-// le geste se rebranchera le jour où la colonne existera, et il reste éprouvé.
-
-// ⚠ `retirerDeLaCarteProvider` a été RETIRÉ le 14/09/2026, pour la même raison
-// que `lierAuStockProvider` ci-dessus : la modale énonce le refus et ne soumet
-// rien. Le serveur écrivait une ligne `indisponibilites_carte` — motif,
-// commentaire, auteur, sous verrou ; `cartes_boisson_local` n'a que cinq
-// colonnes, et aucune ne porte un retrait.
-//
-// `BoissonsApi.retirer` demeure, et reste éprouvé : c'est là que le geste se
-// rebranchera le jour où la colonne existera.
-
-/// « Remettre » — refusé, parce qu'il n'y a rien à lever : il n'existe nulle
-/// part où écrire un retrait.
+/// « Lier au stock » / « Modifier le lien » — écrit l'article ET son
+/// conditionnement dans la carte locale (et la file d'envoi), puis recharge ce
+/// qui lit le catalogue (26/10/2026).
 ///
-/// Celui-ci est CONSERVÉ, à la différence des deux précédents : l'écran de
-/// carte l'appelle encore (`onRemettre`), et le refus doit être DIT. Un geste
-/// silencieux laisserait croire que l'article vient de revenir à la carte.
-final remettreALaCarteProvider =
-    Provider<Future<ResultatBar<Boisson>> Function(String id)>(
+/// ⚠ `lierAuStockProvider` avait été RETIRÉ le 14/09/2026 : ni article ni
+/// colonne de conditionnement n'existaient sur le poste. Les deux existent
+/// (`articles_local`, `cartes_boisson_local.unites_vendables` v30).
+final lierAuStockProvider =
+    Provider<
+      Future<ResultatBar<Boisson>> Function({
+        required String id,
+        required String articleId,
+        required String unitesVendablesParUniteStock,
+      })
+    >(
       (ref) =>
-          (id) => ref.read(boissonsApiProvider).remettre(id),
+          ({
+            required id,
+            required articleId,
+            required unitesVendablesParUniteStock,
+          }) async {
+            final resultat = await ref
+                .read(boissonsApiProvider)
+                .lierAuStock(
+                  id: id,
+                  articleId: articleId,
+                  unitesVendablesParUniteStock: unitesVendablesParUniteStock,
+                );
+            if (resultat is BarRecu<Boisson>) _rafraichirCatalogue(ref);
+            return resultat;
+          },
     );
 
-/// L'historique des prix d'une boisson, LU AU SERVEUR à chaque ouverture de
-/// la modale — `autoDispose`, sans cache : une liste gardée d'une visite
-/// précédente ne dirait pas qu'elle date, sur la question même « depuis
+/// Les articles de stock proposés par la recherche des deux modales — suivi
+/// permanent seulement (`articlesDeStock()` de la vue). `autoDispose` : un
+/// article créé dans Stocks pendant que la modale était fermée doit y être.
+final articlesDeStockProvider = FutureProvider.autoDispose
+    .family<List<ArticleDeStock>, String>(
+      (ref, terme) =>
+          ref.watch(catalogueDaoProvider).articlesDeStockLiables(terme: terme),
+    );
+
+/// Le solde d'un article au point « bar », pour l'aperçu de « Lier au stock »
+/// (« Stock actuel »). `null` : non consultable — aucun point de type « bar »,
+/// ou article inconnu ; jamais un zéro, qui se lirait « rupture ».
+final soldeAuBarProvider = FutureProvider.autoDispose.family<String?, String>((
+  ref,
+  articleId,
+) async {
+  final stocks = ref.watch(stocksDaoProvider);
+  final bar = (await stocks.points()).where((p) => p.type == 'bar').firstOrNull;
+  if (bar == null) return null;
+  final fiche = await stocks.articlesFiche(pointId: bar.id);
+  return fiche.where((a) => a.id == articleId).firstOrNull?.stock;
+});
+
+/// « Rendre indispo. » — écrit le retrait dans la base locale et le met en
+/// file (v31, 21/10/2026) ; recharge la carte pour que la ligne passe à
+/// « Retirés du jour ».
+final retirerDeLaCarteProvider =
+    Provider<
+      Future<ResultatBar<Boisson>> Function({
+        required String id,
+        required String motif,
+        String? commentaire,
+      })
+    >(
+      (ref) => ({required id, required motif, commentaire}) async {
+        final r = await ref
+            .read(boissonsApiProvider)
+            .retirer(id: id, motif: motif, commentaire: commentaire);
+        ref.invalidate(carteLocaleProvider);
+        return r;
+      },
+    );
+
+/// « Remettre » — ferme le retrait en cours et recharge la carte.
+final remettreALaCarteProvider =
+    Provider<Future<ResultatBar<Boisson>> Function(String id)>(
+      (ref) => (id) async {
+        final r = await ref.read(boissonsApiProvider).remettre(id);
+        ref.invalidate(carteLocaleProvider);
+        return r;
+      },
+    );
+
+/// L'historique des prix d'une boisson, relu dans la table locale à chaque
+/// ouverture de la modale — `autoDispose`, sans cache : une liste gardée d'une
+/// visite précédente ne dirait pas qu'elle date, sur la question même « depuis
 /// quand ce prix ? ».
 final historiquePrixProvider = FutureProvider.autoDispose
     .family<ResultatBar<List<TracePrix>>, String>(
@@ -332,15 +468,18 @@ final class _FiltreVentesNotifier extends Notifier<FiltreVentesBar> {
   );
 }
 
-/// La page de lignes, LUE AU SERVEUR à chaque changement de filtre — sans
-/// cache, comme l'historique des prix : une liste gardée d'une visite
-/// précédente ne dirait pas qu'elle date.
+/// La page de lignes, CALCULÉE sur les paniers du poste à chaque changement
+/// de filtre — sans cache : une liste gardée d'une visite précédente ne dirait
+/// pas qu'elle date.
 final ventesBarProvider =
-    FutureProvider.autoDispose<ResultatBar<PageVentesBar>>(
-      (ref) => ref
+    FutureProvider.autoDispose<ResultatBar<PageVentesBar>>((ref) {
+      // Les ventes se calculent sur les paniers du poste : une vente encaissée
+      // recompose l'onglet.
+      ref.watch(paniersProvider);
+      return ref
           .watch(boissonsApiProvider)
-          .ventes(ref.watch(filtreVentesBarProvider)),
-    );
+          .ventes(ref.watch(filtreVentesBarProvider));
+    });
 
 /// Recharge tout ce qui LIT le catalogue local, après une écriture.
 ///

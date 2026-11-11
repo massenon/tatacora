@@ -24,6 +24,8 @@ use App\Shared\Auth\Http\Controllers\AuthController;
 use App\Shared\Parametres\Http\Controllers\ParametreController;
 use App\Shared\Sync\Http\Controllers\CoherenceController;
 use App\Shared\Sync\Http\Controllers\DemandeSynchronisationController;
+use App\Shared\Sync\Http\Controllers\FacturesEnLigneController;
+use App\Shared\Sync\Http\Controllers\RecuDepenseController;
 use App\Shared\Sync\Http\Controllers\ReferentielsController;
 use App\Shared\Sync\Http\Controllers\SuiviPostesController;
 use App\Shared\Sync\Http\Controllers\SyncController;
@@ -94,6 +96,40 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     // La génération des données (19/10/2026) : un poste d'avant une
     // réinitialisation du serveur est refusé (409) sur ces quatre routes.
     Route::get('/referentiels', ReferentielsController::class)->middleware(GenerationDesDonnees::class);
+
+    // Le REÇU en image d'une dépense (lot L4, décision du PO du 27/10/2026 :
+    // un transport de fichier dans la synchronisation). Le dépôt (PUT, corps =
+    // le fichier brut) est rattaché à l'UUID de la dépense que le poste a
+    // créée par `/sync` ; le téléchargement se fait À LA DEMANDE d'un poste
+    // (la descente ne porte que la référence). Mêmes droits que la dépense :
+    // écriture sur M10 pour déposer, lecture pour télécharger — contrôlés dans
+    // le contrôleur, comme `/sync` (pas de middleware `module:` : le poste du
+    // jeton doit aussi concorder).
+    Route::put('/sync/depenses/{depense}/recu', [RecuDepenseController::class, 'deposer'])
+        ->middleware(GenerationDesDonnees::class)
+        ->where('depense', '[0-9a-fA-F-]{36}')
+        ->name('api.sync.recu_depense.deposer');
+    Route::get('/sync/depenses/{depense}/recu', [RecuDepenseController::class, 'telecharger'])
+        ->middleware(GenerationDesDonnees::class)
+        ->where('depense', '[0-9a-fA-F-]{36}')
+        ->name('api.sync.recu_depense.telecharger');
+
+    // Signature et cachet des documents commerciaux (PO, 07/11/2026) : descente à la demande.
+    Route::get('/sync/apparence-documents', \App\Shared\Sync\Http\Controllers\ImagesDocumentController::class)
+        ->middleware(GenerationDesDonnees::class)
+        ->name('api.sync.apparence_documents');
+
+    // Facturation EN LIGNE depuis un poste (décisions du PO du 07/11/2026) : l'avoir d'une
+    // facture (seule porte pour une facture NORMALISÉE) et la demande immédiate de
+    // normalisation e-MECeF. Droits et poste du jeton contrôlés dans le contrôleur.
+    Route::post('/sync/factures/{facture}/avoir', [FacturesEnLigneController::class, 'avoir'])
+        ->middleware(GenerationDesDonnees::class)
+        ->where('facture', '[0-9a-fA-F-]{36}')
+        ->name('api.sync.factures.avoir');
+    Route::post('/sync/factures/{facture}/normalisation', [FacturesEnLigneController::class, 'normaliser'])
+        ->middleware(GenerationDesDonnees::class)
+        ->where('facture', '[0-9a-fA-F-]{36}')
+        ->name('api.sync.factures.normalisation');
 
     Route::prefix('hebergement')->group(function () {
         // Le PARC entier — referentiel descendant du client Flutter (PA-128).

@@ -95,6 +95,11 @@ final class DocumentsDescendantsTest extends TestCase
         $this->assertSame($this->ids['session'], $vente['session_id']);
         $this->assertSame('3000.00', $vente['montant_total']);
         $this->assertSame('especes', $vente['mode_paiement']);
+        // 26/10/2026 : le NUMÉRO `V-` du serveur et le LOGIN de l'auteur descendent
+        // (jamais l'identifiant du compte) — le poste B les affiche dans les ventes.
+        $this->assertMatchesRegularExpression('/^V-\d{4}-\d{5}$/', (string) $vente['numero']);
+        $this->assertSame($this->admin->login, $vente['par']);
+        $this->assertArrayNotHasKey('utilisateur_id', $vente);
         $this->assertSame([[
             'code' => $this->biere->id, 'nom' => 'Béninoise 65cl', 'categorie' => $vente['lignes'][0]['categorie'],
             'module' => 'M5', 'prix_unitaire' => '1000.00', 'quantite' => 3, 'montant' => '3000.00',

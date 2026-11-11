@@ -6,8 +6,6 @@ namespace App\Pwa\Livewire\Pos;
 
 use App\Domain\Bar\Models\CarteBoisson;
 use App\Domain\Restaurant\Models\Plat;
-use App\Domain\Tourisme\Models\Circuit;
-use App\Domain\Vehicules\Models\Vehicule;
 use App\Domain\Ventes\Services\VenteService;
 use App\Pwa\Livewire\Restaurant\CarteRestaurant;
 use Illuminate\Support\Collection;
@@ -70,19 +68,15 @@ trait ComposePanier
     /**
      * Les rayons que les deux ecrans savent lire, et leur module.
      *
-     * `VenteService::MODULES_ENCAISSABLES` decide, lui, lesquels peuvent etre
-     * ENCAISSES — ce n'est pas la meme question, et les confondre a deja
-     * produit un ecran qui proposait quatre rayons sur cinq sans rien pouvoir
-     * en faire (PA-129). Un rayon non encaissable reste AFFICHE avec sa
-     * raison ; l'omettre le rendrait indiscernable d'un rayon vide.
+     * Le bar (M5) et le restaurant (M4), et RIEN d'autre. Directive du PO du
+     * 26/10/2026 : « Tourisme » et « Location » (M9/M8) sont ENLEVES de la
+     * selection des deux points de vente — ni carte, ni famille, ni pastille.
+     * `VenteService` continue d'accepter M8/M9 par l'API et la synchronisation
+     * (ventes deja faites), mais aucun ecran du POS ne les propose.
      */
     protected const MODULE_BAR = 'M5';
 
     protected const MODULE_RESTAURANT = 'M4';
-
-    protected const MODULE_TOURISME = 'M9';
-
-    protected const MODULE_VEHICULES = 'M8';
 
     /** Le toast du maitre — message et couleur. */
     public ?string $toastMessage = null;
@@ -106,11 +100,8 @@ trait ComposePanier
      * une requete par article la rendrait inutilisable des la premiere carte
      * un peu fournie.
      *
-     * Chaque article porte `encaissable`, derive de
-     * `VenteService::MODULES_ENCAISSABLES` : le rayon reste AFFICHE meme quand
-     * il ne peut pas etre porte au panier, et l'ecran dit pourquoi (PA-24). Le
-     * drapeau est pose ici plutot que dans chaque ecran — deux calculs du meme
-     * fait finiraient par diverger.
+     * Seuls le bar (M5) et le restaurant (M4) se lisent ici : tout autre
+     * module demande est ignore.
      *
      * @param  list<string>  $modules
      * @return Collection<int, array<string, mixed>>
@@ -140,22 +131,6 @@ trait ComposePanier
                     ->orderBy('libelle')
                     ->get()
                     ->map(fn (Plat $p): array => $this->depuisPlat($p))
-                    ->all(),
-            );
-        }
-
-        if (in_array(self::MODULE_TOURISME, $modules, true)) {
-            $articles = $articles->concat(
-                Circuit::query()->orderBy('nom')->get()
-                    ->map(fn (Circuit $c): array => $this->depuisCircuit($c))
-                    ->all(),
-            );
-        }
-
-        if (in_array(self::MODULE_VEHICULES, $modules, true)) {
-            $articles = $articles->concat(
-                Vehicule::query()->orderBy('immatriculation')->get()
-                    ->map(fn (Vehicule $v): array => $this->depuisVehicule($v))
                     ->all(),
             );
         }
@@ -237,8 +212,6 @@ trait ComposePanier
         $article = match ($module) {
             self::MODULE_BAR => CarteBoisson::with('article')->find($reference),
             self::MODULE_RESTAURANT => Plat::with(['menu', 'recette.ingredients'])->find($reference),
-            self::MODULE_TOURISME => Circuit::find($reference),
-            self::MODULE_VEHICULES => Vehicule::find($reference),
             default => null,
         };
 
@@ -248,9 +221,7 @@ trait ComposePanier
 
         return match ($module) {
             self::MODULE_BAR => $this->depuisBoisson($article),
-            self::MODULE_RESTAURANT => $this->depuisPlat($article),
-            self::MODULE_TOURISME => $this->depuisCircuit($article),
-            default => $this->depuisVehicule($article),
+            default => $this->depuisPlat($article),
         };
     }
 
@@ -270,7 +241,6 @@ trait ComposePanier
             // 02/09/2026. Source unique : {@see CarteBoisson::CATEGORIES}.
             'categorie_libelle' => CarteBoisson::CATEGORIES[$boisson->categorie] ?? (string) $boisson->categorie,
             'famille' => __('pos_pwa.comptant.famille_bar'),
-            'encaissable' => true,
             /*
              * `cartes_boisson.article_id` est NOT NULL au schema : une boisson
              * de la carte decremente TOUJOURS un stock, et le point orange du
@@ -326,7 +296,6 @@ trait ComposePanier
             'categorie_libelle' => CarteRestaurant::CATEGORIES[$plat->categorie ?? '']
                 ?? (string) ($plat->categorie ?? ''),
             'famille' => __('pos_pwa.comptant.famille_restaurant'),
-            'encaissable' => true,
             /*
              * Le point orange du maitre (pos.html l.488) : « vendable, mais ne
              * decremente aucun stock — fiche technique absente ».
@@ -356,47 +325,4 @@ trait ComposePanier
                 && ($plat->recette?->composition_provisoire === true),
         ];
     }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function depuisCircuit(Circuit $circuit): array
-    {
-        return [
-            'module' => self::MODULE_TOURISME,
-            'reference_id' => $circuit->id,
-            'nom' => $circuit->nom,
-            'prix' => (string) $circuit->prix,
-            'categorie' => 'prestations',
-            'categorie_libelle' => __('pos_pwa.heberges.categorie_prestations'),
-            'famille' => VenteService::MODULES[self::MODULE_TOURISME],
-            'lien_stock' => false,
-            // Une prestation ne se cuisine pas : aucune fiche technique, donc
-            // aucune quantite posee a signaler.
-            'composition_provisoire' => false,
-            'encaissable' => false,
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function depuisVehicule(Vehicule $vehicule): array
-    {
-        return [
-            'module' => self::MODULE_VEHICULES,
-            'reference_id' => $vehicule->id,
-            'nom' => $vehicule->immatriculation.' ('.$vehicule->categorie.')',
-            'prix' => (string) $vehicule->tarif_jour,
-            'categorie' => 'prestations',
-            'categorie_libelle' => __('pos_pwa.heberges.categorie_prestations'),
-            'famille' => VenteService::MODULES[self::MODULE_VEHICULES],
-            'lien_stock' => false,
-            // Une prestation ne se cuisine pas : aucune fiche technique, donc
-            // aucune quantite posee a signaler.
-            'composition_provisoire' => false,
-            'encaissable' => false,
-        ];
-    }
-
 }

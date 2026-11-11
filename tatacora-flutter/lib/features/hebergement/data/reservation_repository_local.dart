@@ -56,10 +56,13 @@ final class ReservationRepositoryLocal implements ReservationRepository {
     for (final r in conflits) {
       // On garde le conflit le plus ancien : c'est celui qui a la priorité, et
       // c'est le nom que le réceptionniste doit citer au client.
-      final existant = parUnite[r.uniteId];
-      if (existant == null ||
-          r.periode.arrivee.isBefore(existant.periode.arrivee)) {
-        parUnite[r.uniteId] = r;
+      // Multi-chambres : la réservation occupe CHACUNE de ses chambres.
+      for (final uniteId in r.uniteIds) {
+        final existant = parUnite[uniteId];
+        if (existant == null ||
+            r.periode.arrivee.isBefore(existant.periode.arrivee)) {
+          parUnite[uniteId] = r;
+        }
       }
     }
 

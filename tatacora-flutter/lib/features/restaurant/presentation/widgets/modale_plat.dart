@@ -1,10 +1,12 @@
 // Vue Blade maîtresse (PA-183) : pwa/restaurant/restauration.blade.php
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../data/restaurant_api.dart';
+import '../../domain/calcul_restaurant.dart' show descriptionPlatMax;
 import '../../domain/entities/plat.dart';
 import '../../domain/messages_restaurant.dart';
 import '../providers_restaurant.dart';
@@ -28,15 +30,16 @@ import 'textes_modale_restaurant.dart';
 /// menu ni la fiche. La v14 en a une : la vue n'a plus ces deux champs, et les
 /// afficher inertes aurait été garder un contrôle mort (Article 3.3).
 ///
-/// ## Le champ « Catégorie » de la vue n'est PAS porté, et c'est un arbitrage
-/// OUVERT (D100)
+/// ## Le champ « Catégorie » est PORTÉ depuis la v41 (27/10/2026, décision D1)
 ///
 /// La vue écrit une colonne `plats.categorie` de dix valeurs (« Entrées »,
-/// « Plats complets »…) que ce poste ne porte pas : la catégorie d'un plat est
-/// ici celle de son MENU (`menus.type`, trois valeurs), comme l'API du serveur.
-/// Les deux ne sont pas la même notion ; trancher n'est pas à cet écran. Le
-/// sélecteur de menu affiche donc le type de chaque menu, pour que le geste
-/// « classer le plat » reste le même.
+/// « Plats complets »…, `CategorieCarte`) : ce poste la porte désormais, la saisit
+/// à la création et à la modification, l'enfile à la synchronisation (le serveur
+/// l'accepte dans ce registre) et la redescend. Ce n'est PAS le type du menu
+/// (`menus.type`, trois valeurs) : les deux notions coexistent, et le menu garde
+/// son sélecteur plus bas. Comme la vue, la création propose la première valeur et
+/// une modification propose celle du plat (la première pour un plat d'avant la
+/// v41, qui n'en avait pas).
 ///
 /// ## Menu et fiche sont de VRAIES clés étrangères, créables sur place
 ///
@@ -74,9 +77,18 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
   late final TextEditingController _libelle = TextEditingController(
     text: widget.plat?.libelle ?? '',
   );
+
+  /// La description FACULTATIVE (v47, 30/10/2026) : `label_description`.
+  late final TextEditingController _description = TextEditingController(
+    text: widget.plat?.description ?? '',
+  );
   late final TextEditingController _prix = TextEditingController(
     text: _prixInitial(widget.plat?.prixVente),
   );
+
+  /// Comme la vue : la valeur du plat, sinon la première des dix.
+  late CategorieCarte _categorie =
+      widget.plat?.categorieCarte ?? CategorieCarte.values.first;
 
   late String? _menuId = widget.plat?.menuId;
   late String? _recetteId = widget.plat?.recetteId;
@@ -98,6 +110,7 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
   @override
   void dispose() {
     _libelle.dispose();
+    _description.dispose();
     _prix.dispose();
     super.dispose();
   }
@@ -117,7 +130,10 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
       cleRefus: const Key('modale-plat-refus'),
       corps: _Corps(
         libelle: _libelle,
+        description: _description,
         prix: _prix,
+        categorie: _categorie,
+        onCategorie: (c) => setState(() => _categorie = c),
         menus: menus,
         recettes: recettes,
         menuId: _menuId,
@@ -182,10 +198,13 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
           SaisiePlat(
             id: widget.plat?.id,
             libelle: _libelle.text,
+            // Toujours soumise (comme la vue) : vide, elle EFFACE la description.
+            description: _description.text,
             menuId: _menuId ?? '',
             recetteId: _recetteId ?? '',
             prixVente: _prix.text,
             prixProvisoire: _provisoire,
+            categorie: _categorie.code,
           ),
           modification: _modification,
         );
@@ -227,7 +246,10 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
 class _Corps extends StatelessWidget {
   const _Corps({
     required this.libelle,
+    required this.description,
     required this.prix,
+    required this.categorie,
+    required this.onCategorie,
     required this.menus,
     required this.recettes,
     required this.menuId,
@@ -243,7 +265,10 @@ class _Corps extends StatelessWidget {
   });
 
   final TextEditingController libelle;
+  final TextEditingController description;
   final TextEditingController prix;
+  final CategorieCarte categorie;
+  final ValueChanged<CategorieCarte> onCategorie;
   final AsyncValue<List<MenuRestaurant>?> menus;
   final AsyncValue<List<Recette>?> recettes;
   final String? menuId;
@@ -278,7 +303,53 @@ class _Corps extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
 
-        // 2. « Prix de vente (FCFA) » — `label_prix`, libellé au caractère près.
+        // 1 bis. « Description » — `label_description` (30/10/2026, décision du PO) :
+        // FACULTATIVE (pas d'astérisque), multiligne, 500 caractères au plus ; vide =
+        // aucune description.
+        const EtiquetteChampRestaurant(texte: 'Description'),
+        TextField(
+          key: const Key('modale-plat-description'),
+          controller: description,
+          minLines: 3,
+          maxLines: 3,
+          maxLength: descriptionPlatMax,
+          maxLengthEnforcement: MaxLengthEnforcement.none,
+          keyboardType: TextInputType.multiline,
+          style: TextesModaleRestaurant.etiquette,
+          decoration: InputDecoration(
+            isDense: true,
+            border: const OutlineInputBorder(),
+            counterText: '',
+            errorText: erreurs['description'],
+            errorMaxLines: 3,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+
+        // 2. « Catégorie » — `label_categorie`, les dix catégories de la carte
+        // (`CarteRestaurant::CATEGORIES`) : la clé est stockée, le libellé affiché.
+        const EtiquetteChampRestaurant(texte: 'Catégorie', obligatoire: true),
+        DropdownButtonFormField<CategorieCarte>(
+          key: const Key('modale-plat-categorie'),
+          initialValue: categorie,
+          isExpanded: true,
+          style: TextesModaleRestaurant.etiquette,
+          decoration: InputDecoration(
+            isDense: true,
+            border: const OutlineInputBorder(),
+            errorText: erreurs['categorie'],
+          ),
+          items: [
+            for (final c in CategorieCarte.values)
+              DropdownMenuItem(value: c, child: Text(c.libelle)),
+          ],
+          onChanged: (c) {
+            if (c != null) onCategorie(c);
+          },
+        ),
+        const SizedBox(height: AppSpacing.md),
+
+        // 3. « Prix de vente (FCFA) » — `label_prix`, libellé au caractère près.
         const EtiquetteChampRestaurant(
           texte: 'Prix de vente (FCFA)',
           obligatoire: true,
@@ -328,10 +399,7 @@ class _Corps extends StatelessWidget {
                     ),
                     const Text(
                       // `aide_prix_provisoire`.
-                      'À cocher quand le tarif a été posé faute de relevé : il '
-                      'reste à confronter à la carte physique. La marque '
-                      "s'imprime en regard du prix, y compris sur la fiche "
-                      'remise au client.',
+                      "À cocher quand le tarif a été posé faute de relevé : il reste à confronter à la carte physique. La marque s'imprime en regard du prix, y compris sur la fiche remise au client.",
                       style: TextesModaleRestaurant.aide,
                     ),
                   ],
@@ -345,10 +413,7 @@ class _Corps extends StatelessWidget {
             padding: const EdgeInsets.only(top: AppSpacing.xs),
             child: Text(
               // `etat_prix_corrige_main` — un ÉTAT dérivé, en lecture seule.
-              'Ce tarif a été corrigé à la main : la marque « corrigé à la '
-              "main » s'imprime en regard du prix. Elle est posée "
-              "automatiquement quand le prix d'un article provisoire est "
-              'modifié, et ne se lève pas depuis cet écran.',
+              "Ce tarif a été corrigé à la main : la marque « corrigé à la main » s'imprime en regard du prix. Elle est posée automatiquement quand le prix d'un article provisoire est modifié, et ne se lève pas depuis cet écran.",
               key: const Key('modale-plat-corrige-main'),
               style: TextesModaleRestaurant.aide.copyWith(
                 color: PaletteMaitre.ambre600,
@@ -357,8 +422,8 @@ class _Corps extends StatelessWidget {
           ),
         const SizedBox(height: AppSpacing.md),
 
-        // 3. « Menu » — `label_menu`. À la place de « Catégorie » : le menu,
-        // qui la porte (voir l'en-tête, D100).
+        // 4. « Menu » — `label_menu`, une vraie clé étrangère (le menu garde son
+        // type, distinct de la catégorie du plat).
         const EtiquetteChampRestaurant(texte: 'Menu', obligatoire: true),
         _SelecteurReferentiel(
           cle: const Key('modale-plat-menu'),
@@ -382,7 +447,7 @@ class _Corps extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
 
-        // 4. « Fiche technique (recette) » — `label_fiche`.
+        // 5. « Fiche technique (recette) » — `label_fiche`.
         const EtiquetteChampRestaurant(
           texte: 'Fiche technique (recette)',
           obligatoire: true,
@@ -405,8 +470,7 @@ class _Corps extends StatelessWidget {
               'n’est pas « il n’y en a aucune » : on ne sait pas.',
           // `aide_fiche`.
           aide:
-              'Obligatoire : un plat se décrémente par sa fiche technique '
-              '(EF-M4-02). Créez d’abord la recette si elle n’existe pas.',
+              "Obligatoire : un plat se décrémente par sa fiche technique. Créez d'abord la recette si elle n'existe pas.",
           cleCreer: const Key('modale-plat-creer-fiche'),
           libelleCreer: 'Créer une fiche technique',
           onCreer: onCreerFiche,

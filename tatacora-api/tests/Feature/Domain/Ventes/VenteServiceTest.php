@@ -297,10 +297,12 @@ final class VenteServiceTest extends TestCase
     public function un_module_sans_catalogue_encaissable_est_refuse_et_nomme(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches('/Tourisme/');
+        // M9 (tourisme) est encaissable depuis le 22/10/2026 : l'hébergement
+        // (M1) reste le module sans catalogue d'où figer un prix.
+        $this->expectExceptionMessageMatches('/Hébergement/');
 
         $this->ventes->enregistrer([
-            'lignes' => [['module' => 'M9', 'reference_id' => (string) Str::uuid(), 'quantite' => 1]],
+            'lignes' => [['module' => 'M1', 'reference_id' => (string) Str::uuid(), 'quantite' => 1]],
         ]);
     }
 
@@ -431,7 +433,7 @@ final class VenteServiceTest extends TestCase
     /**
      * TVA par module, au centime : la TVA du bar (marchandises revendues) se
      * crédite sur 4431, celle du restaurant (prestation) sur 4432, et la pièce
-     * s'équilibre. MUTATION PROUVÉE : `COMPTES_TVA['M5'] = 4432` rougit ce cas.
+     * s'équilibre. MUTATION PROUVÉE : `ROLES_TVA['M5'] = 'TVA_FACTUREE_PRESTATIONS'` rougit ce cas.
      */
     #[Test]
     public function la_tva_se_credite_par_module_4431_bar_4432_restaurant_et_la_piece_s_equilibre(): void
@@ -472,7 +474,7 @@ final class VenteServiceTest extends TestCase
     }
 
     /**
-     * MUTATION PROUVÉE : remplacer le débit `COMPTE_CLIENTS` par la caisse
+     * MUTATION PROUVÉE : remplacer le rôle `ROLE_CLIENTS` du débit par la caisse
      * fait rougir ce cas — c'est exactement l'erreur qui gonflerait le fond
      * de caisse d'un argent que personne n'a remis.
      */
@@ -487,7 +489,7 @@ final class VenteServiceTest extends TestCase
 
         $debit = $this->piece($vente)->firstWhere(fn ($e): bool => bccomp((string) $e->debit, '0', 2) > 0);
 
-        $this->assertSame(VenteService::COMPTE_CLIENTS, $this->compteDe($debit));
+        $this->assertSame(\App\Domain\Comptabilite\Support\ComptesSyscohada::CLIENTS, $this->compteDe($debit));
         $this->assertNotSame(DepenseService::TRESORERIES['caisse']['compte'], $this->compteDe($debit));
     }
 

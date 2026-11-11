@@ -37,8 +37,11 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 
 import '../../../core/config/environnement.dart';
+import '../../../core/impression/entete_etablissement.dart' show ClesEntete;
 import '../../parametres/data/parametres_dao.dart';
+import '../../parametres/domain/aide_echec_email.dart';
 import '../domain/messages_editeur.dart';
+import 'captures_editeur.dart';
 import 'configuration_poste.dart';
 import 'messages_editeur_dao.dart';
 
@@ -101,6 +104,25 @@ abstract final class TextesEnvoiEditeur {
       '$detail';
 }
 
+/// Les phrases de « Envoyer un email de test » (Paramètres, Email (SMTP)) —
+/// `pwa.parametres.email_test_*`, au mot.
+abstract final class TextesEmailDeTest {
+  static const String objet = 'Email de test — TATACORA AFRIQUE';
+  static const String corps =
+      "Cet email confirme que la configuration SMTP de TATACORA AFRIQUE fonctionne. Il a été envoyé depuis l'écran Paramètres, onglet Email (SMTP).";
+  static const String sansAdresse =
+      "Aucune adresse de destination : renseignez d'abord « Email de contact » (onglet Identité & Légal).";
+  static String echec(String erreur) =>
+      "Échec de l'envoi — le transport a répondu : $erreur";
+  static String envoye(String adresse) => 'Email de test envoyé à $adresse.';
+}
+
+/// L'issue d'un email de test : réussi ou non, et ce que l'écran dit.
+///
+/// [aide] : la phrase qui dit quoi vérifier sous un échec reconnu
+/// (`AideEchecEmail`) ; `null` sinon, et toujours `null` en cas de succès.
+typedef ResultatEmailDeTest = ({bool succes, String detail, String? aide});
+
 /// La configuration SMTP complète d'un envoi. Le mot de passe n'apparaît
 /// dans aucun `toString`.
 final class ConfigurationSmtp {
@@ -152,22 +174,107 @@ Future<void> _transportMailer(
   ).timeout(delai + const Duration(seconds: 5));
 }
 
+/// La phrase d'un échec SMTP, en clair — partagée par tous les envois du poste
+/// (message à l'éditeur, e-mail de test, e-mails de notification).
+String raisonEchecSmtp(Object erreur) => switch (erreur) {
+  SmtpClientAuthenticationException() => TextesEnvoiEditeur.identifiantsRefuses,
+  TimeoutException() => TextesEnvoiEditeur.delaiDepasse,
+  SocketException(:final message) => TextesEnvoiEditeur.injoignable(message),
+  MailerException(:final message) => TextesEnvoiEditeur.refuse(message),
+  _ => TextesEnvoiEditeur.refuse(erreur.toString()),
+};
+
+/// Un texte d'erreur ne doit jamais emporter le mot de passe SMTP.
+String expurgerSecret(String texte, String secret) =>
+    secret.isEmpty ? texte : texte.replaceAll(secret, '***');
+
+/// Le transport par défaut : `mailer.send`, borné par [delai].
+Future<void> transportSmtpParDefaut(
+  Message message,
+  SmtpServer serveur,
+  Duration delai,
+) => _transportMailer(message, serveur, delai);
+
+/// Lit, À CHAQUE ENVOI, la configuration SMTP de ce poste : les quatre clés
+/// de l'onglet « Email (SMTP) » de Paramètres et le mot de passe de
+/// `poste.json` (jamais la base). Rend la [ConfigurationSmtp] complète, ou la
+/// RAISON de son absence (une chaîne).
+///
+/// L'envoi SMTP n'est PAS de la synchronisation : l'interrupteur
+/// « Synchronisation activée » ne le coupe pas (le courriel part directement
+/// du poste au relais SMTP, sans passer par le serveur TATACORA).
+class LecteurSmtp {
+  LecteurSmtp({
+    required this._parametres,
+    required this._configuration,
+    bool? envoiAutorise,
+  }) : _envoiAutorise =
+           envoiAutorise ?? !Environnement.actuel.estHorsLigneIntegral;
+
+  final ParametresDao _parametres;
+  final LecteurConfigurationPoste _configuration;
+  final bool _envoiAutorise;
+
+  Future<Object> lire() async {
+    if (!_envoiAutorise) return TextesEnvoiEditeur.demo;
+    final valeurs = await _parametres.lireTout();
+    final hote = valeurs[ClesSmtp.hote]?.trim() ?? '';
+    if (hote.isEmpty) return TextesEnvoiEditeur.hoteAbsent;
+    final utilisateur = valeurs[ClesSmtp.utilisateur]?.trim() ?? '';
+    if (utilisateur.isEmpty) return TextesEnvoiEditeur.utilisateurAbsent;
+
+    final lecture = await _configuration.motDePasseSmtp();
+    final String motDePasse;
+    switch (lecture) {
+      case MotDePasseAbsent(:final raison):
+        return raison;
+      case MotDePasseLu(:final valeur):
+        motDePasse = valeur;
+    }
+
+    final securite = valeurs[ClesSmtp.securite]?.trim().toLowerCase() ?? 'tls';
+    final ssl = securite == 'ssl';
+    final port = int.tryParse(valeurs[ClesSmtp.port]?.trim() ?? '');
+    return ConfigurationSmtp(
+      hote: hote,
+      port: port ?? (ssl ? 465 : 587),
+      ssl: ssl,
+      clairAutorise: securite == 'aucune',
+      utilisateur: utilisateur,
+      motDePasse: motDePasse,
+    );
+  }
+}
+
 /// L'unique expéditeur des messages à l'éditeur.
 class ServiceMessagesEditeur {
   ServiceMessagesEditeur({
     required this._dao,
     required this._parametres,
     LecteurConfigurationPoste? configuration,
+    CapturesEditeur? captures,
     TransportSmtp? transport,
     DateTime Function()? maintenant,
     bool? envoiAutorise,
   }) : _configuration = configuration ?? LecteurConfigurationPoste(),
+       captures =
+           captures ??
+           CapturesEditeur(cheminConfiguration: configuration?.chemin),
        _transport = transport ?? _transportMailer,
        _maintenant = maintenant ?? DateTime.now,
        _envoiAutorise =
-           envoiAutorise ?? !Environnement.actuel.estHorsLigneIntegral;
+           envoiAutorise ?? !Environnement.actuel.estHorsLigneIntegral {
+    _lecteurSmtp = LecteurSmtp(
+      parametres: _parametres,
+      configuration: _configuration,
+      envoiAutorise: _envoiAutorise,
+    );
+  }
 
   final MessagesEditeurDao _dao;
+
+  /// Le rangement des captures d'écran des signalements de bug.
+  final CapturesEditeur captures;
   final ParametresDao _parametres;
   final LecteurConfigurationPoste _configuration;
   final TransportSmtp _transport;
@@ -176,6 +283,13 @@ class ServiceMessagesEditeur {
   /// Faux en démonstration (`main_demo.dart`) : ce flavor n'émet aucun appel
   /// réseau, le message reste en file avec sa raison.
   final bool _envoiAutorise;
+
+  late final LecteurSmtp _lecteurSmtp;
+
+  /// Le lecteur de la configuration SMTP de CE poste — partagé avec la boîte
+  /// d'envoi des e-mails de notification (`ServiceBoiteEnvoiEmails`) : une
+  /// seule lecture, une seule formule.
+  LecteurSmtp get lecteurSmtp => _lecteurSmtp;
 
   final Set<String> _enVol = {};
   bool _relanceEnCours = false;
@@ -201,6 +315,51 @@ class ServiceMessagesEditeur {
       return (issue: IssueEnvoiEditeur.nonConfigure, raison: configuration);
     }
     return _tenter(message, configuration as ConfigurationSmtp);
+  }
+
+  /// « Envoyer un email de test » : envoie UN vrai courriel à l'« Email de
+  /// contact » des paramètres par la configuration SMTP effective de ce poste,
+  /// et rapporte ce que le transport a répondu — jamais un succès simulé
+  /// (`Parametres::envoyerEmailTest`). Trois issues : pas d'adresse, pas de
+  /// configuration (la raison dite par le poste : serveur, utilisateur ou mot
+  /// de passe absent), échec ou succès du transport.
+  Future<ResultatEmailDeTest> envoyerEmailDeTest() async {
+    final valeurs = await _parametres.lireTout();
+    final adresse = valeurs[ClesEntete.email]?.trim() ?? '';
+    if (adresse.isEmpty) {
+      return (succes: false, detail: TextesEmailDeTest.sansAdresse, aide: null);
+    }
+    final configuration = await _lireConfiguration();
+    if (configuration is String) {
+      return (succes: false, detail: configuration, aide: null);
+    }
+    final smtp = configuration as ConfigurationSmtp;
+    final courriel = Message()
+      ..from = Address(smtp.utilisateur, nomExpediteurEditeur)
+      ..recipients = [adresse]
+      ..subject = TextesEmailDeTest.objet
+      ..text = TextesEmailDeTest.corps;
+    try {
+      await _transport(
+        courriel,
+        smtp.serveur,
+        PolitiqueRelanceEditeur.delaiEnvoi,
+      );
+    } on Object catch (erreur) {
+      // Le message du transport reste TEL QUEL (fidèle), expurgé du mot de passe ;
+      // l'aide dessous est une phrase fixe, choisie sur ce message.
+      final raison = _expurger(_raison(erreur), smtp.motDePasse);
+      return (
+        succes: false,
+        detail: TextesEmailDeTest.echec(raison),
+        aide: AideEchecEmail.pour(raison),
+      );
+    }
+    return (
+      succes: true,
+      detail: TextesEmailDeTest.envoye(adresse),
+      aide: null,
+    );
   }
 
   /// Relance les messages `en_attente`, le plus ancien d'abord. Sans
@@ -270,6 +429,12 @@ class ServiceMessagesEditeur {
         ..recipients = [adresseSupportEditeur]
         ..subject = objetCourrielEditeur(courant.sujet)
         ..text = corpsCourrielEditeur(courant);
+      // La capture d'écran du signalement, jointe comme le fait le courriel du
+      // serveur (`attachFromStorageDisk`) quand le fichier existe.
+      final capture = await captures.de(courant.id);
+      if (capture != null) {
+        courriel.attachments = [FileAttachment(capture)];
+      }
       try {
         await _transport(
           courriel,
@@ -293,48 +458,13 @@ class ServiceMessagesEditeur {
   }
 
   /// La configuration complète, ou la RAISON de son absence (une chaîne).
-  Future<Object> _lireConfiguration() async {
-    if (!_envoiAutorise) return TextesEnvoiEditeur.demo;
-    final valeurs = await _parametres.lireTout();
-    final hote = valeurs[ClesSmtp.hote]?.trim() ?? '';
-    if (hote.isEmpty) return TextesEnvoiEditeur.hoteAbsent;
-    final utilisateur = valeurs[ClesSmtp.utilisateur]?.trim() ?? '';
-    if (utilisateur.isEmpty) return TextesEnvoiEditeur.utilisateurAbsent;
+  Future<Object> _lireConfiguration() => _lecteurSmtp.lire();
 
-    final lecture = await _configuration.motDePasseSmtp();
-    final String motDePasse;
-    switch (lecture) {
-      case MotDePasseAbsent(:final raison):
-        return raison;
-      case MotDePasseLu(:final valeur):
-        motDePasse = valeur;
-    }
-
-    final securite = valeurs[ClesSmtp.securite]?.trim().toLowerCase() ?? 'tls';
-    final ssl = securite == 'ssl';
-    final port = int.tryParse(valeurs[ClesSmtp.port]?.trim() ?? '');
-    return ConfigurationSmtp(
-      hote: hote,
-      port: port ?? (ssl ? 465 : 587),
-      ssl: ssl,
-      clairAutorise: securite == 'aucune',
-      utilisateur: utilisateur,
-      motDePasse: motDePasse,
-    );
-  }
-
-  static String _raison(Object erreur) => switch (erreur) {
-    SmtpClientAuthenticationException() =>
-      TextesEnvoiEditeur.identifiantsRefuses,
-    TimeoutException() => TextesEnvoiEditeur.delaiDepasse,
-    SocketException(:final message) => TextesEnvoiEditeur.injoignable(message),
-    MailerException(:final message) => TextesEnvoiEditeur.refuse(message),
-    _ => TextesEnvoiEditeur.refuse(erreur.toString()),
-  };
+  static String _raison(Object erreur) => raisonEchecSmtp(erreur);
 
   /// Un message d'erreur ne doit jamais emporter le secret en base.
   static String _expurger(String texte, String secret) =>
-      secret.isEmpty ? texte : texte.replaceAll(secret, '***');
+      expurgerSecret(texte, secret);
 
   static String? _nomDuPoste() {
     try {

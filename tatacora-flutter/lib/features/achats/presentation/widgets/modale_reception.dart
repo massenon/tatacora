@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/achats/approvisionnement.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -291,13 +292,12 @@ class _ModaleReceptionState extends ConsumerState<_ModaleReception> {
         ),
         const SizedBox(height: AppSpacing.sm),
         // L'aide de la vue : c'est elle qui empêche la double-saisie que §M7
-        // interdit. ÉCART NOMMÉ (D276) — la vue dit : « La réception génère
-        // l'entrée de stock et met à jour le coût moyen pondéré au prix de cette
-        // commande. » (`appro.form_avertissement_double`, modale de réception de
-        // la vue d'approvisionnement). FAUX : le serveur
-        // exécuté ne met à jour aucun coût (D265/D266). Phrase VRAIE, la
-        // seconde moitié de la vue (la double-saisie) conservée au mot ; vue
-        // à faire corriger par l'Architecte (ticket D276).
+        // interdit. Phrase VRAIE, identique à celle de la modale de réception de
+        // la vue d'approvisionnement (`appro.form_avertissement_double`), qui
+        // affirmait avant le 09/11/2026 une mise à jour du coût moyen pondéré
+        // que le serveur exécuté ne fait pas (D265/D266) : la vue a été corrigée
+        // (D276 soldé), l'écart n'existe plus. Un test confronte les deux mots
+        // pour mot.
         Container(
           key: const Key('reception-aide'),
           padding: const EdgeInsets.all(AppSpacing.sm),
@@ -308,8 +308,7 @@ class _ModaleReceptionState extends ConsumerState<_ModaleReception> {
           child: Text(
             "La réception génère l'entrée de stock ; le coût moyen pondéré "
             "n'est pas recalculé à la réception. Ne saisissez pas le stock une "
-            "seconde fois dans l'écran Stocks : la quantité serait comptée deux "
-            'fois.',
+            "seconde fois dans l'écran Stocks : la quantité serait comptée deux fois.",
             style: Theme.of(context).textTheme.labelMedium,
           ),
         ),

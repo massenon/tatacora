@@ -26,6 +26,17 @@ final serviceMessagesEditeurProvider = Provider<ServiceMessagesEditeur>(
   ),
 );
 
+/// Parmi « Vos envois », les messages qui portent une capture d'écran
+/// (« 1 capture jointe », `pwa.contact.envois_capture`).
+final envoisAvecCaptureProvider = FutureProvider.autoDispose<Set<String>>((
+  ref,
+) async {
+  final envois = await ref.watch(envoisDuCompteProvider.future);
+  return ref.watch(serviceMessagesEditeurProvider).captures.avecCapture([
+    for (final e in envois) e.id,
+  ]);
+});
+
 /// Un compteur qui avance à chaque écriture de la boîte (geste, relance) :
 /// les deux lectures de l'écran le surveillent et se relisent.
 final revisionBoiteEditeurProvider = NotifierProvider<_RevisionBoite, int>(

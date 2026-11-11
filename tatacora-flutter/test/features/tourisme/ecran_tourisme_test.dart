@@ -632,7 +632,12 @@ void main() {
       // (`lg:p-8`) + 34 (icône de 24 + écart de 10). Ici sans barre latérale :
       // 32 + 34 = 66 à 1 600 px, 20 + 34 = 54 sous le point de rupture.
       await monter(t);
-      expect(t.getTopLeft(find.text('Tourisme')).dx, 66);
+      // La page est plafonnée à `max-w-[1440px]` et centrée : à 1 600 px, 80 px
+      // de part et d'autre s'ajoutent à la marge.
+      expect(
+        t.getTopLeft(find.text('Tourisme')).dx,
+        66 + (1600 - AppLayout.maxContentWidth) / 2,
+      );
     });
 
     testWidgets('sous 1 024 px la marge retombe à 20 px (`p-5`)', (t) async {

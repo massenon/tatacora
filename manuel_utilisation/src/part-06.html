@@ -1,0 +1,482 @@
+<!-- ============================ CHAPITRE 7 ============================ -->
+<section class="chapitre" id="ch7">
+  <h1 class="chapitre"><span class="numero">Chapitre 7</span>Stocks, inventaires et achats</h1>
+
+  <p class="chapeau">
+    Le stock affiché est <strong>calculé depuis les mouvements</strong>, il ne se saisit jamais. Sa valeur est
+    tenue au <strong>coût moyen pondéré</strong>, qui ne bouge que lorsqu'une entrée porte un <strong>coût unitaire</strong> :
+    la réception d'une commande fait entrer la marchandise, mais ne la valorise pas. C'est ce calcul qui permet à
+    l'inventaire de servir à quelque chose : sans stock théorique, il n'y a pas d'écart à constater.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Les écrans de ce chapitre existent à l'identique sur le poste Windows, avec les mêmes libellés, et fonctionnent
+    <strong>sans réseau</strong> : ce que vous saisissez est enregistré sur le poste, puis envoyé au serveur à la
+    prochaine synchronisation (voir le chapitre consacré à la synchronisation). Les écarts entre le poste et le web
+    sont signalés au fil du texte.
+  </span>
+
+  <h2>7.1 Le référentiel des articles</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Stocks
+  </span>
+  <p>
+    Cinq indicateurs ouvrent l'écran : références (suivies et journalières), valeur du stock, articles sous seuil,
+    mouvements sur 30 jours, répartition gros stock / petit stock. Le tableau se filtre par recherche, par
+    catégorie, par point de stockage, par état (<strong>Sous seuil</strong>, <strong>En rupture</strong>) et par mode de
+    suivi. Il affiche 25 articles par page.
+  </p>
+
+  <h3>Créer un article</h3>
+  <ol class="etapes">
+    <li>Cliquez sur <strong>+ Nouvel article</strong>.</li>
+    <li>Renseignez le <strong>Nom de l'article</strong>, la <strong>Catégorie</strong> (Denrées, Boissons, Fournitures, Pièces véhicules),
+      le <strong>Point de stockage</strong> de rattachement et l'<strong>Unité de mesure</strong> (kg, L, unité, sac, carton, casier, pack, bidon, bouteille).</li>
+    <li>Choisissez le <strong>Mode de suivi</strong> : <em>gros stock</em> (permanent) ou <em>petit stock</em> (acheté au jour le jour).</li>
+    <li>Saisissez la <strong>Valeur d'achat unitaire (FCFA)</strong> : elle valorise le stock d'ouverture et fixe le premier coût moyen.
+      Sans elle, l'article entre au bilan pour zéro et la variation de stock — donc le résultat — est faussée.</li>
+    <li>Fixez le <strong>Seuil d'alerte</strong> : en dessous, l'article apparaît dans les besoins de réapprovisionnement.</li>
+    <li>Le cas échéant, indiquez le <strong>Stock d'ouverture</strong> : il est enregistré comme un mouvement d'entrée, ce qui le rend visible en fiche de stock.</li>
+    <li>Cliquez sur <strong>Créer l'article</strong>.</li>
+  </ol>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    <strong>Gros stock ou petit stock ?</strong> Le <em>gros stock</em> (suivi permanent) entre dans l'inventaire et
+    dans les alertes. Le <em>petit stock</em> (suivi journalier) — la tomate, l'oignon rachetés chaque matin —
+    n'est ni décrémenté à la vente, ni inventorié, ni alerté : seule la dépense d'achat est constatée. Le classer en permanent
+    déclencherait une alerte de rupture tous les jours.
+  </span>
+
+  <p>
+    <strong>Modifier</strong> ouvre la fiche de l'article. Le stock y figure en lecture seule : il se corrige par un mouvement ou par un
+    inventaire, jamais par une saisie directe. Le bloc <strong>Faire entrer du stock</strong> de la fiche enregistre une entrée datée et signée
+    (quantité, point qui reçoit, coût unitaire) ; il est <strong>réservé à l'administrateur</strong>, parce qu'une entrée valorisée déplace
+    le coût moyen pondéré, qui alimente le bilan. Le bouton <strong>Mouvement</strong> de la ligne reste ouvert aux autres profils habilités.
+  </p>
+
+  <h3>Enregistrer un mouvement</h3>
+  <ol class="etapes">
+    <li>Sur la ligne de l'article, cliquez sur <strong>Mouvement</strong>.</li>
+    <li>Choisissez le type : <strong>Entrée</strong> (réception, retour), <strong>Sortie</strong> (consommation, vente) ou <strong>Perte</strong> (casse, péremption, vol).</li>
+    <li>Indiquez le <strong>Point de stockage</strong>, la <strong>Quantité</strong> et le <strong>Motif</strong> — « Réception marché », « Consommation cuisine », « Péremption ».</li>
+    <li>Pour une entrée, saisissez le <strong>Coût d'achat unitaire (FCFA)</strong> : il recalcule le coût moyen pondéré de l'article.
+      Laissez-le vide pour un simple transfert entre points : déplacer une marchandise ne change pas son coût.</li>
+    <li>Cliquez sur <strong>Enregistrer</strong>.</li>
+  </ol>
+  <p>
+    Il n'existe pas de mouvement « Régularisation » à saisir à la main : les régularisations naissent de la clôture d'un inventaire
+    (§7.3) et portent le type <em>Inventaire</em> dans la fiche de stock.
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Si la sortie dépasse le stock disponible, le logiciel affiche <strong>Stock insuffisant</strong> et demande une
+    confirmation explicite. <strong>Forcer la sortie</strong> crée un stock négatif, tracé comme
+    <em>rupture forcée</em> dans la fiche et au journal d'audit. Ne forcez que si la marchandise est réellement sortie —
+    et prévenez le magasinier, car la fiche devra être corrigée.
+  </span>
+
+  <h3>Importer, exporter, supprimer</h3>
+  <ul class="puces">
+    <li><strong>Importer</strong> charge des articles depuis un classeur Excel (<strong>Modèle</strong> fournit le fichier à remplir ; voir §13.3). Le stock d'ouverture entre comme un mouvement d'entrée.</li>
+    <li><strong>Excel</strong> et <strong>PDF</strong> reprennent la liste affichée, filtres compris.</li>
+    <li><strong>Supprimer</strong> n'efface rien : l'article part aux archives (badge <em>Archivé</em>) et se remet en place par <strong>Restaurer</strong>.
+      Le logiciel refuse d'archiver un article qui a encore du stock, qui figure sur une commande d'achat en cours,
+      qui est vendu à la carte ou qui entre dans une recette. Le bouton n'est proposé qu'à l'administrateur, ou aux autres profils
+      lorsque la bascule correspondante est ouverte dans les Paramètres (§13.2).</li>
+  </ul>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Les ventes du bar et du restaurant ne retirent rien du stock <em>sur le poste</em> : le serveur sort le stock d'une vente
+    à sa réception, et ces sorties redescendent ensuite sur tous les postes. Pour les boissons, l'écran Stocks du poste indique ce
+    que les ventes encore non envoyées sortiront (« −X en attente d'envoi ») sans le soustraire. Un article sans coût connu affiche
+    sa valeur à « — » avec sa raison, jamais zéro.
+  </span>
+
+  <h2>7.2 La fiche de stock d'un article</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Inventaires &amp; Fiches <span class="fleche">➔</span> onglet Fiche de stock
+  </span>
+  <ol class="etapes">
+    <li>Choisissez l'<strong>Article</strong> (ou <strong>Tous les articles</strong>, qui présente la fiche de chaque article l'une après l'autre : les quantités d'unités différentes ne s'additionnent jamais) et le <strong>Point de stockage</strong>.</li>
+    <li>Choisissez la période : <strong>7 jours</strong>, <strong>30 jours</strong>, <strong>90 jours</strong>, <strong>Ce mois</strong>, ou saisissez
+      les dates <strong>Du</strong> et <strong>Au</strong>.</li>
+    <li>Lisez la cascade : <strong>Stock initial</strong>, <strong>Entrées</strong>, <strong>Sorties</strong>, <strong>Pertes</strong>,
+      <strong>Régularisations</strong>, <strong>Stock théorique</strong>, avec le coût moyen pondéré et la valeur du stock.</li>
+    <li>Exportez si nécessaire : <strong>Export PDF</strong> ou <strong>Export Excel</strong>. Le document de fiche est établi pour <em>un seul article</em> : choisissez-le avant d'exporter.</li>
+  </ol>
+  <p>
+    Le tableau <strong>Détail des mouvements</strong> liste chaque mouvement avec sa date, son type, son motif,
+    l'entrée, la sortie, le solde progressif et l'utilisateur qui l'a saisi.
+    Si le solde progressif ne retombe pas sur le stock théorique, l'écran affiche <strong>Incohérence détectée</strong> :
+    ce document ne doit alors pas servir de justificatif, et il faut prévenir l'éditeur.
+  </p>
+  <figure class="compact">
+    <img src="../captures/m6-inventaires.png" alt="La fiche de stock d'un article, sur la période choisie.">
+    <figcaption><b>Figure 7.1</b> — La <b>fiche de stock</b> d'un article, sur la période choisie.</figcaption>
+  </figure>
+
+
+  <h2>7.3 Réaliser un inventaire physique</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Inventaires &amp; Fiches <span class="fleche">➔</span> onglet Inventaire physique
+  </span>
+
+  <h3>Étape A — Ouvrir l'inventaire</h3>
+  <ol class="etapes">
+    <li>Ouvrez l'onglet <strong>Inventaire physique</strong> : le panneau <strong>Cycle d'inventaire par magasin</strong> liste vos points de stockage.</li>
+    <li>Sur la ligne du magasin à compter — Magasin général, Cuisine, Bar… —, cliquez sur <strong>Lancer l'inventaire</strong>. Un inventaire porte sur
+      <strong>un seul point de stockage</strong> à la fois.</li>
+  </ol>
+  <p>
+    L'ouverture <strong>fige le stock théorique</strong> de chaque article à cet instant. Le logiciel confirme :
+    <em>« Inventaire ouvert — 32 article(s) à compter »</em>.
+  </p>
+
+  <figure class="compact">
+    <img src="../captures/a-inventaire-ouvrir.png" alt="Ouverture d'un inventaire annotée">
+    <figcaption><b>Figure 7.2</b> — L'ouverture d'un inventaire physique.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>Le <strong>point de stockage</strong> à inventorier.</li>
+      <li><span class="n">2</span>Le bouton <strong>Lancer l'inventaire</strong>.</li>
+    </ul>
+  </figure>
+
+  <h3>Étape B — Compter</h3>
+  <ol class="etapes">
+    <li>Comptez physiquement, article par article, dans le magasin.</li>
+    <li>Sur la ligne de l'article, cliquez sur <strong>à compter</strong> : une fenêtre <strong>Enregistrer le comptage</strong> s'ouvre. Saisissez la quantité
+      relevée dans le champ <strong>Compté</strong>, puis validez. Le bouton de la ligne affiche alors la quantité comptée ; cliquez-le pour la corriger.</li>
+    <li>L'<strong>Écart</strong> et l'<strong>Écart valorisé</strong> apparaissent immédiatement : vert si vous avez trouvé plus
+      que le théorique, rouge si vous avez trouvé moins.</li>
+    <li>Suivez l'avancement en tête de tableau : <em>0 / 32 article(s) comptés · 0 écart(s) · impact valorisé 0 F</em>.</li>
+  </ol>
+
+  <figure class="compact">
+    <img src="../captures/a-inventaire-compter.png" alt="Saisie d'un inventaire annotée">
+    <figcaption><b>Figure 7.3</b> — La saisie des quantités comptées.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>La colonne <strong>Compté</strong> — un bouton par article.</li>
+      <li><span class="n">2</span>Le bouton <strong>Clôturer et régulariser</strong>.</li>
+    </ul>
+  </figure>
+
+  <h3>Étape C — Clôturer et régulariser</h3>
+  <ol class="etapes">
+    <li>Vérifiez que tous les articles sont comptés.</li>
+    <li>Cliquez sur <strong>Clôturer et régulariser</strong>. Si des articles ne sont pas comptés, la fenêtre <strong>Inventaire incomplet</strong> vous
+      prévient : <strong>Clôturer partiellement</strong> ne régularise que les articles comptés.</li>
+    <li>Le logiciel génère un mouvement de <strong>régularisation</strong> pour chaque écart — l'excédent en entrée, le manquant en perte — et archive l'inventaire
+      dans l'onglet <strong>Inventaires clôturés</strong> (date, point, articles, régularisés, manquants, excédents, impact net, auteur).</li>
+  </ol>
+  <p>Le bouton <strong>Exporter</strong> de l'inventaire en cours produit le document en PDF ou en Excel.</p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>Ne clôturez jamais un inventaire incomplet.</strong> Un article laissé sans comptage n'est pas compté « à zéro » :
+    il n'est simplement pas régularisé, et son stock théorique reste inchangé — sans que rien ne le signale ensuite.
+    Si vous devez interrompre le comptage sur le web, laissez l'inventaire ouvert et reprenez-le : les valeurs déjà saisies sont conservées.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    <strong>Le comptage en cours n'est conservé qu'en mémoire jusqu'à la clôture</strong> : si vous fermez la fenêtre de l'inventaire avant de clôturer,
+    le comptage est abandonné (la feuille le rappelle sous le tableau). Sur le poste, comptez donc d'une traite, ou clôturez en partiel
+    et reprenez le reste dans un second inventaire. Un écart sur un article dont le coût n'est pas connu n'est pas valorisé (« — »).
+  </span>
+
+  <figure class="compact">
+    <img src="../captures/x-poste-comptage-inventaire.png" alt="La feuille de comptage d'un inventaire sur le poste Windows, avec la phrase sous le tableau.">
+    <figcaption><b>Figure 7.4</b> — La feuille de comptage <b>sur le poste Windows</b> : deux articles comptés sur quatre, et, sous le tableau, la phrase « Le comptage n’est écrit qu’à la clôture : fermer la fenêtre avant l’abandonne. » <i>Rendu de l’écran du poste par le moteur Flutter (données fictives), et non une photo d’écran Windows.</i></figcaption>
+  </figure>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>Comptez avant de saisir, jamais l'inverse.</strong> La colonne <strong>Théorique</strong> est affichée en face de
+    votre saisie : recopier le théorique parce qu'il « doit être bon » vide l'inventaire de son sens et
+    fait disparaître l'écart que vous cherchiez précisément à mesurer.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Le panneau <strong>Cycle d'inventaire par magasin</strong> rappelle, pour chaque magasin, la date de son dernier inventaire clôturé.
+    Les colonnes <em>Périodicité</em> et <em>État</em> affichent aujourd'hui « non définie » : aucune périodicité n'est encore enregistrée,
+    donc aucune échéance n'est signalée. Lancez vos inventaires à la cadence que vous avez décidée, par exemple une fois par mois (§14.7).
+  </span>
+
+  <h2>7.4 L'approvisionnement</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Approvisionnement
+  </span>
+  <p>Cinq indicateurs, quatre onglets : articles sous seuil, commandes en attente, réceptions partielles, fournisseurs à payer, total dû.</p>
+
+  <table>
+    <thead><tr><th>Onglet</th><th>Ce que vous y faites</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Besoins</strong></td><td>Les articles dont le stock calculé est passé sous le seuil, avec le manque et le prix d'achat. Cochez les lignes, saisissez les quantités <strong>À commander</strong> (le logiciel suggère de quoi remonter au double du seuil), puis cliquez sur <strong>Commander la sélection</strong> : choisissez le <strong>Fournisseur</strong>, vérifiez les quantités et les prix unitaires, puis <strong>Créer le bon de commande</strong>.</td></tr>
+      <tr><td><strong>Commandes</strong></td><td>Les bons de commande, filtrables par statut (Brouillon, Envoyée, Réceptionnée partiellement, Réceptionnée, Clôturée), avec leur fournisseur, leur montant, ce qui est déjà réglé et leur état. Chaque ligne propose <strong>Réceptionner</strong> et <strong>Régler</strong>.</td></tr>
+      <tr><td><strong>Réceptions</strong></td><td>Les bons de réception, avec leur <strong>conformité</strong> (conforme ou avec écart). Une réception génère l'entrée de stock correspondante : vous ne ressaisissez jamais le mouvement à la main.</td></tr>
+      <tr><td><strong>Dettes fournisseurs</strong></td><td>Les commandes non clôturées, avec le montant commandé, le réglé, le <strong>reste dû</strong> et l'ancienneté du bon de commande ; le bouton <strong>Régler</strong> enregistre un règlement.</td></tr>
+    </tbody>
+  </table>
+  <figure class="compact">
+    <img src="../captures/m7-approvisionnement.png" alt="L'écran Approvisionnement, onglet Besoins.">
+    <figcaption><b>Figure 7.5</b> — L'écran <b>Approvisionnement</b>, onglet Besoins.</figcaption>
+  </figure>
+
+  <h3>Réceptionner une commande</h3>
+  <ol class="etapes">
+    <li>Sur la ligne de la commande, cliquez sur <strong>Réceptionner</strong>.</li>
+    <li>Choisissez le <strong>Point de stockage</strong> qui reçoit la marchandise.</li>
+    <li>Pour chaque article, la fenêtre affiche <strong>Commandé</strong> et <strong>Déjà reçu</strong> ; saisissez <strong>Reçu maintenant</strong> (le reste à recevoir est proposé).</li>
+    <li>Cliquez sur <strong>Valider la réception</strong>. L'écran annonce la conformité de la réception.</li>
+  </ol>
+  <p>
+    La conformité compare ce que vous avez reçu à ce qui était commandé, avec <strong>une tolérance unique, exprimée en pourcentage</strong> :
+    la <strong>Tolérance de réception (%)</strong> réglée par l'administrateur (Paramètres, onglet Activation &amp; Sécurité, rubrique Exploitation).
+    Ce pourcentage est le même pour tous les articles et tous les fournisseurs : une livraison de 99,5 % d'un sac de riz n'est pas en défaut si la tolérance le permet.
+    Recevoir <em>plus</em> que commandé au-delà de la tolérance, ou un article qui ne figure pas sur la commande, rend la réception non conforme.
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>Tant que la tolérance de réception n'est pas renseignée, aucune réception n'est possible</strong> : le logiciel refuse plutôt que de
+    juger une livraison sur un critère deviné. Si vous obtenez ce refus, demandez à l'administrateur de saisir la tolérance dans les Paramètres.
+    <strong>Ne ressaisissez jamais le stock à la main après une réception</strong> : la quantité serait comptée deux fois.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">À savoir</span>
+    <strong>La réception ne recalcule pas le coût moyen pondéré.</strong> L'entrée de stock qu'elle génère n'est pas valorisée : le coût moyen et le dernier prix d'achat de
+    l'article restent ceux qu'ils étaient. Pour valoriser un article, saisissez une entrée avec son coût unitaire (§7.1).
+  </span>
+
+  <figure class="compact petit">
+    <img src="../captures/x-appro-reception.png" alt="La fenêtre de réception d'une commande.">
+    <figcaption><b>Figure 7.6</b> — La fenêtre <b>Réception</b> d'une commande : le <b>point de stockage</b> (ici Cuisine), les quantités commandées et celles reçues maintenant, puis <b>Valider la réception</b>.</figcaption>
+  </figure>
+
+  <h3>Régler un fournisseur</h3>
+  <ol class="etapes">
+    <li>Sur la ligne de la commande (onglet Commandes ou Dettes fournisseurs), cliquez sur <strong>Régler</strong>.</li>
+    <li>Saisissez le <strong>Montant réglé (FCFA)</strong> — un règlement partiel est possible — et choisissez la <strong>Trésorerie</strong> : Caisse, Mobile Money ou Banque.</li>
+    <li>Cliquez sur <strong>Enregistrer le règlement</strong>. Le logiciel écrit le règlement et sa pièce comptable ensemble ; une commande déjà soldée refuse un nouveau règlement.</li>
+  </ol>
+  <figure class="compact petit">
+    <img src="../captures/x-appro-reglement.png" alt="La fenêtre de règlement d'une commande fournisseur.">
+    <figcaption><b>Figure 7.7</b> — La fenêtre <b>Régler</b> une commande : le <b>montant réglé</b> (ici le reste dû, 62 000 FCFA, déjà proposé), la <b>trésorerie</b> (Caisse) et <b>Enregistrer le règlement</b>.</figcaption>
+  </figure>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Le règlement fournisseur se saisit aussi sur le poste, hors ligne : le règlement et sa pièce comptable sont écrits ensemble sur le poste, puis envoyés
+    au serveur à la synchronisation. Le sélecteur d'exercice de la barre supérieure borne les commandes affichées à l'exercice consulté ; les dettes fournisseurs,
+    elles, restent un état du jour, toutes années confondues.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Les articles en <strong>suivi journalier</strong> sont exclus des besoins : rachetés chaque matin, ils
+    déclencheraient une alerte permanente qui masquerait les vraies ruptures.
+  </span>
+
+  <h2>7.5 Les fournisseurs</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Fournisseurs
+  </span>
+  <p>
+    L'écran <strong>Fournisseurs &amp; Achats</strong> a deux onglets. <strong>Fournisseurs</strong> est le référentiel : raison sociale, contact, catégorie fournie
+    (Denrées alimentaires, Boissons, Fournitures, Carburant, Pièces auto), conditions de paiement (Comptant, 30 jours, 60 jours) et évaluation (Excellent, Bon, Moyen, À revoir).
+    <strong>Commandes d'achat</strong> donne l'historique des commandes passées à chaque fournisseur, avec leur statut ; <strong>Ajouter commande d'achat</strong> en saisit une hors besoin détecté.
+  </p>
+  <ul class="puces">
+    <li><strong>Ajouter fournisseur</strong> crée une fiche ; <strong>Modifier</strong> (depuis le détail) la corrige. Un fournisseur se choisit toujours dans la liste lors d'une commande, il ne se saisit jamais en texte libre.</li>
+    <li><strong>Exporter</strong> produit la liste affichée en PDF ou en Excel ; <strong>Actualiser</strong> relit l'écran.</li>
+    <li><strong>Supprimer</strong> archive le fournisseur (restaurable) ; il est refusé tant que le fournisseur figure sur des commandes d'achat en cours.</li>
+  </ul>
+  <p>
+    <strong>Il n'y a pas de bouton Importer sur cet écran.</strong> Le référentiel des fournisseurs se charge par l'écran Import &amp; Export,
+    module <em>Fournisseurs</em> (§13.3).
+  </p>
+</section>
+
+<!-- ============================ CHAPITRE 8 ============================ -->
+<section class="chapitre" id="ch8">
+  <h1 class="chapitre"><span class="numero">Chapitre 8</span>Véhicules et tourisme</h1>
+
+  <p class="chapeau">
+    Le parc de véhicules sert à la <strong>location</strong> : un véhicule loué sur une période n'est pas louable une seconde fois sur cette période.
+    Le tourisme, lui, repose sur les <strong>circuits, les guides et la capacité de chaque circuit</strong> : une réservation de circuit
+    n'engage pas de véhicule du parc.
+  </p>
+
+  <h2>8.1 Véhicules &amp; Locations</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Véhicules &amp; Locations
+  </span>
+  <p>
+    Six indicateurs : parc (avec le nombre de véhicules immobilisés), contrats actifs (et annulés), chiffre d'affaires (et jours loués), taux d'occupation,
+    reste à encaisser, jours loués. Une période (<strong>du</strong> … <strong>au</strong>), une recherche et un filtre par catégorie (Berline, 4x4, Pick-up, Moto, Scooter, Vélo, Bus)
+    bornent l'écran. Quatre onglets :
+  </p>
+  <ul class="puces">
+    <li><strong>Parc &amp; disponibilité</strong> — chaque véhicule avec sa catégorie, ses places, l'exigence de permis, son tarif par jour, son montant sur la période et sa disponibilité (Disponible, Engagé, Hors service). Un véhicule libre porte un bouton <strong>Louer</strong> ; les boutons <strong>Éditer</strong>, <strong>Archiver</strong> et <strong>Remettre en service</strong> gèrent la fiche. <strong>+ Véhicule</strong> en crée un (immatriculation, catégorie, année, transmission, places, tarif par jour).</li>
+    <li><strong>Contrats</strong> — les contrats de location, filtrés sur <em>Contrats actifs</em>, <em>Tous</em> ou <em>Annulés</em>, avec période, jours, montant, acompte, reste dû et pièce d'identité. Le bouton <strong>+ Contrat</strong> en crée un ; chaque ligne propose <strong>Reçu</strong> et <strong>Annuler</strong>.</li>
+    <li><strong>Planning du parc</strong> — la vue calendaire : libre, location, immobilisé.</li>
+    <li><strong>Immobilisations</strong> — les entretiens et carburations enregistrés (motif, dates, coût, auteur). Le bouton <strong>Immobiliser</strong> en enregistre un.</li>
+  </ul>
+
+  <h3>Établir un contrat de location</h3>
+  <ol class="etapes">
+    <li>Cliquez sur <strong>+ Contrat</strong>, ou sur <strong>Louer</strong> sur la ligne du véhicule.</li>
+    <li>Choisissez le <strong>Véhicule</strong>, les dates de <strong>Départ</strong> et de <strong>Restitution</strong>, puis le <strong>Client</strong> (créé d'abord, au besoin, dans Clients &amp; Créances).</li>
+    <li>Saisissez la <strong>Pièce d'identité</strong> (n° de CNI ou de passeport — obligatoire pour toute location) et, si la catégorie l'exige, le <strong>Permis de conduire</strong>.</li>
+    <li>Renseignez, le cas échéant, la <strong>Remise (FCFA)</strong> et l'<strong>Acompte reçu (FCFA)</strong>. L'aperçu affiche <em>jours × tarif</em>, la remise, l'acompte et le <strong>Reste à payer</strong>.</li>
+    <li>Cliquez sur <strong>Établir le contrat</strong>. Le logiciel confirme le numéro du contrat, le montant et le nombre de jours.</li>
+  </ol>
+  <p>
+    Le <strong>montant est figé à la signature</strong> (tarif du jour × nombre de jours − remise) : il n'est jamais recalculé si le tarif du véhicule change ensuite.
+    Le reste dû est la différence entre ce montant et l'acompte.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Le <strong>permis</strong> n'est pas exigé pour toutes les catégories : moto, scooter et vélo en sont dispensés.
+    L'écran l'indique colonne <strong>Permis</strong>, ligne par ligne. Les tarifs sont des tarifs
+    <em>« chauffeur inclus »</em> : c'est une caractéristique du tarif catalogue, pas une option facturée en plus.
+  </span>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>La date de restitution doit être postérieure à la date de départ</strong>, et le nombre de jours facturés est l'écart entre les deux dates :
+    un contrat du 10 au 11 facture <strong>une journée</strong> ; un contrat « du 10 au 10 » est refusé. Vérifiez les dates avant d'enregistrer :
+    c'est la source d'écart la plus fréquente entre le contrat et l'encaissement.
+  </span>
+
+  <figure class="compact">
+    <img src="../captures/x-location-contrat.png" alt="La fenêtre Nouveau contrat de location.">
+    <figcaption><b>Figure 8.1</b> — La fenêtre <b>Nouveau contrat de location</b> : véhicule, dates de départ et de restitution, client, pièce d'identité et permis, remise, acompte, et l'aperçu « jours × tarif » avec le <b>reste à payer</b> avant <b>Établir le contrat</b>.</figcaption>
+  </figure>
+
+  <h3>Reçu, annulation, archivage</h3>
+  <ul class="puces">
+    <li><strong>Reçu</strong> produit le reçu de location du contrat, à imprimer ou à enregistrer en PDF : numéro du contrat, client, véhicule, période, durée, tarif journalier, montant, acompte, reste dû, statut, date et auteur de l'émission.
+      Il <strong>ne vaut pas facture</strong> : la facture normalisée est émise à l'encaissement. Pour un contrat annulé, le reçu porte le bandeau « ANNULÉ » et ne mentionne aucun montant dû.</li>
+    <li><strong>Annuler</strong> un contrat le conserve, marqué <em>Annulé</em>, et rend le véhicule disponible : aucun montant n'est plus dû à ce titre. Un contrat n'est jamais supprimé.</li>
+    <li><strong>Archiver</strong> un véhicule le retire du parc actif (il reste consultable) ; <strong>Remettre en service</strong> l'y ramène. Le logiciel refuse d'archiver un véhicule engagé par un contrat actif <em>qui n'est pas encore terminé</em> — <strong>le jour de restitution compte encore comme engagé</strong>. Un contrat annulé n'engage plus rien. Le web et le poste appliquent exactement la même règle.</li>
+  </ul>
+
+  <h3>Immobiliser : enregistrer un entretien ou une carburation</h3>
+  <ol class="etapes">
+    <li>Cliquez sur <strong>Immobiliser</strong>.</li>
+    <li>Choisissez le <strong>Véhicule</strong>, le <strong>Motif</strong> (Entretien ou Carburation), la date (<strong>Du</strong>) et le <strong>Coût (FCFA)</strong>.</li>
+    <li>Cliquez sur <strong>Immobiliser</strong> : l'événement s'inscrit dans l'onglet <em>Immobilisations</em> avec le nom de son auteur.</li>
+  </ol>
+  <p>
+    Cette saisie <strong>consigne</strong> l'entretien ; elle ne change pas à elle seule le statut du véhicule. Pour qu'un véhicule cesse d'être proposé à la location,
+    archivez-le (<em>Hors service</em>) et remettez-le en service à son retour.
+  </p>
+
+  <figure>
+    <img src="../captures/m8-locations.png" alt="Le parc de véhicules et sa disponibilité sur la période.">
+    <figcaption><b>Figure 8.2</b> — Le <b>parc de véhicules</b> et sa disponibilité sur la période.</figcaption>
+  </figure>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Les contrats, immobilisations, reçus et archivages se font sur le poste, sans réseau, avec les mêmes refus et les mêmes phrases qu'au web.
+    Le numéro du contrat (<code>LOC-…</code>) est attribué par le serveur : tant que le poste n'a pas synchronisé, le numéro du contrat affiche un tiret.
+    Les rapports exportés (état M14 « Locations », §11.2) <strong>excluent les contrats annulés</strong> ; une case permet de les inclure (§11.1).
+  </span>
+
+  <h2>8.2 Tourisme</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Tourisme
+  </span>
+  <p>
+    Six indicateurs — départs planifiés (dont complets), places vendues, taux de remplissage, chiffre d'affaires, reste à encaisser, départs à durée indéterminée —
+    et trois onglets : <strong>Départs planifiés</strong>, <strong>Réservations</strong> et <strong>Catalogue</strong>. Des boutons <strong>+ Réservation</strong> et
+    <strong>+ Prestation</strong> se trouvent en tête d'écran.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    <strong>Il n'y a pas de bouton « + Départ ».</strong> Un départ n'existe pas par lui-même : il naît de la <strong>première réservation</strong> prise pour
+    un circuit à une date donnée. <strong>La capacité n'est pas saisie sur le départ</strong> : elle vient de la fiche du circuit (<em>Capacité maximale</em>), et le remplissage est
+    contrôlé <strong>cumulé sur le départ</strong> — trois groupes de cinq sur un circuit à douze places sont refusés au troisième, même si chaque
+    réservation prise isolément semble tenir.
+  </span>
+
+  <h3>Prendre une réservation (et créer le départ)</h3>
+  <ol class="etapes">
+    <li>Cliquez sur <strong>+ Réservation</strong>, ou sur <strong>Réserver</strong> sur la ligne d'un départ existant (tant qu'il reste des places).</li>
+    <li>Choisissez la <strong>Prestation</strong> (circuit ou excursion du catalogue) et la <strong>Date de départ</strong> : la fenêtre affiche la <strong>Capacité</strong>, les places <strong>Déjà vendues</strong> et les <strong>Restantes</strong>.</li>
+    <li>Choisissez le <strong>Guide</strong> — obligatoire dès la première réservation ; <strong>Ajouter</strong> permet de créer un guide au référentiel sans quitter la fenêtre — puis le <strong>Client</strong>.</li>
+    <li>Saisissez le <strong>Nombre de personnes</strong> et cliquez sur <strong>Réserver</strong>.</li>
+  </ol>
+  <p>
+    Un départ a <strong>un seul guide</strong> : celui de sa première réservation, que les groupes suivants reprennent. Pour en changer, utilisez <strong>Guide</strong> sur la ligne du départ
+    (<strong>Réaffecter le guide</strong>) : le changement vaut pour toutes les réservations du départ. Un guide ne peut pas assurer deux circuits le même jour.
+    <strong>Annuler</strong> sur la ligne d'un départ annule le départ et passe ses réservations en annulation ; l'onglet <strong>Réservations</strong> permet d'annuler une réservation seule, ce qui libère ses places.
+    Rien ne s'efface : une annulation conserve la ligne.
+  </p>
+
+  <figure class="compact">
+    <img src="../captures/x-tourisme-reservation.png" alt="La fenêtre Réserver des places.">
+    <figcaption><b>Figure 8.3</b> — La fenêtre <b>Réserver des places</b> : capacité, places déjà vendues et restantes, prestation, date de départ, guide, client et nombre de personnes.</figcaption>
+  </figure>
+
+  <h3>Le catalogue des circuits</h3>
+  <p>
+    L'onglet <strong>Catalogue</strong> liste les prestations avec leur type, leur durée, leur zone et thème, leur prix et leurs départs planifiés. <strong>+ Prestation</strong> (ou
+    <strong>Éditer</strong> sur une ligne) ouvre la fiche : <strong>Intitulé</strong>, <strong>Thème</strong>, <strong>Zone</strong>, <strong>Durée</strong> (par exemple « 3 jours / 2 nuits »),
+    <strong>Prix par personne</strong> et <strong>Capacité maximale</strong>. <strong>Planifier</strong> ouvre la prise de réservation sur la prestation choisie. Les tarifs du catalogue sont ceux opposables au client.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Une prestation dont la durée est un texte libre comme <em>« Plusieurs jours »</em> est comptée à <strong>durée indéterminée</strong> (indicateur et bandeau d'avertissement de l'écran) :
+    le logiciel ne sait alors protéger l'engagement que sur le <strong>jour de départ</strong>. Un guide pourrait donc être proposé le lendemain sur un autre circuit. Saisissez de préférence une durée chiffrée au catalogue, et vérifiez à la main la disponibilité
+    du guide sur toute la durée réelle avant de l'engager ailleurs. (Le bandeau de l'écran parle du véhicule ; au catalogue actuel, un circuit n'engage pas de véhicule du parc.)
+  </span>
+  <figure>
+    <img src="../captures/m9-tourisme-departs.png" alt="Les départs planifiés et leur remplissage.">
+    <figcaption><b>Figure 8.4</b> — Les <b>départs planifiés</b> et leur remplissage.</figcaption>
+  </figure>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Les réservations de circuits, les guides et le catalogue se gèrent aussi sur le poste, hors ligne. La capacité est contrôlée sur le poste ; si deux postes vendent les dernières places pendant une coupure,
+    <strong>le serveur arbitre à la synchronisation</strong> : la seconde vente est refusée avec sa raison, qui apparaît dans la rubrique « À traiter » de l'écran de synchronisation. Sur le poste, certaines colonnes du web
+    (numéro, acompte, reste dû) affichent un tiret avec leur raison en infobulle.
+    La location et le tourisme ne se vendent plus au point de vente : leurs contrats et réservations se règlent par leur facture (chapitre consacré à la facturation).
+  </span>
+</section>

@@ -1049,6 +1049,12 @@ final class ApiAchatsTest extends TestCase
             }
         }
 
+        // Depuis le 10/11/2026 le comptable a les droits du gérant : plus aucun rôle du socle
+        // n'est en lecture seule sur M7 — le rôle d'ESSAI « lecteur » (TestCase::seed) le porte.
+        if ($niveau === 'L') {
+            return 'lecteur';
+        }
+
         $this->fail("Aucun rôle de la matrice ne porte M7 = '{$niveau}'.");
     }
 

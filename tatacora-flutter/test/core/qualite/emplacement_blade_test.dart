@@ -10,6 +10,7 @@ import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import '../../support/structure_rendue.dart';
 import '../../support/cas_ecrans.dart';
+import '../../support/horloge_reference.dart';
 
 /// PHASE 1A — l'EMPLACEMENT mesuré sur le RENDU, écran par écran. Voir
 /// `test/support/structure_rendue.dart` pour la méthode et ses limites, et
@@ -146,6 +147,7 @@ void main() {
       final surcharges = [
         baseLocaleProvider.overrideWithValue(db),
         droitsProvider.overrideWithValue(GardeAcces.depuisJson(cas.droits)),
+        ...surchargesHorlogeDeReference(),
         ...cas.surcharges(db),
       ];
       if (cas.parRouteur) {

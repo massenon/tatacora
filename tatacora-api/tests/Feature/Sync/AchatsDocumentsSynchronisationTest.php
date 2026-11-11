@@ -195,16 +195,22 @@ final class AchatsDocumentsSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function sans_ecriture_sur_m7_aucun_document_d_achat_n_est_synchronise(): void
+    public function le_droit_sur_m7_ne_se_juge_pas_sur_le_compte_d_appairage(): void
     {
+        // Décision du PO du 09/11/2026 : le serveur ne juge plus les modules du compte du
+        // jeton ; `barman` (M7 = '-') voit sa commande acceptée, le droit se juge au poste.
         $barman = $this->creerUtilisateur('barman');
+        $commande = $this->commande($this->uuid());
 
-        $this->pousser([$this->commande($this->uuid())], $barman)
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
+        $this->pousser([$commande], $barman)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertDatabaseMissing('journal_securite', ['utilisateur_id' => $barman->id, 'type_evenement' => 'acces_refuse_rbac']);
+
+        // Un bon qui cite une commande INCONNUE n'est pas refusé pour un droit : sa dépendance
+        // n'est pas encore reçue — il est différé (jamais définitif), pas « droit manquant ».
         $this->pousser([$this->bon($this->uuid(), $this->uuid())], $barman)
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
-
-        $this->assertDatabaseHas('journal_securite', ['utilisateur_id' => $barman->id, 'module_concerne' => 'M7']);
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.code_motif', 'dependance_manquante');
     }
 
     // ------------------------------------------------------------ Bons de réception

@@ -35,6 +35,11 @@ return [
     // revelerait l'existence du compte a qui ignore le mot de passe.
     'compte_desactive' => 'Ce compte est desactive. Contactez un administrateur.',
 
+    // Mot de passe temporaire posé par un administrateur (29/10/2026) : l'API
+    // n'émet aucun jeton tant que le titulaire n'a pas défini le sien, sur
+    // l'application web.
+    'changement_requis' => 'Votre mot de passe a ete reinitialise : definissez-en un nouveau sur l\'application web avant de vous connecter ici.',
+
     'trop_de_tentatives' => 'Trop de tentatives de connexion. Reessayez dans :secondes secondes.',
 
     'deconnecte' => 'Vous etes deconnecte.',
@@ -43,5 +48,5 @@ return [
     'requise' => 'Authentification requise.',
 
     // Jeton valide mais droit absent sur le module demande (403) — RG-16.
-    'module_refuse' => 'Vous n avez pas acces a ce module.',
+    'module_refuse' => "Vous n'avez pas accès à ce module.",
 ];

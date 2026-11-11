@@ -1,4 +1,5 @@
 // Vue Blade maîtresse (PA-183) : pwa/hebergement/reservations.blade.php
+import '../../../facturation/presentation/widgets/bouton_creer_proforma.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -55,6 +56,7 @@ class VueCarteReservation extends ConsumerWidget {
     required this.carte,
     required this.peutAnnuler,
     required this.onAnnuler,
+    this.annulationPermise = true,
     this.onFacture,
     super.key,
   });
@@ -62,6 +64,10 @@ class VueCarteReservation extends ConsumerWidget {
   final CarteReservation carte;
   final bool peutAnnuler;
   final VoidCallback onAnnuler;
+
+  /// Le droit local `ANNULATIONS` (avec M1) : sans lui, ni « Annuler » ni le pied du détail ne
+  /// le proposent (`peutAnnulerReservationProvider`).
+  final bool annulationPermise;
 
   /// Ouvre la facture du séjour. `null` quand aucune facture n'existe.
   final VoidCallback? onFacture;
@@ -116,7 +122,7 @@ class VueCarteReservation extends ConsumerWidget {
                 style: textes.labelSmall?.copyWith(color: AppColors.neutre500),
               ),
             ],
-            if (peutAnnuler && !annulee)
+            if (peutAnnuler && annulationPermise && !annulee)
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
@@ -137,6 +143,11 @@ class VueCarteReservation extends ConsumerWidget {
     // dates, puis « (:nombre nuit(s)) ». Le canal manquant s'écrit « — »,
     // jamais rien : une place vide se lit comme un oubli d'affichage, un
     // tiret comme une donnée absente.
+    //
+    // Le squelette de cette ligne, une fois ses valeurs retirées, est celui que
+    // la vue pose entre ses accolades : « • • → ( ) » — deux puces, une flèche
+    // entre les deux dates, la durée entre parenthèses. Il est dit ici, et
+    // non rendu à part : la ligne ci-dessous le compose avec ses valeurs.
     final identite = [
       _r.typeClient?.libelle ?? '—',
       _r.canal?.libelle ?? '—',
@@ -179,10 +190,17 @@ class VueCarteReservation extends ConsumerWidget {
                     ? () =>
                           ouvrirFicheReservation(context, reservationId: _r.id)
                     : null,
-                onAnnuler: modifiable ? onAnnuler : null,
+                onAnnuler: modifiable && annulationPermise ? onAnnuler : null,
               ),
               icon: const Icon(Icons.visibility_outlined, size: 16),
             ),
+            // « Créer une proforma » (PO, 07/11/2026) : droit M2, jamais sur une réservation annulée.
+            if (!annulee)
+              BoutonCreerProforma(
+                flux: 'hebergement',
+                source: _r.id,
+                court: true,
+              ),
             if (modifiable)
               IconButton(
                 key: Key('modifier-${_r.id}'),
@@ -241,6 +259,14 @@ class VueCarteReservation extends ConsumerWidget {
     );
   }
 
+  /// Les chambres SUPPLÉMENTAIRES d'une réservation multi-chambres (10/11/2026, PO) : la carte
+  /// les dit toutes, pas seulement la principale (`unite_id`).
+  List<String> get _autresChambres => [
+    for (final l in _r.lignes)
+      if (l.service == ServiceReservation.hebergement && l.itemId != _r.uniteId)
+        l.libelle,
+  ];
+
   /// « Unité : BNG-01 — Bungalow » — la vue, l.229-230.
   Widget _unite(TextTheme textes) {
     final unite = carte.unite;
@@ -252,7 +278,8 @@ class VueCarteReservation extends ConsumerWidget {
         border: Border(top: BorderSide(color: AppColors.neutre200)),
       ),
       child: Text(
-        'Unité : ${unite?.numero ?? '—'} — ${unite?.categorieLibelle ?? '—'}',
+        'Unité : ${unite?.numero ?? '—'} — ${unite?.categorieLibelle ?? '—'}'
+        '${_autresChambres.isEmpty ? '' : ' + ${_autresChambres.join(', ')}'}',
         key: Key('unite-${_r.id}'),
         style: textes.labelSmall?.copyWith(color: AppColors.neutre500),
       ),

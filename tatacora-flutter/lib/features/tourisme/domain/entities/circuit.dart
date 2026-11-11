@@ -44,3 +44,22 @@ final class Circuit {
   /// Le libellé de la colonne « Type » du maître — valeur unique et assumée.
   static const String type = 'Circuit';
 }
+
+/// Les thèmes d'une prestation — le registre FERMÉ du serveur
+/// (`EnregistrerCircuitRequest::THEMES`, énumération de `circuits.theme`).
+///
+/// « autre » a été ajouté le 26/10/2026 sur demande du Product Owner : le
+/// serveur, le poste et l'aligneur de descente doivent le connaître ensemble,
+/// sans quoi une prestation « Autre » créée d'un côté serait refusée de
+/// l'autre. Un test confronte cette liste à celle du serveur.
+const List<String> themesCircuit = [
+  'aventure',
+  'culture',
+  'faune',
+  'nature',
+  'autre',
+];
+
+/// Le libellé d'un thème à l'écran : la vue écrit la valeur telle quelle,
+/// sauf « Autre » qui porte sa majuscule.
+String libelleTheme(String theme) => theme == 'autre' ? 'Autre' : theme;

@@ -220,8 +220,8 @@ void main() {
     expect(find.byKey(Key('sync-statut-${f.bloquee}')), findsNothing);
   });
 
-  testWidgets('NON administrateur : la liste se lit, aucun geste n’est offert '
-      '— et l’écran le dit', (tester) async {
+  testWidgets('NON administrateur : la liste se lit ET « Renvoyer » est offert '
+      '(PO 10/11/2026 : ouvert à tous)', (tester) async {
     final f = await tester.runAsync(() async {
       final r = await semerFile();
       final nouvel = await b.dao.renvoyer(r.rejetee);
@@ -234,11 +234,73 @@ void main() {
     });
     await monter(tester, role: 'caissier');
     expect(find.byKey(Key('sync-statut-${f!.$2}')), findsOneWidget);
-    expect(find.byKey(Key('sync-renvoyer-${f.$2}')), findsNothing);
-    expect(find.text(TextesEcranSynchronisation.renvoyer), findsNothing);
-    expect(find.text(TextesEcranSynchronisation.debloquer), findsNothing);
-    expect(find.byKey(const Key('sync-ecran-reserve')), findsOneWidget);
+    expect(find.byKey(Key('sync-renvoyer-${f.$2}')), findsOneWidget);
+    expect(find.byKey(const Key('sync-ecran-reserve')), findsNothing);
   });
+
+  testWidgets(
+    '« Opération réservée » (`droit_manquant`) : « Renvoyer » et « Corriger » '
+    'sont OUVERTS À TOUS (10/11/2026) — nouvel uuid, même charge, l’ancienne '
+    'reste l’historique',
+    (tester) async {
+      final f = await tester.runAsync(() async {
+        final ids = await b.enfilerClients(2);
+        await statut(ids[0], 'rejete');
+        await statut(ids[1], 'rejete');
+        await b.db.customStatement(
+          'UPDATE operations_sync_local SET resultat_json = ? '
+          'WHERE entite_id = ?',
+          [
+            '{"statut":"rejete","motif":"Vous n avez pas acces a ce module.",'
+                '"code_motif":"droit_manquant"}',
+            ids[0],
+          ],
+        );
+        await b.db.customStatement(
+          'UPDATE operations_sync_local SET resultat_json = ? '
+          'WHERE entite_id = ?',
+          [
+            '{"statut":"rejete","motif":"Refusée.","code_motif":"regle_metier"}',
+            ids[1],
+          ],
+        );
+        return (
+          droit: (await b.operationDe(ids[0])).uuidOperation,
+          regle: (await b.operationDe(ids[1])).uuidOperation,
+        );
+      });
+      await monter(tester, role: 'barman');
+
+      // Le titre ne dit plus « Droit manquant » : le serveur ne juge plus les modules du
+      // compte d'appairage, ce code ne reste que pour les opérations RÉSERVÉES.
+      expect(
+        texteDe(tester, Key('sync-cause-${f!.droit}')),
+        'Opération réservée',
+      );
+      expect(find.byKey(Key('sync-renvoyer-${f.droit}')), findsOneWidget);
+      expect(find.byKey(Key('sync-corriger-${f.droit}')), findsOneWidget);
+      expect(find.byKey(Key('sync-renvoyer-${f.regle}')), findsOneWidget);
+      expect(find.byKey(Key('sync-corriger-${f.regle}')), findsOneWidget);
+      expect(find.byKey(const Key('sync-ecran-reserve')), findsNothing);
+
+      await tester.ensureVisible(find.byKey(Key('sync-renvoyer-${f.droit}')));
+      await tester.tap(find.byKey(Key('sync-renvoyer-${f.droit}')));
+      await laisserTourner(tester);
+
+      expect(find.text(TextesEcranSynchronisation.renvoyee), findsOneWidget);
+      final ops = (await tester.runAsync(
+        () => b.dao.operations(table: TableSynchronisee.clients),
+      ))!;
+      final ancienne = ops.firstWhere((o) => o.uuidOperation == f.droit);
+      expect(ancienne.statut, StatutOperationSync.rejete, reason: 'historique');
+      final nouvel = (await tester.runAsync(b.dao.remplacees))![f.droit]!;
+      final remplacante = ops.firstWhere((o) => o.uuidOperation == nouvel);
+      expect(remplacante.statut, StatutOperationSync.enAttente);
+      expect(remplacante.payload, ancienne.payload);
+      expect(remplacante.entiteId, ancienne.entiteId);
+      expect(find.byKey(Key('sync-renvoyer-${f.droit}')), findsNothing);
+    },
+  );
 
   testWidgets('« Synchroniser maintenant » : grisé sans appairage ; appairé, '
       'il se grise PENDANT l’envoi (progression), puis le bilan s’affiche', (
@@ -295,6 +357,9 @@ void main() {
     final bilan = texteDe(tester, const Key('sync-ecran-bilan'));
     expect(bilan, contains('acceptées 1'));
     expect(texteDe(tester, const Key('sync-compteur-synchronise')), '1');
+    // Le catalogue reçu est rangé dans la partie « Réception » (26/10/2026).
+    await tester.tap(find.byKey(const Key('sync-onglet-reception')));
+    await laisserTourner(tester);
     expect(
       texteDe(tester, const Key('sync-ecran-descente')),
       contains('serveur injoignable ou indisponible'),
@@ -330,8 +395,8 @@ void main() {
   });
 
   group('ancrages extérieurs', () {
-    test('la route /synchronisation sert l’écran de synchronisation, gardée '
-        'par le module Paramètres', () {
+    test('la route /synchronisation sert l’écran de synchronisation, entrée '
+        'du menu de TOUS les rôles, gardée par le droit transverse SYNCHRO', () {
       final routeur = File(
         'lib/core/router/app_router.dart',
       ).readAsStringSync();
@@ -343,9 +408,13 @@ void main() {
         isTrue,
       );
       expect(routeur, isNot(contains('seulementEnSuspens')));
+      // 09/11/2026 (PO) : une entrée du menu (« Synchronisation »), plus une route hors menu.
+      expect(modulesDesRoutesHorsMenu['/synchronisation'], isNull);
       expect(
-        modulesDesRoutesHorsMenu['/synchronisation'],
-        ModuleTatacora.parametres,
+        toutesLesDestinations
+            .singleWhere((d) => d.route == '/synchronisation')
+            .module,
+        ModuleTatacora.synchro,
       );
     });
 
@@ -365,9 +434,7 @@ void main() {
     });
   });
 
-  testWidgets('le lien de Paramètres → Synchronisation OUVRE l’écran', (
-    tester,
-  ) async {
+  testWidgets('le lien de menu Appairage Postes OUVRE l’écran', (tester) async {
     tester.view
       ..physicalSize = const Size(1800, 3000)
       ..devicePixelRatio = 1.0;

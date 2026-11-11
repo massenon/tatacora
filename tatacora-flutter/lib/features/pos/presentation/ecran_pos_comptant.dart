@@ -217,8 +217,8 @@ class _AucunPanier extends ConsumerWidget {
     );
 
     // Le panneau Panier SANS panier ouvert, à la forme de la vue (l.318-357,
-    // 14/10/2026) : en-tête « Panier · 0 article(s) » sans « Vider » ni
-    // « Abandonner » (rien à vider), bande « Aucun panier ouvert », « Panier
+    // 14/10/2026) : en-tête « Panier · 0 article(s) » AVEC « Vider » et
+    // « Abandonner » (la vue les pose sans condition, 26/10/2026), bande « Aucun panier ouvert », « Panier
     // vide », puis le geste qui ouvre la vente. La vue ouvre le panier du
     // comptoir au premier article ; ce poste l'ouvre par ce bouton — en ouvrir
     // un tout seul à chaque passage emplirait la base de coquilles vides.
@@ -227,7 +227,17 @@ class _AucunPanier extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const EnTetePanierComptant(nombreArticles: 0),
+          EnTetePanierComptant(
+            nombreArticles: 0,
+            // Les deux boutons de la vue sont là même sans panier ouvert
+            // (`comptant.blade.php` l.321-326, aucune condition).
+            actions: [
+              BoutonsPanierComptant(
+                panier: null,
+                vocabulaire: VocabulairePos.de(PointDeVentePos.comptoir),
+              ),
+            ],
+          ),
           const ContextePanierComptant(ligne: TextesPanierComptant.aucunPanier),
           const Expanded(child: PanierVideComptant()),
           Container(

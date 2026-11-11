@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/achats/approvisionnement.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,21 +30,19 @@ import 'coquille_modale_achats.dart';
 /// enregistré », et les confondre ferait chercher un fournisseur au bureau
 /// alors que c'est la liaison qui est tombée.
 ///
-/// ## Le prix unitaire est SAISI, jamais pré-rempli au coût moyen pondéré
+/// ## Le prix unitaire est PRÉ-REMPLI au coût moyen pondéré, et la modale le dit
 ///
-/// Le maître pré-remplit `l.article.prix_achat` (l.606). **Aucune colonne
-/// `prix_achat` n'existe** au référentiel serveur : la seule valeur voisine est
-/// `cout_moyen_pondere`, et ce n'est pas la même chose. Le CMP est la moyenne
-/// de ce qu'on a **déjà** payé ; le prix unitaire d'une commande est ce que le
-/// fournisseur demande **aujourd'hui**.
-///
-/// Les confondre ferait passer une moyenne d'achats passés pour un tarif
-/// négocié : le CMP est donc affiché **à côté**, nommé pour ce qu'il est, et le
-/// champ reste à remplir. (Jusqu'au 12/10/2026 ce raisonnement invoquait une
-/// « boucle » : la réception aurait valorisé l'entrée au prix de la commande.
-/// Elle ne valorise rien, comme au serveur — D132 —, et la boucle n'existe
-/// pas ; la raison de ne pas pré-remplir reste l'absence de colonne
-/// `prix_achat` au référentiel de la vue.)
+/// La vue d'approvisionnement pose `prix_unitaire` = `cout_moyen_pondere` et
+/// l'écrit au-dessus de la grille : « Prix unitaire pré-rempli avec le coût
+/// moyen pondéré connu de l'article — c'est une valorisation d'achats passés,
+/// PAS un tarif négocié. Corrigez-le avec le prix du fournisseur avant de
+/// valider. » (21/10/2026 : le poste fait comme la vue, après avoir refusé de
+/// pré-remplir tant que le maître écrivait `prix_achat`.) Le CMP est la moyenne
+/// de ce qu'on a **déjà** payé ; le prix d'une commande est ce que le
+/// fournisseur demande **aujourd'hui** — d'où la phrase, et le champ qui reste
+/// modifiable. Un article sans entrée valorisée n'a pas de CMP : son champ part
+/// VIDE (jamais « 0.00 »). Le CMP, à quatre décimales, est arrondi au centième
+/// (la ligne de commande n'en porte que deux).
 ///
 /// ## Trois statuts du maître sont REFUSÉS à la création
 ///
@@ -207,9 +206,9 @@ class _ModaleCommandeState extends ConsumerState<_ModaleCommande> {
     return CoquilleModaleAchats(
       cle: const Key('modale-commande'),
       titre: 'Nouveau bon de commande',
-      // Le sous-titre du maître (l.565) : nombre d'articles et total.
-      sousTitre:
-          '${_lignes.length} article(s) — ${total ?? 'total incalculable'}',
+      // `form_commande_sous_titre` : « :nombre article(s) sélectionné(s) ». Le
+      // total n'y figure pas : il est au pied de la grille.
+      sousTitre: '${_lignes.length} article(s) sélectionné(s)',
       libelleValidation: 'Créer le bon de commande',
       cleValidation: const Key('commande-valider'),
       envoiEnCours: _envoiEnCours,
@@ -242,6 +241,21 @@ class _ModaleCommandeState extends ConsumerState<_ModaleCommande> {
                     erreur: _erreursServeur['fournisseur_id'],
                     onChoix: (id) => setState(() => _fournisseurId = id),
                   ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          // `prix_suggere`, au mot : sous le fournisseur, au-dessus de la grille
+          // (`bg-slate-50 rounded-lg p-3`).
+          Container(
+            key: const Key('commande-prix-suggere'),
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppColors.neutre100,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Text(
+              "Prix unitaire pré-rempli avec le coût moyen pondéré connu de l'article — c'est une valorisation d'achats passés, PAS un tarif négocié. Corrigez-le avec le prix du fournisseur avant de valider.",
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           _ChampDate(
@@ -323,7 +337,7 @@ class _SelecteurFournisseur extends StatelessWidget {
       );
     }
 
-    return DropdownButtonFormField<String>(
+    return DropdownButtonFormField<String?>(
       key: const Key('commande-fournisseur'),
       initialValue: valeur,
       isExpanded: true,
@@ -333,8 +347,11 @@ class _SelecteurFournisseur extends StatelessWidget {
         errorText: erreur,
       ),
       items: [
+        // `<option value="">{{ achats.form_non_renseigne }}</option>` : la ligne
+        // de départ du select de la vue — aucun fournisseur choisi.
+        const DropdownMenuItem<String?>(child: Text('Non renseigné')),
         for (final f in fournisseurs)
-          DropdownMenuItem(value: f.id, child: Text(f.raisonSociale)),
+          DropdownMenuItem<String?>(value: f.id, child: Text(f.raisonSociale)),
       ],
       onChanged: onChoix,
     );

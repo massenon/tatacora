@@ -80,7 +80,7 @@ final class BannierePwaTest extends TestCase
     public function l_etat_derive_du_droit_et_de_ce_que_l_ecran_offre(): void
     {
         $gerant = $this->utilisateur('gerant');        // M7 = C
-        $comptable = $this->utilisateur('comptable');  // M7 = L
+        $comptable = $this->utilisateur('lecteur');  // M7 = L
 
         // `Achats` offre l'écriture (trait + MODULE) : l'état suit le rôle.
         $this->assertSame(
@@ -197,7 +197,7 @@ final class BannierePwaTest extends TestCase
     #[Test]
     public function un_role_en_lecture_voit_le_bandeau_du_maitre_avec_son_bouton(): void
     {
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         $html = Livewire::test(Achats::class)->html();
 

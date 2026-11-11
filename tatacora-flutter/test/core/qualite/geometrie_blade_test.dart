@@ -16,6 +16,7 @@ import 'package:tatacora_flutter/features/auth/presentation/formulaire_premier_c
 
 import '../../support/cas_ecrans.dart';
 import '../../support/coquille_montee.dart';
+import '../../support/horloge_reference.dart';
 import '../../support/structure_rendue.dart';
 
 /// PHASE 1D — ALIGNEMENT mesuré en PIXELS, écran par écran (pilote : la
@@ -328,6 +329,19 @@ void main() {
       // « Synchroniser les postes » (18/10/2026, décision PO) : même cas —
       // mesurée en emplacement, relevé de géométrie à capturer.
       'transverse/synchronisation-postes',
+      // « Synchronisation » (09/11/2026, PO) : mesurée en emplacement, relevé de géométrie
+      // à capturer dans le navigateur de la Phase 1D.
+      'transverse/synchronisation',
+      // « Congés & Plannings » (21/10/2026) : mesurée en emplacement ; relevé
+      // de géométrie à capturer dans le navigateur de la Phase 1D.
+      'rh/conges-plannings',
+      // « Correspondance des comptes » (26/10/2026) : mesurée en emplacement ;
+      // relevé de géométrie à capturer dans le navigateur de la Phase 1D.
+      'comptabilite/correspondance-comptes',
+      // « Comptes utilisateurs » (29/10/2026, mot de passe perdu SANS e-mail) :
+      // mesurée en emplacement ; relevé de géométrie à capturer dans le
+      // navigateur de la Phase 1D.
+      'transverse/comptes-utilisateurs',
     };
     final manquantes = [
       for (final cas in casEcrans)
@@ -413,6 +427,7 @@ void main() {
         enfant: cas.ecran(),
         surcharges: [
           baseLocaleProvider.overrideWithValue(db),
+          ...surchargesHorlogeDeReference(),
           ...cas.surcharges(db),
         ],
       );

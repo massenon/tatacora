@@ -1,6 +1,9 @@
 import '../../../hebergement/domain/entities/reservation.dart';
 import '../../../pos/domain/entities/panier.dart';
+import '../../../pos/domain/messages_ventes.dart';
+import '../../../pos/domain/remise_panier.dart';
 import '../../../pos/domain/place_hebergement.dart';
+import '../acheteur_facture.dart';
 import '../entities/piece_facturation.dart';
 import '../repositories/facture_repository.dart';
 
@@ -34,7 +37,10 @@ final class Facturer {
   /// Le panier doit être clôturé : facturer un panier encore ouvert
   /// produirait une pièce que la ligne suivante rendrait fausse, sans que rien
   /// ne la corrige — une facture est immuable, le panier ne l'est plus.
-  Future<PieceFacturation> emettreAuComptant(Panier panier) async {
+  Future<PieceFacturation> emettreAuComptant(
+    Panier panier, {
+    AcheteurFacture acheteur = AcheteurFacture.aucun,
+  }) async {
     if (panier.typeVente != TypeVente.comptant) {
       throw PanierIncompatible(
         'Ce panier est un panier de séjour : il se facture au départ, '
@@ -52,6 +58,9 @@ final class Facturer {
         modePaiement: panier.modePaiement,
         pointVente: panier.pointVente,
         lignes: _lignesDuPanier(panier),
+        acheteurIfu: acheteur.ifuNet,
+        acheteurNom: acheteur.nomNet,
+        retenirIfu: acheteur.retenir,
       ),
     );
   }
@@ -84,6 +93,7 @@ final class Facturer {
     required Panier panier,
     required Reservation reservation,
     PlaceHebergement place = placeHebergementRetenue,
+    AcheteurFacture acheteur = AcheteurFacture.aucun,
   }) async {
     if (panier.typeVente != TypeVente.surSejour) {
       throw PanierIncompatible(
@@ -125,7 +135,8 @@ final class Facturer {
         // Tarif FIGÉ à la réservation (PA-55). Il ne vient pas de la grille du
         // jour : un changement de grille ne doit pas réécrire le montant d'un
         // séjour déjà pris.
-        prixUnitaire: reservation.tarifNuit,
+        // Multi-chambres (10/11/2026) : la somme des tarifs figés de TOUTES les chambres.
+        prixUnitaire: reservation.tarifNuitTotal,
         quantite: reservation.nuits,
       ),
       ..._lignesDuPanier(panier),
@@ -149,6 +160,55 @@ final class Facturer {
         modePaiement: panier.modePaiement,
         pointVente: panier.pointVente,
         lignes: lignes,
+        acheteurIfu: acheteur.ifuNet,
+        acheteurNom: acheteur.nomNet,
+        retenirIfu: acheteur.retenir,
+      ),
+    );
+  }
+
+  /// Émet la facture des SEULES consommations d'un séjour — sans ligne
+  /// d'hébergement (`EmissionFactureService::emettrePourConsommations`).
+  ///
+  /// ⚠ AMENDEMENT DE RG-04 (« un seul document ») — directive du PO du
+  /// 02/09/2026, reprise ici le 21/10/2026 : à la clôture du panier, le geste
+  /// « Payer séparément » émet une facture qui ne porte QUE les consommations.
+  /// L'hébergement n'est pas abandonné : il reste dû sur la fiche du client et
+  /// sera facturé plus tard, par son propre chemin. Comme le serveur, la pièce
+  /// n'est liée à AUCUNE réservation (la liaison se fait par la ligne
+  /// d'hébergement, qui n'existe pas ici) : elle ne consomme donc pas l'acompte
+  /// de la réservation et n'empêche pas la facture de l'hébergement.
+  Future<PieceFacturation> emettreConsommationsDuSejour({
+    required Panier panier,
+    required Reservation reservation,
+    AcheteurFacture acheteur = AcheteurFacture.aucun,
+  }) async {
+    if (panier.typeVente != TypeVente.surSejour) {
+      throw PanierIncompatible(
+        'Ce panier est une vente au comptant : il n’a pas de séjour à '
+        'facturer.',
+      );
+    }
+    if (panier.reservationId != reservation.id) {
+      throw PanierIncompatible(
+        'Ce panier n’appartient pas à la réservation ${reservation.reference}.',
+      );
+    }
+    _exigerPanierCloture(panier);
+    await _exigerPanierNonFacture(panier);
+
+    return _depot.emettre(
+      BrouillonFacture(
+        origine: OrigineFacture.posSejour,
+        clientNom: reservation.clientNom,
+        clientId: reservation.clientId,
+        panierId: panier.id,
+        modePaiement: panier.modePaiement,
+        pointVente: panier.pointVente,
+        lignes: _lignesDuPanier(panier),
+        acheteurIfu: acheteur.ifuNet,
+        acheteurNom: acheteur.nomNet,
+        retenirIfu: acheteur.retenir,
       ),
     );
   }
@@ -181,13 +241,21 @@ final class Facturer {
 
   /// Annule une facture **par avoir**. Rien n'est effacé.
   ///
-  /// [auteurId] : le compte qui annule — une facture d'un AUTRE poste ne
-  /// s'annule que par l'administration ou le comptable (Q3, lot F6).
+  /// [auteurId] : le compte qui annule (contre-passation). Plus de règle « facture d'un AUTRE
+  /// poste » depuis le 09/11/2026 : le droit ANNULATIONS se juge à l'écran.
   Future<AnnulationParAvoir> annuler(
     String pieceId,
     String motif, {
     String? auteurId,
   }) => _depot.annuler(pieceId, motif, auteurId: auteurId);
+
+  /// Émet un avoir PARTIEL : la facture reste émise, l'avoir diminue son reste
+  /// dû (`emettreAvoir($facture, $montant, $motif)` de la PWA).
+  Future<PieceFacturation> emettreAvoirPartiel(
+    String pieceId,
+    int montant,
+    String motif,
+  ) => _depot.emettreAvoirPartiel(pieceId, montant, motif);
 
   /// La facture émise d'une réservation, **avoirs exclus**.
   ///
@@ -240,7 +308,45 @@ final class Facturer {
         quantite: l.quantite,
         codeArticle: l.reference.code,
       ),
+    ..._lignesDeRemise(panier),
   ];
+
+  /// La remise entre à la facture en LIGNES DÉDIÉES NÉGATIVES, une par module
+  /// (`PosHeberges::ajouterLignesRemise`, directive du PO du 02/09/2026) : le
+  /// total de la facture égale le net de la vente. La proration est celle de la
+  /// pièce comptable ([ventilerAuNet]) ; le poste facture en francs entiers,
+  /// chaque part est donc arrondie au franc et la DERNIÈRE prend l'écart, pour
+  /// que la somme des lignes égale exactement la remise du panier
+  /// ([Panier.net] : total − remise arrondie).
+  List<LigneBrouillon> _lignesDeRemise(Panier panier) {
+    if (!panier.aUneRemise) return const [];
+    final brut = <String, int>{};
+    for (final l in panier.lignes) {
+      final code = l.reference.module.code;
+      brut[code] = (brut[code] ?? 0) + l.montant * 100;
+    }
+    final net = ventilerAuNet(brut, panier.netCentimes);
+    final modules = brut.keys.toList();
+    var restant = panier.total - panier.net;
+    final lignes = <LigneBrouillon>[];
+    for (final module in modules) {
+      var part = ((brut[module]! - net[module]!) + 50) ~/ 100;
+      if (module == modules.last) part = restant;
+      restant -= part;
+      if (part <= 0) continue;
+      lignes.add(
+        LigneBrouillon(
+          module: ModuleFacturable.depuisModuleVendableCode(module),
+          libelle:
+              '${MessagesVentes.remiseLigneFacture} — '
+              '${MessagesVentes.modulesDuServeur[module] ?? module}',
+          prixUnitaire: -part,
+          quantite: 1,
+        ),
+      );
+    }
+    return lignes;
+  }
 }
 
 /* ====================================================================== */

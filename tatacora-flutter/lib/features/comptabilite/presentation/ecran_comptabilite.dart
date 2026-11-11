@@ -23,7 +23,15 @@ import '../domain/montant_comptable.dart';
 import '../impression/etat_journal_comptable.dart';
 import 'exercice_consulte.dart';
 import 'providers_consultation_comptable.dart';
+import 'providers_etats_financiers.dart';
+import 'widgets/envoi_anciennes_pieces.dart';
 import 'widgets/modale_ecriture.dart';
+import 'widgets/onglet_immobilisations.dart';
+import 'widgets/onglets_etats_financiers.dart';
+import 'widgets/modales_etats_comptables.dart';
+import 'widgets/onglets_grand_livre_analytique.dart';
+import 'widgets/onglet_clotures.dart';
+import 'widgets/onglets_plan_clotures.dart';
 
 /// Le hub **Comptabilité — SYSCOHADA révisé** — lot D du plan du Product
 /// Owner (14/10/2026), lecture du moteur M10 LOCAL (`MoteurComptable`,
@@ -41,16 +49,47 @@ import 'widgets/modale_ecriture.dart';
 ///   réplique de la portée du serveur (`consultation_comptable.dart`) :
 ///   exercice, statuts retenus, journal (le journal seulement : la balance du
 ///   serveur ne le filtre pas), ordre et soldes exclusifs du serveur.
-/// - **Les six indicateurs** (`IndicateursComptablesService`) : non calculés
-///   sur ce poste — « — », et une ligne qui le dit (jamais un zéro).
-///   L'alerte « Comptabilité déséquilibrée » de la vue en dépend : non rendue.
+/// - **Les six indicateurs** (`IndicateursComptablesService`) : CALCULÉS sur ce
+///   poste depuis le 26/10/2026 (`indicateursDe`, assembleur du compte de
+///   résultat, du bilan et de la balance), et l'alerte « Comptabilité
+///   déséquilibrée » avec eux. Source : les écritures du serveur quand la
+///   synchronisation est active et qu'elles sont arrivées, sinon les pièces de
+///   CE poste (`sourceEtatsFinanciersProvider`).
 /// - **Passer écriture** : l'encadré des contrôles est rendu ; « + Nouvelle
 ///   écriture » ouvre la modale « Passer une écriture » (PO, 14/10/2026,
 ///   `widgets/modale_ecriture.dart`), écrite par le moteur LOCAL — en
 ///   brouillon, ou passée et validée — sous le droit d'écriture M10.
-/// - **Grand livre, Compte de résultat, Bilan, Analytique, Immobilisations,
-///   Plan comptable, Clôtures** : l'onglet est cliquable et DIT qu'il n'est pas
-///   calculé sur ce poste — aucun chiffre plutôt qu'un chiffre faux.
+/// - **Compte de résultat et Bilan** (21/10/2026, `widgets/onglets_etats_financiers.dart`) :
+///   calculés sur le poste depuis les écritures VALIDÉES que le serveur lui
+///   descend (`ecritures_serveur_local`, miroir de lecture), avec la colonne
+///   N-1 de la vue et un encadré de provenance. Le poste n'y mêle JAMAIS ses
+///   propres pièces : le serveur passe sa pièce pour chaque document reçu.
+/// - **Plan comptable** (21/10/2026, `widgets/onglets_plan_clotures.dart`) :
+///   le plan entier par classe avec sa recherche et « + Créer un compte »
+///   (`widgets/modales_hub_comptabilite.dart`, `MoteurComptable.creerCompte`),
+///   écrit SUR CE POSTE seulement : un compte n'a pas de table au registre de
+///   synchronisation.
+/// - **Clôtures** (26/10/2026, `widgets/onglet_clotures.dart`) : la CLÔTURE
+///   ANNUELLE SYSCOHADA de bout en bout — liste des exercices et « Ouvrir un
+///   exercice », liste de contrôle, démarrer la clôture, clôturer
+///   définitivement (pièces CL et AN par le moteur, résultat en 131/139),
+///   rouvrir (le comptable seul, motif), archive légale et son empreinte. Sur
+///   les pièces de CE poste ; chaque geste envoie une DEMANDE au serveur, qui
+///   rejoue ses règles (`ClotureExerciceLocale`, voir
+///   `docs/AUDIT_POSTE_AUTONOME.md`).
+/// - **Grand livre, Analytique** (26/10/2026,
+///   `widgets/onglets_grand_livre_analytique.dart`) : calculés sur les pièces
+///   de ce poste, comme le Journal et la Balance — soldes progressifs,
+///   ouverture et clôture (à-nouveaux provisoires compris), marges par centre.
+///   Confrontés au vrai `GrandLivreService` et `AnalytiqueService`.
+/// - **Immobilisations** (21/10/2026, `widgets/onglet_immobilisations.dart`) :
+///   le tableau de l'exercice, « + Immobilisation », la modale de création et
+///   la modale « Plan » (`widgets/modales_immobilisations.dart`). Le plan est
+///   CALCULÉ sur le poste (`domain/immobilisations.dart`, centimes, confronté
+///   au vrai `ImmobilisationService`) ; la création s'écrit par
+///   `ImmobilisationsDao` et part au serveur par la file d'envoi. Le refus du
+///   21/10/2026 (aucune table) est levé par la table `immobilisations_local`
+///   (schéma v35) et son entrée au registre de synchronisation.
 /// - **Exporter** : la vue exporte le journal (PDF/Excel) ; ici aussi
 ///   (directive du PO du 14/10/2026). Le bouton n'existe que sur l'onglet
 ///   **Journal** — comme le registre CRM, un bouton n'est offert que là où il
@@ -58,8 +97,9 @@ import 'widgets/modale_ecriture.dart';
 ///   statut, journal), en CSV ou en PDF A4 paysage avec les totaux
 ///   ([EtatJournalComptable]).
 /// - **Tuiles** : celles qui correspondent à un onglet l'ouvrent ; Flux de
-///   trésorerie, Notes annexes et États financiers DISENT qu'ils ne sont pas
-///   portés (ce sont des pages séparées de la vue).
+///   trésorerie (TAFIRE), Notes annexes et États financiers — pages séparées de
+///   la vue — s'ouvrent dans une fenêtre (`widgets/modales_etats_comptables.dart`)
+///   calculée sur ce poste, sans serveur.
 ///
 /// Droit : la route de la vue exige M10 en lecture.
 class EcranComptabilite extends ConsumerStatefulWidget {
@@ -108,6 +148,9 @@ abstract final class TextesComptabilite {
   static const String saisieAucunExerciceDetail =
       'Ouvrez un exercice depuis l’onglet Clôtures avant de saisir la moindre écriture.';
   static const String saisieBouton = 'Nouvelle écriture';
+  static const String desequilibreTitre = 'Comptabilité déséquilibrée.';
+  static const String desequilibreDetail =
+      "Aucun état financier n'est exploitable tant que l'écart subsiste. Vérifiez la balance générale.";
   static const String colNumeroPiece = 'N° pièce';
   static const String journalVide =
       'Aucune pièce ne correspond à ces critères.';
@@ -125,15 +168,13 @@ abstract final class TextesComptabilite {
   static String bandeauEnCloture(int annee) =>
       'Exercice $annee en clôture : les ventes, les dépenses et les autres '
       'modules n’y écrivent plus. Seul le comptable y passe encore ses '
-      'écritures d’inventaire, dans la PWA.';
+      'écritures d’inventaire, dans la PWA. Le comptable les '
+      'passe aussi depuis l’onglet Passer écriture.';
   static String bandeauCloture(int annee) =>
       'Exercice $annee clôturé : consultation en lecture seule. Pour le '
       'corriger, le comptable le rouvre depuis l’onglet Clôtures.';
 
-  /// AJOUTS déclarés (D417).
-  static const String indicateursSurCePoste =
-      'Sur ce poste : les six indicateurs ne sont pas calculés — seuls le '
-      'journal et la balance générale sont lus.';
+  /// Message métier d'un état indisponible.
   static const String saisieSansDroit =
       "Votre profil n'a pas le droit de passer une écriture comptable.";
 
@@ -147,12 +188,9 @@ abstract final class TextesComptabilite {
     FiltreStatutEcritures.brouillon => statutBrouillon,
   };
   static String ongletNonCalcule(String libelle) =>
-      "« $libelle » n'est pas calculé sur ce poste : seuls le journal et la "
-      "balance générale y sont lus. Aucun chiffre n'est affiché plutôt qu'un "
-      'chiffre faux.';
+      "« $libelle » n'est pas disponible.";
   static String tuileNonPortee(String titre) =>
-      "« $titre » n'est pas porté sur ce poste : seuls le journal et la "
-      'balance générale y sont lus.';
+      "« $titre » n'est pas disponible.";
 }
 
 /// `Hub::ONGLETS`, dans son ordre et à ses mots.
@@ -169,8 +207,10 @@ const List<({String cle, String libelle})> ongletsComptabilite = [
   (cle: 'clotures', libelle: 'Clôtures'),
 ];
 
-/// `Hub::TUILES` : titre, description et l'onglet de CE poste qui la porte
-/// (`null` : page séparée de la vue, non portée).
+/// `Hub::TUILES` : titre, description et l'onglet de CE poste qui la porte.
+/// Les trois pages séparées de la vue (flux de trésorerie, notes annexes,
+/// états financiers) s'ouvrent dans une FENÊTRE (`fenetre-…`,
+/// `modales_etats_comptables.dart`) ; `null` : sans équivalent.
 const List<({String titre, String description, String? onglet})> _tuiles = [
   (
     titre: 'Plan Comptable',
@@ -195,12 +235,12 @@ const List<({String titre, String description, String? onglet})> _tuiles = [
   (
     titre: 'Tableau des Flux de Trésorerie',
     description: 'TAFIRE — variation de trésorerie sur la période',
-    onglet: null,
+    onglet: 'fenetre-flux',
   ),
   (
     titre: 'Notes Annexes',
     description: "Compléments d'information au Bilan et au Compte de Résultat",
-    onglet: null,
+    onglet: 'fenetre-notes',
   ),
   (
     titre: 'Clôture Périodique',
@@ -227,7 +267,7 @@ const List<({String titre, String description, String? onglet})> _tuiles = [
     titre: 'États Financiers',
     description:
         'Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique',
-    onglet: null,
+    onglet: 'fenetre-etats',
   ),
 ];
 
@@ -374,7 +414,8 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
             exercices: donnees?.exercices ?? const [],
             onExercice: choisirExercice,
           ),
-        const _BandeIndicateurs(),
+        if (exercice != null) _AlerteDesequilibre(annee: exercice.annee),
+        _BandeIndicateurs(annee: exercice?.annee),
         const SizedBox(height: AppSpacing.mdPlus), // mb-5
         Wrap(
           spacing: AppSpacing.xxs, // gap-1.5
@@ -440,12 +481,59 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
         ),
         const SizedBox(height: AppSpacing.sm), // mb-3
         _Tuiles(
+          annee: exercice?.annee,
           onOnglet: (cle) {
             _choisirOnglet(cle);
             if (_defilement.hasClients) _defilement.jumpTo(0);
           },
         ),
       ],
+    );
+  }
+}
+
+/// `#alerte-globale` de la vue : « Comptabilité déséquilibrée. » et la phrase
+/// qui l'explique, quand la balance générale ou le bilan de l'exercice ne
+/// s'équilibre pas (`@if ($indicateurs !== null && ! $indicateurs->equilibre)`).
+///
+/// Écart : la vue lit les six indicateurs du serveur (filtre de statut compris)
+/// ; ce poste lit les écritures VALIDÉES reçues du serveur
+/// (`comptabiliteEquilibree`), les mêmes que son compte de résultat et son
+/// bilan. Rien n'est écrit tant que tout s'équilibre — un exercice sans
+/// écriture l'est (zéro égale zéro).
+class _AlerteDesequilibre extends ConsumerWidget {
+  const _AlerteDesequilibre({required this.annee});
+
+  final int annee;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final equilibre = ref.watch(comptabiliteEquilibreeProvider(annee)).value;
+    if (equilibre != false) return const SizedBox.shrink();
+    final style = styleTransverse(
+      TaillesContenu.t13,
+      couleur: PaletteMaitre.rouge900,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md), // mb-4
+      child: EncadreTransverse(
+        key: const Key('compta-alerte-globale'),
+        fond: PaletteMaitre.rouge50,
+        bordure: PaletteMaitre.rouge200,
+        padding: const EdgeInsets.all(AppSpacing.smPlus), // p-3.5
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '${TextesComptabilite.desequilibreTitre} ',
+                style: style.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const TextSpan(text: TextesComptabilite.desequilibreDetail),
+            ],
+          ),
+          style: style,
+        ),
+      ),
     );
   }
 }
@@ -667,22 +755,75 @@ abstract final class IconeComptabiliteHub {
 
 /// La bande des six indicateurs (`grid grid-cols-2 lg:grid-cols-6 gap-3`),
 /// libellés et mentions de liasse de la vue, valeurs « — » (voir l'en-tête).
-class _BandeIndicateurs extends StatelessWidget {
-  const _BandeIndicateurs();
+class _BandeIndicateurs extends ConsumerWidget {
+  const _BandeIndicateurs({required this.annee});
 
-  static const _cartes = [
-    ("Chiffre d'affaires", 'XB — hors TVA'),
-    ('Valeur ajoutée', 'XC'),
-    ('Excédent brut', 'XD — EBE'),
-    ('Résultat net', 'XI'),
-    ('Trésorerie', 'Classe 5'),
-    ('Total bilan', ''),
-  ];
+  /// L'année de l'exercice consulté ; `null` : aucun exercice, aucun chiffre.
+  final int? annee;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final large = MediaQuery.sizeOf(context).width >= AppBreakpoints.lg;
     final petit = styleTransverse(TaillesContenu.t11, couleur: Ardoise.c400);
+    final i = annee == null
+        ? null
+        : ref.watch(indicateursComptablesProvider(annee!)).value;
+    // `MontantFcfa::format` : un zéro est un zéro ici (ce sont des totaux), le
+    // tiret ne dit que l'absence de calcul.
+    String valeur(int? centimes) =>
+        centimes == null ? TextesComptabilite.tiret : _montant(centimes);
+    Color accent(int? centimes) => centimes != null && centimes < 0
+        ? PaletteMaitre.rouge600
+        : AppColors.navy;
+    final cartes =
+        <({String libelle, String valeur, Color couleur, String detail})>[
+          (
+            libelle: "Chiffre d'affaires",
+            valeur: valeur(i?.chiffreAffairesCentimes),
+            couleur: AppColors.navy,
+            detail: 'XB — hors TVA',
+          ),
+          (
+            libelle: 'Valeur ajoutée',
+            valeur: valeur(i?.valeurAjouteeCentimes),
+            couleur: AppColors.navy,
+            detail: 'XC',
+          ),
+          (
+            libelle: 'Excédent brut',
+            valeur: valeur(i?.excedentBrutCentimes),
+            couleur: accent(i?.excedentBrutCentimes),
+            detail: 'XD — EBE',
+          ),
+          (
+            libelle: 'Résultat net',
+            valeur: valeur(i?.resultatNetCentimes),
+            couleur: i == null
+                ? AppColors.navy
+                : (i.resultatNetCentimes < 0
+                      ? PaletteMaitre.rouge600
+                      : PaletteMaitre.emeraude600),
+            detail: i != null && i.impotNonComptabilise
+                ? 'XI — avant impôt'
+                : 'XI',
+          ),
+          (
+            libelle: 'Trésorerie',
+            valeur: valeur(i?.tresorerieCentimes),
+            couleur: accent(i?.tresorerieCentimes),
+            detail: 'Classe 5',
+          ),
+          (
+            libelle: 'Total bilan',
+            valeur: valeur(i?.totalBilanCentimes),
+            couleur: i != null && !i.equilibre
+                ? PaletteMaitre.rouge600
+                : AppColors.navy,
+            detail: i == null
+                ? ''
+                : (i.equilibre ? 'Équilibré' : 'DÉSÉQUILIBRÉ'),
+          ),
+        ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -692,14 +833,14 @@ class _BandeIndicateurs extends StatelessWidget {
               : MesuresTransverses.colonnesKpiCompta,
           ecart: AppSpacing.sm,
           enfants: [
-            for (final (libelle, detail) in _cartes)
+            for (final c in cartes)
               CarteTransverse(
                 padding: const EdgeInsets.all(AppSpacing.smPlus),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      libelle.toUpperCase(),
+                      c.libelle.toUpperCase(),
                       style: petit.copyWith(
                         fontWeight: FontWeight.w600,
                         letterSpacing:
@@ -708,24 +849,19 @@ class _BandeIndicateurs extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.unit),
                     Text(
-                      TextesComptabilite.tiret,
+                      c.valeur,
+                      key: Key('compta-indicateur-${c.libelle}'),
                       style: styleTransverse(
                         TaillesContenu.t17,
                         poids: FontWeight.bold,
-                        couleur: AppColors.navy,
+                        couleur: c.couleur,
                       ),
                     ),
-                    if (detail.isNotEmpty) Text(detail, style: petit),
+                    if (c.detail.isNotEmpty) Text(c.detail, style: petit),
                   ],
                 ),
               ),
           ],
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          TextesComptabilite.indicateursSurCePoste,
-          key: const Key('compta-indicateurs-sur-ce-poste'),
-          style: styleTransverse(TaillesContenu.t12, couleur: Ardoise.c400),
         ),
       ],
     );
@@ -918,6 +1054,20 @@ class _Panneau extends StatelessWidget {
             donnees.comptes,
           ),
         );
+      case 'plan':
+        return const OngletPlan();
+      case 'clotures':
+        return OngletClotures(exercices: donnees.exercices, exercice: ex);
+      case 'resultat':
+        return OngletResultat(annee: ex.annee);
+      case 'bilan':
+        return OngletBilan(annee: ex.annee);
+      case 'immo':
+        return OngletImmobilisations(annee: ex.annee);
+      case 'grandlivre':
+        return OngletGrandLivre(exercice: ex, donnees: donnees, statut: statut);
+      case 'analytique':
+        return OngletAnalytique(exercice: ex, donnees: donnees, statut: statut);
       default:
         final libelle = ongletsComptabilite
             .firstWhere((o) => o.cle == onglet)
@@ -995,7 +1145,11 @@ class _Saisie extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ouvert = exercice?.statut == StatutExercice.ouvert;
+    // Le comptable passe aussi ses écritures d'inventaire dans un exercice EN
+    // CLÔTURE (`Hub::enregistrerPiece` : `statuts_exercice_admis`).
+    final ouvert =
+        exercice?.statut == StatutExercice.ouvert ||
+        exercice?.statut == StatutExercice.enCloture;
     final gris = styleTransverse(TaillesContenu.t13, couleur: Ardoise.c700);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1089,6 +1243,7 @@ class _Saisie extends ConsumerWidget {
               ],
             ),
           ),
+        const BlocEnvoiAnciennesPieces(),
       ],
     );
   }
@@ -1318,9 +1473,12 @@ class _Balance extends StatelessWidget {
 
 /// Les onze tuiles (`grid grid-cols-1 lg:grid-cols-2 gap-4`).
 class _Tuiles extends StatelessWidget {
-  const _Tuiles({required this.onOnglet});
+  const _Tuiles({required this.onOnglet, required this.annee});
 
   final ValueChanged<String> onOnglet;
+
+  /// L'exercice consulté, que les fenêtres d'états relisent.
+  final int? annee;
 
   static const String _chevron =
       r'<path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6"/>';
@@ -1336,12 +1494,16 @@ class _Tuiles extends StatelessWidget {
           InkWell(
             key: Key('compta-tuile-$i'),
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            onTap: () => t.onglet == null
-                ? direTransverse(
-                    context,
-                    TextesComptabilite.tuileNonPortee(t.titre),
-                  )
-                : onOnglet(t.onglet!),
+            onTap: () => switch (t.onglet) {
+              null => direTransverse(
+                context,
+                TextesComptabilite.tuileNonPortee(t.titre),
+              ),
+              'fenetre-flux' => ouvrirFluxTresorerie(context, annee),
+              'fenetre-notes' => ouvrirNotesAnnexes(context, annee),
+              'fenetre-etats' => ouvrirEtatsFinanciers(context, annee),
+              final onglet => onOnglet(onglet),
+            },
             child: CarteTransverse(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

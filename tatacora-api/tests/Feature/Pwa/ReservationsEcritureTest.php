@@ -176,7 +176,7 @@ final class ReservationsEcritureTest extends TestCase
     {
         // `comptable` porte `M1 = 'L'` : la lecture d'un module ne donne
         // aucun droit d'y écrire.
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M1'));
 
         $this->assertLOuvertureEstRefuseeEtTracee(
@@ -292,6 +292,43 @@ final class ReservationsEcritureTest extends TestCase
         $this->assertSame(0, bccomp((string) $reservation->acompte, '5000', 2));
         $this->assertSame('2026-09-10', $reservation->date_arrivee->toDateString());
         $this->assertSame(1, Reservation::count(), 'La modification a créé une seconde ligne au lieu de modifier.');
+    }
+
+    /**
+     * 09/11/2026 : ajouter UN service sans toucher à rien d'autre doit faire redescendre la
+     * fiche aux postes. La descente du catalogue ne livre une réservation qu'à son propre
+     * `updated_at` ; les lignes sont ses enfants. Sans retouche, un poste gardait 75 000
+     * pendant que le web affichait 80 000.
+     */
+    #[Test]
+    public function ajouter_un_service_seul_fait_avancer_la_fiche_pour_la_descente_des_postes(): void
+    {
+        $this->actingAs($this->utilisateur($this->roleQuiEcritSurM1()));
+        $circuit = \App\Domain\Tourisme\Models\Circuit::create([
+            'nom' => 'Chutes de Kota', 'theme' => 'Nature', 'zone' => 'Atacora',
+            'duree' => '1 jour', 'prix' => '15000.00', 'capacite_max' => 12,
+        ]);
+        $reservation = app(ReservationService::class)->creer([
+            'id' => (string) Str::uuid(),
+            'client_id' => $this->client->id,
+            'unite_id' => $this->unite->id,
+            'date_arrivee' => '2026-09-10',
+            'date_depart' => '2026-09-14',
+        ]);
+        $avant = $reservation->fresh()->updated_at;
+
+        $this->travel(30)->seconds();
+
+        Livewire::test(Reservations::class)
+            ->call('ouvrirModificationReservation', $reservation->id)
+            ->call('basculerServiceFiche', 'tourisme')
+            ->set('rLignes.0.source_id', $circuit->id)
+            ->set('rLignes.0.quantite', '1')
+            ->call('enregistrerReservation')
+            ->assertHasNoErrors();
+
+        $this->assertSame(1, $reservation->fresh()->lignes()->count());
+        $this->assertTrue($reservation->fresh()->updated_at->gt($avant), 'la fiche n\'a pas avancé : le service n\'arrivera jamais aux postes');
     }
 
     #[Test]
@@ -483,7 +520,7 @@ final class ReservationsEcritureTest extends TestCase
     #[Test]
     public function un_role_sans_droit_n_ecrit_rien_et_le_refus_est_trace(): void
     {
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->actingAs($comptable);
 
         Livewire::test(Reservations::class)
@@ -531,7 +568,7 @@ final class ReservationsEcritureTest extends TestCase
         // 1er niveau du RBAC — il ne protège rien (les cas ci-dessus le
         // prouvent côté serveur), mais un bouton offert puis refusé ferait
         // perdre la saisie.
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
         $htmlLecture = (string) Livewire::test(Reservations::class)->html();
         $this->assertStringNotContainsString('wire:click="ouvrirCreationReservation"', $htmlLecture);
 
@@ -654,5 +691,152 @@ final class ReservationsEcritureTest extends TestCase
         $this->assertSame('annulee', $reservation->statut);
         $this->assertSame(0, bccomp((string) $reservation->montant_rembourse_annulation, '5000.00', 2));
         $this->assertNotNull($reservation->ecriture_remboursement_id);
+    }
+
+    /**
+     * LA RÈGLE DU « REMBOURSÉ » (constat du PO, 09/11/2026 : « le remboursé n'est pas calculé
+     * (total − commission retenue) »). Les deux annulations des captures du PO, rejouées au web :
+     *
+     * - « Robert » : total 80 000, taux 50 %, acompte 40 000 → commission 40 000 ; remboursé
+     *   proposé = acompte − commission = 0 (et NON total − commission = 40 000, qui rendrait au
+     *   client un argent que la commission a déjà consommé) ;
+     * - « Pierre » : total 90 000, taux 20 %, acompte 0 → commission 18 000, remboursé 0 (on ne
+     *   rend pas un acompte qui n'a jamais été encaissé, jamais « total − commission » = 72 000) ;
+     * - un acompte qui couvre la commission : remboursé = acompte − commission, plafonné à l'acompte.
+     *
+     * Le web dit cette règle sous l'onglet Annulations, au mot près de la phrase du poste.
+     */
+    #[Test]
+    public function le_rembourse_est_acompte_moins_commission_plafonne_a_l_acompte_et_l_onglet_le_dit(): void
+    {
+        $this->actingAs($this->utilisateur('administrateur'));
+        $arrivee = '2026-09-10';
+
+        $robert = app(ReservationService::class)->creer([
+            'id' => (string) Str::uuid(), 'client_id' => $this->client->id, 'unite_id' => $this->unite->id,
+            'date_arrivee' => $arrivee, 'date_depart' => '2026-09-12', 'tarif_nuit' => '40000', 'acompte' => '40000',
+            'mode_paiement' => 'especes',
+        ]);
+        $pierre = app(ReservationService::class)->creer([
+            'id' => (string) Str::uuid(), 'client_id' => $this->client->id, 'unite_id' => $this->unite->id,
+            'date_arrivee' => '2026-09-20', 'date_depart' => '2026-09-23', 'tarif_nuit' => '30000', 'acompte' => '0',
+        ]);
+        $couvert = app(ReservationService::class)->creer([
+            'id' => (string) Str::uuid(), 'client_id' => $this->client->id, 'unite_id' => $this->unite->id,
+            'date_arrivee' => '2026-10-01', 'date_depart' => '2026-10-03', 'tarif_nuit' => '40000', 'acompte' => '40000',
+            'mode_paiement' => 'especes',
+        ]);
+
+        // Robert : la valeur PROPOSÉE par la modale, puis l'annulation avec cette valeur.
+        $composant = Livewire::test(Reservations::class)
+            ->call('confirmerAnnulation', $robert->id)
+            ->set('aTaux', '50');
+        $composant->call('annulerReservation', $robert->id)->assertHasNoErrors();
+        $robert->refresh();
+        $this->assertSame('80000.00', (string) $robert->montant_total_annulation);
+        $this->assertSame('40000.00', (string) $robert->montant_commission_annulation);
+        $this->assertSame('0.00', (string) $robert->montant_rembourse_annulation, 'acompte 40 000 − commission 40 000');
+        $this->assertNull($robert->ecriture_remboursement_id, 'rien ne sort de la caisse');
+
+        // Pierre : acompte 0 → rien à rembourser, jamais total − commission (72 000).
+        Livewire::test(Reservations::class)
+            ->call('confirmerAnnulation', $pierre->id)
+            ->assertSet('aRembourseValeur', '0')
+            ->set('aTaux', '20')
+            ->call('annulerReservation', $pierre->id)
+            ->assertHasNoErrors();
+        $pierre->refresh();
+        $this->assertSame('90000.00', (string) $pierre->montant_total_annulation);
+        $this->assertSame('18000.00', (string) $pierre->montant_commission_annulation);
+        $this->assertSame('0.00', (string) $pierre->montant_rembourse_annulation);
+
+        // Un acompte qui couvre la commission : proposé = acompte − commission (60 % de 40 000).
+        $composant = Livewire::test(Reservations::class)
+            ->call('confirmerAnnulation', $couvert->id)
+            ->assertSet('aTaux', '50.00');
+        $composant->set('aTaux', '20')->set('aRembourseValeur', '60.00')
+            ->call('annulerReservation', $couvert->id)->assertHasNoErrors();
+        $couvert->refresh();
+        $this->assertSame('16000.00', (string) $couvert->montant_commission_annulation);
+        $this->assertSame('24000.00', (string) $couvert->montant_rembourse_annulation, '40 000 − 16 000, plafonné à l\'acompte');
+
+        // Plus que l'acompte : refusé, jamais accepté en silence.
+        $trop = app(ReservationService::class)->creer([
+            'id' => (string) Str::uuid(), 'client_id' => $this->client->id, 'unite_id' => $this->unite->id,
+            'date_arrivee' => '2026-11-01', 'date_depart' => '2026-11-03', 'tarif_nuit' => '40000', 'acompte' => '40000',
+            'mode_paiement' => 'especes',
+        ]);
+        Livewire::test(Reservations::class)
+            ->call('confirmerAnnulation', $trop->id)
+            ->set('aModeRemboursement', 'montant')->set('aRembourseValeur', '72000')
+            ->call('annulerReservation', $trop->id)
+            ->assertHasErrors(['aRembourseValeur']);
+        $this->assertSame('en_attente', $trop->refresh()->statut);
+
+        // L'onglet Annulations montre les mêmes montants.
+        $rendu = Livewire::test(Reservations::class)->set('ongletActif', 'annulations');
+        $html = (string) $rendu->html();
+        $this->assertStringNotContainsString('data-annulations-regle', $html);
+        foreach (['40000', '18000', '24000'] as $montant) {
+            $this->assertStringContainsString(\App\Pwa\Support\MontantFcfa::format($montant), $html);
+        }
+    }
+
+    #[Test]
+    public function l_onglet_annulations_nomme_l_auteur_local_d_une_annulation_venue_d_un_poste_et_le_compte_du_web_sinon(): void
+    {
+        $admin = $this->utilisateur('administrateur');
+        $this->actingAs($admin);
+        $service = app(\App\Domain\Hebergement\Services\AnnulationReservationService::class);
+        $creer = fn (string $arrivee, string $depart) => app(ReservationService::class)->creer([
+            'id' => (string) Str::uuid(), 'client_id' => $this->client->id, 'unite_id' => $this->unite->id,
+            'date_arrivee' => $arrivee, 'date_depart' => $depart, 'tarif_nuit' => '30000',
+        ]);
+
+        $duPoste = $creer('2026-09-10', '2026-09-12');
+        $service->annuler($duPoste, [
+            'taux' => '20', 'mode_remboursement' => 'montant', 'valeur_remboursement' => '0',
+            'auteur_login' => 'barman.local', 'poste' => 'poste-a',
+        ], $admin);
+        $duWeb = $creer('2026-09-20', '2026-09-22');
+        $service->annuler($duWeb, ['taux' => '20', 'mode_remboursement' => 'montant', 'valeur_remboursement' => '0'], $admin);
+
+        $html = (string) Livewire::test(Reservations::class)->set('ongletActif', 'annulations')->html();
+        $this->assertStringContainsString('barman.local', $html, 'le login LOCAL de l\'auteur, pas le compte d\'appairage');
+        $this->assertStringContainsString($admin->login, $html, 'une annulation du web garde son compte');
+    }
+
+    /**
+     * Décision du PO (09/11/2026) : le web ET le poste affichent le TOTAL et le RESTE DÛ dans
+     * l'historique. Total = sous-total − remise ; reste = total − acompte, jamais négatif.
+     */
+    #[Test]
+    public function l_historique_affiche_le_total_et_le_reste_du_comme_le_poste(): void
+    {
+        $this->actingAs($this->utilisateur('administrateur'));
+        $creer = fn (string $arrivee, string $depart, string $acompte, string $remise) => app(ReservationService::class)->creer([
+            'id' => (string) Str::uuid(), 'client_id' => $this->client->id, 'unite_id' => $this->unite->id,
+            'date_arrivee' => $arrivee, 'date_depart' => $depart, 'tarif_nuit' => '40000', 'acompte' => $acompte,
+            'remise_type' => $remise === '' ? 'aucune' : 'pourcentage', 'remise_valeur' => $remise === '' ? 0 : $remise,
+            'mode_paiement' => 'especes',
+        ]);
+        // 2 nuits × 40 000 = 80 000, remise 10 % → total 72 000, acompte 30 000 → reste dû 42 000.
+        $creer('2026-12-10', '2026-12-12', '30000', '10');
+        // Acompte supérieur au total : le reste dû est 0, jamais négatif.
+        $creer('2026-12-20', '2026-12-21', '60000', '');
+
+        $html = (string) Livewire::test(Reservations::class)->set('vue', 'historique')->html();
+
+        $this->assertStringContainsString(\App\Pwa\Support\MontantFcfa::format('72000'), $html);
+        $this->assertStringContainsString(\App\Pwa\Support\MontantFcfa::format('42000'), $html);
+        $this->assertStringContainsString(\App\Pwa\Support\MontantFcfa::format('40000'), $html);
+        $this->assertSame(2, substr_count($html, 'data-hist-reste'));
+        // Les cellules « Reste dû » de l'historique, et elles seules : jamais un montant négatif.
+        preg_match_all('/data-hist-reste[^>]*>([^<]*)</', $html, $restes);
+        $this->assertCount(2, $restes[1]);
+        foreach ($restes[1] as $cellule) {
+            $this->assertStringNotContainsString('-', $cellule);
+        }
+        $this->assertContains(\App\Pwa\Support\MontantFcfa::format('0'), array_map('trim', $restes[1]));
     }
 }

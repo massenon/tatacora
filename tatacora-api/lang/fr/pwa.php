@@ -60,11 +60,17 @@ declare(strict_types=1);
 
 return [
     'marque' => 'TATACORA AFRIQUE',
+    // Ligne sous la marque de la barre supérieure (PO, 28/10/2026) : sans la mention
+    // « Gîte Chez Noël, Natitingou (Bénin) », qui reste dans l'en-tête des états.
+    'barre_localisation' => 'Système de gestion Intégré',
+    // Titre d'onglet d'une page qui n'en déclare pas (26/10/2026, PO).
+    'titre_defaut' => 'LogiReStock — TATACORA AFRIQUE',
     'baseline' => 'Consultation de secours — Gîte Chez Noël',
 
     // maquette — badge de la barre supérieure (shell.js, construireTopBar)
     'enseigne_courte' => 'Gîte Chez Noël',
     'alt_logo' => 'Logo TATACORA AFRIQUE',
+    'apercu_social_description' => 'Le logiciel de gestion intégrée du gîte, du restaurant et du tourisme — TATACORA AFRIQUE, Gîte Chez Noël, Natitingou (Bénin).',
     // maquette — mention de bas de page de login.html
     'pied_de_page' => 'TATACORA AFRIQUE © 2026 — PAEB / FAGUEZ SARL',
     // maquette — pied du menu latéral (shell.js, construireSidebar)
@@ -72,44 +78,68 @@ return [
 
     // Message du 405 de `ForcerLectureSeule` : les routes /pwa sont GET-only,
     // les écritures passent par les actions des écrans, jamais par une route.
-    'ecriture_refusee' => 'Les routes de la consultation web ne reçoivent aucune écriture. '
+    'ecriture_refusee' => 'Cette action n\'est pas permise depuis cette adresse. '
         . 'Les saisies passent par les écrans de l\'interface.',
 
     'connexion' => [
-        // Le nom d'onglet est le <h1> de la page (BaliseTitrePwaTest, même
-        // règle que les 49 autres pages), suivi de la marque.
-        //
-        // DÉCISION DU PRODUCT OWNER DU 13/10/2026 (PA-208, ticket D385) :
-        // « LogiRestock » — nom d'un autre produit, que l'ancienne maquette
-        // `login.html` portait en titre de colonne gauche — est REMPLACÉ par
-        // la mention que la barre supérieure et l'en-tête des états rendent
-        // déjà (`rapports.entete.localisation`, D373). Ne pas le rétablir :
-        // `AucunLogiRestockAfficheTest` rougit.
-        //
-        // SECONDE DÉCISION DU PO DU 13/10/2026 (PA-209, ticket D389) : la
-        // mention elle-même devient « Système de gestion Intégré » (casse
-        // exacte du PO) ; l'ancienne formule, « Système d'Information
-        // Intégré », rougit la même garde.
-        'titre_page' => 'Système de gestion Intégré TATACORA AFRIQUE — TATACORA AFRIQUE',
+        // Le nom d'onglet est le <h1> de la page suivi de la marque
+        // (BaliseTitrePwaTest) : le <h1> est « Connexion » (masqué à l'oeil,
+        // lu par les lecteurs d'écran), la marque est `pwa.titre_defaut`.
+        // Refonte du 29/10/2026 (PO, docs/HANDOFF_ECRAN_CONNEXION_LOGIRESTOCK.md) :
+        // carte unique, sans panneau image ; la mention « Système de gestion
+        // Intégré » (PA-209) vivait dans ce panneau et reste portée par le
+        // démarrage et l'aide. `AucunLogiRestockAfficheTest` garde l'ancien nom.
+        'titre_h1' => 'Connexion',
+        // Rechargement après un 419/401 (jeton ou session expiré) : voir
+        // `pwa.partials.session-expiree` et le gestionnaire d'exceptions.
+        'session_expiree' => 'Votre session a expiré, reconnectez-vous.',
+        // Décision du PO du 29/10/2026 : « Connexion — LogiReStock », SANS la
+        // suite « — TATACORA AFRIQUE » des autres pages (exception déclarée dans
+        // `BaliseTitrePwaTest::TITRE_DISTINCT_DU_H1`, limitée à cette page).
+        'titre_page' => 'Connexion — LogiReStock',
 
-        // Panneau image de gauche (`hidden lg:block lg:w-1/2`). Le <br> tient
-        // le titre sur deux lignes à la césure voulue, quelle que soit la
-        // largeur. Mêmes décisions du 13/10/2026 que `titre_page`.
+        // Marque en deux tons : « Logi » en couleur primaire (navy), « ReStock »
+        // en accent (gold). Le nom reste UN mot pour un lecteur d'écran.
+        // Panneau image de gauche (dès `lg`) — rétabli le 29/10/2026 (PO). Le <br>
+        // tient le titre sur deux lignes à la césure voulue ; mêmes décisions du
+        // 13/10/2026 (PA-208, PA-209) que l'ancien `titre_page`.
         'titre_panneau' => 'Système de gestion Intégré<br>TATACORA AFRIQUE',
-        // maquette — `login.html` l.20
         'accroche_panneau' => 'Hébergement, restauration, tourisme, véhicules, '
             . 'achats, stocks, comptabilité et ressources humaines — une seule '
             . 'plateforme, pour le Gîte Chez Noël à Natitingou.',
         'alt_couverture' => 'Gîte Chez Noël, Natitingou',
 
-        // maquette — colonne de droite
-        'sous_titre' => 'Connectez-vous à votre espace de travail',
-        'login' => 'Identifiant',
-        'exemple_login' => 'ex. n.nabogou',
-        'mot_de_passe' => 'Mot de passe',
+        'marque_logi' => 'Logi',
+        'marque_restock' => 'ReStock',
+        'slogan' => 'VOTRE LOGICIEL DE GESTION INTÉGRÉE',
+
+        // Bandeau de sept pictogrammes : un par module, infobulle = ce libellé.
+        'modules' => [
+            'restauration' => 'Restauration',
+            'hebergement' => 'Hébergement',
+            'eco_tourisme' => 'Éco-tourisme',
+            'stock' => 'Stock',
+            'location' => 'Location',
+            'caisse' => 'Caisse',
+            'comptabilite' => 'Comptabilité',
+        ],
+        'bandeau_modules' => 'Modules de LogiReStock',
+
+        'bienvenue' => 'Bienvenue !',
+        'accroche' => 'Connectez-vous à votre espace d\'administration LogiReStock.',
+        'login' => 'NOM D\'UTILISATEUR OU E-MAIL',
+        'mot_de_passe' => 'MOT DE PASSE',
         'afficher_mot_de_passe' => 'Afficher le mot de passe',
         'masquer_mot_de_passe' => 'Masquer le mot de passe',
-        'valider' => 'Se connecter',
+        'se_souvenir' => 'Se souvenir de moi',
+        'mot_de_passe_oublie' => 'Mot de passe oublié ?',
+        // Aucune route de réinitialisation n'existe : le lien dit la vérité
+        // plutôt que de mener nulle part (même phrase sur le poste).
+        'mot_de_passe_oublie_aide' => 'Contactez l\'administrateur',
+        // 29/10/2026 (PO, option A) : le recours du dernier administrateur.
+        'mot_de_passe_administrateur_perdu' => 'J\'ai perdu mon mot de passe administrateur',
+        'valider' => 'SE CONNECTER',
+        'connexion_en_cours' => 'Connexion…',
 
         // La limitation de débit porte sur le couple (login + IP) : au Gîte,
         // tous les postes sortent derrière la même adresse publique, et
@@ -463,7 +493,7 @@ return [
         // tout écran de la PWA (`BaliseTitrePwaTest`). « Hors connexion » était
         // un second nom pour la même page ; le <h1> dit ce qui manque, c'est
         // lui qui fait foi.
-        'titre_page' => 'Connexion Internet requise — TATACORA AFRIQUE',
+        'titre_page' => 'Connexion Internet requise — LogiReStock — TATACORA AFRIQUE',
         'titre' => 'Connexion Internet requise',
 
         // Aucun équivalent au maître : la page n'existe que pour la PWA, qui
@@ -486,29 +516,13 @@ return [
         'reessayer' => 'Réessayer',
         'se_connecter' => 'Se connecter',
         'session_titre' => 'Session interrompue par la perte du réseau',
-        'session_explication' => 'Votre session reste ouverte sur ce poste. '
+        'session_explication' => 'Votre session reste ouverte. '
             . 'Rétablissez le réseau puis réessayez : si la session s\'est '
             . 'verrouillée entre-temps, le formulaire de déverrouillage '
             . 's\'affichera.',
     ],
 
-    /*
-     * Page d'erreur 404 (`resources/views/errors/404.blade.php`).
-     *
-     * Aucun équivalent au maître : `prototype_v2/` ne maquette pas d'écran
-     * d'erreur. Habillée aux couleurs de la coquille (navy/gold, logo,
-     * `assets/css/app.css`) plutôt que la page blanche par défaut de Laravel,
-     * qui ne dit ni où l'on est ni où revenir — et qui, servie par le même
-     * serveur mutualisé cPanel que le reste de l'application, ne doit
-     * charger aucune ressource distante (`DIRECTIVE_CONFORMITE_100.md`).
-     */
-    'erreur_404' => [
-        'titre_page' => 'Page introuvable — TATACORA AFRIQUE',
-        'titre' => 'Page introuvable',
-        'explication' => 'Cette adresse ne correspond à aucune page de TATACORA AFRIQUE : elle a peut-être '
-            . 'été déplacée, ou son lien était incorrect.',
-        'retour' => 'Retour au tableau de bord',
-    ],
+    // Pages d'erreur (404 comprise) : `lang/fr/erreurs.php`.
 
     /*
      |--------------------------------------------------------------------------
@@ -611,21 +625,13 @@ return [
         'export_onglet_refuse' => 'L\'export Excel n\'est offert que sur l\'onglet Journal.',
         'export_vide' => 'Rien à exporter : aucune écriture ne correspond aux filtres affichés.',
 
-        // --- Les refus nommés (Article 8) ----------------------------------
-        'refus_titre' => 'Ce que cet écran ne fait pas, et pourquoi',
-        'refus_actions_cloture' => 'Ouvrir un exercice, clôturer une période '
-            . 'ou clôturer l\'exercice sont des écritures. Cet écran en montre '
-            . 'l\'ÉTAT ; il ne déclenche rien, et le serveur ne l\'expose pas.',
 
-        // --- Ce que le serveur signale et qu'il faut dire -------------------
-        'hors_ecran_titre' => 'Comptes hors des sept classes affichées',
-        'hors_ecran_detail' => 'Le schéma admet les classes 8 (hors activités '
-            . 'ordinaires) et 9 (analytique), que cet écran n\'a aucun bouton '
-            . 'pour atteindre. Les taire rendrait ces comptes invisibles sous '
-            . 'un plan qui aurait l\'air complet.',
-        'sans_nature' => ':nombre compte(s) sans nature renseignée — la '
-            . 'colonne affiche « — », qui n\'est pas une nature.',
+        'sans_nature' => ':nombre compte(s) sans nature renseignée.',
 
+        'note_ouverture_variation' => 'Ouverture · variation de l\'exercice',
+        'solde_ouverture' => 'Solde d\'ouverture',
+        'solde_cloture' => 'Solde de clôture',
+        'ouverture_provisoire' => 'Ouverture PROVISOIRE : l\'exercice :annee n\'est pas clôturé, son report à nouveau est calculé à chaque lecture.',
         'solde_ouverture_inconnu' => 'Solde d\'ouverture inconnu, jamais zéro : '
             . 'aucun report à nouveau n\'existe encore. Le solde progressif '
             . 'part donc des seuls mouvements de l\'exercice.',
@@ -637,8 +643,7 @@ return [
 
         'structure_non_repartie' => 'Aucune charge de structure n\'est '
             . 'répartie : les montants ci-dessous sont des marges sur coûts '
-            . 'directs, pas des résultats nets. Une clé de répartition est une '
-            . 'décision de gestion, pas une constante technique.',
+            . 'directs, pas des résultats nets.',
 
         'resultat_avant_impot' => 'Résultat affiché avant Impôt sur les '
             . 'Sociétés : aucun impôt n\'est comptabilisé en classe 89 sur cet '
@@ -654,14 +659,14 @@ return [
         // ferait disparaître.
         'motifs' => [
             'report_a_nouveau_absent' => 'Aucun mécanisme de report à nouveau n\'existe.',
-            'detail_physique_hors_domaine_m10' => 'Le détail physique relève des stocks (M6), hors de la comptabilité.',
-            'effectif_hors_domaine_m10' => 'L\'effectif relève des ressources humaines (M13), hors de la comptabilité.',
+            'detail_physique_hors_domaine_m10' => 'Le détail physique relève des stocks, hors de la comptabilité.',
+            'effectif_hors_domaine_m10' => 'L\'effectif relève des ressources humaines, hors de la comptabilité.',
             'non_saisi_par_le_comptable' => 'Rubrique en texte libre : rien n\'a encore été saisi.',
-            'lettrage_par_anciennete_non_arbitre' => 'Le lettrage par ancienneté (30/60/90 jours) n\'est pas arbitré.',
+            'lettrage_par_anciennete_non_arbitre' => 'Le lettrage par ancienneté (30/60/90 jours) n\'est pas vérifié.',
             'impot_non_comptabilise' => 'Aucun impôt sur le résultat n\'est comptabilisé en classe 89.',
             'charges_de_structure_non_reparties' => 'Les charges de structure ne sont pas réparties entre les centres.',
-            'inventaire_physique_hors_domaine_m10' => 'L\'inventaire physique relève des stocks (M6), hors de la comptabilité.',
-            'action_de_cloture_non_exposee' => 'L\'action de clôture n\'est exposée par aucune route du serveur.',
+            'inventaire_physique_hors_domaine_m10' => 'L\'inventaire physique relève des stocks, hors de la comptabilité.',
+            'action_de_cloture_non_exposee' => 'L\'action de clôture n\'est pas disponible sur cet écran.',
             'depend_d_une_etape_non_atteinte' => 'Dépend d\'une étape précédente qui n\'est pas atteinte.',
             'cloture_non_demarree' => 'La clôture n\'est pas démarrée (onglet « Clôtures » de la comptabilité).',
             'cloture_non_passee' => 'La clôture définitive n\'est pas encore passée.',
@@ -673,7 +678,7 @@ return [
             'bilan_desequilibre' => 'Le bilan n\'est pas équilibré.',
             'releves_bancaires_non_rapproches' => 'Des relevés bancaires ne sont pas rapprochés.',
             // Article 8 (02/09/2026) : la reference PA-28 vit ici, jamais a l'ecran.
-            'perimetre_cloture_non_arbitre' => 'Le périmètre de la clôture — mensuelle ou annuelle — n\'est pas arbitré.',
+            'perimetre_cloture_non_arbitre' => 'Le périmètre de la clôture — mensuelle ou annuelle — n\'est pas vérifié.',
         ],
 
         'etats' => [
@@ -699,7 +704,7 @@ return [
      * du maître à côté.
      */
     'aide' => [
-        'titre_page' => 'Aide & À propos — TATACORA AFRIQUE',
+        'titre_page' => 'Aide & À propos — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.24-26
         'titre' => 'Aide & À propos',
         'sous_titre' => 'Documentation complète, guide des modules et foire aux questions.',
@@ -721,10 +726,6 @@ return [
             . 'réservation prise pendant une coupure ne doit pas être perdue, et un guide en circuit de '
             . 'plusieurs jours travaille sans couverture.',
 
-        'version_titre' => 'Version du prototype',
-        // ÉCART Article 8 — voir le bloc de `AideAPropos` : la version du
-        // maître désigne le prototype, pas la PWA.
-        'version_valeur' => 'Maquette de référence v2.0 — 18/08/2026',
         'moe_titre' => 'Maîtrise d\'œuvre',
         'moe_valeur' => 'Cabinet FAGUEZ SARL / PAEB',
         'po_titre' => 'Product Owner',
@@ -799,18 +800,15 @@ return [
             ],
             'M11' => [
                 'nom' => 'Tableau de bord',
-                'description' => 'Indicateurs consolidés de toute l\'exploitation. Les intitulés disent ce qui '
-                    . 'est réellement calculé — « encaissé », pas « payé ».',
+                'description' => 'Indicateurs consolidés de toute l\'exploitation.',
             ],
             'M12' => [
                 'nom' => 'Notifications',
-                'description' => 'Modèles de messages WhatsApp, e-mail et Android, et leurs déclencheurs. '
-                    . 'L\'envoi effectif dépend d\'une API non encore contractée.',
+                'description' => 'Modèles de messages WhatsApp, e-mail et Android, et leurs déclencheurs.',
             ],
             'M13' => [
                 'nom' => 'Personnel & Paie',
-                'description' => 'Employés, planning, congés et bulletins. CNSS, ITS et VPS calculés ; la part '
-                    . 'de charge patronale non confirmée est refusée, pas estimée.',
+                'description' => 'Employés, planning, congés et bulletins. CNSS, ITS et VPS calculés.',
             ],
             'M14' => [
                 'nom' => 'États & Rapports',
@@ -820,7 +818,7 @@ return [
             'ROLES' => [
                 'nom' => 'Rôles & Permissions',
                 'description' => 'Matrice des droits par module et par rôle. Trois niveaux : masquage de '
-                    . 'l\'interface, contrôle serveur, filtrage en base.',
+                    . 'l\'interface, contrôle à l\'enregistrement, filtrage des données.',
             ],
             'PARAM' => [
                 'nom' => 'Paramètres & Import/Export',
@@ -935,10 +933,8 @@ return [
             [
                 'categorie' => 'Sécurité',
                 'question' => 'Où sont stockées mes données ?',
-                'reponse' => 'Sur ce prototype, dans le navigateur du poste (localStorage) — c\'est une maquette '
-                    . 'de démonstration, pas un environnement de production. L\'application réelle stocke sur un '
-                    . 'serveur MySQL, avec sauvegarde quotidienne automatique. Ne saisissez aucune donnée client '
-                    . 'réelle dans le prototype.',
+                'reponse' => 'Sur le serveur de l\'entreprise (base MySQL), avec une sauvegarde automatique '
+                    . 'quotidienne.',
             ],
         ],
 
@@ -959,21 +955,6 @@ return [
             . 'signalement d\'anomalies.',
         'contact_bouton' => 'Contacter l\'éditeur',
 
-        /*
-         * Ce que cet écran ne fait pas — Article 8, chaque phrase adossée au
-         * bloc de dérogation du composant `AideAPropos`.
-         *
-         * Le jeton `maitre-refuse:aide-a-propos.html#ressources` est déclaré
-         * dans la vue, pour que `t-trois-sources.js` distingue un bloc refusé
-         * d'un bloc oublié.
-         */
-        'refus_titre' => 'Ce que cet écran ne fait pas, et pourquoi',
-        'refus_alertes' => '« Revoir mes alertes » n\'est pas proposé : aucune source d\'alerte n\'existe côté '
-            . 'serveur — le domaine Notifications est vide tant que l\'API WhatsApp n\'est pas contractée. Un '
-            . 'bouton qui n\'affiche jamais rien se lirait comme « rien à signaler », ce qui est une affirmation '
-            . '(constat du 27/08/2026).',
-        'refus_modeles_import' => '« Modèles d\'import » n\'ouvre rien : l\'import est une écriture, exclue du '
-            . 'périmètre de la consultation web. La carte reste visible et le dit, plutôt que de disparaître.',
     ],
 
     /*
@@ -986,7 +967,7 @@ return [
      * ou si l'écran est cassé.
      */
     'contact' => [
-        'titre_page' => 'Contactez l\'éditeur — TATACORA AFRIQUE',
+        'titre_page' => 'Contactez l\'éditeur — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.23-25
         'titre' => 'Contactez l\'éditeur',
         'sous_titre' => 'Assistance technique, suggestions et signalement d\'anomalies.',
@@ -1049,13 +1030,8 @@ return [
         'envois_statut_transmis' => 'Transmis',
         'envois_statut_a_transmettre' => 'En attente d\'envoi',
         'envois_capture' => '1 capture jointe',
+        'envois_derniere_erreur' => 'Dernière erreur : :erreur',
 
-        /*
-         * maquette — l.188-200, le bandeau « Sur cette maquette » — NON RENDU
-         * depuis le 01/09/2026 : la phrase du maître est devenue fausse (voir
-         * le docblock de `App\Pwa\Livewire\Transverse\ContactEditeur`).
-         */
-        'maquette_titre' => 'Sur cette maquette',
 
         // maquette — l.202-214 — NON RENDU, voir le docblock du composant
         'accompagne_titre' => 'Ce qui accompagne votre envoi',
@@ -1074,13 +1050,42 @@ return [
     // Décision PO du 18/10/2026 : « le serveur doit avoir aussi le bouton
     // synchroniser, pour envoyer les données en local si le serveur a été
     // utilisé pour enregistrer des données ».
+    // « Synchronisation » (09/11/2026) : l'état de la synchronisation, page de TOUS les rôles.
+    'synchronisation_page' => [
+        'titre_page' => 'Synchronisation — LogiReStock — TATACORA AFRIQUE',
+        'titre' => 'Synchronisation',
+        'sous_titre' => 'Ce que le poste envoie au serveur, ce qu\'il en reçoit, et ce qui reste à traiter.',
+        'a_traiter' => 'À traiter',
+        // Les en-têtes de l'écran de synchronisation du poste (mêmes mots).
+        'col_date' => 'Date',
+        'col_poste' => 'Poste',
+        'col_donnee' => 'Table',
+        'col_issue' => 'Statut',
+        'col_cause' => 'Motif',
+        'aucun_echec' => 'Aucune opération rejetée, en conflit ou bloquée.',
+    ],
+
     'synchronisation_postes' => [
-        'titre_page' => 'Synchroniser les postes — TATACORA AFRIQUE',
-        'titre' => 'Synchroniser les postes',
-        'sous_titre' => 'Ce qui a été enregistré ici part vers les postes Windows à leur prochain passage. '
-            . 'Le bouton les fait passer tout de suite (moins d\'une minute) : chacun envoie sa file, '
-            . 'puis reçoit tout ce que le serveur détient, tous modules.',
-        'bouton' => 'Synchroniser maintenant',
+        'titre_page' => 'Appairage Postes — LogiReStock — TATACORA AFRIQUE',
+        'titre' => 'Appairage Postes',
+        'sous_titre' => 'Postes Windows appairés au serveur : leur état, leur dernier contact, l\'expiration de '
+            . 'leur jeton et leur dernier contrôle de cohérence. Ce qui a été enregistré ici part vers eux à leur '
+            . 'prochain passage ; la demande les fait passer tout de suite (moins d\'une minute) : chacun envoie '
+            . 'sa file, puis reçoit tout ce que le serveur détient, tous modules.',
+        'bouton' => 'Demander la synchronisation des postes',
+        'actualiser' => 'Actualiser',
+        'col_utilisateur' => 'Utilisateur',
+        'col_appaire_le' => 'Appairé le',
+        'col_contact' => 'Dernier contact',
+        'col_expiration' => 'Expiration',
+        'col_controle' => 'Dernier contrôle',
+        'col_etat' => 'État',
+        'col_actions' => 'Actions',
+        'sans_expiration' => 'Sans expiration',
+        'etat_actif' => 'Actif',
+        'etat_silencieux' => 'Sans nouvelles',
+        'etat_expire' => 'Expiré',
+        'etat_non_appaire' => 'Non appairé',
         'demande_faite' => 'Demande envoyée le :date. Les postes allumés et connectés la suivent dans la minute.',
         'aucune_demande' => 'Aucune demande de synchronisation n\'a encore été faite depuis le serveur.',
         'derniere_demande' => 'Dernière demande : :date',
@@ -1104,18 +1109,34 @@ return [
         'bouton_revoquer' => 'Révoquer',
         'revocation_titre' => 'Révoquer l\'appairage du poste « :poste » ?',
         'revocation_texte' => 'Le poste ne pourra plus envoyer ni recevoir tant qu\'un Administrateur ne l\'aura pas '
-            . 'réappairé (Paramètres → Synchronisation, sur le poste). Ce qu\'il a enregistré reste dans sa file : '
+            . 'réappairé (menu Appairage Postes, sur le poste). Ce qu\'il a enregistré reste dans sa file : '
             . 'rien n\'est perdu.',
         'revocation_confirmer' => 'Révoquer l\'appairage',
         'revocation_faite' => 'Appairage du poste « :poste » révoqué.',
     ],
 
+    // L'icône de synchronisation de la barre supérieure (03/11/2026, demande
+    // du PO). AJOUT à la maquette ; le poste porte la même
+    // (`BoutonSynchronisation`).
+    'synchronisation_barre' => [
+        'etiquette' => 'Synchronisation',
+        'titre' => 'Synchronisation des postes',
+        'sous_titre' => 'L\'état des postes appairés et la demande de synchronisation.',
+        'voyant_gris' => 'Aucun poste appairé : rien à synchroniser.',
+        'voyant_vert' => 'Tous les postes appairés ont donné signe de vie il y a moins de :minutes minutes.',
+        'voyant_orange' => 'Au moins un poste appairé est en retard ou n\'a jamais été vu (plus de :minutes minutes sans contact).',
+        'en_retard' => 'En retard',
+        'revoque' => 'Appairage révoqué',
+        'regle' => 'Un poste appairé est « en retard » après plus de :minutes minutes sans contact avec le serveur (un poste allumé et connecté le contacte toutes les 30 secondes).',
+        'voir_detail' => 'Voir Appairage Postes',
+    ],
+
     'journal_audit' => [
-        'titre_page' => 'Journal d\'Audit — TATACORA AFRIQUE',
+        'titre_page' => 'Journal d\'Audit — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.24-26
         'titre' => 'Journal d\'Audit',
         'sous_titre' => 'Traçabilité intégrale de toute action sensible — utilisateur, action, entité '
-            . 'concernée, date et heure (, chap. 11.4 du CdCF)',
+            . 'concernée, date et heure',
 
         // maquette — l.30-33, les deux filtres
         'recherche' => 'Rechercher (utilisateur, action, détail)...',
@@ -1177,6 +1198,7 @@ return [
             'commandes_achat' => 'Commande d\'achat',
             'fournisseurs' => 'Fournisseur',
             'parametres_systeme' => 'Paramètre système',
+            'utilisateurs' => 'Compte utilisateur',
         ],
 
         // maquette — l.57
@@ -1184,7 +1206,7 @@ return [
         // maquette — l.59, la mention de pied de page, reprise telle quelle :
         // elle dit exactement ce que ce canal garantit.
         'mention_lecture_seule' => '🔒 Ce journal est en lecture seule pour tous les profils, y compris '
-            . 'l\'Administrateur, conformément au chap. 11.4 du CdCF.',
+            . 'l\'Administrateur.',
 
         // Le décompte réel, affiché à côté du tableau : une troncature doit se
         // voir, sinon elle se lit comme « il n'y a que ça ».
@@ -1192,24 +1214,6 @@ return [
         'tronque' => 'Seules les :plafond entrées les plus récentes sont affichées sur :total. Affinez la '
             . 'recherche ou le filtre d\'action pour atteindre les autres.',
 
-        /*
-         * Ce que cet écran ne fait pas — Article 8, chaque phrase adossée à un
-         * bloc de dérogation de `App\Pwa\Livewire\Transverse\JournalAudit`.
-         */
-        'refus_titre' => 'Ce que cet écran ne fait pas, et pourquoi',
-        'refus_reinitialiser' => 'Le bouton « Réinitialiser les données de démo » du maître n\'est pas rendu : '
-            . 'c\'est un outil de démonstration, et il est destructeur. Le journal d\'audit est inaltérable pour '
-            . 'tous les profils, y compris l\'Administrateur — c\'est la mention que le maître affiche lui-même '
-            . 'sous son tableau.',
-        'refus_detail' => 'La colonne « Détail » nomme la table concernée en français et, quand elle sait '
-            . 'encore le lire, le libellé réel de l\'enregistrement (numéro, nom, libellé de carte…) — jamais la '
-            . 'phrase libre du maître, que le registre n\'a aucune colonne pour porter. Les instantanés « avant » '
-            . 'et « après » que le schéma conserve ne sont pas affichés — ils contiennent le contenu des lignes '
-            . 'touchées (un numéro de téléphone client, un montant), et le journal deviendrait une seconde '
-            . 'surface d\'exposition.',
-        'refus_import_export' => 'Les actions « Import » et « Export » du maître n\'apparaîtront pas dans la '
-            . 'liste : aucun code de ce dépôt n\'en écrit (constat du 27/08/2026). La liste ne propose que les '
-            . 'actions réellement présentes — un filtre qui propose une valeur inatteignable passe pour cassé.',
     ],
 
     /*
@@ -1221,7 +1225,7 @@ return [
      * manque ou si l'écran est amputé.
      */
     'profil' => [
-        'titre_page' => 'Mon profil — TATACORA AFRIQUE',
+        'titre_page' => 'Mon profil — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.22-24
         'titre' => 'Mon profil',
         'sous_titre' => 'Vos informations personnelles, votre mot de passe et la trace de vos dernières '
@@ -1232,12 +1236,6 @@ return [
         'derniere_connexion' => 'Dernière connexion',
         'adresse_ip' => 'Adresse IP du poste',
         'statut_compte' => 'Statut du compte',
-        // maquette — l.52-55, la note sous les métadonnées. Reprise telle
-        // quelle : elle décrit exactement ce que la PWA fait, puisque son
-        // adresse vient du serveur.
-        'note_ip' => 'L\'adresse IP affichée est celle relevée par le poste. Sur l\'application réelle elle '
-            . 'vient du serveur : une adresse déclarée par le navigateur ne prouve rien et ne doit jamais '
-            . 'servir de contrôle d\'accès.',
 
         // maquette — l.61-97, informations personnelles
         'infos_titre' => 'Informations personnelles',
@@ -1245,18 +1243,31 @@ return [
         'email' => 'Email',
         'telephone' => 'Téléphone',
         'fonction' => 'Fonction',
-        'exemple_email' => 'ex. nom@tatacora.com',
-        'exemple_telephone' => '+229 01 XX XX XX XX',
         // maquette — l.86-91, la note bleue. Reprise mot pour mot : elle dit
         // pourquoi la fonction est en lecture, et cela reste vrai ici.
+        // 03/11/2026 : la note disait que « la fonction et les droits » étaient
+        // gérés par l'administrateur sans qu'aucun droit existe pour le nom, le
+        // téléphone ni l'intitulé — elle empêchait de renseigner ces champs sans
+        // le dire. Désormais vraie : la FONCTION est le rôle (ou la fiche RH) et
+        // reste à l'administrateur ; le reste dépend de trois droits explicites.
         'note_fonction_avant' => 'La fonction et les droits d\'accès (RBAC) sont gérés par l\'administrateur '
             . 'système — voir ',
         'note_fonction_lien' => 'Rôles & Permissions',
-        'note_fonction_apres' => '. Un utilisateur qui pourrait modifier sa propre fonction contournerait la '
-            . 'matrice de droits en un clic.',
+        'note_fonction_apres' => '. L\'intitulé de poste est un texte libre, sans effet sur vos droits.',
+        'intitule_poste' => 'Intitulé de poste',
+        'champ_non_modifiable_avant' => 'Votre rôle ne permet pas de modifier ce champ — demandez à '
+            . 'l\'administrateur (',
+        'champ_non_modifiable_lien' => 'Rôles & Permissions',
+        'champ_non_modifiable_apres' => ').',
+        'nom_complet_invalide' => 'Le nom complet ne peut pas dépasser 120 caractères ni contenir de caractère de contrôle.',
+        'telephone_invalide' => 'Le téléphone ne peut contenir que des chiffres, des +, des espaces et des tirets (30 caractères au plus).',
+        'intitule_invalide' => 'L\'intitulé de poste ne peut pas dépasser 120 caractères ni contenir de caractère de contrôle.',
+        'champ_refuse' => 'Votre rôle ne permet pas de modifier ce champ.',
+        'infos_enregistrees' => 'Informations enregistrées.',
+        'aucun_changement' => 'Aucune modification à enregistrer.',
+        'audit_profil_modifie' => 'Profil modifié',
         'enregistrer_infos' => 'Enregistrer les informations',
         'sans_fiche_rh' => 'Aucune fiche employé n\'est rattachée à ce compte.',
-        'sans_colonne' => 'Non porté par le schéma.',
 
         // maquette — l.99-141, mot de passe — écriture réelle depuis le 01/09/2026
         'mdp_titre' => 'Modifier le mot de passe',
@@ -1267,12 +1278,28 @@ return [
         'mdp_confirmation' => 'Confirmer le nouveau mot de passe',
         'mdp_regle' => 'Min. 8 caractères.',
         'mdp_bouton' => 'Mettre à jour le mot de passe',
-        'mdp_note' => 'La vérification de l\'ancien mot de passe et le hachage du nouveau ont lieu côté '
-            . 'serveur — un contrôle fait dans le navigateur se contourne en ouvrant la console.',
         'mdp_confirmation_invalide' => 'Le nouveau mot de passe et sa confirmation ne correspondent pas.',
         'mdp_identique' => 'Le nouveau mot de passe est identique à l\'ancien.',
         'mdp_ancien_invalide' => 'L\'ancien mot de passe est incorrect.',
         'mdp_mise_a_jour' => 'Mot de passe mis à jour.',
+
+        // 29/10/2026 (PO, option A) : le code de secours de l\'administrateur.
+        'code_secours_titre' => 'Code de secours',
+        'code_secours_sous_titre' => 'À usage unique : il permet au dernier administrateur de retrouver l\'accès si '
+            . 'son mot de passe est perdu.',
+        'code_secours_present' => 'Un code de secours est enregistré (posé le :date).',
+        'code_secours_absent' => 'Aucun code de secours n\'est enregistré.',
+        'code_secours_ouvrir' => 'Générer un code de secours',
+        'code_secours_modale_titre' => 'Générer un code de secours',
+        'code_secours_modale_sous_titre' => 'Confirmez votre mot de passe. Le code précédent, s\'il existe, ne '
+            . 'fonctionnera plus.',
+        'code_secours_mot_de_passe' => 'Mot de passe actuel',
+        'code_secours_generer' => 'Générer le code',
+        'code_secours_affiche_titre' => 'Votre code de secours',
+        'code_secours_consigne' => 'Ce code ne sera plus affiché. Notez-le ou imprimez-le et rangez-le au coffre.',
+        'code_secours_fermer' => 'J\'ai rangé ce code',
+        'code_secours_impression_titre' => 'Code de secours de l\'administrateur',
+        'code_secours_reserve' => 'Le code de secours est réservé aux administrateurs.',
 
         // maquette — l.144-166, le journal personnel
         'journal_titre' => 'Journal d\'audit — :nombre dernières actions',
@@ -1299,10 +1326,10 @@ return [
      * bloc de tête de `App\Pwa\Livewire\Transverse\RolesPermissions`.
      */
     'roles' => [
-        'titre_page' => 'Rôles & Permissions — TATACORA AFRIQUE',
+        'titre_page' => 'Rôles & Permissions — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.23-25
         'titre' => 'Rôles & Permissions',
-        'sous_titre' => 'Contrôle d\'accès basé sur les rôles (RBAC) — socle du chap. 11.2 du CdCF, '
+        'sous_titre' => 'Contrôle d\'accès basé sur les rôles (RBAC) — socle '
             . 'amendable. C = accès complet, L = lecture seule, — = aucun accès.',
 
         // maquette — l.40-47, la matrice et sa légende
@@ -1311,6 +1338,15 @@ return [
         'legende_lecture' => 'Lecture seule (L)',
         'legende_aucun' => 'Aucun accès',
         'col_module' => 'Module',
+        // Section « Profil » (03/11/2026, décision du PO) : trois droits
+        // binaires de modifier SES PROPRES champs de « Mon profil ». Ajout à la
+        // maquette, qui ne les connaît pas.
+        'section_profil' => 'Profil',
+        'profil_PROFIL_NOM' => 'Modifier son nom complet',
+        'profil_PROFIL_TELEPHONE' => 'Modifier son téléphone',
+        'profil_PROFIL_INTITULE' => 'Modifier son intitulé de poste',
+        'profil_autorise' => 'Autorisé',
+        'profil_refuse' => 'Non autorisé',
 
         // maquette — l.136-137, les deux compteurs de chaque carte
         'carte_complet' => ':nombre accès complet',
@@ -1370,7 +1406,7 @@ return [
      * Flutter. Les recopier ferait deux listes, qui divergeraient.
      */
     'parametres' => [
-        'titre_page' => 'Paramètres — TATACORA AFRIQUE',
+        'titre_page' => 'Paramètres — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.22-24
         'titre' => 'Paramètres',
         'sous_titre' => 'Identité de l\'entreprise, informations légales, canaux de communication et '
@@ -1380,9 +1416,27 @@ return [
         // (l.40 et l.51), à leurs titres.
         'section_identite' => 'Identité de l\'entreprise',
         'section_legal' => 'Informations légales & fiscales',
+        // Facturation normalisée (MECeF) — 07/11/2026 ; reprise telle quelle par le poste.
+        'section_mecef' => 'Facturation normalisée (MECeF)',
+        'mecef_jeton_libelle' => 'Jeton JWT e-MECeF',
+        'mecef_jeton_invite' => 'Saisir un nouveau jeton',
+        'mecef_jeton_enregistrer' => 'Enregistrer le jeton',
+        'mecef_jeton_effacer' => 'Effacer le jeton',
+        'mecef_jeton_renseigne' => '••• enregistré le :date — jamais réaffiché.',
+        'mecef_jeton_absent' => 'Aucun jeton enregistré.',
+        'mecef_jeton_reserve' => 'Seul un Administrateur peut saisir ou effacer le jeton.',
+        'mecef_jeton_mention' => 'Le jeton est rangé chiffré sur le serveur : il n’est jamais réaffiché ni envoyé aux postes. '
+            . 'Pour le remplacer, saisissez-en un nouveau.',
+        'mecef_jeton_enregistre' => 'Jeton e-MECeF enregistré (chiffré).',
+        'mecef_jeton_efface' => 'Jeton e-MECeF effacé.',
+        'mecef_jeton_effacer_titre' => 'Effacer le jeton e-MECeF ?',
+        'mecef_jeton_effacer_message' => 'Sans jeton, aucune facture ne peut être transmise à la DGI par le serveur. '
+            . 'Vous devrez en saisir un nouveau.',
+        'mecef_jeton_effacer_confirmer' => 'Effacer le jeton',
+        'mecef_test_bouton' => 'Tester la connexion',
         // Le titre de l'onglet « Communication » (l.70) et « Email (SMTP) »
         // (l.83) du maître.
-        'section_communication' => 'Canaux de notification (Module M12)',
+        'section_communication' => 'Canaux de notification',
         'section_email' => 'Configuration Email (SMTP)',
         // Les deux groupes du registre serveur sans onglet dédié au maître :
         // logés sous « Activation & Sécurité » depuis le 01/09/2026, qui est
@@ -1390,8 +1444,6 @@ return [
         // DIRECTIVE_CONFORMITE_100.md — aucun groupe réel ne disparaît).
         'section_social' => 'Charges sociales',
         'section_exploitation' => 'Exploitation',
-        'section_hors_onglet' => 'Servi par le registre serveur — le maître ne pose pas de champ dédié pour ce '
-            . 'groupe sous cet onglet, et le masquer ailleurs rendrait ses réglages invisibles.',
         // Les deux titres de l'onglet « Activation & Sécurité » du maître
         // (l.176 et l.195), repris tels quels au-dessus des groupes qu'ils
         // encadrent désormais.
@@ -1428,26 +1480,9 @@ return [
         'suppression_rappel_c' => '. Un élément engagé dans une réservation ou une vente encaissée est refusé à '
             . 'l\'archivage — la ligne correspondante deviendrait illisible.',
 
-        /*
-         * LES DEUX SEULS CHAMPS DU MAÎTRE QUI RESTENT REFUSÉS (02/09/2026) —
-         * deux SECRETS, rendus en ligne avec leur mention réelle. Tout le
-         * reste (promoteur, régime fiscal, WhatsApp, SMTP hors mot de passe,
-         * logo/favicon, tables de salle, bascules) est RÉEL depuis cette
-         * date : l'ancien tableau `champs_non_couverts` disait des absences
-         * qui ont cessé d'être vraies — supprimé plutôt que corrigé (PA-144).
-         * Le « Message de bienvenue » du maître, lui, est couvert par les
-         * MODÈLES du module Notifications, pas par une clé de paramètre.
-         */
-        'communication_cle_api_libelle' => 'Clé API WhatsApp Business',
-        'communication_cle_api_mention' => 'Secret technique : n\'entrera jamais dans les paramètres système, '
-            . 'lisibles par tout profil ayant accès à cet écran — il vit en configuration serveur.',
-        'communication_message_libelle' => 'Message de bienvenue (notifications automatiques)',
-        'communication_message_mention' => 'Porté par les modèles du module Notifications (un texte par '
-            . 'évènement et par canal) : une seconde source de texte ici finirait par diverger de la première.',
         'email_motdepasse_libelle' => 'Mot de passe SMTP',
-        'email_motdepasse_mention' => 'Secret technique : n\'entre jamais dans les paramètres système. Rangé '
-            . 'chiffré sur le serveur, il n\'est jamais réaffiché, exporté ni synchronisé ; sans lui, la '
-            . 'configuration serveur (.env) s\'applique. L\'envoi de test ci-dessous l\'emprunte réellement.',
+        'email_motdepasse_mention' => 'Le mot de passe est enregistré chiffré sur le serveur : il n\'est jamais réaffiché. '
+            . 'Sans lui, la configuration du serveur s\'applique. L\'envoi de test ci-dessous l\'emprunte réellement.',
         // Saisie du mot de passe SMTP (19/10/2026, « chiffré en base »).
         'email_motdepasse_invite' => 'Saisir un nouveau mot de passe',
         'email_motdepasse_enregistrer' => 'Enregistrer le mot de passe',
@@ -1457,7 +1492,7 @@ return [
         'email_motdepasse_absent' => 'Non renseigné ici.',
         'email_motdepasse_reserve' => 'Seul un Administrateur peut saisir ou effacer ce mot de passe.',
         'email_motdepasse_enregistre' => 'Mot de passe SMTP enregistré (chiffré).',
-        'email_motdepasse_efface' => 'Mot de passe SMTP effacé : la configuration serveur (.env) s\'applique.',
+        'email_motdepasse_efface' => 'Mot de passe SMTP effacé : la configuration du serveur s\'applique.',
         'secret_invalide' => 'Le mot de passe doit compter entre 1 et :max caractères.',
         'secret_inconnu' => 'Secret inconnu : « :cle ».',
         'secret_reserve' => 'Réservé aux Administrateurs.',
@@ -1474,10 +1509,19 @@ return [
         'email_test_sans_adresse' => 'Aucune adresse de destination : renseignez d\'abord « Email de contact » '
             . '(onglet Identité & Légal).',
         'email_test_sans_configuration' => 'Aucun transport réel n\'est configuré : le serveur SMTP est vide '
-            . 'ici ET la configuration serveur (.env) pointe un canal qui ne délivre rien (journal local). '
+            . 'ici ET la configuration du serveur pointe un canal qui ne délivre rien (journal local). '
             . 'Rien n\'a été envoyé.',
         'email_test_echec' => 'Échec de l\'envoi — le transport a répondu : :erreur',
         'email_test_envoye' => 'Email de test envoyé à :adresse.',
+        // L'AIDE sous un échec reconnu (09/11/2026) : le message du transport reste affiché tel quel.
+        'email_test_aide_hote' => 'Le nom du serveur de messagerie n\'existe pas ou n\'est pas joignable depuis ce poste. '
+            . 'Vérifiez le nom du serveur (Paramètres > Email (SMTP)), la connexion Internet du poste, et le nom indiqué '
+            . 'dans votre hébergeur (cPanel > Comptes de messagerie > Configurer le client de messagerie).',
+        'email_test_aide_connexion' => 'Le serveur de messagerie a refusé la connexion ou n\'a pas répondu à temps. '
+            . 'Vérifiez le port (465 avec le chiffrement SSL, 587 avec le chiffrement TLS) et le chiffrement choisi '
+            . '(Paramètres > Email (SMTP)), puis la connexion Internet du poste.',
+        'email_test_aide_authentification' => 'Le serveur de messagerie a refusé l\'identifiant ou le mot de passe. '
+            . 'Vérifiez l\'utilisateur SMTP (l\'adresse complète de la boîte) et le mot de passe (Paramètres > Email (SMTP)).',
 
         /*
          * ONGLET « LOGO & APPARENCE » — téléversement RÉEL (02/09/2026),
@@ -1493,6 +1537,19 @@ return [
         'apparence_champ_logo' => 'Sélectionnez un fichier PNG/JPG (recommandé 512×512px).',
         'apparence_champ_favicon' => 'Sélectionnez un fichier .ico ou .png 32×32px.',
         'apparence_televersement' => 'Téléversement en cours…',
+        'apparence_signature_titre' => 'Signature du signataire',
+        'apparence_signature_bouton' => 'Changer la signature',
+        'apparence_signature_enregistre' => 'Signature remplacée — l\'ancien fichier n\'est pas conservé.',
+        'apparence_cachet_titre' => 'Cachet de l\'entreprise',
+        'apparence_cachet_bouton' => 'Changer le cachet',
+        'apparence_cachet_enregistre' => 'Cachet remplacé — l\'ancien fichier n\'est pas conservé.',
+        'apparence_image_absente' => 'Aucune image déposée.',
+        'apparence_signature_retire' => 'Signature retirée — les documents n\'impriment plus que le nom et la fonction.',
+        'apparence_cachet_retire' => 'Cachet retiré.',
+        'apparence_retirer' => 'Retirer',
+        'signature_cachet_bloc_titre' => 'Signature et cachet',
+        'signature_cachet_bloc_aide' => 'Images des factures A4 et des proformas, jamais du ticket : PNG, JPG ou WebP, réduites à 400 Ko. Elles ne s\'impriment que si l\'interrupteur ci-dessus est activé.',
+        'apparence_champ_image' => 'Sélectionnez une image PNG ou JPG : au-delà de 400 Ko, elle est réduite automatiquement.',
         'apparence_logo_enregistre' => 'Logo remplacé — l\'ancien fichier n\'est pas conservé.',
         'apparence_favicon_enregistre' => 'Favicon remplacé — l\'ancien fichier n\'est pas conservé.',
 
@@ -1546,7 +1603,7 @@ return [
         'aucun_parametre' => 'Aucun paramètre n\'est déclaré pour ce groupe.',
 
         // maquette — l.121-129, la charte graphique, DÉJÀ en lecture au maître
-        'charte_titre' => 'Couleurs de la charte graphique (lecture seule — chap. 9.3.1 du CdCF)',
+        'charte_titre' => 'Couleurs de la charte graphique (lecture seule)',
         'charte_navy' => 'Navy',
         'charte_gold' => 'Gold',
         'charte_succes' => 'Succès',
@@ -1612,11 +1669,11 @@ return [
      * « poste »/« navigateur ») sont notées clé par clé.
      */
     'import_export' => [
-        'titre_page' => 'Import & Export — TATACORA AFRIQUE',
+        'titre_page' => 'Import & Export — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.23-25
         'titre' => 'Import & Export',
         'sous_titre' => 'Chargement de données par module, sauvegardes de la base, restauration des éléments '
-            . 'archivés et réinitialisation des jeux de test.',
+            . 'archivés.',
 
         // -------------------------------------------------------------- onglets (maquette l.28-32)
         'onglet_importer' => 'Importer les données',
@@ -1635,12 +1692,16 @@ return [
         'importer_modele_titre' => '2. Télécharger le fichier modèle',
         'importer_modele_bouton' => 'Télécharger le modèle',
         // maquette l.77-81 — le <strong> est posé par la vue.
-        'importer_modele_aide_1' => 'Le modèle porte les colonnes exactes et une ligne d\'exemple. Il est généré '
-            . 'depuis la même déclaration que le contrôle : il ne peut pas s\'en écarter. Ouvrez-le dans Excel, '
-            . 'remplacez la ligne d\'exemple par vos données, conservez la ligne d\'en-tête, puis enregistrez en',
-        'importer_modele_aide_format' => 'CSV UTF-8',
+        'importer_modele_aide_1' => 'Le modèle est un classeur Excel : une colonne par champ, une ligne d\'exemple,'
+            . ' et une feuille « Aide » qui détaille chaque colonne. Ouvrez-le dans Excel, remplacez la ligne'
+            . ' d\'exemple par vos données, conservez la ligne d\'en-tête, puis enregistrez en',
+        'importer_modele_aide_format' => 'Classeur Excel (.xlsx)',
+        'importer_gite_bouton' => 'Carte du Gîte Chez Noël (exemple)',
+        'importer_gite_aide' => 'Le même modèle, déjà rempli avec la carte des affiches du Gîte (prix, catégories),'
+            . ' sans stock ni quantité : le stock s\'ajoute après. Ordre d\'import : Articles de stock, puis Carte du bar ;'
+            . ' la Carte du restaurant est indépendante.',
         'importer_depot_titre' => '3. Déposer le fichier rempli',
-        'importer_depot_aide' => 'Formats acceptés : CSV (séparateur point-virgule ou virgule).',
+        'importer_depot_aide' => 'Formats acceptés : classeur Excel .xlsx (recommandé) ou CSV (séparateur point-virgule, virgule ou tabulation). Les colonnes sont repérées par leur nom.',
         'importer_depot_glisser' => 'Glissez votre fichier ici',
         'importer_depot_cliquer' => 'ou cliquez pour le sélectionner',
         'importer_fichier_selectionne' => 'Fichier sélectionné : :nom (:taille Ko)',
@@ -1661,14 +1722,14 @@ return [
             . 'correspondent au référentiel.',
         'rapport_confirmer' => 'Confirmer l\'import de :nombre ligne(s)',
         'rapport_corriger' => 'Corrigez les lignes ci-dessus dans votre fichier, enregistrez-le à nouveau en '
-            . 'CSV UTF-8, puis redéposez-le. Le contrôle se relance à chaque dépôt.',
+            . 'classeur Excel (.xlsx), puis redéposez-le. Le contrôle se relance à chaque dépôt.',
 
         // La colonne latérale « Démarche à suivre » (maquette l.110-141).
         'demarche_titre' => 'Démarche à suivre',
         'demarche_1' => 'Choisissez le module. Les colonnes attendues s\'affichent.',
         'demarche_2_avant' => 'Téléchargez le modèle et remplissez-le',
         'demarche_2_fort' => 'sans modifier la ligne d\'en-tête',
-        'demarche_3' => 'Enregistrez en CSV UTF-8. Sans cet encodage, les accents deviennent illisibles à la relecture.',
+        'demarche_3' => 'Enregistrez en classeur Excel (.xlsx). Les colonnes sont repérées par leur nom ; le CSV reste accepté en secours.',
         'demarche_4' => 'Déposez le fichier et lancez le contrôle. Rien n\'est importé à ce stade.',
         'demarche_5' => 'Corrigez les erreurs signalées, redéposez, puis confirmez l\'import.',
         'demarche_encadre_fort' => 'Aucun import partiel.',
@@ -1800,20 +1861,24 @@ return [
         // 14/10/2026 (lot E) : tiers et transactionnel vidés, référentiels
         // désignés gardés (voir `ReinitialisationDonneesTestService`).
         'seeders_vide_texte' => 'Tout ce que l\'exploitation produit : clients, employés et paie, fournisseurs, '
-            . 'guides, réservations et séjours, ventes, factures, mouvements de stock, achats, dépenses, '
-            . 'locations, écritures comptables, notifications, caches et files de tâches.',
+            . 'guides, réservations et séjours, ventes, factures, achats, dépenses, locations, écritures '
+            . 'comptables, notifications, caches et files de tâches. Et tout le catalogue : plats, menus, '
+            . 'recettes et ingrédients, articles de stock et leurs mouvements, inventaires, carte des boissons, '
+            . 'retraits de la carte et historique des prix.',
         'seeders_conserve_titre' => 'Ce qui sera conservé',
-        'seeders_conserve_texte' => 'Comptes et droits, paramètres, journaux, chambres du parc, articles de stock '
-            . '(sans mouvements), fiche restaurant, carte du bar, véhicules, catalogue tourisme et plan comptable.',
+        'seeders_conserve_texte' => 'Comptes et droits, paramètres, journaux, chambres du parc, points de stockage '
+            . 'et tables de salle (les lieux, sans article), véhicules, catalogue tourisme et plan comptable.',
         'seeders_rien_a_vider' => 'Aucune donnée à vider — la base est déjà vierge.',
         'seeders_bouton' => 'Réinitialiser comme neuf',
         // La modale du maître (l.313-338).
         'seeders_modale_titre' => 'Réinitialiser comme neuf ?',
         'seeders_modale_texte_avant' => ':nombre table(s)',
         'seeders_modale_texte_1' => 'vont être vidées : clients, employés, fournisseurs, guides, réservations, ventes, '
-            . 'factures, stocks, écritures, paie, et tous les jeux de démonstration. Rien n\'est semé à nouveau.',
+            . 'factures, écritures, paie, ainsi que tout le catalogue (plats, menus, recettes et ingrédients, '
+            . 'articles de stock et leurs mouvements, inventaires, carte des boissons, retraits de la carte) et tous '
+            . 'les jeux de démonstration. Rien n\'est semé à nouveau.',
         'seeders_modale_texte_2' => 'Les paramètres de l\'entreprise, la matrice des droits, votre compte, le journal '
-            . 'd\'audit, les chambres, les articles, la fiche restaurant, la carte du bar, les véhicules et le '
+            . 'd\'audit, les chambres, les points de stockage, les tables de salle, les véhicules et le '
             . 'catalogue tourisme sont',
         'seeders_modale_texte_2_fort' => 'conservés',
         'seeders_modale_texte_2_fin' => '. Une sauvegarde complète est générée juste avant.',
@@ -1839,18 +1904,10 @@ return [
             . 'désactivée, quel que soit votre rôle — c\'est l\'environnement qui refuse, pas un droit qui manque.',
         // Phase d'essais en production (19/10/2026).
         'reset_phase_essais' => 'Phase d\'essais en Production : la réinitialisation reste possible pour effacer les '
-            . 'essais avant la mise en service. Chaque poste devra ensuite être réinitialisé à son tour. Retirez '
-            . 'TATACORA_PHASE_ESSAIS du fichier .env le jour de la mise en service réelle.',
+            . 'essais avant la mise en service. Chaque poste devra ensuite être réinitialisé à son tour. Désactivez '
+            . 'la phase d\'essais le jour de la mise en service réelle.',
     ],
 
-    /*
-     * Le titre du bloc de refus des pages MÉTIER — `pwa/partials/bloc-refus`.
-     *
-     * Même phrase que `pwa.comptabilite.refus_titre` et que les six autres :
-     * elle est devenue une convention d'écran, et deux formulations pour le
-     * même bloc se remarqueraient d'une page à l'autre.
-     */
-    'refus_titre' => 'Ce que cet écran ne fait pas, et pourquoi',
 
     /*
      * M6 Stocks — maquette `prototype_v2/pages/m6-stocks.html`.
@@ -1926,36 +1983,7 @@ return [
             . 'jamais sur les seules lignes affichées : masquer les articles sains ne change pas '
             . 'le nombre d\'articles à réapprovisionner.',
 
-        /*
-         * Les sept refus de l'écran. Chacun a son bloc Article 8 complet —
-         * fichier et ligne du maître, comportement du maître, raison — dans
-         * `App\Pwa\Livewire\Stocks\Stocks`.
-         */
-        'refus_nouvel_article' => 'Le bouton « + Nouvel article » du maître n\'est pas rendu : créer un '
-            . 'article est une écriture, et la consultation web est en lecture seule stricte.',
-        'refus_mouvement' => 'Les actions de ligne « Mouvement » et « Modifier », ainsi que les fenêtres '
-            . '« Nouvel article » et « Mouvement de stock », ne sont pas rendues : un mouvement de stock '
-            . 'manuel est nommément exclu de ce canal, y compris « simplifié » ou « d\'urgence ».',
-        'refus_import' => 'Les boutons « Importer » et « Modèle » ne sont pas rendus : un import est une '
-            . 'écriture en masse, et un import interrompu laisserait un référentiel partiellement faux '
-            . 'que rien ne signalerait.',
-        'refus_export' => 'Les boutons « Excel » et « PDF » ne sont pas rendus, et ce n\'est PAS une '
-            . 'impossibilité technique : le moteur d\'états rend exactement cet état. C\'est une décision '
-            . 'de périmètre — l\'exception à la lecture seule est accordée au seul Hub États & Rapports, '
-            . 'pas à chaque écran de module. L\'étendre n\'est pas une décision d\'agent.',
 
-        /*
-         * Les fenêtres du maître, refusées en bloc pour le comparateur des
-         * trois sources. Elles sont toutes des formulaires d'écriture.
-         *
-         * maitre-refuse:m6-stocks.html#fond-modale
-         */
-        'refus_modales' => 'Les fenêtres du maître ne sont pas portées : « Nouvel article » (« Nom de '
-            . 'l\'article », « Catégorie », « Unité de mesure », « Point de stockage », « Valeur d\'achat '
-            . 'unitaire (FCFA) », « Mode de suivi », « Seuil d\'alerte », « Stock d\'ouverture », puis '
-            . '« Créer l\'article » ou « Annuler ») et « Mouvement de stock » (« Type de mouvement », '
-            . '« Quantité », « Coût d\'achat unitaire (FCFA) », « Motif », puis « Enregistrer »), avec sa '
-            . 'confirmation « Stock insuffisant » et son bouton « Forcer la sortie ». Toutes écrivent.',
     ],
 
     /*
@@ -2049,8 +2077,6 @@ return [
         // maquette — l.436-441
         'inventaire_du' => 'Inventaire du :date — :point',
         'avancement' => ':comptes / :total article(s) comptés · :ecarts écart(s) · impact valorisé',
-        'sans_statut' => 'La table des inventaires ne porte aucun statut : rien ne distingue ici un '
-            . 'inventaire clôturé d\'un inventaire encore ouvert. C\'est le plus récent qui est affiché.',
 
         // maquette — les cinq colonnes de comptage, l.460-464
         'col_article' => 'Article',
@@ -2070,45 +2096,8 @@ return [
         'col_excedents' => 'Excédents',
         'col_impact' => 'Impact net',
 
-        'historique_portee' => 'Cette liste porte sur TOUS les inventaires enregistrés, clôturés ou non : '
-            . 'le schéma ne distingue pas les deux. Le nombre d\'articles est celui des lignes '
-            . 'réellement comptées.',
         'historique_tronque' => 'Seuls les :plafond inventaires les plus récents sont affichés sur :total.',
 
-        /*
-         * Les sept refus de l'écran. Chacun a son bloc Article 8 complet dans
-         * `App\Pwa\Livewire\Stocks\Inventaires`.
-         *
-         * maitre-refuse:m6-inventaires.html#fond-modale
-         */
-        'refus_periodicite' => 'Le panneau « Cycle d\'inventaire par magasin » du maître — ses colonnes '
-            . '« Magasin », « Periodicite », « Dernier inventaire cloture » et « Etat », et sa mention '
-            . '« La periodicite signale une echeance ; elle n\'empeche jamais de lancer un inventaire. » — '
-            . 'n\'est pas rendu : aucune périodicité n\'existe au schéma, et la déduire des inventaires '
-            . 'passés reviendrait à afficher « en retard » sur une règle que personne n\'a posée. La '
-            . 'choisir serait de surcroît une écriture.',
-        'refus_comptage' => 'Le champ de comptage « à compter » et le bouton « Lancer l\'inventaire » ne '
-            . 'sont pas rendus : compter, c\'est écrire. L\'onglet montre l\'avancement réel et les écarts '
-            . 'déjà constatés.',
-        'refus_cloture' => 'Le bouton « Clôturer et régulariser » n\'est pas rendu, non plus que sa '
-            . 'confirmation « Inventaire incomplet » et son « Clôturer partiellement » : la clôture '
-            . 'génère un mouvement de régularisation par article en écart, l\'écriture la plus lourde '
-            . 'du module.',
-        'refus_manquants' => 'Les colonnes « Manquants » et « Excédents » rendent « — » : la séparation '
-            . 'entre les deux n\'est produite que par la clôture. La refaire ici recopierait la règle qui '
-            . 'décide de quel côté tombe un écart, et deux versions de cette règle divergeraient.',
-        'refus_journalier' => 'Le bandeau « Article en suivi journalier » du maître n\'est pas rendu : la '
-            . 'table des articles ne porte aucun mode de suivi, ici comme sur l\'écran Stocks.',
-        'refus_par' => 'La colonne « Par » du détail des mouvements rend « — », et la mention '
-            . '« (rupture forcée) » n\'est pas affichée : la fiche de stock projette la date, le type, le '
-            . 'motif, l\'entrée, la sortie et le solde, pas leur auteur. Relire les mouvements ici '
-            . 'obligerait à réécrire les bornes de la période et le filtre de point, qui finiraient par '
-            . 'diverger de la fiche qu\'ils décrivent.',
-        'refus_export' => 'Les boutons « Export PDF » et « Export Excel » ne sont pas rendus, et ce n\'est '
-            . 'PAS une impossibilité technique : le moteur d\'états existe. C\'est une décision de '
-            . 'périmètre — l\'exception à la lecture seule est accordée au seul Hub États & Rapports. Le '
-            . 'jour où l\'export sera branché, la mention d\'incohérence devra partir avec le document, '
-            . 'pas rester à l\'écran.',
     ],
 
     /*
@@ -2151,62 +2140,8 @@ return [
         'decompte' => 'Affichage de :affiches sur :total',
         'tronque' => 'Liste tronquée à :plafond lignes',
 
-        /*
-         * Les cinq refus et les deux lacunes ouvertes. Chacun a son bloc
-         * Article 8 complet dans `App\Pwa\Livewire\Achats\Achats`.
-         */
-        'refus_crud' => 'Les boutons « Actualiser », « Importer », « Exporter » et le bouton de création '
-            . 'du maître ne sont pas rendus : la consultation web est en lecture seule stricte, et '
-            . 'l\'export sort des données de l\'établissement.',
-        'refus_actions_ligne' => 'Les quatre actions de ligne du maître — « Voir le détail », '
-            . '« Modifier », « Dupliquer », « Supprimer » — ne sont pas rendues. Trois écrivent ; la '
-            . 'quatrième ouvre une fenêtre de détail que cet écran ne porte pas.',
-        'refus_selection' => 'La case à cocher de sélection et sa barre « :nombre sélectionné(s) » — avec '
-            . '« Exporter la sélection » et « Supprimer » — ne sont pas rendues : elles n\'ont ici aucun '
-            . 'autre usage, et un contrôle qui n\'ouvre rien empêche de savoir si la fonction manque ou '
-            . 'si l\'écran est cassé.',
-        'refus_pagination' => 'La pagination « ← Précédent » / « Suivant → » du maître est remplacée par '
-            . 'un plafond de lignes, avec le décompte réel affiché : chaque bouton de pagination serait '
-            . 'une action de plus sur le seul chemin par lequel cette consultation pourrait écrire.',
 
-        /*
-         * ⚠ `#modale-suppression` A ETE RETIRE de cette liste le 03/09/2026 :
-         * la modale de confirmation EST portee (chassis partage
-         * `<x-pwa.modale-archivage>`, appelee par
-         * `Achats::confirmerArchivageFournisseur()`), et la declarer refusee
-         * serait desormais une decision devenue oubli (PA-144). Les quatre
-         * autres restent exactes.
-         *
-         * maitre-refuse:m7-achats.html#modale-formulaire
-         * maitre-refuse:m7-achats.html#modale-detail
-         * maitre-refuse:m7-achats.html#modale-export
-         * maitre-refuse:m7-achats.html#modale-import
-         */
-        'refus_modales' => 'Les cinq fenêtres du maître ne sont pas portées : « Nouveau » et son '
-            . '« Enregistrer » (champs « Raison sociale », « Contact (téléphone) », « Catégorie '
-            . 'fournie », « Conditions de paiement », « Évaluation » ; et pour une commande '
-            . '« Montant estimé (FCFA) »), « Détail — » et son « Modifier », « Confirmer la '
-            . 'suppression » et son « Supprimer définitivement », « Exporter — Fournisseurs » avec '
-            . '« Télécharger tous les résultats filtrés (.csv) », et « Importer — Fournisseurs » avec '
-            . '« Glissez-déposez un fichier .csv ici », « Télécharger le modèle .csv » et « Importer ». '
-            . 'Quatre écrivent, la cinquième exporte.',
 
-        /*
-         * ⚠ LACUNE FERMÉE LE 03/09/2026. Elle disait : « la table des
-         * fournisseurs ne porte aucun indicateur d'activité […] à arbitrer,
-         * pas à contourner ici ». La demande du Product Owner du 03/09/2026
-         * EST cet arbitrage : `fournisseurs.actif` existe, et « Supprimer »
-         * est rendu par ligne et en lot — comme ARCHIVAGE. La clé est
-         * conservée parce qu'elle est encore lue par un test de conformité ;
-         * son texte dit maintenant ce qui est vrai.
-         */
-        'lacune_actif' => 'Un fournisseur retiré du référentiel passe « Archivé » : il quitte le '
-            . 'sélecteur des commandes, reste lisible sur celles qu\'il a déjà honorées, et se '
-            . 'restaure. Aucune fiche n\'est effacée.',
-        'lacune_annulation' => 'LACUNE OUVERTE — le statut d\'une commande d\'achat n\'admet aucune '
-            . 'valeur « annulée » : « Brouillon », « Envoyée », « Réceptionnée partiellement », '
-            . '« Réceptionnée », « Clôturée ». Une commande envoyée par erreur reste au registre, et '
-            . 'la seule sortie disponible affirme autre chose. À arbitrer.',
     ],
 
     /*
@@ -2269,8 +2204,10 @@ return [
 
         // maquette — l.404-410, l.418-422
         'receptions_titre' => 'Bons de réception',
-        'receptions_detail' => 'Chaque réception a généré une entrée de stock valorisée au prix de la '
-            . 'commande, qui a recalculé le coût moyen pondéré de l\'article.',
+        // Corrigé le 09/11/2026 (D265/D276) : l'ancienne phrase affirmait un recalcul du coût
+        // moyen pondéré ; la réception écrit une entrée SANS coût.
+        'receptions_detail' => 'Chaque réception a généré une entrée de stock, non valorisée : le coût '
+            . 'moyen pondéré de l\'article n\'est pas recalculé à la réception.',
         'recherche_reception' => 'N°, commande, fournisseur…',
         'toutes_receptions' => 'Toutes les réceptions',
         'receptions_conformes' => 'Conformes',
@@ -2291,38 +2228,7 @@ return [
         'dettes_portee' => 'Cette liste porte sur les commandes non clôturées et leur MONTANT COMMANDÉ. '
             . 'La colonne « Ancienneté » mesure l\'âge du bon de commande, pas le retard d\'un paiement.',
 
-        /*
-         * Les sept refus de l'écran. Chacun a son bloc Article 8 complet dans
-         * `App\Pwa\Livewire\Achats\Approvisionnement`.
-         */
-        'refus_reglements' => 'Les colonnes « Réglé » et « Reste dû », le « Total dû » et l\'indicateur '
-            . '« Fournisseurs à payer » rendent « — » : rien ne rattache un règlement à une commande '
-            . 'd\'achat. La table des paiements existe bien, mais elle va dans l\'autre sens — vers les '
-            . 'factures CLIENTS et les sessions de caisse, jamais vers un fournisseur. Additionner les '
-            . 'commandes présenterait le montant COMMANDÉ comme une DETTE, sur l\'écran même où l\'on '
-            . 'décide qui payer.',
-        'refus_commander' => 'La case « cocher-tout », les cases de ligne, le champ « À commander » et '
-            . 'le bouton « Commander la sélection » ne sont pas rendus : ouvrir une commande est une '
-            . 'écriture.',
-        'refus_receptionner' => 'Les actions de ligne « Réceptionner » et « Régler » ne sont pas '
-            . 'rendues : une réception génère l\'entrée de stock et recalcule le coût moyen pondéré, '
-            . 'l\'écriture la plus lourde du module.',
-        'refus_colonnes' => 'Les colonnes « Point » et « Prix d\'achat » des besoins, et « Point » et '
-            . '« Articles » des réceptions, rendent « — » : la table des articles ne porte ni point ni '
-            . 'prix d\'achat, et un bon de réception n\'a aucune ligne de détail au schéma.',
-        'refus_numero' => 'La colonne « N° » affiche l\'identifiant réel de la pièce : ni les commandes '
-            . 'ni les bons de réception ne portent de numéro au schéma. Fabriquer un numéro ici créerait '
-            . 'une référence introuvable partout ailleurs.',
-        'refus_export' => 'Les boutons « Export Excel » et « Export PDF » des quatre onglets ne sont pas '
-            . 'rendus : l\'exception à la lecture seule est accordée au seul Hub États & Rapports, et '
-            . 'l\'étendre n\'est pas une décision d\'agent.',
 
-        /*
-         * maitre-refuse:m7-approvisionnement.html#fond-modale
-         */
-        'refus_modales' => 'La fenêtre du maître n\'est pas portée : « Nouvelle commande fournisseur », '
-            . 'avec son « Fournisseur », son « Enregistrer la commande » et son « Annuler ». Elle crée '
-            . 'un bon de commande.',
     ],
 
     /*
@@ -2360,6 +2266,14 @@ return [
 
         // maquette — l.117-118
         'registre_vide' => 'Aucune facture émise. Encaissez au point de vente ou clôturez un séjour.',
+        // Écart daté du PO (09/11/2026, « j'ai enregistré une réservation et je ne vois ni facture ni proforma ») :
+        // le registre dit aussi ce qu'une réservation ne fait PAS, et où trouver les proformas. Mêmes mots au poste.
+        'registre_vide_aide' => 'Une réservation ne crée pas de facture : clôturez le séjour pour facturer, ou créez une proforma depuis la réservation.',
+        'registre_vide_lien' => 'Voir les proformas',
+        // Écart daté du PO (09/11/2026) : la colonne « N° » porte le numéro fiscal quand il existe, sinon le numéro interne
+        // de la facture, suivi de cette légende discrète. Aucune mention de normalisation (facture simple). Mêmes mots au poste.
+        'numero_interne' => 'n° interne',
+        'registre_hors_exercice' => ':nombre facture(s) émise(s) en dehors de l\'exercice consulté (:annee) : choisissez un autre exercice dans la barre supérieure.',
 
         // maquette — les sept colonnes, l.124-131, dans son ordre
         'col_numero' => 'N°',
@@ -2433,14 +2347,15 @@ return [
         'compteur' => ':nombre état(s) · droits portés par le module source',
 
         'accueil_titre' => 'Choisissez un état dans le catalogue',
-        'accueil_detail' => ':total état(s) sont éditables avec vos droits. L\'aperçu s\'affiche '
-            . 'immédiatement : vous ne consultez que ce que le moteur d\'états calcule réellement.',
-        'accueil_rbac' => 'Les droits sont portés par le <strong>module source</strong> de chaque état, '
-            . 'pas par M14 : un magasinier ne lit pas le livre de paie parce qu\'il a accès aux « États ».',
+        'accueil_detail' => ':total état(s) sont éditables avec vos droits.',
 
         'module_source' => 'module source :module',
         'lignes' => ':nombre ligne(s)',
         'aucune_ligne' => 'Aucune ligne sur cette période.',
+
+        // État « Locations » (M8) : la case de la barre d'aperçu (décochée =
+        // contrats annulés exclus). Reprise telle quelle par le poste.
+        'inclure_annules' => 'Inclure les contrats annulés',
 
         // Les cinq clés « refus_* » qui documentaient ici « Ce que cet écran
         // ne fait pas » sont RETIRÉES (directive du Product Owner du
@@ -2462,19 +2377,15 @@ return [
         'sous_titre' => 'Bibliothèque d\'états standards par module, entête normalisée commune, '
             . 'génération à la demande et export PDF/Excel',
 
-        'remplace_titre' => 'Écran remplacé.',
-        'remplace_texte' => 'Cette page reste consultable comme maquette validée par le client, mais elle '
-            . 'n\'est plus au menu : la version fonctionnelle est',
 
         'module' => 'MODULE :module',
 
         'catalogue_vide_titre' => 'Aucun état n\'est éditable avec vos droits.',
-        'catalogue_vide_detail' => 'Les droits sont portés par le module SOURCE de chaque état, pas par '
-            . 'M14. Le registre du serveur compte trois états — stocks (M6), parc de véhicules (M8) et '
-            . 'tableau de bord (M11) ; les autres dépendent de domaines non implémentés.',
+        'catalogue_vide_detail' => 'Les droits d\'un état sont ceux de son module d\'origine. '
+            . 'Demandez l\'accès au module concerné à votre administrateur.',
 
         'historique_titre' => 'Historique des éditions',
-        'historique_mention' => 'Journal d\'audit — lecture seule (chap. 11.4 du CdCF)',
+        'historique_mention' => 'Journal d\'audit — lecture seule',
         'historique_vide' => 'Aucun état généré sur cette période.',
         'historique_recherche' => 'Rechercher un état',
         'historique_tous_modules' => 'Tous les modules',
@@ -2489,25 +2400,6 @@ return [
         'decompte' => 'Affichage de :affiches sur :total',
         'tronque' => 'Liste tronquée à :plafond lignes.',
 
-        'refus_generer' => 'Le bouton « Générer » de chaque carte n\'est pas rendu : générer INSÈRE une '
-            . 'ligne dans `etats_generes` (archivage horodaté EF-M14-06), c\'est une écriture. Vérifié '
-            . 'contre `GenerateurEtatService::generer()` le 27/08/2026.',
-        'refus_modale' => 'La modale « Générer un état » — « Période », « Format d\'export », « Annuler », '
-            . '« Générer et télécharger » — n\'est pas rendue, pour la même raison.',
-        'refus_retelecharger' => 'L\'action « Retélécharger » de l\'historique n\'est pas rendue, et deux '
-            . 'motifs suffisent chacun : elle repasse par le générateur, donc archive à nouveau ; et '
-            // Article 8 (02/09/2026) : la reference PA-48 vit ici, jamais a l'ecran.
-            . '`etats_generes.chemin_fichier_archive` vaut TOUJOURS `null` — il n\'y a aucun fichier '
-            . 'à retélécharger. Le maître, lui, refabrique un CSV à la volée : ce n\'est pas le document '
-            . 'd\'origine.',
-        'refus_periode' => 'Les champs « Du » et « Au » et le bouton « Actualiser » ne sont pas rendus : '
-            . 'chaque rendu relit la base, il n\'y a rien à rafraîchir à la main, et un filtre sans son '
-            . 'bouton laisserait ignorer s\'il s\'applique.',
-        'ecart_catalogue' => 'La grille rend les états RÉELLEMENT éditables — trois au registre du '
-            . 'serveur — et non les huit cartes écrites en dur dans le HTML du maître : cinq d\'entre elles '
-            . 'dépendent de domaines non implémentés, et les promettre serait annoncer un document que le '
-            . 'moteur ne saurait pas produire. La description par état n\'existe pas au catalogue serveur et '
-            . 'rend « — ».',
     ],
 
     /*
@@ -2639,25 +2531,6 @@ return [
         'onglet_annulations' => 'Annulations',
         'annulations_vide' => 'Aucune réservation annulée pour le moment.',
 
-        // ---- Refus nommés (Article 8 — blocs complets dans le composant) ----
-        'refus_saisie' => 'Le bouton « Ajouter client » et sa modale ne sont pas rendus : créer un client '
-            . 'est une écriture M3 — l\'écran Clients & Créances la portera. La suppression n\'existera '
-            . 'jamais (RG-02 : une réservation s\'annule, elle ne s\'efface pas), et « Imprimer la '
-            . 'facture » attend la chaîne de facturation M2. Le motif d\'annulation du maître n\'est pas '
-            // Article 8 (02/09/2026) : la reference PA-57 vit ici, jamais a l'ecran.
-            . 'collecté : le serveur n\'a aucune colonne pour lui.',
-        'refus_fiche_locale' => 'Le canal, le type de client, le mode de paiement, la remise et les lignes '
-            . 'de services (Restauration, Bar, Tourisme, Véhicule — le filtre « Tous les services » compris) '
-            . 'rendent « — » : la fiche complète est locale au poste de saisie, le schéma serveur n\'en '
-            . 'porte rien (PA-29, PA-110).',
-        'refus_montants' => 'Les montants « Séjour », « Consommations », « Total » et « Reste », et les '
-            . 'cartes « Chiffre d\'affaires » et « Reste à encaisser » rendent « — » : aucun montant de '
-            . 'séjour n\'existe au schéma serveur — le recalculer depuis la grille tarifaire courante '
-            . 'réécrirait le prix d\'un séjour déjà vendu (PA-55, PA-57).',
-        'refus_facture' => 'Le bouton « Facture » des cartes n\'est pas rendu : aucun chemin serveur ne '
-            . 'relie une facture à une réservation, et le bouton du maître n\'existe que si la facture '
-            // Article 8 (02/09/2026) : la reference PA-112 vit ici, jamais a l'ecran.
-            . 'existe.',
     ],
 
     /*
@@ -2928,6 +2801,7 @@ return [
         // ---- Modale « Historique d'un client » ----
         'historique_vide' => 'Aucun mouvement pour ce client.',
         'historique_type_encaissement' => 'Encaissement',
+        'historique_type_facture' => 'Facture',
         'historique_type_relance' => 'Relance',
         // maquette — ouvrirHistorique(), m3-clients-creances.js l.564-569 et
         // son état PDF l.597 (« Libellé », « Détail »).
@@ -2940,63 +2814,7 @@ return [
     // 27/08/2026 (decision du Product Owner).
     'fournisseur_enregistre' => 'Fournisseur enregistré.',
 
-    /*
-     * M13 PERSONNEL & PAIE — l'ecran NOMME ce qu'il ne fait pas.
-     *
-     * Le titre est celui du maitre (`m13-paie.html`). Le reste dit l'etat
-     * reel, date : sans date, un motif de refus qui cesse d'etre vrai
-     * transforme une decision en oubli (PA-144).
-     */
-    'm13' => [
-        'titre' => 'Personnel & Paie',
-        'sous_titre' => 'Gestion du personnel, planning, congés et calcul de paie — Gîte Chez Noël.',
-        'etat_titre' => 'Écran de paie non livré — état au 31/08/2026',
-        'etat_texte' => 'Le module M13 est partiellement implémenté côté serveur. Cet écran '
-            . 'annonce ce qui existe et ce qui manque plutôt que d\'afficher un tableau que rien '
-            . 'n\'alimente : un chiffre de paie faux n\'est pas une approximation, c\'est une '
-            . 'déclaration sociale erronée.',
-        'disponible_titre' => 'Ce qui existe côté serveur',
-        'disponible_1' => 'Calcul du net salarial : retenue CNSS salarié 3,6 % et barème ITS '
-            . '(CalculPaieService).',
-        'disponible_2' => 'Part confirmée de la charge patronale : CNSS pension 6,4 %, '
-            . 'prestations familiales 9 % et VPS 4 %, soit 19,4 % du brut.',
-        'disponible_3' => 'Planning des services et demandes de congés (PlanningService, '
-            . 'CongeService), avec contrôle de chevauchement.',
-        'absent_titre' => 'Ce qui n\'existe nulle part',
-        'absent_1' => 'Pointage, primes et évaluations : ni table, ni service, ni route API.',
-        'absent_2' => 'Bulletins de paie, livre de paie et déclarations : aucun document n\'est '
-            . 'généré côté serveur.',
-        'absent_3' => 'Aucune route API M13 : cet écran n\'aurait rien à lire, ni rien où écrire.',
-        'refus_total_titre' => 'Le total de charge patronale est REFUSÉ, délibérément.',
-        'refus_total_texte' => 'Le taux CNSS de risques professionnels est « 1 % à 4 % selon '
-            . 'l\'activité » et n\'est pas confirmé pour l\'hôtellerie. Le service publie la '
-            . 'fourchette au lieu de la moyenner : retenir 2,5 % « au milieu » serait exactement '
-            . 'l\'hypothèse refusée. Un Administrateur muni de la source officielle renseigne ce '
-            // Article 8 (02/09/2026) : la reference PA-53 vit ici, jamais a l'ecran.
-            . 'taux dans Paramètres — il n\'arrivera jamais par un seeder.',
-    ],
 
-    /*
-     * M12 NOTIFICATIONS — le seul domaine ENTIEREMENT vide du depot.
-     */
-    'm12' => [
-        'titre' => 'Notifications',
-        'sous_titre' => 'Diffusion des alertes et confirmations vers WhatsApp, e-mail et Android.',
-        'etat_titre' => 'Canal de notification non contracté — état au 31/08/2026',
-        'etat_texte' => 'Le module M12 n\'a ni modèle, ni service, ni route : c\'est le seul '
-            . 'domaine entièrement vide du dépôt. La cause n\'est pas un reste-à-faire de '
-            . 'développement — l\'API WhatsApp n\'est pas contractée, et RG-20 (diffusion '
-            . 'automatique) est la seule des vingt règles de gestion qui reste à implémenter.',
-        'liste_titre' => 'Pourquoi aucune liste n\'est affichée',
-        'liste_texte' => 'Rendre la liste du maître avec zéro ligne afficherait « aucune '
-            . 'notification » — une affirmation sur un état que rien ne mesure, puisque aucune '
-            . 'table ne les stocke. Un indicateur qui dit « tout va bien » pendant que rien n\'a '
-            . 'lieu est le défaut que ce dépôt traque (PA-59/60/61).',
-        'secret_titre' => 'Et quand le canal existera',
-        'secret_texte' => 'La clé d\'API du fournisseur ira dans le fichier d\'environnement, '
-            . 'jamais dans les paramètres système : ceux-ci sont lisibles par tout profil ayant '
-            . 'accès à l\'écran Paramètres.',
-    ],
 
     /*
      * CHASSIS DE MODALE PARTAGE — `resources/views/components/pwa/modale*`.
@@ -3005,6 +2823,102 @@ return [
      * pose cinq gabarits pour tout le prototype. Les libelles de chrome
      * (fermer, annuler) vivent donc ici, une fois, et pas dans dix-neuf vues.
      */
+    // ------------------------------------------------------------------------
+    // Mot de passe perdu SANS e-mail (décision du PO du 29/10/2026, option A).
+    // Les libellés ci-dessous sont repris à l\'identique par le poste Windows
+    // (`ecran_comptes_utilisateurs.dart`, `ecran_changement_mot_de_passe.dart`,
+    // `ecran_code_secours.dart`) : une copie qui dérive fait rougir son test.
+    // ------------------------------------------------------------------------
+    'comptes' => [
+        'titre_page' => 'Comptes utilisateurs — LogiReStock — TATACORA AFRIQUE',
+        'titre' => 'Comptes utilisateurs',
+        'sous_titre' => 'Réinitialisez le mot de passe d\'un compte : un mot de passe temporaire, valable '
+            . '24 heures, vous est affiché une seule fois.',
+        'col_identifiant' => 'Identifiant',
+        'col_nom' => 'Nom',
+        'col_role' => 'Rôle',
+        'col_statut' => 'Statut',
+        'col_mot_de_passe' => 'Mot de passe',
+        'col_actions' => 'Actions',
+        'changement_requis' => 'Changement requis',
+        'temporaire_expire' => 'Temporaire expiré',
+        'vide' => 'Aucun compte.',
+        'reinitialiser' => 'Réinitialiser le mot de passe',
+        'reinitialiser_titre' => 'Réinitialiser le mot de passe de « :login »',
+        'reinitialiser_texte' => 'Un mot de passe temporaire va être généré. Il sera valable :heures heures et '
+            . 'n\'ouvrira que l\'écran de choix d\'un nouveau mot de passe. Les sessions ouvertes de ce compte seront '
+            . 'fermées.',
+        'reinitialiser_confirmer' => 'Générer le mot de passe temporaire',
+        'resultat_titre' => 'Mot de passe temporaire de « :login »',
+        'resultat_consigne' => 'Communiquez-le à son titulaire. Il ne sera plus affiché. Valable jusqu\'au :date.',
+        'fermer' => 'Fermer',
+        'refus_droit' => 'Ce geste est réservé à l\'Administrateur.',
+        'refus_soi_meme' => 'Vous ne pouvez pas réinitialiser votre propre mot de passe par ce chemin. Utilisez '
+            . '« Mon profil » avec votre ancien mot de passe.',
+        'refus_introuvable' => 'Ce compte est introuvable.',
+        'refus_super_admin' => 'Seul un super administrateur peut réinitialiser le mot de passe d\'un super '
+            . 'administrateur.',
+        // SUPPRIMER un compte (décision du PO du 03/11/2026) — mêmes phrases sur le poste.
+        'supprimer' => 'Supprimer',
+        'supprimer_titre' => 'Supprimer le compte « :login » ?',
+        'supprimer_texte' => 'Il ne pourra plus se connecter. Ce qu\'il a saisi garde son nom.',
+        'supprimer_confirmer' => 'Supprimer le compte',
+        'auteur_supprime' => ':login (compte supprimé)',
+        'refus_suppression_droit' => 'Seul un super administrateur peut supprimer un compte.',
+        'refus_suppression_soi_meme' => 'Vous ne pouvez pas supprimer votre propre compte.',
+        'refus_suppression_administrateur' => 'Un compte administrateur ne se supprime pas : désactivez-le.',
+        'supprime_succes' => 'Le compte « :login » est supprimé.',
+    ],
+
+    'changement_mdp' => [
+        'titre_page' => 'Définissez votre nouveau mot de passe — LogiReStock — TATACORA AFRIQUE',
+        'titre_h1' => 'Définissez votre nouveau mot de passe',
+        'accroche' => 'Votre mot de passe a été réinitialisé par un administrateur. Choisissez maintenant un mot de '
+            . 'passe que vous seul connaissez.',
+        'nouveau' => 'NOUVEAU MOT DE PASSE',
+        'confirmation' => 'CONFIRMER LE NOUVEAU MOT DE PASSE',
+        'regle' => 'Min. 8 caractères, différent du mot de passe temporaire et de l\'ancien.',
+        'bouton' => 'ENREGISTRER',
+        'en_cours' => 'Enregistrement…',
+        'se_deconnecter' => 'Se déconnecter',
+        'nouveau_requis' => 'Veuillez saisir votre nouveau mot de passe.',
+        'confirmation_requise' => 'Veuillez confirmer votre nouveau mot de passe.',
+        'trop_court' => 'Le mot de passe doit compter au moins 8 caractères.',
+        'identique_temporaire' => 'Le nouveau mot de passe doit être différent du mot de passe temporaire.',
+        'identique_ancien' => 'Le nouveau mot de passe doit être différent de l\'ancien.',
+        'expire' => 'Ce mot de passe temporaire a expiré. Demandez-en un nouveau à l\'administrateur.',
+        'succes' => 'Mot de passe défini. Connectez-vous avec votre nouveau mot de passe.',
+    ],
+
+    'code_secours' => [
+        'titre_page' => 'J\'ai perdu mon mot de passe administrateur — LogiReStock — TATACORA AFRIQUE',
+        'titre' => 'J\'ai perdu mon mot de passe administrateur',
+        'accroche' => 'Saisissez votre nom d\'utilisateur, le code de secours rangé au coffre et un nouveau mot de '
+            . 'passe.',
+        'login' => 'NOM D\'UTILISATEUR',
+        'code' => 'CODE DE SECOURS',
+        'regle' => 'Min. 8 caractères. Le code de secours ne sert qu\'une fois : un nouveau vous sera remis.',
+        'bouton' => 'RÉINITIALISER LE MOT DE PASSE',
+        'en_cours' => 'Vérification…',
+        'login_requis' => 'Veuillez saisir votre nom d\'utilisateur.',
+        'code_requis' => 'Veuillez saisir votre code de secours.',
+        // UN SEUL message de refus : le compte existe ou non, est administrateur ou non.
+        'refus' => 'Nom d\'utilisateur ou code de secours incorrect.',
+        'bloque' => 'Trop de tentatives. Réessayez dans :minutes minute(s).',
+        'mdp_reinitialise' => 'Mot de passe réinitialisé.',
+        'nouveau_code_titre' => 'Votre nouveau code de secours',
+        'consigne_coffre' => 'Ce code ne sera plus affiché. Notez-le ou imprimez-le et rangez-le au coffre : '
+            . 'l\'ancien code ne fonctionne plus.',
+        'impression_titre' => 'Code de secours de l\'administrateur',
+        'retour_connexion' => 'Retour à la connexion',
+    ],
+
+    'secret_unique' => [
+        'copier' => 'Copier',
+        'copie' => 'Copié',
+        'imprimer' => 'Imprimer',
+    ],
+
     'modale' => [
         // maquette — `crud-ui.js` l.92, attribut `aria-label`
         'fermer' => 'Fermer',

@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
@@ -9,18 +12,29 @@ import 'package:tatacora_flutter/core/theme/app_colors.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/caisse/domain/messages_caisse.dart';
+import 'package:tatacora_flutter/features/facturation/data/service_normalisation.dart';
+import 'package:tatacora_flutter/features/facturation/domain/mode_facturation.dart';
+import 'package:tatacora_flutter/features/facturation/presentation/providers_facturation.dart'
+    show certifieParProvider, serviceNormalisationProvider;
+import 'package:tatacora_flutter/features/facturation/presentation/widgets/champs_acheteur_facture.dart'
+    show ChampsAcheteurFacture;
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_repository_local.dart';
 import 'package:tatacora_flutter/features/hebergement/presentation/providers_hebergement.dart';
 import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/panier_repository_local.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
+import 'package:tatacora_flutter/features/hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
+import 'package:tatacora_flutter/features/pos/domain/messages_ventes.dart';
 import 'package:tatacora_flutter/features/pos/domain/repositories/panier_repository.dart';
 import 'package:tatacora_flutter/features/pos/presentation/ecran_pos_comptant.dart';
 import 'package:tatacora_flutter/features/pos/presentation/ecran_pos_heberges.dart';
 import 'package:tatacora_flutter/features/pos/presentation/providers_pos.dart';
 import 'package:tatacora_flutter/features/pos/presentation/widgets/modale_cloture_sejour.dart';
 import 'package:tatacora_flutter/features/pos/presentation/widgets/panier_heberges.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
+import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 
 import '../facturation/support/outils_encaissement.dart'
     show ouvrirLaCaisseDuComptoir;
@@ -129,6 +143,9 @@ void main() {
     WidgetTester tester,
     Widget ecran, {
     GardeAcces? droits,
+    // Ce que CE poste fait pour normaliser : « rien » = facture SIMPLE (07/11/2026).
+    CertifiePar par = CertifiePar.rien,
+    List<Override> surcharges = const [],
   }) async {
     tester.view
       ..physicalSize = const Size(1600, 1000)
@@ -139,6 +156,8 @@ void main() {
       ProviderScope(
         overrides: [
           baseLocaleProvider.overrideWithValue(db),
+          certifieParProvider.overrideWith((ref) async => par),
+          ...surcharges,
           // Celui qui encaisse : la clôture nomme son auteur (RG-15).
           sessionProvider.overrideWithBuild(
             (ref, notifier) => Session(
@@ -207,6 +226,46 @@ void main() {
       expect((await depotPanier.paniers()).single.total, 1000);
     });
 
+    testWidgets('REMISE au comptoir (21/10/2026) : « FCFA » puis une valeur — '
+        'le total devient le net, « Sur un total de » dit le brut, « Aucune » '
+        'la retire', (tester) async {
+      await monter(tester, const EcranPosComptant());
+      await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('pos-remise-appliquee')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('pos-remise-type')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('FCFA').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('pos-remise-valeur')), '250');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Text>(find.byKey(const Key('pos-total'))).data,
+        '750 FCFA',
+      );
+      expect(find.text('Sur un total de 1 000 FCFA'), findsOneWidget);
+      expect(find.text('- 250 FCFA'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('pos-remise-type')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Aucune').last);
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.byKey(const Key('pos-total'))).data,
+        '1 000 FCFA',
+      );
+      expect(find.byKey(const Key('pos-remise-appliquee')), findsNothing);
+      expect(
+        (await depotPanier.paniers()).single.remiseType,
+        TypeRemise.aucune,
+      );
+    });
+
     testWidgets('sans caisse ouverte, le bouton d’encaissement est GRISÉ et '
         'dit pourquoi (D221)', (tester) async {
       await monter(tester, const EcranPosComptant());
@@ -254,14 +313,169 @@ void main() {
       );
     });
 
+    testWidgets(
+      '« Client (facultatif) » SE SAISIT : la mention est posée sur le '
+      'panier, suit la vente (charge de synchronisation) et le panier '
+      'suivant repart d’un champ vide — plus aucun message d’écart',
+      (tester) async {
+        await ouvrirLaCaisseDuComptoir(db);
+        await monter(tester, const EcranPosComptant());
+        await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+        await tester.pumpAndSettle();
+
+        // Un champ ÉDITABLE (un vrai `TextField`, pas un bouton qui s'excuse).
+        final champ = find.byKey(const Key('pos-client-mention'));
+        expect(tester.widget(champ), isA<TextField>());
+        await tester.tap(champ);
+        await tester.pump();
+        expect(find.byType(SnackBar), findsNothing);
+        expect(find.textContaining('pas encore enregistrée'), findsNothing);
+
+        // Saisie puis ENCAISSEMENT sans quitter le champ : le clic sur
+        // « Encaisser » ne doit rien perdre.
+        await tester.enterText(champ, '  Mme Aïssatou N’DOUR  ');
+        await tester.pump();
+        expect(
+          (await depotPanier.paniers()).single.clientNom,
+          'Mme Aïssatou N’DOUR',
+        );
+
+        await tester.tap(find.byKey(const Key('pos-cloturer')));
+        await tester.pumpAndSettle();
+
+        final cloture = (await depotPanier.paniers()).single;
+        expect(cloture.clientNom, 'Mme Aïssatou N’DOUR');
+        final vente = (await OperationsSyncDao(
+          db,
+        ).operations()).singleWhere((o) => o.table == TableSynchronisee.ventes);
+        expect(
+          (jsonDecode(vente.payload) as Map<String, Object?>)['client_nom'],
+          'Mme Aïssatou N’DOUR',
+        );
+        await tester.tap(find.byKey(const Key('vente-encaissee-fermer')));
+        await tester.pumpAndSettle();
+
+        // Le client suivant n'hérite de rien.
+        await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+        await tester.pumpAndSettle();
+        expect(tester.widget<TextField>(champ).controller!.text, isEmpty);
+        final suivant = (await depotPanier.paniers()).firstWhere(
+          (p) => p.estOuvert,
+        );
+        expect(suivant.clientNom, isNull);
+      },
+    );
+
+    testWidgets('l’encaissement OUVRE « Vente encaissée » (total, 3 boutons), '
+        'puis le journal du jour liste la vente et l’ANNULE avec son '
+        'motif', (tester) async {
+      await ouvrirLaCaisseDuComptoir(db);
+      await monter(tester, const EcranPosComptant());
+      await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pos-cloturer')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('modale-vente-encaissee')), findsOneWidget);
+      expect(find.text('PRIX UNITAIRE'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('vente-encaissee-total')))
+            .data,
+        contains('1 000'),
+      );
+      expect(
+        find.byKey(const Key('vente-encaissee-ticket-80')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('vente-encaissee-facture')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('vente-encaissee-fermer')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('modale-vente-encaissee')), findsNothing);
+
+      // Le journal du jour : la vente y est, « annuler » exige un motif.
+      await tester.tap(find.byKey(const Key('caisse-journal')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('modale-journal-du-jour')), findsOneWidget);
+      final id = (await depotPanier.paniers()).single.id;
+      expect(find.byKey(Key('journal-vente-$id')), findsOneWidget);
+
+      await tester.tap(find.byKey(Key('journal-annuler-$id')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('annulation-vente-confirmer')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(MessagesVentes.motifAnnulationObligatoire),
+        findsOneWidget,
+        reason: 'sans motif, le refus est dit sous le champ',
+      );
+      expect(
+        (await depotPanier.paniers()).single.statut,
+        isNot(StatutPanier.annule),
+      );
+
+      await tester.enterText(
+        find.byKey(const Key('annulation-vente-motif')),
+        'erreur de saisie',
+      );
+      await tester.tap(find.byKey(const Key('annulation-vente-confirmer')));
+      await tester.pumpAndSettle();
+      expect((await depotPanier.paniers()).single.statut, StatutPanier.annule);
+      expect(find.byKey(const Key('annulation-vente-message')), findsOneWidget);
+      expect(find.byKey(Key('journal-annulee-$id')), findsOneWidget);
+    });
+
     testWidgets('⚠ PA-79 — changer de filtre ne vide PAS le panier', (
       tester,
     ) async {
       // Le défaut : le sélecteur de catalogue désignait aussi la caisse, si
-      // bien qu'un client prenant une bière puis un circuit perdait sa
-      // première ligne — et l'addition unique qu'il demandait devenait
-      // impossible.
-      await monter(tester, const EcranPosComptant());
+      // bien qu'un client prenant une bière puis un plat perdait sa première
+      // ligne — et l'addition unique qu'il demandait devenait impossible.
+      await db
+          .into(db.menusLocal)
+          .insert(
+            MenusLocalCompanion.insert(
+              id: 'm-1',
+              libelle: 'Carte',
+              type: 'local',
+              creeLe: DateTime(2026, 10, 1),
+              creePar: caissierDeVente,
+            ),
+          );
+      await db
+          .into(db.recettesLocal)
+          .insert(
+            RecettesLocalCompanion.insert(
+              id: 'r-1',
+              libelle: 'Fiche',
+              creeLe: DateTime(2026, 10, 1),
+              creePar: caissierDeVente,
+            ),
+          );
+      await db
+          .into(db.platsLocal)
+          .insert(
+            PlatsLocalCompanion.insert(
+              id: 'p-1',
+              menuId: 'm-1',
+              recetteId: 'r-1',
+              libelle: 'Riz sauce',
+              prixVente: 2500,
+              creeLe: DateTime(2026, 10, 1),
+              creePar: caissierDeVente,
+            ),
+          );
+      await monter(
+        tester,
+        const EcranPosComptant(),
+        droits: GardeAcces.depuisJson(const {'M5': 'C', 'M4': 'C'}),
+      );
 
       await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
       await tester.pumpAndSettle();
@@ -270,7 +484,7 @@ void main() {
 
       // On change de rayon — le geste qui vidait le panier. Le rayon est un
       // SÉLECTEUR depuis le POS en trois colonnes (14/10/2026).
-      await choisirRayon(tester, 'M9');
+      await choisirRayon(tester, 'M4');
 
       final panier = (await depotPanier.paniers()).single;
       expect(
@@ -280,12 +494,12 @@ void main() {
       );
 
       // Et l'article de l'autre rayon rejoint le MÊME panier (règle 4).
-      await tester.tap(find.byKey(const Key('pos-article-M9:cir-1')));
+      await tester.tap(find.byKey(const Key('pos-article-M4:p-1')));
       await tester.pumpAndSettle();
 
       final apres = (await depotPanier.paniers()).single;
       expect(apres.lignes, hasLength(2));
-      expect(apres.total, 5500);
+      expect(apres.total, 3500);
       expect(apres.ventilation.keys, hasLength(2));
     });
 
@@ -303,6 +517,209 @@ void main() {
       );
       expect(message.data, contains('Aucun plat'));
       expect(message.data, isNot(contains('connexion')));
+    });
+
+    testWidgets('TOURISME et LOCATION (26/10/2026) : AUCUN rayon, AUCUNE carte '
+        'au comptoir — même avec un circuit et un véhicule en base', (
+      tester,
+    ) async {
+      // Directive du PO : « il faut enlever cette catégorie de la sélection ».
+      // Le circuit `cir-1` (semé par `setUp`) et ce véhicule EXISTENT au
+      // catalogue local ; le comptoir ne les propose pas. Aucune carte
+      // grisée non plus : elles n'existent plus.
+      await db
+          .into(db.vehiculesLocal)
+          .insert(
+            VehiculesLocalCompanion.insert(
+              id: 'veh-1',
+              categorie: '4x4',
+              immatriculation: 'AB-123-CD',
+              tarifJour: 65000,
+              statut: 'disponible',
+            ),
+          );
+      await ouvrirLaCaisseDuComptoir(db);
+      await monter(
+        tester,
+        const EcranPosComptant(),
+        droits: GardeAcces.depuisJson(const {'M5': 'C', 'M8': 'C', 'M9': 'C'}),
+      );
+      await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+      await tester.pumpAndSettle();
+
+      // La bière, elle, est bien là : le catalogue n'est pas vide pour autant.
+      expect(find.byKey(const Key('pos-article-M5:bsn-33')), findsOneWidget);
+      expect(find.byKey(const Key('pos-article-M9:cir-1')), findsNothing);
+      expect(find.byKey(const Key('pos-article-M8:veh-1')), findsNothing);
+      expect(find.textContaining('Cascades de Tanougou'), findsNothing);
+      expect(find.textContaining('AB-123-CD'), findsNothing);
+
+      // Le sélecteur de famille ne propose que « Tout », Bar et Restaurant.
+      await tester.tap(find.byKey(const Key('pos-famille')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('pos-rayon-M5')), findsWidgets);
+      expect(find.byKey(const Key('pos-rayon-M4')), findsWidgets);
+      expect(find.byKey(const Key('pos-rayon-M9')), findsNothing);
+      expect(find.byKey(const Key('pos-rayon-M8')), findsNothing);
+      expect(find.text('Tourisme'), findsNothing);
+      expect(find.text('Location'), findsNothing);
+
+      // Une recherche ne les ressort pas non plus (elle ignore le rayon actif).
+      await tester.tap(find.byKey(const Key('pos-rayon-tout')).last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('pos-recherche')),
+        'Cascades',
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('pos-article-M9:cir-1')), findsNothing);
+      expect((await depotPanier.paniers()).single.lignes, isEmpty);
+    });
+
+    group('panneau Panier : « Vider » et « Abandonner » (26/10/2026)', () {
+      // La vue (`comptant.blade.php` l.322-325) pose les deux boutons dans
+      // l'en-tête du panneau, TOUJOURS, sans condition ni confirmation :
+      // `wire:click="viderPanier"` / `"abandonnerPanier"`.
+      Finder vider() => find.byKey(const Key('pos-vider-panier'));
+      Finder abandonner() => find.byKey(const Key('pos-abandonner-panier'));
+
+      bool actif(WidgetTester tester, Finder f) =>
+          tester.widget<InkWell>(f).onTap != null;
+
+      testWidgets('présents dès l’ouverture de l’écran, AVANT tout panier, '
+          'aux mots de la vue', (tester) async {
+        await monter(tester, const EcranPosComptant());
+
+        expect(vider(), findsOneWidget);
+        expect(abandonner(), findsOneWidget);
+        expect(
+          find.descendant(of: vider(), matching: find.text('Vider')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: abandonner(), matching: find.text('Abandonner')),
+          findsOneWidget,
+        );
+        expect(actif(tester, vider()), isTrue);
+        expect(actif(tester, abandonner()), isTrue);
+        expect(await depotPanier.paniers(), isEmpty);
+      });
+
+      testWidgets('sans panier ouvert : « Vider » ne fait rien, aucun panier '
+          'n’est créé', (tester) async {
+        await monter(tester, const EcranPosComptant());
+
+        await tester.tap(vider());
+        await tester.pumpAndSettle();
+
+        expect(await depotPanier.paniers(), isEmpty);
+        expect(find.byType(SnackBar), findsNothing);
+      });
+
+      testWidgets('sans panier ouvert : « Abandonner » dit « Panier '
+          'abandonné. » et n’écrit rien', (tester) async {
+        await monter(tester, const EcranPosComptant());
+
+        await tester.tap(abandonner());
+        await tester.pumpAndSettle();
+
+        expect(find.text('Panier abandonné.'), findsOneWidget);
+        expect(await depotPanier.paniers(), isEmpty);
+      });
+
+      testWidgets(
+        '« Vider » retire TOUTES les lignes, SANS confirmation, et le '
+        'panier reste ouvert',
+        (tester) async {
+          await monter(tester, const EcranPosComptant());
+          await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+          await tester.pumpAndSettle();
+          expect(actif(tester, vider()), isTrue);
+
+          await tester.tap(vider());
+          await tester.pumpAndSettle();
+
+          expect(find.byType(AlertDialog), findsNothing);
+          final panier = (await depotPanier.paniers()).single;
+          expect(panier.lignes, isEmpty);
+          expect(panier.estOuvert, isTrue);
+          // Le panneau reste celui d'un panier OUVERT, boutons compris.
+          expect(vider(), findsOneWidget);
+          expect(abandonner(), findsOneWidget);
+        },
+      );
+
+      testWidgets('« Vider » reste actif sur un panier ouvert encore vide '
+          '(la vue ne le grise jamais)', (tester) async {
+        await monter(tester, const EcranPosComptant());
+        await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+        await tester.pumpAndSettle();
+
+        expect(actif(tester, vider()), isTrue);
+        await tester.tap(vider());
+        await tester.pumpAndSettle();
+        expect((await depotPanier.paniers()).single.estOuvert, isTrue);
+      });
+
+      testWidgets('« Abandonner » ferme le panier ouvert SANS motif demandé, '
+          'garde ses lignes et rend le comptoir', (tester) async {
+        await monter(tester, const EcranPosComptant());
+        await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+        await tester.pumpAndSettle();
+
+        await tester.tap(abandonner());
+        await tester.pumpAndSettle();
+
+        // Pas de dialogue de motif : la vue n'en pose aucun.
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.byKey(const Key('pos-motif-annulation')), findsNothing);
+        expect(find.text('Panier abandonné.'), findsOneWidget);
+
+        final panier = (await depotPanier.paniers()).single;
+        expect(panier.estOuvert, isFalse);
+        expect(panier.statut, StatutPanier.annule);
+        expect(panier.motifAnnulation, MessagesVentes.motifAbandon);
+        expect(panier.lignes, hasLength(1));
+        // Le panneau est revenu à « aucun panier ouvert », boutons compris.
+        expect(find.byKey(const Key('pos-comptant-ouvrir')), findsOneWidget);
+        expect(vider(), findsOneWidget);
+        expect(abandonner(), findsOneWidget);
+      });
+
+      testWidgets('droits identiques à la vue (écriture sur M5) : sans eux, '
+          'les deux boutons sont inertes', (tester) async {
+        await monter(
+          tester,
+          const EcranPosComptant(),
+          droits: GardeAcces.depuisJson(const {'M5': 'L'}),
+        );
+
+        expect(vider(), findsOneWidget);
+        expect(abandonner(), findsOneWidget);
+        expect(actif(tester, vider()), isFalse);
+        expect(actif(tester, abandonner()), isFalse);
+      });
+
+      testWidgets('un panier déjà fermé ailleurs : le refus est dit à la '
+          'phrase du serveur', (tester) async {
+        await monter(tester, const EcranPosComptant());
+        await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+        await tester.pumpAndSettle();
+        final p = (await depotPanier.paniers()).single;
+        // Une autre fenêtre encaisse le panier sous les pieds de l'écran.
+        await cloturerSansPiece(db, p.id, mode: 'especes');
+
+        await tester.tap(vider());
+        await tester.pumpAndSettle();
+
+        expect(find.text(MessagesVentes.panierClotureImmuable), findsOneWidget);
+      });
     });
 
     testWidgets('sans droit d’écriture sur M5, aucune vente ne s’ouvre', (
@@ -368,9 +785,9 @@ void main() {
       expect(find.text('Point de vente — clients hébergés'), findsOneWidget);
       expect(
         find.text(
-          'Le panier reste ouvert de l’arrivée au départ. Bar, restaurant, '
-          'tourisme et location y entrent ensemble — un seul panier, une '
-          'seule facture à la clôture.',
+          'Le panier reste ouvert de l’arrivée au départ. Bar et restaurant '
+          'y entrent ensemble — un seul panier, une seule facture à la '
+          'clôture.',
         ),
         findsOneWidget,
       );
@@ -520,23 +937,34 @@ void main() {
       );
     });
 
-    testWidgets('Q2 — un second article rejoint LE panier, jamais un second', (
-      tester,
-    ) async {
+    testWidgets('Q2 — un second article rejoint LE panier, jamais un second '
+        '(et le circuit en base n’est PAS proposé)', (tester) async {
       await monter(tester, const EcranPosHeberges());
       await selectionner(tester);
       await ajouterBiere(tester);
-      await tester.tap(find.byKey(const Key('pos-article-M9:cir-1')));
-      await tester.pumpAndSettle();
+      // Tourisme et location ne sont plus proposés (26/10/2026) : ni carte
+      // grisée, ni phrase de refus, ni pastille — le circuit `cir-1` existe
+      // pourtant au catalogue local.
+      expect(find.byKey(const Key('pos-article-M9:cir-1')), findsNothing);
+      expect(
+        find.byKey(const Key('pos-prestation-refusee-cir-1')),
+        findsNothing,
+      );
+      expect(find.byKey(const Key('pos-categorie-prestations')), findsNothing);
+      expect(find.textContaining('Tourisme'), findsNothing);
+      expect(find.textContaining('Location'), findsNothing);
 
-      final paniers = await depotPanier.paniers();
+      var paniers = await depotPanier.paniers();
       expect(paniers, hasLength(1));
-      expect(paniers.single.lignes, hasLength(2));
-      expect(paniers.single.total, 5500);
-      // La mixité est restituée, pas séparée (règle 4).
-      expect(find.text('Bar : 1 000 FCFA'), findsOneWidget);
-      expect(find.text('Tourisme : 4 500 FCFA'), findsOneWidget);
-      expect(texteDe(tester, 'pos-total'), '5 500 FCFA');
+      expect(paniers.single.lignes, hasLength(1));
+
+      // Un second article rejoint le MÊME panier.
+      await ajouterBiere(tester);
+      paniers = await depotPanier.paniers();
+      expect(paniers, hasLength(1));
+      expect(paniers.single.lignes.single.quantite, 2);
+      expect(paniers.single.total, 2000);
+      expect(texteDe(tester, 'pos-total'), '2 000 FCFA');
     });
 
     testWidgets('⚠ PA-79 — changer de pastille ne touche PAS le panier', (
@@ -546,33 +974,44 @@ void main() {
       await selectionner(tester);
       await ajouterBiere(tester);
 
-      await tester.tap(find.byKey(const Key('pos-categorie-prestations')));
+      await tester.tap(find.byKey(const Key('pos-categorie-restauration')));
       await tester.pumpAndSettle();
 
-      // Le filtre filtre : seule la prestation reste visible.
-      expect(find.byKey(const Key('pos-article-M9:cir-1')), findsOneWidget);
+      // Le filtre filtre : la bière n'est plus affichée, mais elle reste au
+      // panier.
       expect(find.byKey(const Key('pos-article-M5:bsn-33')), findsNothing);
       final panier = (await depotPanier.paniers()).single;
       expect(panier.lignes, hasLength(1));
       expect(panier.total, 1000);
     });
 
+    testWidgets('les pastilles sont Tout, Bar et Restauration — plus de '
+        '« Tourisme & location » (26/10/2026)', (tester) async {
+      await monter(tester, const EcranPosHeberges());
+
+      expect(find.byKey(const Key('pos-categorie-tout')), findsOneWidget);
+      expect(find.byKey(const Key('pos-categorie-bar')), findsOneWidget);
+      expect(
+        find.byKey(const Key('pos-categorie-restauration')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('pos-categorie-prestations')), findsNothing);
+      expect(find.text('Tourisme & location'), findsNothing);
+    });
+
     testWidgets('la recherche et la pastille s’appliquent ENSEMBLE', (
       tester,
     ) async {
       await monter(tester, const EcranPosHeberges());
-      await tester.enterText(
-        find.byKey(const Key('pos-recherche')),
-        'Cascades',
-      );
+      await tester.enterText(find.byKey(const Key('pos-recherche')), 'Bénin');
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('pos-article-M9:cir-1')), findsOneWidget);
-      expect(find.byKey(const Key('pos-article-M5:bsn-33')), findsNothing);
+      expect(find.byKey(const Key('pos-article-M5:bsn-33')), findsOneWidget);
 
-      // Pastille « Bar » + terme « Cascades » : l'intersection est vide, et la
-      // phrase de la vue le dit.
+      // Pastille « Bar » + un terme qui n'est pas au bar : l'intersection est
+      // vide, et la phrase de la vue le dit.
       await tester.tap(find.byKey(const Key('pos-categorie-bar')));
+      await tester.enterText(find.byKey(const Key('pos-recherche')), 'Riz');
       await tester.pumpAndSettle();
       expect(
         texteDe(tester, 'pos-catalogue-vide'),
@@ -640,24 +1079,52 @@ void main() {
       expect(find.textContaining('84 000'), findsNothing);
     });
 
-    testWidgets('la remise dit qu’elle n’agit pas, et ne change rien', (
-      tester,
-    ) async {
+    testWidgets('la remise du séjour s’applique : le net remplace le total, '
+        'la ligne dit le brut et la remise', (tester) async {
       await monter(tester, const EcranPosHeberges());
       await selectionner(tester);
       await ajouterBiere(tester);
 
       await tester.tap(find.byKey(const Key('pos-remise-type')));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('%').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('pos-remise-valeur')), '10');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
 
-      const message =
-          'La remise ne s’applique pas sur ce poste : le panier de séjour ne '
-          'porte aucune remise, donc le total facturé reste le total des '
-          'lignes. Rien n’a été enregistré.';
-      expect(PanierHeberges.remiseNonDisponible, message);
-      expect(find.text(message), findsOneWidget);
+      expect(texteDe(tester, 'pos-total'), '900 FCFA');
+      expect(find.text('Sur un total de 1 000 FCFA'), findsOneWidget);
+      expect(find.text('- 100 FCFA'), findsOneWidget);
+      final p = (await depotPanier.paniers()).single;
+      expect(p.remiseType, TypeRemise.pourcentage);
+      expect(p.remiseValeurCentiemes, 1000);
+      expect(p.total, 1000, reason: 'les lignes restent au prix brut');
+    });
+
+    testWidgets('une remise hors bornes est refusée SOUS la ligne, avec la '
+        'phrase du serveur, et rien n’est posé', (tester) async {
+      await monter(tester, const EcranPosHeberges());
+      await selectionner(tester);
+      await ajouterBiere(tester);
+
+      await tester.tap(find.byKey(const Key('pos-remise-type')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('%').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('pos-remise-valeur')), '120');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(
+        texteDe(tester, 'pos-remise-erreur'),
+        MessagesVentes.remisePourcentageHorsBornes,
+      );
       expect(texteDe(tester, 'pos-total'), '1 000 FCFA');
-      expect((await depotPanier.paniers()).single.total, 1000);
+      expect(
+        (await depotPanier.paniers()).single.remiseType,
+        TypeRemise.aucune,
+      );
     });
 
     testWidgets('« Clôturer et facturer » est grisé tant que le panier est '
@@ -695,13 +1162,63 @@ void main() {
       expect(find.text('84 000 FCFA'), findsOneWidget);
       expect(find.text('Béninoise 33cl × 1'), findsOneWidget);
       expect(texteDe(tester, 'cloture-total-facture'), '85 000 FCFA');
-      // La case « Payer séparément » n'existe pas ici.
-      expect(find.textContaining('Payer séparément'), findsNothing);
+      // La case « Payer séparément » existe, DÉCOCHÉE : la facture porte
+      // l'hébergement ET les consommations, et le rappel n'est pas affiché.
+      expect(
+        find.text(ModaleClotureSejour.payerSeparementLibelle),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<Checkbox>(
+              find.descendant(
+                of: find.byKey(const Key('cloture-payer-separement')),
+                matching: find.byType(Checkbox),
+              ),
+            )
+            .value,
+        isFalse,
+      );
+      expect(find.byKey(const Key('cloture-rappel-hebergement')), findsNothing);
       expect(
         await depotPanier.panierOuvertPour('res-1'),
         isNotNull,
         reason: 'rien n’est clôturé tant que « Facture » n’est pas pressé',
       );
+    });
+
+    testWidgets('« Payer séparément » COCHÉE : le rappel de l’hébergement '
+        'apparaît et le total facturé ne porte plus que les consommations', (
+      tester,
+    ) async {
+      await monter(tester, const EcranPosHeberges());
+      await selectionner(tester);
+      await ajouterBiere(tester);
+      await tester.tap(find.byKey(const Key('pos-cloturer')));
+      await tester.pumpAndSettle();
+
+      expect(texteDe(tester, 'cloture-total-facture'), '85 000 FCFA');
+      await tester.tap(find.byKey(const Key('cloture-payer-separement')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('cloture-rappel-hebergement')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('resteront dues sur la fiche du client'),
+        findsOneWidget,
+      );
+      expect(texteDe(tester, 'cloture-total-facture'), '1 000 FCFA');
+
+      // Rien n'est clôturé tant que « Facture » n'est pas pressé.
+      expect(await depotPanier.panierOuvertPour('res-1'), isNotNull);
+
+      // Décocher rend l'hébergement à la facture.
+      await tester.tap(find.byKey(const Key('cloture-payer-separement')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('cloture-rappel-hebergement')), findsNothing);
+      expect(texteDe(tester, 'cloture-total-facture'), '85 000 FCFA');
     });
 
     testWidgets('« Annuler » referme la modale : le panier survit', (
@@ -758,6 +1275,198 @@ void main() {
       ]);
     });
 
+    /* ---------------- IFU du client, décision du PO du 07/11/2026 ---------------- */
+
+    Future<void> ouvrirLaCloture(WidgetTester tester) async {
+      await selectionner(tester);
+      await ajouterBiere(tester);
+      await tester.tap(find.byKey(const Key('pos-cloturer')));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> confirmerLaCloture(WidgetTester tester) async {
+      await tester.tap(
+        find.byKey(const Key('pos-confirmer-cloture-anticipee')),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('la modale de clôture demande l’IFU du client : facultatif, '
+        'décoché par défaut, SANS « Normaliser maintenant » en mode désactivé', (
+      tester,
+    ) async {
+      await monter(tester, const EcranPosHeberges());
+      await ouvrirLaCloture(tester);
+
+      expect(find.byKey(ChampsAcheteurFacture.cleIfu), findsOneWidget);
+      expect(find.byKey(ChampsAcheteurFacture.cleNom), findsOneWidget);
+      expect(find.text('IFU du client'), findsOneWidget);
+      expect(find.text('Retenir pour ce client'), findsOneWidget);
+      expect(
+        find.text(
+          'Facultatif : 13 chiffres. Laissez vide pour un client sans IFU.',
+        ),
+        findsOneWidget,
+      );
+      // Le nom du client de la réservation préremplit le nom.
+      expect(
+        tester
+            .widget<TextField>(find.byKey(ChampsAcheteurFacture.cleNom))
+            .controller!
+            .text,
+        'KORA',
+      );
+      // Cases décochées ; pas de « Normaliser maintenant » (facture simple).
+      for (final c in tester.widgetList<Checkbox>(find.byType(Checkbox))) {
+        if (c.value == true) {
+          // seule la case « Payer séparément » pourrait l'être : elle ne l'est pas.
+          fail('une case est cochée d’office');
+        }
+      }
+      expect(find.byKey(ChampsAcheteurFacture.cleNormaliser), findsNothing);
+      expect(find.text('Normaliser maintenant'), findsNothing);
+    });
+
+    testWidgets('vide, la facture part SANS IFU : client sans IFU, la clôture '
+        'n’en dépend jamais', (tester) async {
+      await monter(tester, const EcranPosHeberges());
+      await ouvrirLaCloture(tester);
+      await confirmerLaCloture(tester);
+
+      final piece = (await db.select(db.piecesFacturationLocal).get()).single;
+      expect(piece.acheteurIfu, isNull);
+      expect(
+        piece.numeroMecef,
+        isNull,
+        reason: 'facture simple : aucun numéro',
+      );
+      expect(piece.normalisationStatut, isNull);
+    });
+
+    testWidgets('un IFU de 12 chiffres se CORRIGE : la phrase sous le champ, '
+        '« Facture » grisé, rien n’est clôturé', (tester) async {
+      await monter(tester, const EcranPosHeberges());
+      await ouvrirLaCloture(tester);
+
+      await tester.enterText(
+        find.byKey(ChampsAcheteurFacture.cleIfu),
+        '320191076882',
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'L\'IFU du client doit compter exactement 13 chiffres (laissez vide '
+          'pour un client sans IFU).',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('pos-confirmer-cloture-anticipee')),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(await db.select(db.piecesFacturationLocal).get(), isEmpty);
+      expect((await depotPanier.paniers()).single.statut, StatutPanier.ouvert);
+    });
+
+    testWidgets('13 chiffres + nom + « Retenir » : rangés sur la pièce et '
+        'envoyés au serveur', (tester) async {
+      await monter(tester, const EcranPosHeberges());
+      await ouvrirLaCloture(tester);
+
+      await tester.enterText(
+        find.byKey(ChampsAcheteurFacture.cleIfu),
+        '3201910768821',
+      );
+      await tester.enterText(
+        find.byKey(ChampsAcheteurFacture.cleNom),
+        'SARL Atacora',
+      );
+      await tester.tap(find.byKey(ChampsAcheteurFacture.cleRetenir));
+      await tester.pumpAndSettle();
+      await confirmerLaCloture(tester);
+
+      final piece = (await db.select(db.piecesFacturationLocal).get()).single;
+      expect(piece.acheteurIfu, '3201910768821');
+      expect(piece.acheteurNom, 'SARL Atacora');
+      final ops = await (db.select(db.operationsSyncLocal)).get();
+      final facture = ops.firstWhere((o) => o.tableServeur == 'factures');
+      expect(facture.payload, contains('"acheteur_ifu":"3201910768821"'));
+      expect(facture.payload, contains('"retenir_ifu":true'));
+    });
+
+    testWidgets('la fiche du client préremplit l’IFU retenu', (tester) async {
+      await db.customStatement(
+        "UPDATE clients_local SET ifu = '0202011344660' WHERE id = 'cli-1'",
+      );
+      await monter(tester, const EcranPosHeberges());
+      await ouvrirLaCloture(tester);
+
+      expect(
+        tester
+            .widget<TextField>(find.byKey(ChampsAcheteurFacture.cleIfu))
+            .controller!
+            .text,
+        '0202011344660',
+      );
+    });
+
+    testWidgets('boîtier : « Normaliser maintenant » est offert, décoché par '
+        'défaut ; la facture n’est PAS normalisée d’office (mutation b)', (
+      tester,
+    ) async {
+      final espion = _ServiceEspion(db);
+      await monter(
+        tester,
+        const EcranPosHeberges(),
+        par: CertifiePar.boitier,
+        surcharges: [serviceNormalisationProvider.overrideWithValue(espion)],
+      );
+      await ouvrirLaCloture(tester);
+
+      expect(find.byKey(ChampsAcheteurFacture.cleNormaliser), findsOneWidget);
+      expect(find.text('Normaliser maintenant'), findsOneWidget);
+      await confirmerLaCloture(tester);
+
+      // Jamais automatique : le boîtier n'est PAS appelé, ni tentative ni statut.
+      expect(
+        espion.appels,
+        isEmpty,
+        reason: 'aucune normalisation à l’émission',
+      );
+      final piece = (await db.select(db.piecesFacturationLocal).get()).single;
+      expect(piece.normalisationStatut, isNull);
+      expect(piece.normalisationCompteurAvant, isNull);
+    });
+
+    testWidgets('un ÉCHEC de normalisation ne bloque NI la facture NI la '
+        'clôture (mutation c)', (tester) async {
+      await monter(
+        tester,
+        const EcranPosHeberges(),
+        par: CertifiePar.boitier,
+        surcharges: [
+          serviceNormalisationProvider.overrideWithValue(_ServiceQuiPlante(db)),
+        ],
+      );
+      await ouvrirLaCloture(tester);
+      await tester.tap(find.byKey(ChampsAcheteurFacture.cleNormaliser));
+      await tester.pumpAndSettle();
+      await confirmerLaCloture(tester);
+
+      // La vente est clôturée, la facture existe, « en attente » : rien n'a bloqué.
+      expect((await depotPanier.paniers()).single.statut, StatutPanier.cloture);
+      final piece = (await db.select(db.piecesFacturationLocal).get()).single;
+      expect(piece.statut, 'emise');
+      expect(piece.numeroMecef, isNull);
+      expect(find.byType(SnackBar), findsWidgets);
+      expect(find.textContaining('normalisation en attente'), findsWidgets);
+    });
+
     testWidgets('la phrase du panier dit « enregistré sur ce poste »', (
       tester,
     ) async {
@@ -799,4 +1508,27 @@ void main() {
       expect(await depotPanier.paniers(), isEmpty);
     });
   });
+}
+
+/// Un service de normalisation qui PLANTE : l'échec ne doit jamais bloquer une vente.
+class _ServiceQuiPlante extends ServiceNormalisation {
+  _ServiceQuiPlante(super.base);
+
+  @override
+  Future<ResultatNormalisationPiece> normaliser(String pieceId) async =>
+      throw StateError('le boîtier a explosé');
+}
+
+/// Un espion : compte les demandes de normalisation. Une normalisation AUTOMATIQUE à
+/// l'émission (mutation b) le ferait rougir.
+class _ServiceEspion extends ServiceNormalisation {
+  _ServiceEspion(super.base);
+
+  final List<String> appels = [];
+
+  @override
+  Future<ResultatNormalisationPiece> normaliser(String pieceId) async {
+    appels.add(pieceId);
+    return NormalisationIgnoree(CertifiePar.boitier);
+  }
 }

@@ -152,6 +152,14 @@ void main() {
         'saisie_le',
         'ecriture_id',
         'ecriture_refus',
+        // Puis, a la reouverture, les six colonnes du recu de la v42
+        // (27/10/2026) : la liste est celle de la forme COURANTE.
+        'recu_nom',
+        'recu_sha256',
+        'recu_taille',
+        'recu_type',
+        'recu_statut',
+        'recu_cause',
       ]);
       // La v16 n'ajoute aucune table et n'en recrée aucune.
       // La v17 (sessions de caisse) et la v18 (encaissement de facture)
@@ -170,7 +178,20 @@ void main() {
             tablesAjouteesEnV26.length +
             tablesAjouteesEnV27.length +
             tablesAjouteesEnV28.length +
-            tablesAjouteesEnV29.length,
+            tablesAjouteesEnV29.length +
+            tablesAjouteesEnV31.length +
+            tablesAjouteesEnV32.length +
+            tablesAjouteesEnV33.length +
+            tablesAjouteesEnV34.length +
+            tablesAjouteesEnV35.length +
+            tablesAjouteesEnV37.length +
+            tablesAjouteesEnV38.length +
+            tablesAjouteesEnV39.length +
+            tablesAjouteesEnV40.length +
+            tablesAjouteesEnV44.length +
+            tablesAjouteesEnV46.length +
+            tablesAjouteesEnV52.length +
+            tablesAjouteesEnV53.length,
       );
 
       // La donnée antérieure est la seule copie qui existe : elle survit.

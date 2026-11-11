@@ -41,6 +41,20 @@ class GuidesLocal extends Table {
   TextColumn get nom => text()();
   TextColumn get zoneCompetence => text().nullable()();
 
+  /// v41 (27/10/2026) — la CERTIFICATION (`guides.certification`), texte libre.
+  /// NULLABLE : un guide d'avant la v41 n'en a pas (les valeurs saisies PARTAIENT
+  /// au serveur sans être rangées ici) ; la migration n'en fabrique aucune.
+  ///
+  /// | Qui l'écrit | Qui la lit | Qui la descend |
+  /// |---|---|---|
+  /// | `TourismeDao.enregistrerGuide` (il enfile) | la fiche du guide | `AligneurDocuments._guide` (n'enfile jamais) |
+  TextColumn get certification => text().nullable()();
+
+  /// v41 — le TARIF JOURNALIER en francs entiers (`guides.tarif_jour`). NULLABLE :
+  /// « — » pour un guide d'avant ; jamais 0 par défaut (un tarif nul se lirait
+  /// « gratuit »). Voir [certification].
+  IntColumn get tarifJour => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

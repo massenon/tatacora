@@ -24,6 +24,7 @@
 /// ou par son CHAMP. Le sens, jamais : une colonne inconnue reste inconnue.
 library;
 
+import '../../../core/fichiers/ecriture_xlsx.dart';
 import '../../../core/fichiers/lecture_csv.dart';
 
 /// Le type d'une colonne — celui du serveur (`ColonneImport::$type`).
@@ -51,7 +52,19 @@ final class ColonneImport {
     this.type = TypeColonneImport.texte,
     this.valeurs,
     this.exemple = '',
+    this.alias = const [],
+    this.longueurMax,
   });
+
+  /// Type `texte` : nombre de caractères AU PLUS (30/10/2026, la description d'un
+  /// plat : 500), comme `ColonneImport::$longueurMax` du serveur ; `null` = pas de
+  /// borne propre.
+  final int? longueurMax;
+
+  /// D'autres en-têtes reconnus pour la même colonne — ceux du modèle du
+  /// SERVEUR quand le poste garde ses propres noms (M6 : huit colonnes au lieu
+  /// de cinq), pour qu'un même fichier se lise des deux côtés.
+  final List<String> alias;
 
   /// Clé interne (colonne du schéma ou clé du DAO).
   final String champ;
@@ -65,6 +78,26 @@ final class ColonneImport {
   final List<String>? valeurs;
   final String exemple;
 }
+
+/// Les colonnes d'un module au format du classeur `.xlsx` (feuille « Aide » :
+/// obligatoire, format, valeurs admises, exemple) — la MÊME déclaration que
+/// celle du contrôle.
+List<ColonneTableur> colonnesTableur(List<ColonneImport> colonnes) => [
+  for (final c in colonnes)
+    ColonneTableur(
+      libelle: c.libelle,
+      requis: c.requis,
+      format: c.type == TypeColonneImport.liste
+          ? 'Une valeur de la liste'
+          : c.type.libelle,
+      numerique:
+          c.type == TypeColonneImport.nombre ||
+          c.type == TypeColonneImport.montant,
+      montant: c.type == TypeColonneImport.montant,
+      valeurs: c.valeurs,
+      exemple: c.exemple,
+    ),
+];
 
 /// Une anomalie du rapport — `ligne` compte COMME EXCEL (l'en-tête est la
 /// ligne 1) ; `0` : le fichier entier.
@@ -162,13 +195,19 @@ final class RapportImport {
 abstract final class TextesControleImport {
   static const String fichierVide = 'Fichier vide.';
   static const String fichierIllisible =
-      "Le fichier n'a pas pu être lu en UTF-8 : enregistrez-le en CSV UTF-8, "
-      'puis redéposez-le.';
-  static String colonneManquante(String libelle) =>
-      'Colonne obligatoire absente du fichier : « $libelle ».';
+      "Le fichier n'a pas pu être lu : ce n'est ni un classeur .xlsx ni un "
+      'CSV. Repartez du modèle .xlsx téléchargé.';
+  static String colonneManquante(String libelle, String trouvees) =>
+      'Ligne 1 : colonne obligatoire « $libelle » absente de l\'en-tête. '
+      'Colonnes trouvées : $trouvees. Repartez du modèle .xlsx téléchargé.';
+  static const String aucuneEntete = '(aucune)';
+  static const String ligneExempleIgnoree =
+      'Ligne d\'exemple du modèle (« (exemple) ») — ignorée.';
   static String colonneInconnue(String libelle) =>
       'Colonne « $libelle » non reconnue — elle sera ignorée.';
   static const String valeurObligatoire = 'valeur obligatoire absente';
+  static String texteTropLong(String libelle, int maximum) =>
+      '« $libelle » ne peut pas dépasser $maximum caractères';
   static String valeurHorsListe(String valeur, List<String> attendu) =>
       'valeur « $valeur » hors liste (attendu : ${attendu.join(', ')})';
   static String valeurNonNumerique(String valeur) =>
@@ -203,7 +242,12 @@ String normaliserImport(String texte) {
     'ô': 'o', 'ö': 'o', 'õ': 'o', 'ú': 'u', 'ù': 'u', 'û': 'u', //
     'ü': 'u', 'ý': 'y', 'ÿ': 'y', 'œ': 'oe', 'æ': 'ae',
   };
+  // Excel « corrige » l'apostrophe droite en apostrophe typographique à la saisie
+  // d'un en-tête (« Valeur d’achat ») : les deux se valent (09/11/2026).
   return texte
+      .replaceAll('\u2019', "'")
+      .replaceAll('\u2018', "'")
+      .replaceAll('\u02BC', "'")
       .trim()
       .toLowerCase()
       .split('')
@@ -252,7 +296,8 @@ RapportImport controlerImport({
     ColonneImport? trouvee;
     for (final c in colonnes) {
       if (normaliserImport(c.libelle) == normalise ||
-          normaliserImport(c.champ) == normalise) {
+          normaliserImport(c.champ) == normalise ||
+          c.alias.any((a) => normaliserImport(a) == normalise)) {
         trouvee = c;
         break;
       }
@@ -276,17 +321,33 @@ RapportImport controlerImport({
         AnomalieImport(
           ligne: 1,
           colonne: c.libelle,
-          message: TextesControleImport.colonneManquante(c.libelle),
+          message: TextesControleImport.colonneManquante(
+            c.libelle,
+            tableau.first.where((e) => e.trim().isNotEmpty).join(' ; ').isEmpty
+                ? TextesControleImport.aucuneEntete
+                : tableau.first.where((e) => e.trim().isNotEmpty).join(' ; '),
+          ),
         ),
       );
     }
   }
 
   // Les lignes non blanches, numérotées comme Excel (+2 : l'en-tête est 1).
-  final corps = <(int, List<String>)>[
-    for (final (i, brute) in tableau.skip(1).indexed)
-      if (brute.any((v) => v.trim().isNotEmpty)) (i + 2, brute),
-  ];
+  final corps = <(int, List<String>)>[];
+  for (final (i, brute) in tableau.skip(1).indexed) {
+    if (!brute.any((v) => v.trim().isNotEmpty)) continue;
+    // La ligne d'exemple du modèle, laissée telle quelle, n'est pas une donnée.
+    if (estLigneExemple(brute)) {
+      avertissements.add(
+        AnomalieImport(
+          ligne: i + 2,
+          message: TextesControleImport.ligneExempleIgnoree,
+        ),
+      );
+      continue;
+    }
+    corps.add((i + 2, brute));
+  }
 
   if (erreurs.isNotEmpty) {
     return RapportImport(
@@ -366,6 +427,13 @@ RapportImport controlerImport({
   );
 }
 
+/// La ligne d'exemple du modèle : sa première cellule porte « (exemple) ».
+bool estLigneExemple(List<String> brute) =>
+    brute.isNotEmpty &&
+    normaliserImport(
+      brute.first,
+    ).startsWith(normaliserImport(prefixeExemple.trim()));
+
 /// Vérifie une cellule contre le type déclaré — `null` : rien à redire.
 String? _controlerCellule(
   ColonneImport c,
@@ -378,7 +446,10 @@ String? _controlerCellule(
   }
   switch (c.type) {
     case TypeColonneImport.texte:
-      return null;
+      final max = c.longueurMax;
+      return max != null && brut.length > max
+          ? TextesControleImport.texteTropLong(c.libelle, max)
+          : null;
     case TypeColonneImport.liste:
       final valeurs = c.valeurs ?? const <String>[];
       final n = normaliserImport(brut);

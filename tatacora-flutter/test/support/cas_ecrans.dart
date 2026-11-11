@@ -25,6 +25,7 @@ import 'package:tatacora_flutter/features/parametres/presentation/ecran_parametr
 import 'package:tatacora_flutter/features/restaurant/presentation/ecran_carte_restaurant.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/service_suivi_postes.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/transport_synchronisation.dart';
+import 'package:tatacora_flutter/features/synchronisation/presentation/ecran_synchronisation.dart';
 import 'package:tatacora_flutter/features/synchronisation/presentation/ecran_synchronisation_postes.dart';
 import 'package:tatacora_flutter/features/crm/domain/entities/client.dart';
 import 'package:tatacora_flutter/features/crm/presentation/ecran_clients.dart';
@@ -51,6 +52,8 @@ import 'package:tatacora_flutter/features/tableau_de_bord/presentation/ecran_tab
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_inventaires.dart';
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_stocks.dart';
 import 'package:tatacora_flutter/features/tourisme/presentation/ecran_tourisme.dart';
+import 'package:tatacora_flutter/features/transverse/presentation/ecran_comptes_utilisateurs.dart';
+import 'package:tatacora_flutter/features/rh/presentation/ecran_conges_plannings.dart';
 import 'package:tatacora_flutter/features/vehicules/presentation/ecran_vehicules.dart';
 import 'package:tatacora_flutter/features/ventes/presentation/ecran_historique_ventes.dart';
 import 'package:tatacora_flutter/features/hebergement/presentation/ecran_hebergement.dart';
@@ -59,6 +62,7 @@ import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/comptabilite/presentation/ecran_comptabilite.dart';
+import 'package:tatacora_flutter/features/comptabilite/presentation/ecran_correspondance_comptes.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_aide_a_propos.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_contact_editeur.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_import_export.dart';
@@ -282,6 +286,12 @@ final casEcrans = <CasEcran>[
     ecran: () => const EcranVehicules(),
   ),
   CasEcran(
+    vue: 'rh/conges-plannings',
+    jeu: JeuEcran.vide,
+    droits: const {'M13': 'C'},
+    ecran: () => const EcranCongesPlannings(),
+  ),
+  CasEcran(
     vue: 'tourisme/departs',
     jeu: JeuEcran.vide,
     droits: const {'M9': 'C', 'M3': 'C'},
@@ -374,6 +384,13 @@ final casEcrans = <CasEcran>[
     surcharges: _sessionAdministrateur,
   ),
   CasEcran(
+    vue: 'comptabilite/correspondance-comptes',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranCorrespondanceComptes(),
+    surcharges: _sessionAdministrateur,
+  ),
+  CasEcran(
     vue: 'transverse/aide-a-propos',
     jeu: JeuEcran.parc,
     droits: _droitsAdministrateur,
@@ -413,11 +430,29 @@ final casEcrans = <CasEcran>[
       serviceSuiviPostesProvider.overrideWithValue(_SuiviPostesVierge()),
     ],
   ),
+  // 09/11/2026 (PO) : la page « Synchronisation » du web (journaux de réception et d'envoi)
+  // est portée par l'écran de synchronisation du poste — `/synchronisation`, au menu de tous
+  // les rôles. Le jeu `parc` : aucun échec, la file vide.
+  CasEcran(
+    vue: 'transverse/synchronisation',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranSynchronisation(),
+    surcharges: _sessionAdministrateur,
+  ),
   CasEcran(
     vue: 'transverse/mon-profil',
     jeu: JeuEcran.parc,
     droits: _droitsAdministrateur,
     ecran: () => const EcranMonProfil(),
+    surcharges: _sessionAdministrateur,
+  ),
+  // 29/10/2026 (PO, option A du « mot de passe perdu ») : la liste des comptes.
+  CasEcran(
+    vue: 'transverse/comptes-utilisateurs',
+    jeu: JeuEcran.vide,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranComptesUtilisateurs(),
     surcharges: _sessionAdministrateur,
   ),
   CasEcran(
@@ -434,6 +469,8 @@ const _droitsAdministrateur = {
   'M1': 'C', 'M2': 'C', 'M3': 'C', 'M4': 'C', 'M5': 'C', 'M6': 'C', //
   'M7': 'C', 'M8': 'C', 'M9': 'C', 'M10': 'C', 'M11': 'C', 'M12': 'C',
   'M13': 'C', 'M14': 'C', 'ROLES': 'C', 'PARAM': 'C',
+  // Les trois droits ouverts à tous (09/11/2026).
+  'SYNCHRO': 'C', 'APPAIRAGE': 'C', 'IMPORT_EXPORT': 'C',
 };
 
 /// La session du relevé Blade : `compte.structure`, administrateur

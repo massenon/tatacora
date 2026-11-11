@@ -10,7 +10,6 @@ import '../../../core/impression/entete_a4.dart';
 import '../../../core/impression/entete_etablissement.dart';
 import '../../../core/impression/texte_ticket.dart';
 import '../../../core/impression/visas.dart';
-import '../domain/certification_mecef.dart';
 import '../domain/entities/piece_facturation.dart';
 
 /// L'état **« Registre des factures »** — `m2-facturation.html` l.182-215.
@@ -44,6 +43,7 @@ final class EtatRegistreFactures {
     required this.pieces,
     required this.filtre,
     this.entete = const EnteteEtablissement(),
+    this.normalisable = false,
   });
 
   static const String titre = 'Registre des factures';
@@ -70,10 +70,19 @@ final class EtatRegistreFactures {
 
   final EnteteEtablissement entete;
 
+  /// Ce poste normalise (boîtier ou e-MECeF) : l'état dit alors combien de pièces le sont. Mode
+  /// désactivé (facture simple) : AUCUNE mention de certification (décision du PO, 07/11/2026).
+  final bool normalisable;
+
   /// Le même document sous l'en-tête lu des paramètres au moment d'éditer
   /// (`lireEnteteEtablissementProvider`).
   EtatRegistreFactures avecEntete(EnteteEtablissement autre) =>
-      EtatRegistreFactures(pieces: pieces, filtre: filtre, entete: autre);
+      EtatRegistreFactures(
+        pieces: pieces,
+        filtre: filtre,
+        entete: autre,
+        normalisable: normalisable,
+      );
 
   bool get estVide => pieces.isEmpty;
 
@@ -85,13 +94,18 @@ final class EtatRegistreFactures {
   int get nombreCertifiees => pieces.where((p) => p.estCertifiee).length;
 
   /// La ligne de certification — dérivée, jamais figée.
-  String get mentionCertification => nombreCertifiees == 0
-      ? CertificationMecef.libelleDemonstration
+  ///
+  /// Décision du PO du 07/11/2026 : en mode désactivé (facture simple), AUCUNE mention — chaîne
+  /// vide ; en mode normalisable, le décompte des pièces réellement normalisées.
+  String get mentionCertification => !normalisable
+      ? ''
+      : nombreCertifiees == 0
+      ? 'Aucune pièce normalisée'
       : '$nombreCertifiees certifiée(s) sur ${pieces.length}';
 
   /// Une ligne du tableau — **source unique** des deux rendus.
   List<String> cellules(PieceFacturation p) => [
-    p.numero,
+    p.numeroRegistre,
     formaterDate(p.dateEmission),
     p.clientNom,
     p.origine.libelle,
@@ -106,7 +120,7 @@ final class EtatRegistreFactures {
   Map<String, String> get indicateurs => {
     'Pièces': '${pieces.length}',
     'Montant': formaterFcfa(montantTotal),
-    'Certification MECeF': mentionCertification,
+    if (normalisable) 'Certification MECeF': mentionCertification,
   };
 
   /* ================================================================== */

@@ -2,7 +2,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../comptabilite/domain/consultation_comptable.dart'
+    show repartitionStatuts;
 import '../../comptabilite/presentation/exercice_consulte.dart';
+import '../../comptabilite/presentation/providers_comptabilite.dart'
+    show comptabiliteDaoProvider;
+import '../../comptabilite/presentation/providers_consultation_comptable.dart'
+    show lireDonneesComptabilite;
+import '../../comptabilite/presentation/providers_etats_financiers.dart'
+    show lireDonneesEtats;
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/impression/entete_parametree.dart';
@@ -255,7 +263,18 @@ final depensesPilotageProvider = FutureProvider.autoDispose
     });
 
 final pilotageApiProvider = Provider<PilotageApi>(
-  (ref) => PilotageApi(base: ref.watch(baseLocaleProvider)),
+  (ref) => PilotageApi(
+    base: ref.watch(baseLocaleProvider),
+    // Les six indicateurs comptables se calculent sur ce poste.
+    etats: () => lireDonneesEtats(ref),
+    decompteStatuts: (exerciceId) async {
+      final d = await lireDonneesComptabilite(
+        ref.read(comptabiliteDaoProvider),
+      );
+      final r = repartitionStatuts(d.ecritures, exerciceId: exerciceId);
+      return (brouillons: r.brouillon, validees: r.validee);
+    },
+  ),
 );
 
 /// L'exercice comptable courant. `autoDispose` : quitter l'écran oublie la
@@ -670,7 +689,7 @@ const String noteExportPilotage =
 /// ([EtatPilotage]) porte des montants mis en forme ; le serveur exporte un
 /// « rapport » (`lignesRapport`, synthèse par défaut) qui n'est pas porté.
 const String tableurPilotageNonProduit =
-    "Sur ce poste, le pilotage consolidé ne s'exporte qu'en PDF : le tableur n'est pas porté (constaté le 12/10/2026).";
+    "Le pilotage consolidé ne s'exporte qu'en PDF.";
 
 /* ====================================================================== */
 /* KPI consolidés                                                          */
@@ -1982,12 +2001,14 @@ class _CarteClassement extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Le titre du classement : `accueil_pwa.top_ventes.<clé>` (food,
+          // drinks, circuit, location), composé à la volée par la vue.
           _LibelleMajuscule(classement.libelle),
           // Le critère est ANNONCÉ : un classement par quantité et un
           // classement par montant ne donnent pas le même ordre, et le
           // lecteur doit savoir lequel il regarde (le maître, au mot).
           Text(
-            'classé par ${classement.tri.libelle}',
+            classement.tri.libelle,
             style: TextStyle(fontSize: TaillesContenu.t11, color: Ardoise.c400),
           ),
           const SizedBox(height: AppSpacing.xs),

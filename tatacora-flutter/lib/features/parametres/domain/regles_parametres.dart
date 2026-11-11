@@ -11,6 +11,9 @@
 ///      DEUX sens
 library;
 
+import '../../comptabilite/domain/messages_comptables.dart';
+import '../../comptabilite/domain/regle_numero_compte.dart';
+import '../../facturation/domain/mode_facturation.dart';
 import 'entities/parametre.dart';
 import 'registre_parametres_local.dart';
 
@@ -150,6 +153,39 @@ Normalisation normaliser(SpecParametre spec, Object? brut) {
           '« ${spec.libelle} » n’est pas une adresse électronique valide.',
         );
       }
+      // L'IFU : 13 chiffres (`ReglagesMecef::FORMAT_IFU` du serveur).
+      if (spec.format == FormatTexte.ifu &&
+          !RegExp(r'^[0-9]{13}$').hasMatch(texte)) {
+        return const ValeurRefusee(
+          'L’IFU doit compter exactement 13 chiffres.',
+        );
+      }
+      // La RÉFÉRENCE FACTURE (`GCN`) : lettres et chiffres seulement.
+      if (spec.format == FormatTexte.alphanumerique &&
+          !RegExp(r'^[A-Za-z0-9]+$').hasMatch(texte)) {
+        return ValeurRefusee(
+          '« ${spec.libelle} » n’accepte que des lettres et des chiffres.',
+        );
+      }
+      // L'adresse de l'API de la DGI : https:// exigé.
+      if (spec.format == FormatTexte.urlHttps &&
+          !RegExp(r'^https://[^\s]+$', caseSensitive: false).hasMatch(texte)) {
+        return ValeurRefusee(
+          '« ${spec.libelle} » doit commencer par https:// et ne contenir '
+          'aucun espace.',
+        );
+      }
+      // Le numéro d'un compte de la correspondance : LA règle du plan
+      // (`RegleNumeroCompte`, `PlanComptableService::NUMERO_COMPTE_FORMAT`), et
+      // la phrase du serveur, mot pour mot.
+      if (spec.format == FormatTexte.numeroCompte &&
+          !RegleNumeroCompte.format.hasMatch(texte)) {
+        return ValeurRefusee(
+          MessagesComptables.dire('comptabilite.compte_numero_invalide', {
+            'numero': texte,
+          }),
+        );
+      }
       return ValeurNormalisee(texte);
 
     case TypeParametre.booleen:
@@ -244,6 +280,104 @@ String? verifierCoherence(Map<String, String> resultant) {
 }
 
 /* ====================================================================== */
+/* Les réglages réservés aux Administrateurs (09/11/2026)                  */
+/* ====================================================================== */
+
+/// Les phrases de `lang/fr/parametres.php`, MOT POUR MOT (le test
+/// `reglages_facturation_contre_serveur_test` les confronte au serveur) : le
+/// poste dit ce que dit l'écran web, jamais une variante.
+abstract final class MessagesReglagesAdministrateur {
+  /// `parametres.mecef_reserve_administrateur`.
+  static const String mecefReserve =
+      'Le mode de facturation normalisée et ses réglages sont réservés aux '
+      'Administrateurs.';
+
+  /// `parametres.forme_juridique_reservee_administrateur`.
+  static const String formeReservee =
+      'La forme juridique est réservée aux Administrateurs.';
+
+  /// `parametres.forme_juridique_affectation_active`.
+  static const String formeAffectationActive =
+      'La forme juridique ne peut pas être changée tant qu’une affectation du '
+      'résultat est active : contre-passez d’abord l’affectation (onglet '
+      'Clôtures de la Comptabilité), puis changez la forme.';
+
+  /// `parametres.forme_juridique_inconnue`.
+  static String formeInconnue(String valeur, List<String> admises) =>
+      'La forme juridique « $valeur » n’existe pas : choisissez parmi '
+      '${admises.join(', ')}.';
+
+  /// `parametres.mecef_manque_ifu`.
+  static const String manqueIfu =
+      'L’IFU de l’entreprise doit compter 13 chiffres (Identité & Légal).';
+
+  /// `parametres.mecef_manque_operateur`.
+  static const String manqueOperateur =
+      'L’identifiant et le nom de l’opérateur sont obligatoires.';
+
+  /// `parametres.mecef_mode_refuse`.
+  static String modeRefuse(String mode, String manques) =>
+      'Le mode « $mode » ne peut pas être choisi : $manques';
+}
+
+/// Les clés que nomme la cohérence de la facturation normalisée.
+abstract final class ClesFacturation {
+  static const String mode = 'facturation_mode';
+  static const String apiUrl = 'mecef_api_url';
+  static const String operateurId = 'mecef_operateur_id';
+  static const String operateurNom = 'mecef_operateur_nom';
+  static const String ifu = 'entreprise_ifu';
+  static const String formeJuridique = 'forme_juridique';
+
+  /// Les clés qui déclenchent le jugement du mode
+  /// (`EnregistrerParametreService::verifierFacturationNormalisee`).
+  static const List<String> concernees = [
+    mode,
+    ifu,
+    apiUrl,
+    operateurId,
+    operateurNom,
+  ];
+}
+
+/// La cohérence du réglage RÉSULTANT : un mode réel n'est accepté que si ce qu'il
+/// exige est là — l'IFU de l'entreprise (13 chiffres), l'identifiant ET le nom
+/// de l'opérateur. Même ordre des manques, même phrase que le serveur
+/// (`verifierFacturationNormalisee`).
+///
+/// ⚠ Ce que ce poste NE PEUT PAS juger : le JETON e-MECeF (jamais reçu ici). Le
+/// mode « e-MECeF » sans jeton est refusé par le SERVEUR à l'arrivée de
+/// l'opération (« Le jeton e-MECeF n’est pas enregistré. » dans « À traiter ») ;
+/// ce poste ne l'affirme ni ne le nie.
+///
+/// [soumises] : les clés de CE enregistrement ; sans aucune clé concernée, rien
+/// n'est jugé (comme le serveur).
+String? verifierFacturationNormalisee(
+  Map<String, String> resultant,
+  Iterable<String> soumises,
+) {
+  if (!soumises.any(ClesFacturation.concernees.contains)) return null;
+
+  final mode = ModeFacturation.depuisCode(resultant[ClesFacturation.mode]);
+  if (mode == ModeFacturation.desactive) return null;
+
+  String lu(String cle) => (resultant[cle] ?? '').trim();
+
+  final manques = <String>[
+    if (!RegExp(r'^[0-9]{13}$').hasMatch(lu(ClesFacturation.ifu)))
+      MessagesReglagesAdministrateur.manqueIfu,
+    if (lu(ClesFacturation.operateurId).isEmpty ||
+        lu(ClesFacturation.operateurNom).isEmpty)
+      MessagesReglagesAdministrateur.manqueOperateur,
+  ];
+  if (manques.isEmpty) return null;
+  return MessagesReglagesAdministrateur.modeRefuse(
+    mode.libelle,
+    manques.join(' '),
+  );
+}
+
+/* ====================================================================== */
 /* États DÉRIVÉS — les badges (PA-61)                                      */
 /* ====================================================================== */
 
@@ -266,6 +400,9 @@ abstract final class CodesEtat {
   // MECeF.
   static const String mecefNonConfiguree = 'non_configuree';
   static const String mecefEnAttente = 'en_attente_implementation';
+  // Facturation normalisée (07/11/2026) : l'état dérive du MODE reçu du serveur.
+  static const String mecefBoitierAuPoste = 'boitier_au_poste';
+  static const String mecefEmecefAuServeur = 'emecef_au_serveur';
 }
 
 const Map<String, String> libellesEtat = {
@@ -291,6 +428,16 @@ const Map<String, String> libellesEtat = {
       'Configuration complète, mais le client MECeF réel n’est pas encore '
       'implémenté : les factures mentionnent l’attente d’inscription auprès '
       'de la DGI.',
+  // Les mêmes mots que le serveur (`parametres.etats.mecef.boitier_au_poste`).
+  CodesEtat.mecefBoitierAuPoste:
+      'Mode boîtier CC300 : la normalisation se fait sur le poste de la '
+      'réception ; le serveur ne certifie pas.',
+  // ÉCART NOMMÉ : le serveur dit « emecef_actif / emecef_incomplet » parce qu'il
+  // connaît son jeton ; ce poste ne le reçoit jamais et ne peut donc pas
+  // affirmer que la configuration est complète.
+  CodesEtat.mecefEmecefAuServeur:
+      'Mode e-MECeF : le serveur certifie par l’API de la DGI ; ce poste n’en '
+      'vérifie pas la configuration (le jeton ne lui est jamais envoyé).',
 };
 
 EtatDerive _etat(String code) =>
@@ -321,7 +468,17 @@ EtatDerive etatTva(Map<String, String> valeurs) {
 /// L'état de MECeF. Il n'est JAMAIS « actif » sur ce poste : aucun client
 /// MECeF n'est implémenté (PA-17, l'inscription DGI n'est pas faite). Renseigner
 /// le numéro contribuable ne certifie rien.
-EtatDerive etatMecef(Map<String, String> valeurs) =>
-    _vide(valeurs[ClesFiscales.numeroMecef])
-    ? _etat(CodesEtat.mecefNonConfiguree)
-    : _etat(CodesEtat.mecefEnAttente);
+EtatDerive etatMecef(Map<String, String> valeurs) {
+  // Un mode RÉEL choisi au serveur prime sur l'état historique.
+  switch (modeDesParametres(valeurs)) {
+    case ModeFacturation.boitier:
+      return _etat(CodesEtat.mecefBoitierAuPoste);
+    case ModeFacturation.emecef:
+      return _etat(CodesEtat.mecefEmecefAuServeur);
+    case ModeFacturation.desactive:
+      break;
+  }
+  return _vide(valeurs[ClesFiscales.numeroMecef])
+      ? _etat(CodesEtat.mecefNonConfiguree)
+      : _etat(CodesEtat.mecefEnAttente);
+}

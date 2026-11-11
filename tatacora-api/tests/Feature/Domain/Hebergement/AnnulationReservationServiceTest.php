@@ -92,6 +92,51 @@ final class AnnulationReservationServiceTest extends TestCase
     }
 
     // =========================================================================
+    // Règle finale du PO (09/11/2026) : commission = taux × TOTAL, retenue sur le payé
+    // =========================================================================
+
+    #[Test]
+    public function reservation_payee_en_totalite_rembourse_total_moins_commission(): void
+    {
+        $reservation = $this->reservation(['acompte' => '40000']); // total 40000, tout payé
+        $annulee = $this->annulations->annuler($reservation, [
+            'taux' => '50', 'mode_remboursement' => 'montant',
+            'valeur_remboursement' => (string) ($this->annulations->tauxParDefaut() === '50.00' ? '20000' : '0'),
+        ], $this->auteur);
+
+        $this->assertSame('20000.00', (string) $annulee->montant_commission_annulation);
+        $this->assertSame('20000.00', (string) $annulee->montant_rembourse_annulation); // 40000 − 20000
+    }
+
+    #[Test]
+    public function acompte_partiel_ne_couvrant_pas_la_commission_ne_rembourse_rien(): void
+    {
+        $reservation = $this->reservation(['acompte' => '5000']); // commission 20000 > payé
+        $annulee = $this->annulations->annuler($reservation, [
+            'taux' => '50', 'mode_remboursement' => 'montant', 'valeur_remboursement' => '0',
+        ], $this->auteur);
+
+        $this->assertSame('20000.00', (string) $annulee->montant_commission_annulation);
+        $this->assertSame('0.00', (string) $annulee->montant_rembourse_annulation);
+    }
+
+    #[Test]
+    public function la_grille_applique_le_taux_selon_le_delai_et_les_parametres(): void
+    {
+        $reservation = $this->reservation(['date_arrivee' => '2026-09-10', 'date_depart' => '2026-09-12']);
+
+        // Arrivée dans 10 h : sous le seuil de 24 h → 50 % (référence) ; dans 3 jours → 0 %.
+        $this->assertSame('50.00', $this->annulations->tauxPourReservation($reservation, \Illuminate\Support\Carbon::parse('2026-09-09 14:00')));
+        $this->assertSame('0.00', $this->annulations->tauxPourReservation($reservation, \Illuminate\Support\Carbon::parse('2026-09-07 08:00')));
+
+        // L'administrateur change le seuil (72 h) et le taux au-delà (10 %).
+        \App\Shared\Parametres\Models\ParametreSysteme::updateOrCreate(['cle' => AnnulationReservationService::CLE_SEUIL_HEURES], ['valeur' => '72']);
+        \App\Shared\Parametres\Models\ParametreSysteme::updateOrCreate(['cle' => AnnulationReservationService::CLE_TAUX_AU_DELA], ['valeur' => '10']);
+        $this->assertSame('50.00', $this->annulations->tauxPourReservation($reservation, \Illuminate\Support\Carbon::parse('2026-09-07 08:00')));
+        $this->assertSame('10', $this->annulations->tauxPourReservation($reservation, \Illuminate\Support\Carbon::parse('2026-09-05 08:00')));
+    }
+
+    // =========================================================================
     // §4.3 — La commission se calcule sur le MONTANT GLOBAL, jamais l'acompte
     // =========================================================================
 

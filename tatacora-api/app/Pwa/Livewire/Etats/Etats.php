@@ -145,7 +145,7 @@ use Livewire\Attributes\Url;
  * @see RG-19 Moteur d'etats
  * @see LARAVEL_PWA.md §1, §2, §3
  */
-#[Title('États, Rapports & Exports — TATACORA AFRIQUE')]
+#[Title('États, Rapports & Exports — LogiReStock — TATACORA AFRIQUE')]
 class Etats extends PageMetier
 {
     /**

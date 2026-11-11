@@ -23,6 +23,7 @@ import '../domain/entities/canal_notification.dart';
 import '../domain/entities/declencheur_notification.dart';
 import '../domain/entities/message_notification.dart';
 import '../domain/entities/modele_notification.dart';
+import '../../transverse/domain/boite_envoi_emails.dart' show StatutEmail;
 import '../domain/registre_notifications.dart';
 import '../impression/etat_notifications.dart';
 import 'providers_notifications.dart';
@@ -53,25 +54,29 @@ import 'widgets/modales_notifications.dart';
 ///
 /// 1. **Le texte du bandeau** (l.131-132) : la vue écrit « Seul l'e-mail peut
 ///    réellement partir, et sous conditions. » — vrai d'un serveur qui *peut*
-///    avoir un relais SMTP, FAUX de ce poste, qui n'a aucun transport
-///    (`transportsLocauxProvider` rend un jeu vide, relu par un test). Le
+///    avoir un relais SMTP, FAUX de ce poste AVANT le 26/10/2026 (aucun
+///    transport) : depuis, `transportsLocauxProvider` dérive le canal e-mail de
+///    la configuration SMTP relue. Le
 ///    recopier ferait de cet écran l'exemple même de ce qu'il dénonce. Le
 ///    bloc est rendu à sa place, avec la phrase de conséquence du maître
 ///    verbatim.
-///    Aucun jeton `blade-refuse:` n'est posé (09/10/2026) : le comparateur
-///    mesure ce texte dans le bloc « page », qu'on ne peut pas refuser en
-///    entier sans masquer le reste de la page. Les deux paragraphes restent
-///    donc comptés dans la dette (3 libellés absents), honnêtement.
-/// 2. **Le bouton « Envoyer »** (l.284-285) : la vue ne le rend que pour un
-///    message e-mail dont l'adresse est connue ET si un mailer réel existe.
-///    Aucune des deux conditions ne peut être vraie ici, et un bouton qui
-///    échoue toujours est la version cliquable de l'entrée inerte que
-///    l'Article 3.3 refuse. Une ligne e-mail porte, comme la vue, la RAISON
-///    (« Aucun relais SMTP réel configuré », dérivée de `estBranche`) ; les
-///    trois autres canaux portent l'étiquette du maître, « à paramétrer au
-///    déploiement ». La raison « Aucune adresse e-mail connue » (l.280) n'est
-///    pas rendue : une notification locale ne porte pas d'adresse, la
-///    nommerait affirmerait un état non lu.
+///    ⚠ RÉVISÉ le 21/10/2026 (ordre du PO « tout doit être au complet ») : les
+///    deux phrases de la vue sont relues une à une, et elles restent VRAIES de
+///    ce poste (seul l'e-mail peut partir, sous conditions ; sinon le message
+///    reste en file avec sa raison). Elles sont donc rendues mot pour mot, et
+///    la phrase du poste s'y ajoute (réécrite le 26/10/2026 : l'e-mail part
+///    désormais, par le relais SMTP de ce poste).
+///    Reste faux ici, et NON rendu : la phrase du journal vide (l.484) — « il
+///    se remplit dès qu'un e-mail est réellement délivré » —, remplacée par la
+///    vraie (1 libellé absent, déclaré au rapport).
+/// 2. **Le bouton « Envoyer »** (l.284-285) : RENDU depuis le 26/10/2026 (envoi
+///    réel d'e-mails, schéma v39) pour un message e-mail quand la configuration
+///    SMTP du poste est complète (dérivé de `estBranche`) ; « Renvoyer » après
+///    une tentative ; sinon la RAISON de la vue (« Aucun relais SMTP réel
+///    configuré »). Les trois autres canaux portent l'étiquette du maître,
+///    « à paramétrer au déploiement ». La raison « Aucune adresse e-mail
+///    connue » est dite au GESTE (l'adresse du client se lit alors), jamais
+///    affirmée sans lecture.
 /// 3. **Le détail « E-mails partis, comptés en base »** (l.162) : ce poste n'a
 ///    aucun transport, l'annoncer ferait attendre un envoi qui ne viendra
 ///    pas. La carte dit « Aucun transport sur ce poste ».
@@ -337,8 +342,12 @@ class _Bandeau extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // `notifications_pwa.bandeau_titre`, mot pour mot (l.131). Vrai
+                // de ce poste aussi : seul l'e-mail PEUT partir, et sous
+                // conditions que ce poste ne remplit pas (voir la phrase du
+                // poste, ci-dessous).
                 Text(
-                  'Aucun message ne part de ce poste.',
+                  'Seul l’e-mail peut réellement partir, et sous conditions.',
                   style: styleContenuCarte(
                     TaillesContenu.t14,
                     poids: FontWeight.bold,
@@ -347,16 +356,32 @@ class _Bandeau extends StatelessWidget {
                 ),
                 // `mt-1` — 4 px.
                 const SizedBox(height: AppSpacing.unit),
+                // `notifications_pwa.bandeau_texte`, mot pour mot (l.132), en
+                // UN littéral. Chaque affirmation reste vraie ici : le message
+                // « reste en file, avec la raison affichée », et aucun n'est
+                // marqué « envoyé » sans l'être (PA-59/60/61).
                 Text(
-                  'WhatsApp, e-mail, Android et SMS restent à transmettre à la '
-                  'main : aucun des quatre n’est contracté ni configuré, et ce '
-                  'poste travaille hors ligne. Les messages sont composés et '
-                  'mis en file, mais le destinataire n’a rien reçu : appelez-le, '
-                  'puis tracez la transmission à la main. Un message marqué '
-                  '« envoyé » alors que rien n’est parti serait pire que pas de '
-                  'module du tout : le Gérant croirait son client prévenu.',
+                  'WhatsApp, Android et SMS restent à transmettre à la main : aucun des trois n’est contracté, ni configuré. Pour l’e-mail, l’envoi n’a lieu que si l’adresse du destinataire est connue et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée. Un message marqué « envoyé » alors que rien n’est parti serait pire que pas de module du tout : le Gérant croirait son client prévenu.',
                   style: styleContenuCarte(
                     TaillesContenu.t13,
+                    couleur: PaletteMaitre.rouge900,
+                  ),
+                ),
+                // La phrase du POSTE, ajoutée à la vue — RÉÉCRITE le 26/10/2026
+                // (l'envoi réel d'e-mails) : l'ancienne (« Aucun message ne part
+                // de ce poste ») était devenue FAUSSE pour l'e-mail, qui part
+                // par le relais SMTP de ce poste. Elle reste vraie pour les
+                // trois autres canaux, et dit ce que « en file » veut dire.
+                const SizedBox(height: AppSpacing.unit),
+                Text(
+                  'WhatsApp, Android et SMS ne partent pas de ce poste : le '
+                  'destinataire n’a rien reçu, appelez-le, puis tracez la '
+                  'transmission à la main. Un e-mail part par le relais SMTP de '
+                  'ce poste ; il reste en file, avec sa raison, tant que le '
+                  'relais ne l’a pas accepté.',
+                  style: styleContenuCarte(
+                    TaillesContenu.t13,
+                    poids: FontWeight.bold,
                     couleur: PaletteMaitre.rouge900,
                   ),
                 ),
@@ -1125,6 +1150,8 @@ class _LigneMessage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final transports = ref.watch(transportsLocauxProvider);
     final email = message.canal == CanalNotification.email;
+    // L'état VRAI de l'envoi : la boîte d'envoi (tentatives, cause).
+    final enBoite = ref.watch(emailsDesMessagesProvider).value?[message.id];
 
     return Container(
       key: Key('notifications-message-${message.id}'),
@@ -1179,12 +1206,12 @@ class _LigneMessage extends ConsumerWidget {
                   runSpacing: AppSpacing.xxs,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    // ⚠ Là où la vue met « Envoyer » (l.278-289). Aucun
-                    // transport n'existe : un bouton qui échouerait toujours
-                    // serait l'entrée inerte que l'Article 3.3 refuse. Comme
-                    // la vue, la RAISON remplace le bouton : le relais absent
-                    // pour l'e-mail (dérivé de `estBranche`, jamais écrit en
-                    // dur), l'étiquette du maître pour les trois autres canaux.
+                    // Là où la vue met « Envoyer » (l.278-289). Depuis le
+                    // 26/10/2026 l'e-mail PART (boîte d'envoi, SMTP direct) :
+                    // le bouton existe quand le relais est configuré (dérivé de
+                    // `estBranche`, jamais écrit en dur), la RAISON le
+                    // remplace sinon. « Renvoyer » après une tentative. Les
+                    // trois autres canaux gardent l'étiquette du maître.
                     if (email &&
                         !transports.estBranche(CanalNotification.email))
                       _Pastille(
@@ -1195,6 +1222,16 @@ class _LigneMessage extends ConsumerWidget {
                         taille: TaillesContenu.t11,
                         horizontal: AppSpacing.xs,
                         vertical: AppSpacing.unit,
+                      )
+                    else if (email)
+                      _BoutonPetit(
+                        cle: Key('notifications-envoyer-${message.id}'),
+                        libelle: (enBoite?.tentatives ?? 0) > 0
+                            ? TextesEnvoiNotification.renvoyer
+                            : TextesEnvoiNotification.envoyer,
+                        bordure: PaletteMaitre.bleu300,
+                        texte: PaletteMaitre.bleu700,
+                        onTap: () => _envoyer(context, ref, message),
                       )
                     else
                       _Pastille(
@@ -1239,6 +1276,28 @@ class _LigneMessage extends ConsumerWidget {
             const SizedBox(height: AppSpacing.unit),
           ],
           _Bulle(texte: message.contenu, canal: message.canal),
+          if (enBoite != null && enBoite.tentatives > 0) ...[
+            // L'état VRAI de l'envoi (tentatives réelles, cause lisible du
+            // dernier échec, relances épuisées) — `hub.blade.php`, sous la
+            // bulle. Jamais « envoyé » : un message envoyé quitte la file.
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              [
+                TextesEnvoiNotification.tentatives(enBoite.tentatives),
+                if (enBoite.derniereErreur != null)
+                  TextesEnvoiNotification.derniereErreur(
+                    enBoite.derniereErreur!,
+                  ),
+                if (enBoite.statut == StatutEmail.echec)
+                  TextesEnvoiNotification.relancesEpuisees,
+              ].join(' · '),
+              key: Key('notifications-etat-envoi-${message.id}'),
+              style: styleContenuCarte(
+                TaillesContenu.t11,
+                couleur: PaletteMaitre.rouge700,
+              ),
+            ),
+          ],
           // `mt-1.5` — 6 px.
           const SizedBox(height: AppSpacing.xxs),
           Text(
@@ -1251,6 +1310,20 @@ class _LigneMessage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// « Envoyer » / « Renvoyer » : l'issue dite est celle du transport — la
+  /// phrase de succès n'est affichée qu'après l'accusé du relais SMTP.
+  Future<void> _envoyer(
+    BuildContext context,
+    WidgetRef ref,
+    MessageNotification message,
+  ) async {
+    final resultat = await ref.read(envoyerMessageNotificationProvider)(
+      message.id,
+    );
+    if (!context.mounted) return;
+    _dire(context, resultat.phrase);
   }
 
   String _meta(MessageNotification m) {
@@ -1785,17 +1858,6 @@ class _PanneauJournal extends StatelessWidget {
                 'La colonne « Envoi système » dit « oui » uniquement pour un '
                 'message que le transport a réellement accepté — WhatsApp, '
                 'Android et SMS restent « non » tant qu’aucun n’est branché.',
-                style: styleContenuCarte(
-                  TaillesContenu.t11,
-                  couleur: PaletteMaitre.rouge700,
-                ),
-              ),
-              // Ajouté : ce que la vue ne peut pas dire de ce poste. Elle
-              // laisse entendre que l'e-mail peut passer au « oui » ; ici
-              // aucun des quatre canaux n'a de transport.
-              Text(
-                'Sur ce poste, aucun des quatre ne l’est.',
-                key: const Key('notifications-journal-aucun-transport'),
                 style: styleContenuCarte(
                   TaillesContenu.t11,
                   couleur: PaletteMaitre.rouge700,

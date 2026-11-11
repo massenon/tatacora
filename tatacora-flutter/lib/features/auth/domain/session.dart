@@ -13,6 +13,7 @@ final class Session {
     required this.nom,
     required this.role,
     required this.droits,
+    this.changementObligatoire = false,
   });
 
   final String utilisateurId;
@@ -24,6 +25,11 @@ final class Session {
   final String nom;
   final String role;
   final GardeAcces droits;
+
+  /// Le compte doit définir un nouveau mot de passe avant tout accès aux
+  /// modules (v46, 29/10/2026) : un administrateur l'a réinitialisé. La garde du
+  /// routeur n'ouvre alors QUE l'écran de changement.
+  final bool changementObligatoire;
 
   // ⚠ Le champ `horsLigne` est RETIRÉ le 12/10/2026 (contrôle du lot 1
   // « coquille », B-7) : depuis « zéro réseau » (14/09/2026), aucun code ne

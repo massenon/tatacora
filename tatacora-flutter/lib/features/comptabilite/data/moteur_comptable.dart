@@ -1,21 +1,41 @@
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
+import '../domain/comptes_syscohada.dart';
+import '../domain/correspondance_comptes.dart';
 import '../domain/entities/comptabilite.dart';
 import '../domain/messages_comptables.dart';
 import '../domain/montant_comptable.dart';
 import '../domain/refus_comptable.dart';
+import '../domain/regle_numero_compte.dart';
 import '../domain/regles_ecriture.dart';
 import 'comptabilite_dao.dart';
 
 /// Une ligne de pièce telle que le module métier la demande : un NUMÉRO de
-/// compte (jamais un identifiant), un débit OU un crédit en centimes, un
-/// libellé optionnel et un centre optionnel.
+/// compte (jamais un identifiant) OU un RÔLE comptable, un débit OU un crédit en
+/// centimes, un libellé optionnel et un centre optionnel.
+///
+/// ## Le rôle (26/10/2026, décision du PO : les comptes se modifient)
+///
+/// Une ligne qui nomme un [role] (`PRODUIT_LOCATIONS`, `CAISSE`…) n'impose pas
+/// son numéro : le moteur lit la CORRESPONDANCE au moment de passer la pièce
+/// (le compte choisi à l'écran « Correspondance des comptes », sinon le défaut
+/// de `ComptesSyscohada`). [compte] porte alors le DÉFAUT du rôle, pour qui lit
+/// la demande sans passer par le moteur (tests, aperçus). Une ligne sans rôle
+/// garde son numéro, tel quel (compte de charge saisi, pièce libre).
 final class LigneDemandee {
   const LigneDemandee({
-    required this.compte,
+    String? compte,
+    this.role,
     this.debitCentimes = 0,
     this.creditCentimes = 0,
     this.libelle,
     this.centreId,
-  });
+  }) : assert(
+         compte != null || role != null,
+         'Une ligne nomme un compte ou un rôle.',
+       ),
+       _compte = compte;
 
   /// La conversion EXPLICITE depuis les chaînes décimales du serveur
   /// (`"12500.00"`), tronquée comme `bcadd(.., '0', 2)`. Une chaîne illisible
@@ -48,7 +68,13 @@ final class LigneDemandee {
     );
   }
 
-  final String compte;
+  final String? _compte;
+
+  /// Le numéro de la ligne : celui qui est demandé, sinon le DÉFAUT de son rôle.
+  String get compte => _compte ?? ComptesSyscohada.tous[role]!;
+
+  /// Le rôle comptable de la ligne (`RolesCorrespondance`), ou `null`.
+  final String? role;
   final int debitCentimes;
   final int creditCentimes;
   final String? libelle;
@@ -63,12 +89,19 @@ final class DemandePiece {
     required this.date,
     required this.libelle,
     required this.lignes,
+    this.statutsExerciceAdmis = const {StatutExercice.ouvert},
   });
 
   final String journal;
   final String date;
   final String libelle;
   final List<LigneDemandee> lignes;
+
+  /// Les statuts d'exercice où cette pièce peut passer
+  /// (`statuts_exercice_admis` du serveur) : `ouvert` seul pour les modules ;
+  /// la pièce de clôture admet `en_cloture`, la pièce d'à-nouveaux et la saisie
+  /// d'inventaire du comptable `ouvert` et `en_cloture`. Jamais `cloture`.
+  final Set<StatutExercice> statutsExerciceAdmis;
 }
 
 /// Le moteur comptable du poste — RÉPLIQUE de `PasserEcritureService`,
@@ -160,16 +193,27 @@ class MoteurComptable {
         );
         exercices = await _dao.exercices();
       }
-      final exercice = exerciceOuvertPour(exercices, demande.date);
+      final exercice = exerciceAdmisPour(
+        exercices,
+        demande.date,
+        demande.statutsExerciceAdmis,
+      );
 
       final resolues = <_LigneResolue>[];
       for (final ligne in demande.lignes) {
-        final compte = await _compteImputable(ligne.compte);
+        // Le compte d'un RÔLE est lu de la correspondance ICI, au moment de
+        // passer la pièce, dans la transaction de la pièce (jamais plus tôt :
+        // un changement fait entre-temps vaut pour cette pièce-ci).
+        final role = ligne.role;
+        final numero = role == null
+            ? ligne.compte
+            : await _dao.compteDuRole(role);
+        final compte = await _compteImputable(numero);
         resolues.add(
           _LigneResolue(
             compte: compte,
             centreId: centrePour(
-              centreExplicite: ligne.centreId,
+              centreExplicite: await _centreExplicite(ligne, compte),
               compte: compte,
             ),
             debitCentimes: ligne.debitCentimes,
@@ -240,6 +284,148 @@ class MoteurComptable {
     });
   }
 
+  /// Le geste « Envoyer mes anciennes pièces saisies » (lot A3, 28/10/2026) :
+  /// MARQUE (`pieces_saisie_local`, identifiant d'origine neuf) puis ENFILE
+  /// (`pieces_saisie`) chaque ancienne pièce de saisie manuelle que
+  /// [ComptabiliteDao.anciennesPiecesSaisies] propose — en cas de doute elle n'y
+  /// est pas. Une transaction ; rien n'est déduit hors de ce geste. Interrupteur
+  /// « Synchronisation activée » éteint : les pièces sont marquées et enfilées,
+  /// `enfiler` ne dépose rien et rien ne part. Le droit (administration,
+  /// comptable) se vérifie à l'écran, comme pour la saisie. Rend le nombre de
+  /// pièces marquées.
+  Future<int> envoyerAnciennesPieces({required String auteurId}) async {
+    _exigerAuteur(auteurId);
+    return _dao.enTransaction(() async {
+      final pieces = await _dao.anciennesPiecesSaisies();
+      for (final piece in pieces) {
+        final id = _dao.nouvelId();
+        await _dao.insererPieceSaisie(
+          id: id,
+          numeroPiece: piece.numeroPiece,
+          codeJournal: piece.journal,
+          datePiece: piece.date,
+          libelle: piece.libelle,
+          statut: piece.statut,
+          creeLe: _maintenant(),
+        );
+        await OperationsSyncDao(_dao.attachedDatabase).enfiler(
+          table: TableSynchronisee.piecesSaisie,
+          entiteId: id,
+          type: TypeOperationSync.creation,
+          payload: chargePieceSaisie(
+            journal: piece.journal,
+            date: piece.date,
+            libelle: piece.libelle,
+            statut: piece.statut,
+            lignes: [
+              for (final l in piece.lignes)
+                (
+                  compte: l.compte,
+                  debitCentimes: l.debitCentimes,
+                  creditCentimes: l.creditCentimes,
+                  libelle: l.libelle == piece.libelle ? null : l.libelle,
+                  centreLibelle: l.centreLibelle.isEmpty
+                      ? null
+                      : l.centreLibelle,
+                ),
+            ],
+          ),
+          dateMetier: piece.date,
+        );
+      }
+      return pieces.length;
+    });
+  }
+
+  /// La SAISIE MANUELLE d'une pièce (hub comptable, « Nouvelle écriture ») —
+  /// D246 rouvert par le PO (28/10/2026) : elle est partagée. Passe la pièce
+  /// ([passer], ou [passerEtValider] si [valider]), marque son identifiant
+  /// d'origine (`pieces_saisie_local`) et enfile la pièce SOURCE (`pieces_saisie`,
+  /// création seule) — le tout dans UNE transaction : un refus n'enfile rien.
+  ///
+  /// C'est le SEUL chemin qui enfile une pièce. [passer] et [passerEtValider]
+  /// restent ceux des modules (vente, dépense, règlement, clôture…), dont le
+  /// serveur recrée la pièce de leur document source : y brancher l'envoi
+  /// compterait chaque mouvement deux fois. Le poste n'envoie jamais une pièce
+  /// descendue : celles-ci n'entrent que dans le miroir, jamais ici.
+  ///
+  /// Les lignes envoyées sont celles de la DEMANDE (compte par son numéro,
+  /// centimes, centre explicite) : le serveur rejoue SES règles — équilibre,
+  /// exercice, compte imputable, RG-12 — et passe sa pièce, sous son numéro.
+  /// Interrupteur « Synchronisation activée » éteint : rien n'est enfilé, la pièce
+  /// reste locale (`enfiler` ne dépose rien).
+  ///
+  /// [affectation] (09/11/2026) : la pièce est l'AFFECTATION DU RÉSULTAT d'un
+  /// exercice clôturé (`AffectationResultatLocale`, seule appelante) ; le bloc
+  /// `{annee, ventilation}` part avec la pièce, et le serveur la passe par
+  /// `AffectationResultatService` au lieu de la rejouer comme une pièce libre.
+  Future<List<EcritureComptable>> saisirPiece(
+    DemandePiece demande, {
+    required String auteurId,
+    required bool valider,
+    ({int annee, Map<String, int> ventilation})? affectation,
+  }) async {
+    _exigerAuteur(auteurId);
+    for (final l in demande.lignes) {
+      if (l.role != null) {
+        throw ArgumentError.value(
+          l.role,
+          'role',
+          'une saisie manuelle nomme un compte, jamais un rôle',
+        );
+      }
+    }
+    return _dao.enTransaction(() async {
+      final piece = valider
+          ? await passerEtValider(demande, auteurId: auteurId)
+          : await passer(demande, auteurId: auteurId);
+      final id = _dao.nouvelId();
+      await _dao.insererPieceSaisie(
+        id: id,
+        numeroPiece: piece.first.numeroPiece!,
+        codeJournal: demande.journal,
+        datePiece: demande.date,
+        libelle: demande.libelle,
+        statut: valider ? 'validee' : 'brouillon',
+        creeLe: _maintenant(),
+      );
+      final libellesCentres = {
+        for (final c in await _dao.centres()) c.id: c.libelle,
+      };
+      await OperationsSyncDao(_dao.attachedDatabase).enfiler(
+        table: TableSynchronisee.piecesSaisie,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargePieceSaisie(
+          journal: demande.journal,
+          date: demande.date,
+          libelle: demande.libelle,
+          statut: valider ? 'validee' : 'brouillon',
+          affectation: affectation == null
+              ? null
+              : chargeAffectationResultat(
+                  annee: affectation.annee,
+                  ventilation: affectation.ventilation,
+                ),
+          lignes: [
+            for (final l in demande.lignes)
+              (
+                compte: l.compte,
+                debitCentimes: l.debitCentimes,
+                creditCentimes: l.creditCentimes,
+                libelle: l.libelle,
+                centreLibelle: l.centreId == null
+                    ? null
+                    : libellesCentres[l.centreId],
+              ),
+          ],
+        ),
+        dateMetier: demande.date,
+      );
+      return piece;
+    });
+  }
+
   /* ================================================================== */
   /* Valider                                                             */
   /* ================================================================== */
@@ -284,6 +470,7 @@ class MoteurComptable {
     List<EcritureComptable> piece, {
     required String auteurId,
     String? motif,
+    String? date,
   }) async {
     _exigerAuteur(auteurId);
     // Une contre-passation qui ne trouve rien à inverser ne doit pas se taire :
@@ -293,7 +480,12 @@ class MoteurComptable {
       final inverses = <EcritureComptable>[];
       for (final ligne in piece) {
         inverses.add(
-          await contrepasserLigne(ligne, auteurId: auteurId, motif: motif),
+          await contrepasserLigne(
+            ligne,
+            auteurId: auteurId,
+            motif: motif,
+            date: date,
+          ),
         );
       }
       return inverses;
@@ -311,6 +503,7 @@ class MoteurComptable {
     EcritureComptable ecriture, {
     required String auteurId,
     String? motif,
+    String? date,
   }) async {
     _exigerAuteur(auteurId);
     return _dao.enTransaction(() async {
@@ -337,7 +530,9 @@ class MoteurComptable {
         journalId: origine.journalId,
         compteId: origine.compteId,
         centreId: origine.centreId,
-        dateEcriture: formaterDateIso(quand),
+        // [date] : l'affectation du résultat date SA contre-passation du jour de la
+        // correction, que le service lui impose dans N (`AffectationResultatService`).
+        dateEcriture: date ?? formaterDateIso(quand),
         libelle: motif ?? libelleContrepassation(origine.libelle),
         // Débit et crédit inversés : c'est toute la contre-passation.
         debitCentimes: origine.creditCentimes,
@@ -348,6 +543,56 @@ class MoteurComptable {
         creeLe: quand,
         creePar: auteurId,
       );
+    });
+  }
+
+  /// Contre-passe une PIÈCE (ses lignes d'origine, trouvées par son numéro dans
+  /// [exerciceId]) à SA PROPRE DATE et dans SON exercice — la contre-passation
+  /// de la RÉOUVERTURE d'un exercice (`ClotureExerciceService::contrePasser`).
+  ///
+  /// Différente de [contrepasserLigne], qui date du jour : la pièce de clôture
+  /// (31/12/N) et celle d'à-nouveaux (01/01/N+1) s'annulent à la date où elles
+  /// ont été passées, pour que chaque exercice retrouve exactement son état
+  /// d'avant. Chaque ligne est inversée, liée à son origine, validée, SANS
+  /// numéro de pièce ; une ligne déjà contre-passée est sautée (rejouable).
+  /// L'écriture d'origine n'est jamais touchée (RG-11).
+  ///
+  /// Un numéro `null` (une clôture qui n'avait pas de pièce) ne fait rien. Rend
+  /// le nombre de lignes inversées.
+  Future<int> contrepasserPieceADateDOrigine(
+    String exerciceId,
+    String? numeroPiece, {
+    required String libelle,
+    required String auteurId,
+  }) async {
+    _exigerAuteur(auteurId);
+    if (numeroPiece == null) return 0;
+    return _dao.enTransaction(() async {
+      var inversees = 0;
+      for (final origine in await _dao.lignesDeLaPieceDeLExercice(
+        exerciceId,
+        numeroPiece,
+      )) {
+        if (await _dao.dejaContrepassee(origine.id)) continue;
+        await _dao.insererEcriture(
+          exerciceId: origine.exerciceId,
+          journalId: origine.journalId,
+          compteId: origine.compteId,
+          centreId: origine.centreId,
+          dateEcriture: origine.dateEcriture,
+          libelle: libelle,
+          // Débit et crédit inversés : c'est toute la contre-passation.
+          debitCentimes: origine.creditCentimes,
+          creditCentimes: origine.debitCentimes,
+          statut: StatutEcriture.validee,
+          ecritureContrepasseeId: origine.id,
+          numeroPiece: null,
+          creeLe: _maintenant(),
+          creePar: auteurId,
+        );
+        inversees++;
+      }
+      return inversees;
     });
   }
 
@@ -394,8 +639,11 @@ class MoteurComptable {
   /// Le refus est délibéré et n'a pas de contournement automatique : une pièce
   /// en brouillon n'est pas opposable, et la clôturer verrouillerait l'exercice
   /// sur un état que personne n'a validé. Aucun solde des comptes de gestion,
-  /// aucune écriture de résultat : la clôture COMPLÈTE reste à faire, sous
-  /// l'arbitrage du Comptable (comme au serveur).
+  /// aucune écriture de résultat : c'est le verrou SIMPLE de
+  /// `ExerciceComptableService::cloturer` du serveur, qui n'a aucun appelant de
+  /// production ici. La clôture COMPLÈTE (pièces CL et AN, résultat en 131/139,
+  /// réouverture, archive) est `ClotureExerciceLocale` (26/10/2026), qui passe
+  /// par CE moteur pour chaque pièce.
   Future<ExerciceComptable> cloturerExercice(
     String exerciceId, {
     required String auteurId,
@@ -445,7 +693,7 @@ class MoteurComptable {
     String libelle,
     String nature,
   ) async {
-    if (!RegExp(r'^[1-9][0-9]{1,3}$').hasMatch(numero)) {
+    if (!RegleNumeroCompte.format.hasMatch(numero)) {
       throw RefusComptable.dit(
         MotifRefus.compteNumeroInvalide,
         'comptabilite.compte_numero_invalide',
@@ -474,11 +722,24 @@ class MoteurComptable {
           {'numero': numero},
         );
       }
-      return _dao.insererCompte(
+      final cree = await _dao.insererCompte(
         numero: numero,
         libelle: propre,
         nature: nature,
       );
+      // D246 rouvert (28/10/2026) : le compte rejoint le plan du serveur, qui
+      // rejoue `PlanComptableService::creerCompte` (création seule).
+      await OperationsSyncDao(_dao.attachedDatabase).enfiler(
+        table: TableSynchronisee.planComptable,
+        entiteId: cree.id,
+        type: TypeOperationSync.creation,
+        payload: chargeCompte(
+          numeroCompte: numero,
+          libelle: propre,
+          nature: nature,
+        ),
+      );
+      return cree;
     });
   }
 
@@ -513,6 +774,25 @@ class MoteurComptable {
       );
     }
     return e;
+  }
+
+  /// Le centre EXPLICITE de la ligne ; à défaut, et seulement si le compte
+  /// choisi pour son rôle n'a pas de centre par défaut au plan, celui du compte
+  /// PAR DÉFAUT du rôle (`PasserEcritureService::centre` du serveur) — jamais un
+  /// centre inventé : sans lui, la ligne reste refusée par RG-12.
+  Future<String?> _centreExplicite(
+    LigneDemandee ligne,
+    CompteDuPlan compte,
+  ) async {
+    final explicite = ligne.centreId;
+    if (explicite != null && explicite.isNotEmpty) return explicite;
+    final propre = compte.centreCoutDefautId;
+    if (propre != null && propre.isNotEmpty) return explicite;
+    final role = ligne.role == null
+        ? null
+        : RolesCorrespondance.parCode(ligne.role!);
+    if (role == null) return explicite;
+    return (await _dao.compteParNumero(role.defaut))?.centreCoutDefautId;
   }
 
   Future<CompteDuPlan> _compteImputable(String numero) async {

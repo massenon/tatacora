@@ -43,4 +43,50 @@ abstract class TestCase extends BaseTestCase
 
         parent::setUp();
     }
+
+    /**
+     * Après tout semis des rôles, pose le rôle d'ESSAI « lecteur » : l'ANCIENNE matrice du
+     * comptable (lecture seule partout, écriture sur M10 et M14). Décision du PO du 10/11/2026 :
+     * le comptable a désormais les droits du gérant — il n'est donc plus le représentant d'un
+     * « rôle en lecture seule » ; les tests qui prouvent un refus d'écriture lui substituent
+     * ce rôle d'essai, sans toucher au socle livré (jamais semé hors des tests).
+     *
+     * @param  class-string|string  $class
+     */
+    public function seed($class = 'Database\\Seeders\\DatabaseSeeder')
+    {
+        parent::seed($class);
+        $this->poserLeRoleLecteurDEssai();
+
+        return $this;
+    }
+
+    protected function poserLeRoleLecteurDEssai(): void
+    {
+        if (! class_exists(\App\Shared\Rbac\Models\Role::class)
+            || \App\Shared\Rbac\Models\Role::query()->where('libelle', 'lecteur')->exists()
+            || ! \App\Shared\Rbac\Models\Role::query()->where('libelle', 'comptable')->exists()) {
+            return;
+        }
+
+        $matrice = [
+            'M1' => 'L', 'M2' => 'L', 'M3' => 'L', 'M4' => 'L', 'M5' => 'L', 'M6' => 'L', 'M7' => 'L', 'M8' => 'L',
+            'M9' => 'L', 'M10' => 'C', 'M11' => 'L', 'M12' => '-', 'M13' => 'L', 'M14' => 'C', 'ROLES' => '-',
+            'PARAM' => '-', 'ANNULATIONS' => 'L', 'PROFIL_NOM' => 'C', 'PROFIL_TELEPHONE' => 'C',
+            'PROFIL_INTITULE' => '-', 'SYNCHRO' => 'L', 'APPAIRAGE' => 'L', 'IMPORT_EXPORT' => 'L',
+        ];
+        $role = \App\Shared\Rbac\Models\Role::create(['id' => (string) \Illuminate\Support\Str::uuid(), 'libelle' => 'lecteur']);
+        foreach ($matrice as $module => $niveau) {
+            if ($niveau === '-') {
+                continue;
+            }
+            $actions = $niveau === 'C' ? ['lire', 'creer', 'modifier', 'supprimer', 'valider'] : ['lire'];
+            foreach ($actions as $action) {
+                $permission = \App\Shared\Rbac\Models\Permission::query()->where('module', $module)->where('action', $action)->first();
+                if ($permission !== null) {
+                    $role->permissions()->syncWithoutDetaching([$permission->id]);
+                }
+            }
+        }
+    }
 }

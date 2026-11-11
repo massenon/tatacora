@@ -4,25 +4,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../config/environnement.dart';
 import '../di/providers.dart';
+import '../fenetre/boutons_fenetre.dart';
+import '../fenetre/providers_fenetre.dart';
 import '../../features/alertes/presentation/cloche_notifications.dart';
+import '../../features/alertes/presentation/modales_ouverture.dart';
 import '../../features/synchronisation/presentation/bouton_synchronisation.dart';
 import '../../features/auth/domain/session.dart';
 import '../../features/caisse/domain/indicateur_caisse.dart';
 import '../../features/caisse/presentation/providers_caisse.dart';
 import '../../features/comptabilite/presentation/widgets/selecteur_exercice_barre.dart';
 import '../../features/recherche_globale/presentation/recherche_globale_barre.dart';
+import '../navigation/actualisation_ecran.dart';
 import '../navigation/coquille_vue.dart';
 import '../navigation/navigation_tatacora.dart';
 import '../navigation/trace_svg.dart';
 import '../rbac/garde_acces.dart';
 import '../responsive/breakpoints.dart';
+import '../../features/parametres/data/apparence_poste.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/mesures_fenetre.dart';
+import '../theme/mesures_transverses_complement.dart';
+import 'disposition_barre.dart';
 import 'panneau_acces_rapide.dart';
 
 /// La coquille — barre supérieure et barre latérale de la VUE (PA-183).
@@ -105,6 +112,10 @@ class CoquilleApplication extends ConsumerWidget {
     // responsive n° 1 : la largeur du contenu n'est pas celle de l'écran.
     final large = Breakpoints.de(context) == Palier.desktop;
     final barreVisible = ref.watch(barreLateraleVisibleProvider);
+    final compacteFenetre = DispositionBarre.pour(
+      MediaQuery.sizeOf(context).width,
+      avecBoutonsFenetre: ref.watch(controleFenetreProvider) != null,
+    ).compacte;
 
     return Scaffold(
       backgroundColor: AppColors.fondClair,
@@ -120,6 +131,9 @@ class CoquilleApplication extends ConsumerWidget {
           Column(
             children: [
               _BarreSuperieure(routeActive: routeActive),
+              // `#shell-banniere` : le bandeau « Accès lecture seule », sous la
+              // barre supérieure et avant le corps (`partials/banniere`).
+              BandeauLectureSeule(routeActive: routeActive),
               Expanded(
                 child: Row(
                   // La barre latérale et la page occupent TOUTE la hauteur
@@ -141,7 +155,8 @@ class CoquilleApplication extends ConsumerWidget {
                         padding: const EdgeInsets.only(
                           bottom: AppLayout.margeBasseEcran,
                         ),
-                        child: child,
+                        // Clic droit / F5 / Ctrl+R : « Actualiser » l'écran.
+                        child: ZoneActualisation(child: child),
                       ),
                     ),
                   ],
@@ -150,6 +165,15 @@ class CoquilleApplication extends ConsumerWidget {
             ],
           ),
           Positioned.fill(child: PanneauAccesRapide(routeActive: routeActive)),
+          // Les deux modales d'ouverture de session (`layouts/pwa` monte
+          // `AlertesOuvertureModales` une fois, pour tout écran) : l'hôte ne
+          // rend rien, il les enchaîne quand une connexion vient d'avoir lieu.
+          const HoteModalesOuverture(),
+          // Poste Windows : le bord haut et ses deux coins (la barre de titre
+          // native, et son cadre, sont masqués). Rien ailleurs.
+          Positioned.fill(
+            child: ZonesRedimensionnementFenetre(compacte: compacteFenetre),
+          ),
         ],
       ),
     );
@@ -176,7 +200,6 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
     final droits = ref.watch(droitsProvider);
-    final env = Environnement.actuel;
     final large = Breakpoints.de(context) == Palier.desktop;
     final moyen = Breakpoints.de(context) != Palier.mobile;
     final blancAttenue = AppColors.neutre0.withValues(
@@ -186,12 +209,26 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
     // route au registre — M5 —, masqué sur `-` seulement (comme la barre
     // latérale). `IndicateurCaisse::pour()` applique la MÊME règle.
     final peutVendre = droits.peutLire(ModuleTatacora.m5Bar);
+    // ÉCART À LA VUE (poste Windows seulement, 09/11/2026) : les trois boutons
+    // de fenêtre — voir `BoutonsFenetre`. `null` : la barre est celle de la vue.
+    final avecBoutonsFenetre = ref.watch(controleFenetreProvider) != null;
+    final margeHorizontale = moyen ? AppSpacing.lg : AppSpacing.md;
+    // Fenêtre étroite : boutons de 32 px, identité du compte masquée (voir
+    // `MesuresFenetre.seuilBarreCompacte`).
+    final disposition = DispositionBarre.pour(
+      MediaQuery.sizeOf(context).width,
+      avecBoutonsFenetre: avecBoutonsFenetre,
+    );
+    final compacte = disposition.compacte;
 
     return Container(
       height: AppLayout.hauteurBarreSuperieure,
       color: AppColors.navy,
-      padding: EdgeInsets.symmetric(
-        horizontal: moyen ? AppSpacing.lg : AppSpacing.md,
+      // Les boutons de fenêtre touchent le bord droit, comme ceux de Windows :
+      // la marge droite de la vue (`px-4 sm:px-6`) disparaît à leur profit.
+      padding: EdgeInsets.only(
+        left: margeHorizontale,
+        right: avecBoutonsFenetre ? 0 : margeHorizontale,
       ),
       child: Row(
         children: [
@@ -199,16 +236,24 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           if (!large)
             Builder(
               builder: (context) => Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.sm),
+                padding: const EdgeInsets.only(right: AppSpacing.unit),
                 child: Tooltip(
                   message: LibellesCoquille.ouvrirMenu,
                   child: InkWell(
                     key: const Key('bouton-menu-mobile'),
                     onTap: () => Scaffold.of(context).openDrawer(),
-                    child: IconeTrace(
-                      trace: TracesCoquille.menuMobile,
-                      taille: AppLayout.iconeBarreSuperieure,
-                      couleur: blancAttenue,
+                    // Cible d'au moins 32 px (09/11/2026) : le tracé garde ses
+                    // 22 px, la zone cliquable les déborde.
+                    child: SizedBox(
+                      width: MesuresFenetre.hauteurMinimale,
+                      height: MesuresFenetre.hauteurMinimale,
+                      child: Center(
+                        child: IconeTrace(
+                          trace: TracesCoquille.menuMobile,
+                          taille: AppLayout.iconeBarreSuperieure,
+                          couleur: blancAttenue,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -223,14 +268,28 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
                 key: const Key('bouton-plein-ecran'),
                 onTap: () =>
                     ref.read(barreLateraleVisibleProvider.notifier).basculer(),
-                child: IconeTrace(
-                  trace: TracesCoquille.pleinEcran,
-                  taille: AppLayout.iconeBarreSuperieure,
-                  couleur: blancAttenue,
-                ),
+                // Barre compacte (poste, fenêtre étroite) : cible de 32 px au
+                // moins ; sinon le tracé nu de la vue (22 px).
+                child: compacte
+                    ? SizedBox(
+                        width: MesuresFenetre.hauteurMinimale,
+                        height: MesuresFenetre.hauteurMinimale,
+                        child: Center(
+                          child: IconeTrace(
+                            trace: TracesCoquille.pleinEcran,
+                            taille: AppLayout.iconeBarreSuperieure,
+                            couleur: blancAttenue,
+                          ),
+                        ),
+                      )
+                    : IconeTrace(
+                        trace: TracesCoquille.pleinEcran,
+                        taille: AppLayout.iconeBarreSuperieure,
+                        couleur: blancAttenue,
+                      ),
               ),
             ),
-            const SizedBox(width: AppSpacing.sm), // mr-3
+            SizedBox(width: compacte ? AppSpacing.unit : AppSpacing.sm), // mr-3
           ],
 
           // Le logo : `w-[73px] h-10 rounded-lg bg-white object-contain
@@ -248,36 +307,51 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           // la vue laisse voir le bleu nuit de la barre. D'où une bordure
           // tracée À L'EXTÉRIEUR (`strokeAlignOutside`) : même anneau, aucune
           // place prise, rien sous l'image.
-          Semantics(
-            label: LibellesCoquille.altLogo,
-            image: true,
-            child: Container(
-              key: const Key('logo-barre-superieure'),
-              decoration: BoxDecoration(
-                color: AppColors.neutre0, // bg-white
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(
-                  color: AppColors.gold,
-                  width: AppLayout.anneauLogo,
-                  strokeAlign: BorderSide.strokeAlignOutside,
+          // Repli par priorité (09/11/2026) : le logo disparaît en premier sur
+          // une fenêtre très étroite ; la marque reste dans la barre latérale.
+          if (!disposition.logoMasque) ...[
+            Semantics(
+              label: LibellesCoquille.altLogo,
+              image: true,
+              child: Container(
+                key: const Key('logo-barre-superieure'),
+                decoration: BoxDecoration(
+                  color: AppColors.neutre0, // bg-white
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: AppColors.gold,
+                    width: AppLayout.anneauLogo,
+                    strokeAlign: BorderSide.strokeAlignOutside,
+                  ),
                 ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: Image.asset(
-                  AppAssets.logo,
-                  width: AppLayout.logoBarreSuperieureLargeur,
-                  height: AppLayout.logoBarreSuperieure,
-                  fit: BoxFit.contain,
-                  excludeFromSemantics: true,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  // Le logo téléversé (Paramètres → Logo & Apparence), à défaut
+                  // l'actif livré.
+                  child: switch (ref.watch(logoTeleverseProvider).value) {
+                    final octets? => Image.memory(
+                      octets,
+                      width: AppLayout.logoBarreSuperieureLargeur,
+                      height: AppLayout.logoBarreSuperieure,
+                      fit: BoxFit.contain,
+                      excludeFromSemantics: true,
+                    ),
+                    _ => Image.asset(
+                      AppAssets.logo,
+                      width: AppLayout.logoBarreSuperieureLargeur,
+                      height: AppLayout.logoBarreSuperieure,
+                      fit: BoxFit.contain,
+                      excludeFromSemantics: true,
+                    ),
+                  },
                 ),
               ),
             ),
-          ),
-          // `gap-3` = 12 px. ⚠ Il valait 16 (`AppSpacing.md`) jusqu'au
-          // 12/10/2026 sous un commentaire qui disait 12 : la marque et son
-          // badge étaient décalés de 4 px vers la droite (relevé du châssis).
-          const SizedBox(width: AppSpacing.sm),
+            // `gap-3` = 12 px. ⚠ Il valait 16 (`AppSpacing.md`) jusqu'au
+            // 12/10/2026 sous un commentaire qui disait 12 : la marque et son
+            // badge étaient décalés de 4 px vers la droite (relevé du châssis).
+            const SizedBox(width: AppSpacing.sm),
+          ],
           // `hidden md:block` : l'identité disparaît en mobile, le logo reste.
           //
           // L'identité OCCUPE la place du `<div class="flex-1">` qui la suit
@@ -294,123 +368,137 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           // Flutter).
           if (moyen)
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ⚠ Défaut corrigé le 14/10/2026 (passe finale) : le badge
-                  // était INFLEXIBLE — quand la recherche globale (lot B) a
-                  // réduit la place de l'identité, la marque se réduisait à
-                  // rien et le badge DÉBORDAIT (erreur de rendu, contenu
-                  // coupé), contrairement à l'ellipse promise ci-dessus. Les
-                  // deux sont désormais flexibles, chacun au prorata de sa
-                  // largeur NATURELLE : à largeur suffisante, chacun reçoit au
-                  // moins sa largeur (rendu identique) ; sinon, les deux se
-                  // coupent par une ellipse, sans jamais déborder.
-                  Builder(
-                    builder: (context) {
-                      final echelle = MediaQuery.textScalerOf(context);
-                      double largeur(String texte, TextStyle style) =>
-                          (TextPainter(
-                            text: TextSpan(text: texte, style: style),
-                            textDirection: TextDirection.ltr,
-                            textScaler: echelle,
-                            maxLines: 1,
-                          )..layout()).width;
-                      final styleMarque = TextStyle(
-                        // `tracking-tight` : −0,025 em.
-                        letterSpacing: AppTextStyles.suiviSerre * Tailles.t16,
-                        color: AppColors.neutre0,
-                        fontFamily: AppTextStyles.police,
-                        fontSize: Tailles.t16,
-                        fontWeight: FontWeight.bold,
-                      );
-                      const styleBadge = TextStyle(
-                        color: AppColors.gold,
-                        fontFamily: AppTextStyles.police,
-                        fontSize: Tailles.t10,
-                        fontWeight: FontWeight.w600,
-                      );
-                      // Badge : texte + `px-1.5` des deux côtés + bordure 1 px.
-                      final lMarque = largeur(
-                        LibellesCoquille.marque,
-                        styleMarque,
-                      );
-                      final lBadge =
-                          largeur(LibellesCoquille.enseigneCourte, styleBadge) +
-                          2 * AppSpacing.xxs +
-                          2 * AppLayout.bordureControle;
-                      int flex(double l) => math.max(1, l.ceil());
-                      return Row(
-                        children: [
-                          Flexible(
-                            flex: flex(lMarque),
-                            child: Text(
-                              LibellesCoquille.marque,
+              child: ZoneDeplacementFenetre(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ⚠ Défaut corrigé le 14/10/2026 (passe finale) : le badge
+                    // était INFLEXIBLE — quand la recherche globale (lot B) a
+                    // réduit la place de l'identité, la marque se réduisait à
+                    // rien et le badge DÉBORDAIT (erreur de rendu, contenu
+                    // coupé), contrairement à l'ellipse promise ci-dessus. Les
+                    // deux sont désormais flexibles, chacun au prorata de sa
+                    // largeur NATURELLE : à largeur suffisante, chacun reçoit au
+                    // moins sa largeur (rendu identique) ; sinon, les deux se
+                    // coupent par une ellipse, sans jamais déborder.
+                    Builder(
+                      builder: (context) {
+                        final echelle = MediaQuery.textScalerOf(context);
+                        double largeur(String texte, TextStyle style) =>
+                            (TextPainter(
+                              text: TextSpan(text: texte, style: style),
+                              textDirection: TextDirection.ltr,
+                              textScaler: echelle,
                               maxLines: 1,
-                              softWrap: false,
-                              overflow: TextOverflow.ellipsis,
-                              style: styleMarque,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.xs), // gap-2
-                          // Le badge doré « Gîte Chez Noël » — bordure, pas un
-                          // fond.
-                          Flexible(
-                            flex: flex(lBadge),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.xxs,
-                                vertical: AppSpacing.demi,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.gold),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.sm,
-                                ),
-                              ),
+                            )..layout()).width;
+                        final styleMarque = TextStyle(
+                          // `tracking-tight` : −0,025 em.
+                          letterSpacing: AppTextStyles.suiviSerre * Tailles.t14,
+                          color: AppColors.neutre0,
+                          fontFamily: AppTextStyles.police,
+                          fontSize: Tailles.t14,
+                          fontWeight: FontWeight.bold,
+                        );
+                        const styleBadge = TextStyle(
+                          color: AppColors.gold,
+                          fontFamily: AppTextStyles.police,
+                          fontSize: Tailles.t10,
+                          fontWeight: FontWeight.w600,
+                        );
+                        // Badge : texte + `px-1.5` des deux côtés + bordure 1 px.
+                        final lMarque = largeur(
+                          LibellesCoquille.marque,
+                          styleMarque,
+                        );
+                        final lBadge =
+                            largeur(
+                              LibellesCoquille.enseigneCourte,
+                              styleBadge,
+                            ) +
+                            2 * AppSpacing.xxs +
+                            2 * AppLayout.bordureControle;
+                        int flex(double l) => math.max(1, l.ceil());
+                        return Row(
+                          children: [
+                            Flexible(
+                              flex: flex(lMarque),
                               child: Text(
-                                LibellesCoquille.enseigneCourte,
+                                LibellesCoquille.marque,
                                 maxLines: 1,
                                 softWrap: false,
                                 overflow: TextOverflow.ellipsis,
-                                style: styleBadge,
+                                style: styleMarque,
                               ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  Text(
-                    LibellesCoquille.localisation,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.neutre0.withValues(
-                        alpha: OpacitesCoquille.texteSecondaire,
-                      ),
-                      fontFamily: AppTextStyles.police,
-                      fontSize: Tailles.t11,
+                            const SizedBox(width: AppSpacing.xs), // gap-2
+                            // Le badge doré « Gîte Chez Noël » — bordure, pas un
+                            // fond.
+                            Flexible(
+                              flex: flex(lBadge),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.xxs,
+                                  vertical: AppSpacing.demi,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: AppColors.gold),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.sm,
+                                  ),
+                                ),
+                                child: Text(
+                                  LibellesCoquille.enseigneCourte,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: styleBadge,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                  ),
-                ],
+                    Text(
+                      LibellesCoquille.localisation,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.neutre0.withValues(
+                          alpha: OpacitesCoquille.texteSecondaire,
+                        ),
+                        fontFamily: AppTextStyles.police,
+                        fontSize: Tailles.t11,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           else
-            const Spacer(), // `<div class="flex-1"></div>`, sans identité
+            // `<div class="flex-1"></div>`, sans identité (zone de déplacement
+            // de la fenêtre quand le poste porte ses boutons).
+            const Expanded(
+              child: ZoneDeplacementFenetre(child: SizedBox.expand()),
+            ),
           // La recherche globale (`<livewire:pwa.recherche-globale />`,
           // `partials/barre-superieure` l.162, ajout du PO du 01/09/2026) —
           // PORTÉE le 14/10/2026 (lot B) : `hidden md:block mr-3`. Elle lit
           // les sources LOCALES du poste sous le droit de chaque module ; ses
           // écarts au serveur sont nommés dans
           // `features/recherche_globale/domain/recherche_globale.dart`.
-          if (moyen) const RechercheGlobaleBarre(),
+          if (moyen)
+            RechercheGlobaleBarre(iconeSeule: disposition.rechercheIcone),
           // AJOUT du PO (20/10/2026) — le sélecteur d'exercice global
           // (`<livewire:pwa.selecteur-exercice />`, juste après la recherche),
           // sur les seuls écrans qui le suivent.
-          if (moyen) SelecteurExerciceBarre(routeActive: routeActive),
+          if (moyen && !disposition.exerciceMasque)
+            SelecteurExerciceBarre(
+              routeActive: routeActive,
+              reduit: disposition.exerciceReduit,
+            ),
           //
           // REFUSÉ — la pastille « Réseau » (l.154-157). Ce poste est ZÉRO
           // RÉSEAU (14/09/2026) : un badge vert affirmerait une liaison qui
@@ -419,24 +507,19 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           // de la synchronisation est dit par le bouton de synchronisation
           // (plus loin, lot F3), pas par une pastille « Réseau ».
           //
-          // AJOUT déclaré — la pastille d'ENVIRONNEMENT, hors production
-          // seulement (`bandeauVisible`). La vue n'en a pas : elle est servie
-          // par UN serveur ; un poste Flutter peut tourner en démonstration ou
-          // en recette, et le confondre avec la production serait une faute de
-          // saisie sur de vraies données. Posée à l'emplacement de la pastille
-          // « Réseau », avec sa forme ; absente en production, où la barre est
-          // celle de la vue (décalage mesuré : `geometrie_blade_test` ne se
-          // lance qu'avec `ENV=production`, D79).
-          if (env.bandeauVisible) ...[
-            _Pastille(texte: LibellesCoquille.environnement(env.libelle)),
-            const SizedBox(width: AppSpacing.sm), // mr-3
-          ],
+          // La pastille d'ENVIRONNEMENT (« Environnement : Développement ») est
+          // RETIRÉE le 21/10/2026, à la demande du PO : la barre est celle de
+          // la vue.
 
           // `#indicateur-caisse` (l.167-186) — `hidden md:block`, rôle avec M5.
-          if (moyen && peutVendre) _IndicateurCaisse(routeActive: routeActive),
+          if (moyen && peutVendre)
+            _IndicateurCaisse(
+              routeActive: routeActive,
+              iconeSeule: disposition.caisseIcone,
+            ),
 
           // « Vente » (l.189-198) — même garde que l'indicateur.
-          if (peutVendre) const _BoutonVente(),
+          if (peutVendre) _BoutonVente(iconeSeule: disposition.venteIcone),
 
           // La cloche et son panneau (`<livewire:pwa.cloche-notifications />`,
           // l.224) — PORTÉE le 14/10/2026 (lot B). Elle liste les alertes
@@ -451,47 +534,15 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           // modale lance « Synchroniser maintenant ». La pastille « Réseau »
           // reste refusée : un poste ne sait pas s'il est « en réseau », il
           // sait ce qui attend de partir.
-          if (session != null) const BoutonSynchronisation(),
+          if (session != null && !disposition.synchroMasquee)
+            const BoutonSynchronisation(),
           if (session != null) ClocheNotifications(routeActive: routeActive),
-          if (session != null) _MenuProfil(session: session),
+          if (session != null)
+            _MenuProfil(session: session, sansIdentite: compacte),
+          // Extrême droite, après le menu de compte : réduire, agrandir /
+          // restaurer, fermer. Rien hors du poste Windows.
+          BoutonsFenetre(compacte: compacte),
         ],
-      ),
-    );
-  }
-}
-
-/// La pastille d'environnement — la FORME de la pastille « Réseau » de la vue
-/// (`px-3 py-1.5 rounded-full`, fond à 15 %, bordure à 40 %, `text-xs
-/// font-semibold`), en or et non en vert : elle ne dit pas « tout va bien ».
-class _Pastille extends StatelessWidget {
-  const _Pastille({required this.texte});
-
-  final String texte;
-
-  @override
-  Widget build(BuildContext context) {
-    const couleur = AppColors.gold;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: couleur.withValues(alpha: OpacitesCoquille.fondPastille),
-        border: Border.all(
-          color: couleur.withValues(alpha: OpacitesCoquille.bordurePastille),
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.roundedFull),
-      ),
-      child: Text(
-        texte,
-        style: TextStyle(
-          color: couleur,
-          fontFamily: AppTextStyles.police,
-          fontSize: Tailles.t12,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }
@@ -518,9 +569,13 @@ class _Pastille extends StatelessWidget {
 /// L'invalidation garde la valeur précédente pendant la relecture : la
 /// pastille ne clignote pas d'une page à l'autre.
 class _IndicateurCaisse extends ConsumerStatefulWidget {
-  const _IndicateurCaisse({required this.routeActive});
+  const _IndicateurCaisse({required this.routeActive, this.iconeSeule = false});
 
   final String routeActive;
+
+  /// Fenêtre étroite : la seule pastille, dans une cible d'au moins 32 px ;
+  /// le libellé passe en infobulle.
+  final bool iconeSeule;
 
   @override
   ConsumerState<_IndicateurCaisse> createState() => _EtatIndicateurCaisse();
@@ -580,6 +635,16 @@ class _EtatIndicateurCaisse extends ConsumerState<_IndicateurCaisse> {
           : OpacitesCoquille.texteCaisseOuverte,
     );
 
+    final libelle = fermee
+        ? LibellesCoquille.caisseFermee
+        : LibellesCoquille.caisseCloturer;
+    final pastilleCaisse = Container(
+      key: const Key('pastille-caisse'),
+      width: AppLayout.pastilleCaisse,
+      height: AppLayout.pastilleCaisse,
+      decoration: BoxDecoration(color: pastille, shape: BoxShape.circle),
+    );
+
     Widget lien = Material(
       color: fond,
       shape: RoundedRectangleBorder(
@@ -590,47 +655,45 @@ class _EtatIndicateurCaisse extends ConsumerState<_IndicateurCaisse> {
         key: const Key('indicateur-caisse'),
         borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: () => GoRouter.of(context).go(_routePosComptant),
-        child: Padding(
-          // `px-3 py-2`, plus le filet de 1 px que le navigateur compte DANS
-          // la boîte et que `RoundedRectangleBorder` n'ajoute pas.
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm + AppLayout.bordureControle,
-            vertical: AppSpacing.xs + AppLayout.bordureControle,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                key: const Key('pastille-caisse'),
-                width: AppLayout.pastilleCaisse,
-                height: AppLayout.pastilleCaisse,
-                decoration: BoxDecoration(
-                  color: pastille,
-                  shape: BoxShape.circle,
+        child: widget.iconeSeule
+            ? SizedBox(
+                width: MesuresFenetre.hauteurMinimale,
+                height: MesuresFenetre.hauteurMinimale,
+                child: Center(child: pastilleCaisse),
+              )
+            : Padding(
+                // `px-3 py-2`, plus le filet de 1 px que le navigateur compte DANS
+                // la boîte et que `RoundedRectangleBorder` n'ajoute pas.
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm + AppLayout.bordureControle,
+                  vertical: AppSpacing.xs + AppLayout.bordureControle,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    pastilleCaisse,
+                    const SizedBox(width: AppSpacing.xs), // gap-2
+                    Text(
+                      libelle,
+                      style: TextStyle(
+                        color: couleurTexte,
+                        fontFamily: AppTextStyles.police,
+                        fontSize: Tailles.t12,
+                        height: Tailles.interligneXsHorsMain,
+                        letterSpacing: 0,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.xs), // gap-2
-              Text(
-                fermee
-                    ? LibellesCoquille.caisseFermee
-                    : LibellesCoquille.caisseCloturer,
-                style: TextStyle(
-                  color: couleurTexte,
-                  fontFamily: AppTextStyles.police,
-                  fontSize: Tailles.t12,
-                  height: Tailles.interligneXsHorsMain,
-                  letterSpacing: 0,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
     // `title="Clôturer la caisse du :point"` — sur la caisse OUVERTE seulement.
     final point = indicateur.point;
-    if (!fermee && point != null) {
+    if (widget.iconeSeule && (fermee || point == null)) {
+      lien = Tooltip(message: libelle, child: lien);
+    } else if (!fermee && point != null) {
       lien = Tooltip(
         message: LibellesCoquille.caisseCloturerTitre(point.libelle),
         child: lien,
@@ -648,7 +711,10 @@ class _EtatIndicateurCaisse extends ConsumerState<_IndicateurCaisse> {
 /// « Vente » et non « Point de vente » : directive du PO du 02/09/2026, portée
 /// par la vue.
 class _BoutonVente extends StatelessWidget {
-  const _BoutonVente();
+  const _BoutonVente({this.iconeSeule = false});
+
+  /// Fenêtre étroite : l'icône seule, dans une cible d'au moins 32 px.
+  final bool iconeSeule;
 
   @override
   Widget build(BuildContext context) {
@@ -669,10 +735,12 @@ class _BoutonVente extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.md),
               onTap: () => GoRouter.of(context).go(_routePosComptant),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.smPlus, // px-3.5
-                  vertical: AppSpacing.xs, // py-2
-                ),
+                padding: iconeSeule
+                    ? const EdgeInsets.all(MesuresFenetre.margeVenteIcone)
+                    : const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.smPlus, // px-3.5
+                        vertical: AppSpacing.xs, // py-2
+                      ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -682,18 +750,20 @@ class _BoutonVente extends StatelessWidget {
                       couleur: AppColors.neutre0,
                       epaisseur: AppLayout.epaisseurTraceVente,
                     ),
-                    const SizedBox(width: AppSpacing.xs), // gap-2
-                    Text(
-                      LibellesCoquille.vente,
-                      style: TextStyle(
-                        color: AppColors.neutre0,
-                        fontFamily: AppTextStyles.police,
-                        fontSize: Tailles.t12,
-                        height: Tailles.interligneXsHorsMain,
-                        letterSpacing: 0,
-                        fontWeight: FontWeight.bold,
+                    if (!iconeSeule) ...[
+                      const SizedBox(width: AppSpacing.xs), // gap-2
+                      Text(
+                        LibellesCoquille.vente,
+                        style: TextStyle(
+                          color: AppColors.neutre0,
+                          fontFamily: AppTextStyles.police,
+                          fontSize: Tailles.t12,
+                          height: Tailles.interligneXsHorsMain,
+                          letterSpacing: 0,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -738,9 +808,13 @@ final class _EntreeCompte {
 /// `PopupMenuButton` n'accepte qu'une élévation Material, qui ne reproduit pas
 /// l'ombre de la vue ; le filet `border-slate-100` tient le contour.
 class _MenuProfil extends ConsumerWidget {
-  const _MenuProfil({required this.session});
+  const _MenuProfil({required this.session, this.sansIdentite = false});
 
   final Session session;
+
+  /// Barre compacte (poste Windows, fenêtre étroite) : ni login ni rôle à
+  /// côté de l'avatar ; le menu les porte toujours en en-tête.
+  final bool sansIdentite;
 
   static const _compte = [
     _EntreeCompte(
@@ -793,7 +867,11 @@ class _MenuProfil extends ConsumerWidget {
 
   /// Le module exigé par chaque lien — `liensChassis()`, `$exigences`.
   static ModuleTatacora? _moduleExige(String cle) => switch (cle) {
-    'parametres_compte' || 'import_export' => ModuleTatacora.parametres,
+    'parametres_compte' => ModuleTatacora.parametres,
+    // 09/11/2026 (PO) : ouvertes à tous les rôles par défaut — droits transverses
+    // (`liensChassis()` du serveur : `IMPORT_EXPORT`, `APPAIRAGE`).
+    'import_export' => ModuleTatacora.importExport,
+    'synchronisation_postes' => ModuleTatacora.appairage,
     'journal_audit' => ModuleTatacora.m14Etats,
     _ => null,
   };
@@ -987,30 +1065,43 @@ class _MenuProfil extends ConsumerWidget {
             children: [
               _Avatar(initiales: initialesDeLogin(session.login)),
               // `hidden sm:block`
-              if (moyen) ...[
+              if (moyen && !sansIdentite) ...[
                 const SizedBox(width: AppSpacing.xs),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      session.login,
-                      style: TextStyle(
-                        color: AppColors.neutre0,
-                        fontFamily: AppTextStyles.police,
-                        fontSize: Tailles.t12,
-                        fontWeight: FontWeight.w600,
+                // Borné : un login très long se coupe par une ellipse au lieu de
+                // pousser la barre (le menu porte le login entier).
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: MesuresFenetre.largeurMaxIdentiteCompte,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        session.login,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.neutre0,
+                          fontFamily: AppTextStyles.police,
+                          fontSize: Tailles.t12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    Text(
-                      role,
-                      style: TextStyle(
-                        color: AppColors.gold,
-                        fontFamily: AppTextStyles.police,
-                        fontSize: Tailles.t10,
+                      Text(
+                        role,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.gold,
+                          fontFamily: AppTextStyles.police,
+                          fontSize: Tailles.t10,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
               const SizedBox(width: AppSpacing.xs), // gap-2
@@ -1406,6 +1497,142 @@ class _PiedBarreLaterale extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Les routes dont l'écran de la vue N'OFFRE PAS d'écriture : la vue
+/// (`BanniereEcriture::pour`) ne rend le bandeau que pour un composant qui
+/// porte une constante `MODULE` ET le trait `AutoriseEcriture` ; l'état de
+/// consultation pure ne dit rien. Journal d'Audit, États, Mon profil, Aide,
+/// Contact et les écrans de synchronisation (ajouts du poste) n'ont ni l'une
+/// ni l'autre.
+const Set<String> routesSansBandeauLectureSeule = {
+  '/journal-audit',
+  '/etats',
+  '/mon-profil',
+  '/aide-a-propos',
+  '/contact-editeur',
+  '/synchronisation',
+  '/synchronisation-postes',
+  '/comptes-utilisateurs',
+};
+
+/// Le module d'un chemin, lu au MÊME registre que la garde du routeur
+/// ([toutesLesDestinations], [modulesDesRoutesHorsMenu]) : l'entrée du menu la
+/// plus spécifique dont le chemin est un préfixe. `null` : route sans module.
+ModuleTatacora? moduleDeLaRoute(String chemin) {
+  DestinationMenu? porteuse;
+  for (final d in toutesLesDestinations) {
+    final route = d.route;
+    if (route == null) continue;
+    if (route == chemin ||
+        (chemin.startsWith('$route/') &&
+            (porteuse == null || route.length > porteuse.route!.length))) {
+      porteuse = d;
+      if (route == chemin) break;
+    }
+  }
+  return porteuse?.module ?? modulesDesRoutesHorsMenu[chemin];
+}
+
+/// Le bandeau d'accès en lecture seule — `partials/banniere`.
+///
+/// Rendu quand le module de l'écran offre l'écriture et que le profil n'y a
+/// pas le niveau `C` (`BanniereEcriture::LECTURE_SEULE`) ; rien sinon, comme la
+/// zone `#shell-banniere` laissée vide. Le bouton referme la session
+/// (`seDeconnecter` de la vue), le seul chemin de fermeture de ce poste aussi.
+class BandeauLectureSeule extends ConsumerWidget {
+  const BandeauLectureSeule({required this.routeActive, super.key});
+
+  final String routeActive;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (routesSansBandeauLectureSeule.contains(routeActive)) {
+      return const SizedBox.shrink();
+    }
+    final module = moduleDeLaRoute(routeActive);
+    final droits = ref.watch(droitsProvider);
+    // Un profil SANS aucun droit sur le module n'est pas « en lecture » : la
+    // route lui est refusée (`accesRoute`), la vue répond 403 — aucun bandeau
+    // ne décrit un accès qu'il n'a pas.
+    if (module == null ||
+        droits.peutEcrire(module) ||
+        !droits.peutLire(module)) {
+      return const SizedBox.shrink();
+    }
+    final etroit = Breakpoints.de(context) == Palier.mobile;
+    final texte = Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: LibellesCoquille.banniereLectureTitre,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const TextSpan(text: ' '),
+          const TextSpan(text: LibellesCoquille.banniereLectureDetail),
+        ],
+      ),
+      style: TextStyle(
+        color: PaletteMaitre.ambre900,
+        fontFamily: AppTextStyles.police,
+        fontSize: Tailles.t12,
+      ),
+    );
+    final bouton = InkWell(
+      key: const Key('bouton-changer-compte-banniere'),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      onTap: () => ref.read(sessionProvider.notifier).deconnecter(),
+      child: Container(
+        padding: MesuresBandeauLectureSeule.margeBouton,
+        decoration: BoxDecoration(
+          color: PaletteMaitre.ambre900,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Text(
+          LibellesCoquille.banniereChangerProfil,
+          style: TextStyle(
+            color: AppColors.neutre0,
+            fontFamily: AppTextStyles.police,
+            fontSize: Tailles.t11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+    return Container(
+      key: const Key('shell-banniere'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg, // px-6
+        vertical: AppSpacing.sm, // py-3
+      ),
+      decoration: const BoxDecoration(
+        color: PaletteMaitre.ambre50, // bg-amber-50
+        border: Border(
+          bottom: BorderSide(
+            color: PaletteMaitre.ambre300, // border-amber-300
+            width: MesuresBandeauLectureSeule.filetBas,
+          ),
+        ),
+      ),
+      child: etroit
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                texte,
+                const SizedBox(height: AppSpacing.xs), // gap-2
+                bouton,
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: texte),
+                const SizedBox(width: AppSpacing.xs), // gap-2
+                bouton,
+              ],
+            ),
     );
   }
 }

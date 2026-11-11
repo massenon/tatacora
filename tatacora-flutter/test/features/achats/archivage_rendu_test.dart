@@ -44,13 +44,13 @@ void main() {
     (user: 'ac', role: 'achats', droit: 'C', bascule: null),
     (user: 'ac', role: 'achats', droit: 'C', bascule: 'true'),
     (user: 'ac', role: 'achats', droit: 'C', bascule: 'false'),
-    (user: 'co', role: 'comptable', droit: 'L', bascule: 'true'),
+    (user: 'co', role: 'lecteur', droit: 'L', bascule: 'true'),
   ];
 
   final scenario = <Map<String, Object?>>[
     {'op': 'utilisateur', 'ref': 'a', 'role': 'administrateur'},
     {'op': 'utilisateur', 'ref': 'ac', 'role': 'achats'},
-    {'op': 'utilisateur', 'ref': 'co', 'role': 'comptable'},
+    {'op': 'utilisateur', 'ref': 'co', 'role': 'lecteur'},
     {'op': 'fournisseur', 'ref': 'f1', 'nom': 'Alpha'},
     {'op': 'fournisseur', 'ref': 'f2', 'nom': 'Bravo'},
     {

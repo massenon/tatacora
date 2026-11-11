@@ -66,10 +66,10 @@ import 'widgets/vue_planning.dart';
 /// | Élément de la vue | État |
 /// |---|---|
 /// | Parc & disponibilité | rendu, avec création, édition et archivage |
-/// | Contrats | rendu — 4 colonnes sur 10 sans source, nommées |
+/// | Contrats | rendu — les 10 colonnes (N°, montant figé, acompte, reste dû : v41) ; état et annulation portés (v38) |
 /// | Planning du parc | rendu — les 3 couches de la vue (libre, location, immobilisé = hors service) |
-/// | Immobilisations | **vide** — en-têtes et message de la vue, aucune table locale, et un encadré le dit |
-/// | Annulation d'un contrat | **refusée** — PA-50, aucune colonne de statut |
+/// | Immobilisations | **rendu** — lit `entretiens_vehicule_local` (v32, `VehiculeDao.enregistrerEntretien`) ; « Au », « Jours » et « Commentaire » restent « — » comme la vue |
+/// | Annulation d'un contrat | **portée** (v38, 26/10/2026) — `contrats_location_local.statut`, `VehiculeDao.annulerContrat` |
 class EcranVehicules extends ConsumerWidget {
   const EcranVehicules({super.key});
 
@@ -198,14 +198,13 @@ class _Indicateurs extends ConsumerWidget {
         id: 'contrats',
         libelle: 'Contrats actifs',
         valeur: indicateurs?.contratsSurPeriode.toString(),
-        // La vue écrit « N annulé(s) » (`kpi_contrats_detail`). L'annulation
-        // n'existe pas : écrire « 0 annulé(s) » annoncerait une bonne nouvelle
-        // que personne n'a vérifiée. Le N devient « — », la phrase garde sa
-        // forme, et la raison est dans l'infobulle de la carte.
-        detail: indicateurs == null ? null : '— annulé(s)',
-        raison: indicateurs == null
-            ? _raisonAbsence
-            : IndicateursVehicules.raisons['contrats_annules'],
+        // `kpi_contrats_detail` : « :nombre annulé(s) ». Le nombre est celui de
+        // la vue (`contratsAnnulesCount`) : les contrats annulés de l'ensemble
+        // FILTRÉ — « 0 » avec le filtre par défaut « Contrats actifs ».
+        detail: indicateurs == null
+            ? null
+            : '${indicateurs.contratsAnnules} annulé(s)',
+        raison: indicateurs == null ? _raisonAbsence : null,
       ),
       _CarteKpi(
         id: 'ca',
@@ -238,10 +237,16 @@ class _Indicateurs extends ConsumerWidget {
       _CarteKpi(
         id: 'reste',
         libelle: 'Reste à encaisser',
-        // Structurellement absent — jamais « 0 FCFA ».
-        valeur: null,
+        // Somme des restes dus des contrats actifs (v41) ; « — » si un seul
+        // contrat n'a pas de montant ou d'acompte connu — jamais « 0 FCFA ».
+        valeur: formaterMontantDecimal(
+          indicateurs?.resteAEncaisser,
+          suffixe: 'FCFA',
+        ),
         detail: 'Soldes de location',
-        raison: IndicateursVehicules.raisons['reste_a_encaisser'],
+        raison: indicateurs?.resteAEncaisser == null
+            ? IndicateursVehicules.raisons['reste_a_encaisser']
+            : null,
       ),
       _CarteKpi(
         id: 'jours',

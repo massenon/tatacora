@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
@@ -5,11 +7,20 @@ import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
 import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../../core/rbac/regle_archivage.dart';
+import '../../achats/domain/entities/archivage_fournisseur.dart';
+import '../../parametres/presentation/providers_options_systeme.dart'
+    show lireSuppressionActive;
 import '../data/stocks_api.dart';
 import '../data/stocks_dao.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/operation_sync.dart';
+import '../domain/calcul_inventaire.dart';
 import '../domain/entities/etat_stock.dart';
+import '../domain/stock_en_attente.dart';
 import '../domain/entities/fiche_stock.dart';
 import '../impression/etat_fiche_stock.dart';
+import '../impression/etat_inventaire.dart';
 import '../impression/etat_stocks.dart';
 
 /// M6 sur la base LOCALE du poste. Les droits et l'auteur sont lus À CHAQUE
@@ -26,6 +37,18 @@ final stocksApiProvider = Provider<StocksApi>(
     peutEcrire: () =>
         ref.read(droitsProvider).peutEcrire(ModuleTatacora.m6Stocks),
     auteurId: () => ref.read(sessionProvider)?.utilisateurId,
+    roleUtilisateur: () => ref.read(sessionProvider)?.role,
+    // La règle d'archivage, relue À CHAQUE geste depuis la base : la bascule
+    // peut se refermer entre l'ouverture de la confirmation et le clic. Elle
+    // passe par son lecteur DÉCLARÉ (`lireSuppressionActive`).
+    peutArchiver: () async => peutArchiver(
+      droits: ref.read(droitsProvider),
+      module: ModuleTatacora.m6Stocks,
+      role: ref.read(sessionProvider)?.role,
+      suppressionActive: await lireSuppressionActive(
+        ref.read(baseLocaleProvider),
+      ),
+    ),
   ),
 );
 
@@ -111,6 +134,62 @@ final etatStockProvider = FutureProvider.autoDispose<ResultatStock>(
         etat: ref.watch(etatFiltreProvider),
       ),
 );
+
+/// Ce que les ventes du bar ENCORE EN FILE sortiront du stock (RG-05,
+/// 21/10/2026) — à DIRE à côté du stock, jamais à y soustraire : le serveur
+/// sort le stock à la réception de la vente, et ces sorties redescendent ; un
+/// mouvement local serait compté deux fois. Voir `stock_en_attente.dart`.
+///
+/// Les ventes `en_attente`, `en_cours` et `bloque` comptent ; `synchronise`
+/// et `rejete` non (la première est chez le serveur, la seconde n'y entrera
+/// jamais). Une boisson sans facteur reçu n'est pas estimée et est comptée à
+/// part.
+final stockEnAttenteProvider = FutureProvider.autoDispose<StockEnAttente>((
+  ref,
+) async {
+  final db = ref.watch(baseLocaleProvider);
+  // Par le SEUL auteur de la file : la lire en direct y ferait un second
+  // point d'accès (garde `ecrivains_file_envoi_test`).
+  final operations = [
+    for (final o in await OperationsSyncDao(
+      db,
+    ).operations(table: TableSynchronisee.ventes))
+      if (o.type == TypeOperationSync.creation &&
+          const [
+            StatutOperationSync.enAttente,
+            StatutOperationSync.enCours,
+            StatutOperationSync.bloque,
+          ].contains(o.statut))
+        o,
+  ];
+  if (operations.isEmpty) return StockEnAttente.vide;
+
+  final ventes = <({String boissonId, int quantite})>[];
+  for (final o in operations) {
+    final Object? charge;
+    try {
+      charge = jsonDecode(o.payload);
+    } on FormatException {
+      continue;
+    }
+    final lignes = charge is Map ? charge['lignes'] : null;
+    if (lignes is! List) continue;
+    for (final l in lignes) {
+      if (l is Map && l['module_source'] == 'M5' && l['quantite'] is int) {
+        ventes.add((
+          boissonId: '${l['code_article']}',
+          quantite: l['quantite'] as int,
+        ));
+      }
+    }
+  }
+
+  final boissons = {
+    for (final b in await db.select(db.cartesBoissonLocal).get())
+      b.id: (articleId: b.articleId, facteur: b.unitesVendables),
+  };
+  return agregerStockEnAttente(ventes: ventes, boissons: boissons);
+});
 
 /// Les points de stockage de CE poste. Une liste vide est la vérité (aucun point
 /// n'a été créé), pas une donnée manquante : le sélecteur dit comment en créer
@@ -202,9 +281,10 @@ final class DemandeFiche {
     DateTime? debut,
     DateTime? fin,
     String? pointId,
+    bool effacerArticle = false,
     bool effacerPoint = false,
   }) => DemandeFiche(
-    articleId: articleId ?? this.articleId,
+    articleId: effacerArticle ? null : (articleId ?? this.articleId),
     debut: debut ?? this.debut,
     fin: fin ?? this.fin,
     pointId: effacerPoint ? null : (pointId ?? this.pointId),
@@ -216,10 +296,21 @@ final demandeFicheProvider = NotifierProvider<_DemandeNotifier, DemandeFiche>(
 );
 
 final class _DemandeNotifier extends Notifier<DemandeFiche> {
+  /// La période par défaut couvre TRENTE jours, bornes comprises (`Inventaires::
+  /// mount`, PA-135) : « 30 jours » inclut aujourd'hui, sinon le cumul en
+  /// couvrirait trente et un et contredirait le libellé du raccourci. Sans
+  /// article, la vue ouvre sur « Tous les articles » : la fiche consolidée
+  /// exige une période, donc la période est posée d'emblée.
   @override
-  DemandeFiche build() => const DemandeFiche();
+  DemandeFiche build() {
+    final (debut, fin) = RaccourciPeriode.trenteJours.bornes(DateTime.now());
+    return DemandeFiche(debut: debut, fin: fin);
+  }
 
-  void article(String? id) => state = state.copyWith(articleId: id);
+  /// `null` : « Tous les articles » (la valeur VIDE de la vue, PO 06/09/2026) —
+  /// un choix, pas une absence de choix.
+  void article(String? id) =>
+      state = state.copyWith(articleId: id, effacerArticle: id == null);
 
   void point(String? id) =>
       state = state.copyWith(pointId: id, effacerPoint: id == null);
@@ -256,6 +347,26 @@ final ficheStockProvider = FutureProvider.autoDispose<ResultatFiche?>((
         pointId: demande.pointId,
       );
 });
+
+/// La fiche CONSOLIDÉE (« Tous les articles »), `null` tant qu'un article est
+/// choisi : la fiche unitaire est alors celle de [ficheStockProvider].
+final ficheConsolideeProvider =
+    FutureProvider.autoDispose<ResultatFicheConsolidee?>((ref) async {
+      final demande = ref.watch(demandeFicheProvider);
+      if (demande.articleId != null ||
+          demande.debut == null ||
+          demande.fin == null) {
+        return null;
+      }
+
+      return ref
+          .watch(stocksApiProvider)
+          .ficheConsolidee(
+            debut: demande.debut!,
+            fin: demande.fin!,
+            pointId: demande.pointId,
+          );
+    });
 
 /// L'export PDF de la fiche, exposé comme **action injectable** — enregistré
 /// par la fenêtre « Enregistrer sous » (14/10/2026), rend le CHEMIN écrit,
@@ -344,5 +455,122 @@ final exporterStocksPdfProvider =
             ref,
             etat.etatA4(),
             base: EtatStocks.prefixeFichier,
+          ),
+    );
+
+/* ====================================================================== */
+/* L'INVENTAIRE physique — le comptage en cours, la feuille, l'historique   */
+/* ====================================================================== */
+
+/// L'inventaire OUVERT sur ce poste, `null` tant qu'aucun ne court.
+///
+/// ## Pourquoi en mémoire, et ce que cela coûte
+///
+/// Le comptage n'est écrit qu'à la clôture (inventaire, lignes et mouvements en
+/// UNE transaction) : le schéma ne porte aucun statut d'inventaire (PA-150), une
+/// ligne écrite avant la clôture ne se distinguerait pas d'un inventaire clos.
+/// Le prix : FERMER la fenêtre avant de clôturer abandonne le comptage — l'écran
+/// le dit. Ce provider n'est PAS `autoDispose` : quitter l'écran Inventaires
+/// (pour une fiche, un mouvement) ne perd rien.
+final inventaireEnCoursProvider =
+    NotifierProvider<_InventaireEnCoursNotifier, InventaireEnCours?>(
+      _InventaireEnCoursNotifier.new,
+    );
+
+final class _InventaireEnCoursNotifier extends Notifier<InventaireEnCours?> {
+  /// Le comptage appartient à la SESSION qui l'a ouvert : un autre compte qui se
+  /// connecte ne clôture jamais (sous son nom, RG-15) l'inventaire d'un
+  /// collègue — `build` est relancé quand l'utilisateur change, et le brouillon
+  /// repart de zéro.
+  @override
+  InventaireEnCours? build() {
+    ref.watch(sessionProvider.select((s) => s?.utilisateurId));
+    return null;
+  }
+
+  void ouvrir(InventaireEnCours inventaire) => state = inventaire;
+
+  /// Un second comptage du même article ÉCRASE le premier (correction d'une
+  /// erreur de saisie) et refige son théorique.
+  void compter(String articleId, ComptageBrouillon comptage) =>
+      state = state?.avecComptage(articleId, comptage);
+
+  void clore() => state = null;
+}
+
+/// La feuille de comptage, `null` sans inventaire ouvert.
+///
+/// `autoDispose` : la rouvrir doit relire les mouvements — un théorique non
+/// compté qui date de la visite précédente fausserait l'écart au comptage.
+final feuilleComptageProvider = FutureProvider.autoDispose<FeuilleComptage?>((
+  ref,
+) async {
+  final enCours = ref.watch(inventaireEnCoursProvider);
+  if (enCours == null) return null;
+  return ref.watch(stocksApiProvider).feuilleDeComptage(enCours);
+});
+
+/// L'onglet « Inventaires clôturés » — `null` quand le droit de lecture manque.
+final inventairesClosProvider =
+    FutureProvider.autoDispose<List<InventaireClos>?>(
+      (ref) => ref.watch(stocksApiProvider).inventairesClos(),
+    );
+
+/// Le « Dernier inventaire » de chaque point (`AAAA-MM-JJ`) pour le cycle.
+final dernierInventaireParPointProvider =
+    FutureProvider.autoDispose<Map<String, String>>(
+      (ref) => ref.watch(stocksApiProvider).dernierInventaireParPoint(),
+    );
+
+/* ====================================================================== */
+/* L'archivage des articles — actions INJECTABLES                          */
+/* ====================================================================== */
+
+/// L'OUVERTURE de la confirmation (`confirmerArchivageArticle`) : le droit
+/// d'archiver exigé dès ici, puis le lot composé (verrous, états bloqué /
+/// partiel / nominal). Action injectable, comme les exports.
+final preparerArchivageArticlesProvider =
+    Provider<Future<ResultatStocks<LotArchivage>> Function(List<String>)>(
+      (ref) => ref.watch(stocksApiProvider).preparerArchivage,
+    );
+
+/// « Supprimer » de la modale (`archiverArticles`) : il ARCHIVE
+/// (`articles.actif = false`), il n'efface rien.
+final archiverArticlesProvider =
+    Provider<Future<ResultatStocks<ResultatArchivage>> Function(List<String>)>(
+      (ref) => ref.watch(stocksApiProvider).archiverArticles,
+    );
+
+/// « Restaurer » (`restaurerArticle`) : remet `actif = true`. Seul le droit
+/// d'écriture est exigé.
+final restaurerArticleProvider =
+    Provider<Future<ResultatStocks<String>> Function(String)>(
+      (ref) => ref.watch(stocksApiProvider).restaurerArticle,
+    );
+
+/// L'export tableur du rapport d'inventaire — rend le **chemin** écrit, `null` :
+/// annulé dans la fenêtre « Enregistrer sous ». Action injectable, comme les
+/// autres exports.
+final exporterInventaireProvider =
+    Provider<Future<String?> Function(EtatInventaire)>(
+      (ref) =>
+          (etat) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: EtatInventaire.prefixeFichier,
+                type: TypeFichierEnregistre.csv,
+                octets: etat.csvOctets(),
+              ),
+    );
+
+/// L'export « PDF Officiel A4 Imprimable » du rapport d'inventaire — ses visas
+/// sont ceux du gabarit serveur (`pdf/inventaire-rapport.blade.php`).
+final exporterInventairePdfProvider =
+    Provider<Future<String?> Function(EtatInventaire)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(
+            ref,
+            etat.etatA4(),
+            base: EtatInventaire.prefixeFichier,
           ),
     );

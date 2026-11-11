@@ -21,30 +21,25 @@
       "motif": "« Modifier la boisson » est propre au bar : le drapeau creation_boisson est faux pour le restaurant, qui modifie ses plats sur « Plats & menus ». Le comparateur ne evalue pas les conditions Blade. Voir ecran_carte_restaurant.dart.",
       "date": "2026-10-08"
     },
-    "restaurant/carte|modale:modal-lieraustock": {
+    "chassis|synchronisation-barre": {
       "classe": "a",
-      "motif": "Modale « Lier au stock » : elle ECRIT le lien d'un plat a un article de stock. Aucune source locale de M4 n'existe (decision PO du 08/10/2026), le bouton de ligne affiche le message « ne peut pas etre enregistre sur ce poste ». A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
-      "date": "2026-10-09"
+      "motif": "Modale d'icone de la barre WEB (demande du PO du 03/11/2026) : elle liste les postes APPAIRES que le SERVEUR connait et demande leur synchronisation. Le poste ne connait que lui-meme (sa file, son dernier passage) : il porte sa propre modale (bouton_synchronisation.dart, meme trace, meme place), dont les libelles different a dessein. Voir blade-refuse:chassis#synchronisation-barre.",
+      "date": "2026-11-03"
     },
-    "restaurant/carte|modale:modal-retirerdelacartedujour": {
+    "transverse/parametres|mecef-jeton": {
       "classe": "a",
-      "motif": "Modale « Retirer de la carte du jour » : elle ECRIT une indisponibilite (indisponibilites_carte), table absente de ce poste zero reseau. Le bouton « Rendre indispo. » affiche le message d'ecriture impossible. A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
-      "date": "2026-10-09"
+      "motif": "Le JETON e-MECeF est un secret chiffre en base qui ne descend JAMAIS a un poste (decision du PO du 07/11/2026, garde de test) : ce poste n'a ni client e-MECeF ni jeton a saisir, effacer ou tester ; il le dit (MentionJetonMecef) et porte les phrases vraies pour lui. Voir ecran_parametres.dart.",
+      "date": "2026-11-07"
     },
-    "restaurant/carte|modale:modal-delier": {
+    "transverse/parametres|modale:parametres.mecef_jeton_libelle": {
       "classe": "a",
-      "motif": "Modale « Retirer le lien au stock » : elle ECRIT un lien direct de plat (plats.article_id), que ce poste ne peut ni lire ni ecrire ; « Delier » n'est de toute facon rendu que pour un plat deja lie, etat que ce poste ne peut pas lire. A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
-      "date": "2026-10-09"
+      "motif": "Le JETON e-MECeF est un secret chiffre en base qui ne descend JAMAIS a un poste (decision du PO du 07/11/2026, garde de test) : ce poste n'a ni client e-MECeF ni jeton a saisir, effacer ou tester ; il le dit (MentionJetonMecef) et porte les phrases vraies pour lui. Voir ecran_parametres.dart.",
+      "date": "2026-11-07"
     },
-    "restaurant/carte|modale:commun.modale_prix_titre": {
+    "transverse/parametres|modale:parametres.mecef_jeton_effacer_titre": {
       "classe": "a",
-      "motif": "Modale « Modifier le prix » : elle ECRIT un prix de plat et sa trace d'historique. Aucune source locale de M4 (decision PO du 08/10/2026) ; le bouton « Prix » affiche le message d'ecriture impossible. A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
-      "date": "2026-10-09"
-    },
-    "restaurant/carte|modale:modale_historique_prix.titre": {
-      "classe": "a",
-      "motif": "Modale « Historique des prix » : elle LIT la trace des changements de prix, que ce poste ne detient pas. Le bouton « Historique des prix » affiche « ne figurent pas sur ce poste », jamais une liste vide qui se lirait « aucun changement ». A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
-      "date": "2026-10-09"
+      "motif": "Le JETON e-MECeF est un secret chiffre en base qui ne descend JAMAIS a un poste (decision du PO du 07/11/2026, garde de test) : ce poste n'a ni client e-MECeF ni jeton a saisir, effacer ou tester ; il le dit (MentionJetonMecef) et porte les phrases vraies pour lui. Voir ecran_parametres.dart.",
+      "date": "2026-11-07"
     }
   },
   "oublis": {
@@ -53,16 +48,5 @@
       "motif": "Ecran sans vue Blade : a rattacher a une vue, declarer comme ecart ou retirer."
     }
   },
-  "ajouts": {
-    "features/transverse/presentation/ecran_comptes_utilisateurs.dart": {
-      "classe": "d",
-      "motif": "Comptes utilisateurs (Lot J2) : decision du Product Owner du 14/10/2026. La PWA n'a AUCUN ecran de gestion des comptes (ni composant app/Pwa, ni vue, ni route pwa.*) ; sur ce poste sans serveur, c'est le seul endroit ou un administrateur cree, desactive ou reinitialise un compte. Reserve aux roles d'administration (rolesExiges), entree de menu declaree comme ajout dans test/support/ajouts_menu_poste.dart.",
-      "date": "2026-10-14"
-    },
-    "features/synchronisation/presentation/ecran_synchronisation.dart": {
-      "classe": "d",
-      "motif": "Synchronisation (lot F2b) : decision du Product Owner du 15/10/2026 (offline-first total, la synchronisation est une tache de fond du poste). La PWA parle au serveur en direct et n'a ni file d'envoi ni catalogue descendu : aucune vue ne porte cet ecran. Il montre la file (compteurs par statut), la derniere descente du catalogue, les operations rejetees, en conflit ou bloquees (Renvoyer et Debloquer reserves aux Administrateurs) et les signalements du serveur. Hors menu : atteint par le lien de Parametres > Synchronisation, route gardee par le module Parametres.",
-      "date": "2026-10-15"
-    }
-  }
+  "ajouts": {}
 }

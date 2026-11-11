@@ -108,7 +108,7 @@ use Livewire\Attributes\Url;
  * @see RG-15 Traçabilité des actions sensibles
  * @see LARAVEL_PWA.md §1, §3
  */
-#[Title("Journal d'Audit — TATACORA AFRIQUE")]
+#[Title("Journal d'Audit — LogiReStock — TATACORA AFRIQUE")]
 class JournalAudit extends PageTransverse
 {
     /**
@@ -131,6 +131,23 @@ class JournalAudit extends PageTransverse
         'modification' => ['libelle' => 'Modification', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
         'suppression' => ['libelle' => 'Suppression', 'fond' => '#FDECEC', 'texte' => '#C62828'],
         'rupture_stock_forcee' => ['libelle' => 'Rupture de stock forcée', 'fond' => '#FDECEC', 'texte' => '#C62828'],
+        // Mot de passe perdu SANS e-mail (29/10/2026, option A du PO) : écrits par
+        // `MotDePassePerduService` — jamais le secret ni son empreinte.
+        'reinitialisation_mot_de_passe' => ['libelle' => 'Réinitialisation du mot de passe', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
+        'code_secours_genere' => ['libelle' => 'Code de secours généré', 'fond' => '#E8EEFD', 'texte' => '#1D4ED8'],
+        'code_secours_utilise' => ['libelle' => 'Réinitialisation par code de secours', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
+        'code_secours_refuse' => ['libelle' => 'Code de secours refusé', 'fond' => '#FDECEC', 'texte' => '#C62828'],
+        'code_secours_bloque' => ['libelle' => 'Code de secours bloqué', 'fond' => '#FDECEC', 'texte' => '#C62828'],
+        // Supprimer un compte (03/11/2026) : écrits par `SuppressionCompteService` —
+        // qui, quel login, depuis quel poste ; jamais un secret.
+        'compte_supprime' => ['libelle' => 'Compte supprimé', 'fond' => '#FDECEC', 'texte' => '#C62828'],
+        // « Mon profil » (03/11/2026) : écrit par `MonProfil::enregistrerInformations` —
+        // les champs changés, ancien → nouveau ; jamais un secret.
+        'profil_modifie' => ['libelle' => 'Profil modifié', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
+        // Facturation normalisée (07/11/2026) : écrit par `TraceReglageFacturation` — les clés
+        // modifiées et le mode avant → après ; jamais le jeton.
+        'reglage_facturation_normalisee_modifie' => ['libelle' => 'Réglage de la facturation normalisée modifié', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
+        'compte_supprime_inconnu' => ['libelle' => 'Compte supprimé (inconnu du serveur)', 'fond' => '#F3F4F6', 'texte' => '#6B7280'],
     ];
 
     /**
@@ -178,6 +195,8 @@ class JournalAudit extends PageTransverse
         'ventes' => ['numero'],
         'bulletins_paie' => ['numero'],
         'parametres_systeme' => ['cle'],
+        // Les comptes (29/10/2026) : le login, jamais l'identifiant seul.
+        'utilisateurs' => ['login'],
     ];
 
     /**

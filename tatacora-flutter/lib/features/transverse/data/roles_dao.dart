@@ -9,6 +9,7 @@ import '../../../core/rbac/garde_acces.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
+import '../domain/champs_profil.dart';
 import '../domain/roles_du_poste.dart';
 
 /// Un refus d'écriture de la matrice — par CHAMP, comme les erreurs de
@@ -159,10 +160,7 @@ class RolesDao {
               id: id,
               libelle: propre,
               description: Value(descriptionPropre),
-              droitsJson: jsonEncode({
-                for (final code in codesModulesSocle)
-                  code: NiveauAcces.aucun.code,
-              }),
+              droitsJson: jsonEncode(_droitsRoleNeuf()),
               dateCreation: maintenant,
               dateModification: maintenant,
             ),
@@ -175,14 +173,22 @@ class RolesDao {
         payload: chargeRole(
           libelle: propre,
           description: descriptionPropre,
-          droits: {
-            for (final code in codesModulesSocle) code: NiveauAcces.aucun.code,
-          },
+          droits: _droitsRoleNeuf(),
         ),
       );
       return id;
     });
   }
+
+  /// La matrice d'un rôle NEUF : fermée (`-` partout), sauf le nom complet et le
+  /// téléphone de « Mon profil », ouverts à tous les rôles par défaut (décision du
+  /// PO du 03/11/2026 ; `RolePermissionService::creerRole()` du serveur).
+  static Map<String, String> _droitsRoleNeuf() => {
+    for (final code in codesModulesSocle) code: NiveauAcces.aucun.code,
+    for (final code in droitsProfilPourTous) code: NiveauAcces.complet.code,
+    // Les trois entrées de menu ouvertes à tous (09/11/2026) : la LECTURE.
+    for (final code in droitsOuvertsATous) code: NiveauAcces.lecture.code,
+  };
 
   /// « Modifier les droits » — `RolesPermissions::enregistrerDroits()` puis
   /// `RolePermissionService::definirNiveau()` sur chaque module de l'écran.
@@ -200,6 +206,7 @@ class RolesDao {
     required GardeAcces auteur,
     required String roleId,
     required Map<ModuleTatacora, NiveauAcces> niveaux,
+    Map<String, bool> droitsProfil = const {},
   }) async {
     _exigerEcriture(auteur);
     await _base.transaction(() async {
@@ -221,6 +228,11 @@ class RolesDao {
         ..._lire(role.droitsJson),
         for (final m in libellesModulesMatrice.keys)
           m.code: (niveaux[m] ?? NiveauAcces.aucun).code,
+        // Les droits de « Mon profil » (binaires : `C` ou `-`) ; un droit non
+        // transmis garde sa valeur.
+        for (final e in droitsProfil.entries)
+          if (codesDroitsProfil.contains(e.key))
+            e.key: e.value ? NiveauAcces.complet.code : NiveauAcces.aucun.code,
       };
       await _ecrire(role, droits);
     });

@@ -34,7 +34,6 @@ final readonly class EnTeteRapport
         public string $periode,
         public string $auteur,
         public string $dateEdition,
-        public string $mentionInstitutionnelle,
         /**
          * Identité et fiscalité paramétrées (02/09/2026, onglets « Identité &
          * Légal » et « Communication » de Paramètres) — mêmes règles que
@@ -79,6 +78,40 @@ final readonly class EnTeteRapport
     }
 
     /**
+     * L'IDENTITÉ imprimée UNE SEULE FOIS en tête de tout document (décision du PO du 10/11/2026 :
+     * « trop de tautologie, trop de répétition ») — les cinq lignes, dans l'ordre, jamais autre
+     * chose : « TATACORA AFRIQUE Gîte Chez Noël » / adresse / « Tél. … - courriel » / site /
+     * « IFU : … - RCCM : … ». Plus de ligne d'enseigne répétée, de « Système de gestion Intégré… »,
+     * de promoteur ni de WhatsApp dans l'en-tête. Une valeur absente fait disparaître sa ligne
+     * (jamais un exemple de format). Le poste Flutter écrit la MÊME liste (`lignesA4`).
+     *
+     * @return list<string>
+     */
+    public function lignesIdentite(): array
+    {
+        $enseigne = mb_convert_case($this->enseigne, MB_CASE_TITLE, 'UTF-8');
+        $contact = array_filter([
+            filled($this->telephone) ? 'Tél. '.trim($this->telephone) : null,
+            filled($this->email) ? trim($this->email) : null,
+        ]);
+        $mentions = [];
+        foreach ($this->mentionsLegales() as $intitule => $valeur) {
+            $mentions[] = $intitule.' : '.$valeur;
+        }
+
+        return array_values(array_filter([
+            // Une raison sociale qui PORTE déjà l'enseigne (« TATACORA AFRIQUE Gîte Chez Noël ») ne la reçoit pas deux fois.
+            $enseigne === '' || mb_stripos($this->raisonSociale, $enseigne, 0, 'UTF-8') !== false
+                ? trim($this->raisonSociale)
+                : trim($this->raisonSociale.' '.$enseigne),
+            trim($this->adresse),
+            $contact === [] ? null : implode(' - ', $contact),
+            filled($this->siteWeb) ? rtrim(trim($this->siteWeb), '/') : null,
+            $mentions === [] ? null : implode(' - ', $mentions),
+        ], static fn (?string $l): bool => filled($l)));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toArray(): array
@@ -97,7 +130,6 @@ final readonly class EnTeteRapport
             'periode' => $this->periode,
             'auteur' => $this->auteur,
             'date_edition' => $this->dateEdition,
-            'mention_institutionnelle' => $this->mentionInstitutionnelle,
             'promoteur' => $this->promoteur,
             'whatsapp' => $this->whatsapp,
             'regime_fiscal' => $this->regimeFiscal,

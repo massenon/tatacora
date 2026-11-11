@@ -2,9 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/di/providers.dart';
 import '../../../core/format/formats.dart';
-import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_durations.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -13,6 +11,7 @@ import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../domain/entities/historique_reservations.dart';
+import '../domain/entities/unite_hebergement.dart';
 import '../domain/entities/service_reservation.dart';
 import '../impression/etat_historique.dart';
 import 'providers_hebergement.dart';
@@ -140,9 +139,20 @@ class _PanneauHistoriqueState extends ConsumerState<PanneauHistorique> {
     // l'en-tête du même rendu, et rien ne déclenchait de rendu suivant — les
     // deux boutons seraient restés grisés **pour toujours**, sur un panneau
     // par ailleurs parfaitement fonctionnel.
+    // Les NOMS des unités, lus du parc de ce poste : la colonne « Unités » dit « BNG-01 — Bungalow »,
+    // jamais un identifiant (constaté le 09/11/2026 : un UUID brut à l'écran).
+    final nomsUnites = <String, String>{
+      for (final u
+          in ref.watch(unitesProvider).value ?? const <UniteHebergement>[])
+        u.id: '${u.numero} — ${u.categorieLibelle}',
+    };
     final lignes = reservations.maybeWhen(
-      data: (liste) =>
-          filtrerHistorique(liste, filtre: _filtre, maintenant: DateTime.now()),
+      data: (liste) => filtrerHistorique(
+        liste,
+        filtre: _filtre,
+        maintenant: DateTime.now(),
+        nomsUnites: nomsUnites,
+      ),
       orElse: () => null,
     );
     final kpis = lignes == null ? null : KpisHistorique.calculer(lignes);
@@ -396,7 +406,7 @@ class _PanneauHistoriqueState extends ConsumerState<PanneauHistorique> {
         DataCell(Text('${l.nuits}')),
         DataCell(
           Text(
-            l.unites.isEmpty ? '—' : l.unites.join(', '),
+            l.unitesAffichees.isEmpty ? '—' : l.unitesAffichees.join(', '),
             style: textes.labelSmall,
           ),
         ),
@@ -453,7 +463,7 @@ class _PanneauHistoriqueState extends ConsumerState<PanneauHistorique> {
 
     // Le droit d'écriture sur M1 commande l'action, comme dans la liste : un
     // bouton retiré plutôt que grisé, pour ne pas inviter à un refus.
-    if (!ref.watch(droitsProvider).peutEcrire(ModuleTatacora.m1Hebergement)) {
+    if (!ref.watch(peutAnnulerReservationProvider)) {
       return const SizedBox.shrink();
     }
 

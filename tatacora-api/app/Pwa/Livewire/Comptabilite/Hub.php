@@ -9,6 +9,7 @@ use App\Domain\Comptabilite\Models\CentreCout;
 use App\Domain\Comptabilite\Models\CompteComptable;
 use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Domain\Comptabilite\Models\Immobilisation;
+use App\Domain\Comptabilite\Services\AffectationResultatService;
 use App\Domain\Comptabilite\Services\AnalytiqueService;
 use App\Domain\Comptabilite\Services\ArchiveClotureService;
 use App\Domain\Comptabilite\Services\BalanceGeneraleService;
@@ -186,7 +187,7 @@ use Throwable;
  * @see LARAVEL_PWA.md §1, §3
  * @see DIRECTIVE_CONFORMITE_100.md Articles 3.3, 6, 8
  */
-#[Title('Comptabilité — SYSCOHADA révisé — TATACORA AFRIQUE')]
+#[Title('Comptabilité — SYSCOHADA révisé — LogiReStock — TATACORA AFRIQUE')]
 class Hub extends PageComptabilite
 {
     use FormulaireModal;
@@ -317,6 +318,29 @@ class Hub extends PageComptabilite
 
     /** Le motif de la réouverture d'un exercice clôturé (lot 2, 20/10/2026). */
     public string $motifReouverture = '';
+
+    // --- Affectation du résultat de l'exercice clôturé (09/11/2026) ------
+
+    /**
+     * La ventilation saisie, par poste de {@see AffectationResultatService::POSTES}
+     * (chaînes décimales). Amorcée par la PROPOSITION du service.
+     *
+     * @var array<string, string>
+     */
+    public array $affectation = [];
+
+    /** L'exercice dont la ventilation est amorcée (change : on réamorce). */
+    public string $affectationAmorcee = '';
+
+    public string $dateAffectation = '';
+
+    /** Confirmation en deux temps, derrière `@if` — jamais `wire:confirm`. */
+    public bool $confirmationAffectation = false;
+
+    public string $motifContrepassationAffectation = '';
+
+    /** La référence FACULTATIVE de la décision (PV d'assemblée / décision de l'exploitant) qui motive la contre-passation. */
+    public string $referenceContrepassationAffectation = '';
 
     // --- Modale d'export unifiée (`pwa.partials.modale-export`) ----------
 
@@ -578,7 +602,9 @@ class Hub extends PageComptabilite
     public function enregistrerCompte(PlanComptableService $service): void
     {
         $valide = $this->validerEcriture([
-            'numeroCompte' => ['required', 'string', 'regex:/^[1-9][0-9]{5}$/'],
+            // Le FORMAT du numéro n'est PAS jugé ici : c'est `PlanComptableService::creerCompte`
+            // qui le juge (une seule règle, une seule phrase, voir NUMERO_COMPTE_FORMAT).
+            'numeroCompte' => ['required', 'string'],
             'libelleCompte' => ['required', 'string', 'max:255'],
             'natureCompte' => ['required', 'string', 'in:'.implode(',', PlanComptableService::NATURES)],
         ]);
@@ -757,6 +783,180 @@ class Hub extends PageComptabilite
     }
 
     /**
+     * L'affectation du résultat de l'exercice clôturé (09/11/2026) —
+     * `AffectationResultatService`. L'exercice visé est le consulté s'il est
+     * clôturé, sinon son précédent (la carte se lit aussi depuis N).
+     * `demanderAffectation` ouvre la confirmation (le contrôle se fait au
+     * passage, pas ici), `passerAffectation` écrit, `contrepasserAffectation`
+     * inverse la pièce.
+     */
+    public function demanderAffectation(): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->resetErrorBag('affectation');
+        $this->confirmationAffectation = true;
+    }
+
+    public function passerAffectation(AffectationResultatService $service): void
+    {
+        $utilisateur = $this->exigerEcriture(self::MODULE);
+        $this->confirmationAffectation = false;
+        $exercice = $this->exerciceAffecte();
+
+        if ($exercice === null) {
+            return;
+        }
+
+        try {
+            $affectation = $service->affecter($exercice, $this->affectation, $this->dateAffectation, $utilisateur);
+        } catch (RuntimeException $refus) {
+            $this->addError('affectation', $refus->getMessage());
+
+            return;
+        }
+
+        $this->resetErrorBag('affectation');
+        $this->affectationAmorcee = '';
+        session()->flash('pwa-succes', __('comptabilite_pwa.affectation_faite', [
+            'annee' => (string) $exercice->annee,
+            'piece' => $affectation->piece_affectation,
+        ]));
+    }
+
+    public function contrepasserAffectation(AffectationResultatService $service): void
+    {
+        $utilisateur = $this->exigerEcriture(self::MODULE);
+        $exercice = $this->exerciceAffecte();
+
+        if ($exercice === null) {
+            return;
+        }
+
+        try {
+            $service->contrepasser(
+                $exercice,
+                $utilisateur,
+                $this->motifContrepassationAffectation,
+                $this->referenceContrepassationAffectation,
+            );
+        } catch (RuntimeException $refus) {
+            $this->addError('affectation', $refus->getMessage());
+
+            return;
+        }
+
+        $this->resetErrorBag('affectation');
+        $this->motifContrepassationAffectation = '';
+        $this->referenceContrepassationAffectation = '';
+        $this->affectationAmorcee = '';
+        session()->flash('pwa-succes', __('comptabilite_pwa.affectation_contrepassee', ['annee' => (string) $exercice->annee]));
+    }
+
+    /**
+     * Le poste du RESTE reçoit ce qui n'est pas ventilé : le compte de l'exploitant
+     * (entreprise individuelle) ou le report à nouveau (société) ; changer un autre
+     * poste le recalcule (jamais en dessous de zéro). Une saisie directe de ce poste
+     * se garde.
+     */
+    public function updatedAffectation(mixed $valeur, string $poste): void
+    {
+        $exercice = $this->exerciceAffecte();
+        $etat = $exercice === null ? null : app(AffectationResultatService::class)->etat($exercice);
+
+        if ($etat === null || $poste === $etat['posteDuReste']) {
+            return;
+        }
+
+        $autres = '0.00';
+
+        foreach ($etat['postes'] as $cle) {
+            if ($cle !== $etat['posteDuReste'] && is_numeric($this->affectation[$cle] ?? null)) {
+                $autres = bcadd($autres, bcadd((string) $this->affectation[$cle], '0', 2), 2);
+            }
+        }
+
+        $absolu = ltrim($etat['resultat'], '-');
+        $reste = bcsub($absolu, $autres, 2);
+        $this->affectation[$etat['posteDuReste']] = bccomp($reste, '0.00', 2) > 0 ? $reste : '0.00';
+    }
+
+    /**
+     * L'exercice dont le résultat s'affecte : le consulté s'il est clôturé,
+     * sinon son précédent clôturé ; `null` sinon.
+     */
+    private function exerciceAffecte(): ?ExerciceComptable
+    {
+        $consulte = $this->exercice();
+
+        if ($consulte === null) {
+            return null;
+        }
+
+        if ($consulte->statut === 'cloture') {
+            return $consulte;
+        }
+
+        $precedent = $this->exercicePrecedent();
+
+        return $precedent !== null && $precedent->statut === 'cloture' ? $precedent : null;
+    }
+
+    /**
+     * La carte d'affectation, et l'amorçage de la ventilation par la
+     * proposition du service (une seule fois par exercice affiché).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function carteAffectation(): ?array
+    {
+        $exercice = $this->exerciceAffecte();
+
+        if ($exercice === null) {
+            return null;
+        }
+
+        $etat = app(AffectationResultatService::class)->etat($exercice, auth()->user());
+
+        if ($etat === null) {
+            return null;
+        }
+
+        // L'amorçage vaut pour UN exercice sous UNE forme juridique : changer la forme
+        // (entreprise individuelle, SARL, SA) réamorce la proposition.
+        $amorce = $exercice->id . '|' . $etat['forme'];
+
+        if ($this->affectationAmorcee !== $amorce) {
+            $this->affectation = $etat['proposition'];
+            $this->dateAffectation = $etat['dateParDefaut'];
+            $this->affectationAmorcee = $amorce;
+            $this->confirmationAffectation = false;
+        }
+
+        // Le contrôle EN DIRECT : le total saisi (un poste illisible compte pour
+        // zéro) face au résultat, recalculé à chaque frappe. Il ne fait pas foi :
+        // le service revérifie la somme exacte au passage.
+        $postes = $etat['postes'];
+        $total = '0.00';
+
+        foreach ($postes as $poste) {
+            $saisi = trim((string) ($this->affectation[$poste] ?? ''));
+
+            if ($saisi !== '' && preg_match('/^\d+(\.\d{1,2})?$/', $saisi) === 1) {
+                $total = bcadd($total, $saisi, 2);
+            }
+        }
+
+        $absolu = ltrim($etat['resultat'], '-');
+        $etat['postes'] = $postes;
+        $etat['resultatAbsolu'] = $absolu;
+        $etat['totalVentile'] = $total;
+        $etat['ecart'] = bcsub($absolu, $total, 2);
+        $etat['sommeJuste'] = bccomp($etat['ecart'], '0.00', 2) === 0;
+
+        return $etat;
+    }
+
+    /**
      * Chaque action publique garde ELLE-MÊME (`exigerEcriture(self::MODULE)`,
      * relu par `PwaEcritureAutoriseeTest`) et passe l'utilisateur ici.
      *
@@ -786,6 +986,7 @@ class Hub extends PageComptabilite
 
     public function fermerModales(): void
     {
+        $this->confirmationAffectation = false;
         $this->etatFormulaire = null;
         $this->resetValidation();
     }
@@ -950,7 +1151,23 @@ class Hub extends PageComptabilite
             'exerciceIdConsulte' => $exerciceId,
             // Lot 2 : la clôture active (pièces passées) et le droit de rouvrir.
             'clotureActive' => $exercice === null ? null : app(ClotureExerciceService::class)->clotureActive($exercice->id),
+            // L'affectation du résultat (09/11/2026) : la carte de l'exercice
+            // clôturé (le consulté, sinon son précédent).
+            'carteAffectation' => $this->carteAffectation(),
             'peutRouvrir' => auth()->user()?->role?->libelle === ClotureExerciceService::ROLE_REOUVERTURE,
+            // « Résultat reporté » de chaque exercice DÉJÀ clôturé : celui que sa
+            // clôture a écrit (131/139), lu sur la clôture active — jamais
+            // recalculé. Un exercice non clôturé n'a pas encore de résultat reporté.
+            'resultatsReportes' => \App\Domain\Comptabilite\Models\ClotureExercice::query()
+                ->whereNull('rouverte_le')
+                ->pluck('resultat', 'exercice_id')
+                ->map(static fn (mixed $r): string => (string) $r)
+                ->all(),
+            // Alerte AVANT de démarrer : postes qui n'ont peut-être pas tout
+            // envoyé (une fois N en clôture, leurs pièces datées de N sont refusées).
+            'postesNonAJour' => $exercice !== null && $exercice->statut === 'ouvert'
+                ? app(\App\Shared\Sync\Services\SuiviPostesService::class)->postesNonAJour()
+                : [],
         ];
     }
 

@@ -17,6 +17,8 @@ import 'package:tatacora_flutter/features/comptabilite/domain/montant_comptable.
 import 'package:tatacora_flutter/features/comptabilite/domain/refus_comptable.dart';
 import 'package:tatacora_flutter/features/depenses/domain/categories_depense.dart';
 import 'package:tatacora_flutter/features/parametres/data/parametres_dao.dart';
+import 'package:tatacora_flutter/features/hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
 import 'package:tatacora_flutter/features/pos/data/piece_de_la_vente.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/mode_reglement.dart';
@@ -58,6 +60,9 @@ const _cocktail = '00000000-0000-4000-8000-0000000000b2';
 const _ephemere = '00000000-0000-4000-8000-0000000000b3';
 const _riz = '00000000-0000-4000-8000-0000000000a1';
 const _brochette = '00000000-0000-4000-8000-0000000000a2';
+const _salade = '00000000-0000-4000-8000-0000000000a3';
+const _circuit = '00000000-0000-4000-8000-0000000000c1';
+const _vehicule = '00000000-0000-4000-8000-0000000000d1';
 
 const _catalogue = <Map<String, Object?>>[
   {
@@ -95,6 +100,33 @@ const _catalogue = <Map<String, Object?>>[
     'libelle': 'Brochettes de bœuf',
     'prix': '3333',
   },
+  // Un plat dont la fiche est VIDE (30/10/2026, décision du PO « le stock s'ajoute
+  // après ») : il se vend, sans aucun mouvement de stock.
+  {
+    'ref': 'salade',
+    'id': _salade,
+    'module': 'M4',
+    'libelle': 'Salade du jour',
+    'prix': '1800',
+    'sans_fiche': true,
+  },
+  // Tourisme et location, encaissables au comptoir (22/10/2026) : le prix est
+  // `circuits.prix` / `vehicules.tarif_jour`, le libellé du véhicule son
+  // immatriculation.
+  {
+    'ref': 'circuit',
+    'id': _circuit,
+    'module': 'M9',
+    'libelle': 'Cascades de Tanougou',
+    'prix': '4500',
+  },
+  {
+    'ref': 'location',
+    'id': _vehicule,
+    'module': 'M8',
+    'libelle': 'AB-123-BJ',
+    'prix': '25000',
+  },
 ];
 
 Map<String, Object?> _ligne(String ref, int quantite) => {
@@ -108,6 +140,7 @@ Map<String, Object?> _vente(
   List<Map<String, Object?>> lignes, {
   bool session = true,
   List<String> retirer = const [],
+  Map<String, Object?>? remise,
 }) => {
   'op': 'vente',
   'canal': canal,
@@ -115,6 +148,13 @@ Map<String, Object?> _vente(
   'session': session,
   'lignes': lignes,
   if (retirer.isNotEmpty) 'retirer': retirer,
+  'remise': ?remise,
+};
+
+/// La remise du panier (21/10/2026) : le TYPE et la valeur SAISIE.
+Map<String, Object?> _remise(String type, String valeur) => {
+  'type': type,
+  'valeur': valeur,
 };
 
 Map<String, Object?> _parametre(String cle, String? valeur) => {
@@ -135,6 +175,21 @@ final _scenario = <Map<String, Object?>>[
   _vente('comptoir', 'especes', [_ligne('biere', 2), _ligne('brochette', 2)]),
   {'op': 'compter'},
 
+  // --- UN PLAT SANS FICHE SE VEND (PO, 30/10/2026) ---------------------------
+  // La fiche du plat est vide : la vente passe sur chaque canal et chaque mode,
+  // sa pièce est celle de n'importe quel plat, et AUCUN mouvement de stock n'est
+  // écrit. Un plat à fiche, vendu dans le même panier, ne change pas la pièce.
+  _vente('comptoir', 'especes', [_ligne('salade', 2)]),
+  {'op': 'sorties_derniere_vente'},
+  _vente('comptoir', 'mobile_money', [_ligne('salade', 1), _ligne('riz', 1)]),
+  _vente('service', 'virement', [_ligne('salade', 3)]),
+  {'op': 'sorties_derniere_vente'},
+  _vente('sejour', 'note_chambre', [_ligne('salade', 1)]),
+  {'op': 'sorties_derniere_vente'},
+  _vente('comptoir', 'carte', [_ligne('salade', 4)]),
+  {'op': 'sorties_derniere_vente'},
+  {'op': 'compter'},
+
   // --- Les refus du comptoir, DANS L'ORDRE du serveur -----------------------
   // Panier vide avant tout, caisse fermée comprise.
   _vente('comptoir', 'especes', [], session: false),
@@ -148,33 +203,96 @@ final _scenario = <Map<String, Object?>>[
   _vente('comptoir', 'cheque', [_ligne('biere', 1)]),
   {'op': 'compter'},
 
-  // --- Le service : module non encaissable, article retiré, mode ------------
-  {
-    'op': 'vente',
-    'canal': 'service',
-    'mode': 'especes',
-    'session': true,
-    'lignes': [
-      {'module': 'M8', 'id': 'veh-1', 'quantite': 1},
-    ],
-  },
-  // Le module est jugé AVANT la référence, ligne par ligne, dans l'ordre.
-  {
-    'op': 'vente',
-    'canal': 'service',
-    'mode': 'especes',
-    'session': true,
-    'lignes': [
-      {'ref': 'biere', 'quantite': 1},
-      {'module': 'M9', 'id': 'cir-1', 'quantite': 1},
-    ],
-  },
+  // --- La REMISE du panier (21/10/2026) : le net, la pièce, les refus -------
+  // Un pourcentage entier : 800 F sur 8 000 F, répartis au prorata (M4 puis M5).
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+  ], remise: _remise('pourcentage', '10')),
+  // Un montant en francs.
+  _vente('comptoir', 'mobile_money', [
+    _ligne('cocktail', 2),
+  ], remise: _remise('montant', '500')),
+  // Une remise qui laisse des CENTIMES (12,5 % de 4 333 F = 541,62 F, tronqué
+  // comme bcmath) : seule la pièce les garde.
+  _vente('comptoir', 'carte', [
+    _ligne('brochette', 1),
+    _ligne('biere', 1),
+  ], remise: _remise('pourcentage', '12.5')),
+  // L'arrondi de proration : le DERNIER module prend l'écart.
+  _vente('comptoir', 'especes', [
+    _ligne('brochette', 3),
+    _ligne('riz', 1),
+    _ligne('biere', 2),
+    _ligne('cocktail', 1),
+  ], remise: _remise('pourcentage', '33.33')),
+  // 100 % : le net est nul, la pièce aussi.
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('pourcentage', '100')),
+  // Une note de chambre remisée : 4111 au débit, du net.
+  _vente('sejour', 'note_chambre', [
+    _ligne('biere', 5),
+    _ligne('brochette', 3),
+  ], remise: _remise('montant', '1000')),
+  _vente('service', 'virement', [
+    _ligne('riz', 4),
+  ], remise: _remise('pourcentage', '7.5')),
+  // « Aucune » avec une valeur : la valeur retombe à zéro.
+  _vente('comptoir', 'especes', [
+    _ligne('riz', 1),
+  ], remise: _remise('aucune', '999')),
+  // Les refus : valeur illisible, négative, pourcentage hors bornes, montant
+  // au-delà du total (à la saisie, puis à l'encaissement du service).
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('pourcentage', 'abc')),
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('montant', '-5')),
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('pourcentage', '100.01')),
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('montant', '1000.01')),
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('pourcentage', '')),
+  _vente('service', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('montant', '5000')),
+  {'op': 'compter'},
+
+  // --- Le service : article retiré, mode ------------------------------------
   _vente(
     'service',
     'especes',
     [_ligne('ephemere', 2), _ligne('biere', 1)],
     retirer: ['ephemere'],
   ),
+  {'op': 'compter'},
+
+  // --- TOURISME et LOCATION au comptoir (22/10/2026) ------------------------
+  // Chaque module seul, sur chaque mode : 7061 / 7073, centres « Tourisme » et
+  // « Véhicules », aucune TVA tant qu'elle est inactive.
+  _vente('comptoir', 'especes', [_ligne('circuit', 3)]),
+  _vente('comptoir', 'mobile_money', [_ligne('location', 2)]),
+  _vente('comptoir', 'carte', [_ligne('circuit', 1), _ligne('location', 1)]),
+  _vente('comptoir', 'virement', [_ligne('location', 4)]),
+  // Mixte bar + restaurant + location + circuit : l'ordre du panier ne change
+  // pas la pièce (M4, M5, M8, M9).
+  _vente('comptoir', 'especes', [
+    _ligne('circuit', 2),
+    _ligne('biere', 2),
+    _ligne('location', 1),
+    _ligne('riz', 1),
+  ]),
+  // L'appel direct du service (le chemin de la synchronisation, sans prix
+  // imposé) donne la même pièce que le comptoir.
+  _vente('service', 'especes', [_ligne('circuit', 3), _ligne('biere', 1)]),
+  // Sans caisse ouverte, le comptoir refuse comme pour le bar.
+  _vente('comptoir', 'especes', [_ligne('circuit', 1)], session: false),
   {'op': 'compter'},
 
   // --- La TVA : l'intention (tva_active) et la capacité (le taux) -----------
@@ -187,6 +305,24 @@ final _scenario = <Map<String, Object?>>[
   _vente('comptoir', 'especes', [_ligne('biere', 3), _ligne('riz', 2)]),
   _parametre('convention_prix', 'ttc'),
   _vente('comptoir', 'especes', [_ligne('biere', 3), _ligne('riz', 2)]),
+  // TVA sur les PRESTATIONS (4432) : circuit et location, seuls puis mêlés au
+  // bar (4431) et au restaurant (4432, cumulé avec celui des prestations).
+  _vente('comptoir', 'especes', [_ligne('circuit', 3), _ligne('location', 1)]),
+  _vente('comptoir', 'carte', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+    _ligne('circuit', 1),
+    _ligne('location', 2),
+  ]),
+  // La remise ET la TVA : la TVA se lit sur le net de chaque module.
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+  ], remise: _remise('pourcentage', '10')),
+  _vente('sejour', 'note_chambre', [
+    _ligne('brochette', 3),
+    _ligne('cocktail', 1),
+  ], remise: _remise('montant', '777')),
   // TVA sur UN SEUL module : la ligne de l'autre compte n'existe pas.
   _vente('comptoir', 'mobile_money', [_ligne('cocktail', 3)]),
   _vente('comptoir', 'carte', [_ligne('riz', 4)]),
@@ -247,6 +383,89 @@ final _scenario = <Map<String, Object?>>[
   {'op': 'compter'},
 ];
 
+/// La CORRESPONDANCE DES COMPTES modifiée (26/10/2026, décision du PO : « on
+/// peut impérativement modifier les comptes sur poste et le web ») : la MÊME
+/// pièce des deux côtés, avant et après chaque changement.
+///
+/// Les clés `compte_<rôle>` sont posées par l'opération `parametre` (écrite
+/// DIRECTEMENT en base des deux côtés : la validation de l'écran n'est pas ce
+/// qu'on mesure ici, c'est la LECTURE par la vente, au moment de passer la
+/// pièce). Les comptes choisis n'ont volontairement AUCUN centre par défaut au
+/// plan (4112, 5712, 5212, 558, 4433, 4434) : seule la règle « le centre du
+/// compte par défaut du rôle » les fait passer, des deux côtés.
+final _scenarioCorrespondance = <Map<String, Object?>>[
+  _parametre('tva_active', 'true'),
+  _parametre('taux_tva', '18'),
+  _parametre('convention_prix', 'ttc'),
+
+  // --- Les DÉFAUTS : rien n'a encore été choisi ------------------------------
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+    _ligne('circuit', 1),
+    _ligne('location', 2),
+  ]),
+  _vente('sejour', 'note_chambre', [
+    _ligne('biere', 2),
+    _ligne('brochette', 1),
+  ]),
+
+  // --- Chaque rôle de produit, de TVA, de trésorerie, de tiers -------------
+  _parametre('compte_produit_prestations', '7062'),
+  _parametre('compte_produit_marchandises', '7012'),
+  _parametre('compte_produit_locations', '7078'),
+  _parametre('compte_produit_circuits', '7064'),
+  _parametre('compte_tva_facturee_biens', '4434'),
+  _parametre('compte_tva_facturee_prestations', '4433'),
+  _parametre('compte_caisse', '5712'),
+  _parametre('compte_banque', '5212'),
+  _parametre('compte_mobile_money', '558'),
+  _parametre('compte_clients', '4112'),
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+    _ligne('circuit', 1),
+    _ligne('location', 2),
+  ]),
+  _vente('comptoir', 'mobile_money', [_ligne('cocktail', 2)]),
+  _vente('comptoir', 'carte', [_ligne('brochette', 1), _ligne('location', 1)]),
+  _vente('comptoir', 'virement', [_ligne('circuit', 4)]),
+  _vente('sejour', 'note_chambre', [
+    _ligne('biere', 2),
+    _ligne('brochette', 1),
+  ]),
+  _vente('service', 'especes', [_ligne('circuit', 3), _ligne('biere', 1)]),
+  // La remise et la TVA, sur les comptes choisis.
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+  ], remise: _remise('pourcentage', '10')),
+
+  // --- Deux rôles de TVA rattachés au MÊME compte : deux lignes, pas une ----
+  _parametre('compte_tva_facturee_biens', '4433'),
+  _vente('comptoir', 'carte', [_ligne('biere', 3), _ligne('riz', 2)]),
+
+  // --- La valeur est RELUE à chaque pièce : espaces, puis retour au défaut --
+  _parametre('compte_caisse', '  5711 '),
+  _vente('comptoir', 'especes', [_ligne('biere', 1)]),
+  _parametre('compte_caisse', null),
+  _parametre('compte_clients', null),
+  _parametre('compte_produit_locations', null),
+  _vente('comptoir', 'especes', [_ligne('location', 1), _ligne('biere', 1)]),
+  _vente('sejour', 'note_chambre', [_ligne('biere', 2)]),
+
+  // --- Un compte CHOISI que le plan refuse (posé hors validation) : le même
+  // refus des deux côtés, rien d'écrit. Une vente qui ne le touche pas passe.
+  _parametre('compte_produit_locations', '7999'),
+  _vente('comptoir', 'especes', [_ligne('location', 1)]),
+  _vente('comptoir', 'especes', [_ligne('biere', 1)]),
+  _parametre('compte_produit_locations', '70'),
+  _vente('comptoir', 'especes', [_ligne('location', 1)]),
+  _parametre('compte_produit_locations', null),
+  _vente('comptoir', 'especes', [_ligne('location', 1)]),
+  {'op': 'compter'},
+];
+
 /// Le scénario où le centre « Bar » a disparu : RG-12 refuse, naming le compte.
 final _scenarioSansCentre = <Map<String, Object?>>[
   {'op': 'retirer_centre', 'libelle': 'Bar'},
@@ -255,6 +474,13 @@ final _scenarioSansCentre = <Map<String, Object?>>[
   _vente('comptoir', 'especes', [_ligne('riz', 1)]),
   // Mixte : le Bar manque, donc TOUT est refusé (rien d'écrit).
   _vente('comptoir', 'especes', [_ligne('riz', 1), _ligne('biere', 1)]),
+  {'op': 'compter'},
+  // Le centre « Véhicules » a disparu aussi : la location est refusée, le
+  // tourisme (centre « Tourisme ») passe.
+  {'op': 'retirer_centre', 'libelle': 'Véhicules'},
+  _vente('comptoir', 'especes', [_ligne('circuit', 1)]),
+  _vente('comptoir', 'especes', [_ligne('location', 1)]),
+  _vente('comptoir', 'especes', [_ligne('circuit', 1), _ligne('location', 1)]),
   {'op': 'compter'},
 ];
 
@@ -279,6 +505,8 @@ void main() {
   late List<Map<String, Object?>> local;
   late List<dynamic> serveurSansCentre;
   late List<Map<String, Object?>> localSansCentre;
+  late List<dynamic> serveurCorrespondance;
+  late List<Map<String, Object?>> localCorrespondance;
 
   setUpAll(() async {
     final r = await executerPhp(
@@ -304,6 +532,18 @@ void main() {
     );
     serveurSansCentre = r2['resultats'] as List<dynamic>;
     localSansCentre = await _jouerLocalement(_scenarioSansCentre);
+
+    final r3 = await executerPhp(
+      'rejouer_ventes.php',
+      dossier: 'ventes',
+      entree: {
+        'aujourdhui': '2031-06-15',
+        'catalogue': _catalogue,
+        'ops': _scenarioCorrespondance,
+      },
+    );
+    serveurCorrespondance = r3['resultats'] as List<dynamic>;
+    localCorrespondance = await _jouerLocalement(_scenarioCorrespondance);
   });
 
   test('chaque opération du scénario a un résultat des deux côtés', () {
@@ -346,6 +586,85 @@ void main() {
       'ventes': 1,
       'ecritures': 2,
     });
+    // Sans le centre « Véhicules » : le circuit (centre « Tourisme ») passe, la
+    // location est refusée en nommant SON compte 7073, la mixte en bloc.
+    expect((serveurSansCentre[6] as Map)['ok'], isTrue);
+    expect((serveurSansCentre[7] as Map)['refus'], contains('7073'));
+    expect((serveurSansCentre[8] as Map).containsKey('refus'), isTrue);
+    expect((serveurSansCentre[9] as Map)['compte'], {
+      'ventes': 2,
+      'ecritures': 4,
+    });
+  });
+
+  test('CORRESPONDANCE DES COMPTES modifiée : la MÊME pièce que le serveur, '
+      'avant et après chaque changement (parité)', () {
+    expect(serveurCorrespondance, hasLength(_scenarioCorrespondance.length));
+    expect(localCorrespondance, hasLength(_scenarioCorrespondance.length));
+    for (var i = 0; i < _scenarioCorrespondance.length; i++) {
+      expect(
+        localCorrespondance[i],
+        equals(serveurCorrespondance[i]),
+        reason: 'opération $i : ${_scenarioCorrespondance[i]}',
+      );
+    }
+  });
+
+  test('la parité de la correspondance n’est pas verte à vide : les comptes '
+      'CHOISIS portent vraiment les pièces, les anciens plus', () {
+    List<String> comptesDe(int i) => [
+      for (final l in ((serveurCorrespondance[i] as Map)['piece'] as List))
+        (l as Map)['compte'] as String,
+    ];
+    // Les indices de `_scenarioCorrespondance` (3 paramètres d'abord).
+    final defauts = comptesDe(3);
+    expect(
+      defauts,
+      containsAll(<String>['5711', '7011', '7061', '7073', '4431', '4432']),
+    );
+    final note = comptesDe(4);
+    expect(note, contains('4111'));
+
+    final choisis = comptesDe(15);
+    expect(
+      choisis,
+      containsAll(<String>[
+        '5712',
+        '7012',
+        '7062',
+        '7078',
+        '7064',
+        '4434',
+        '4433',
+      ]),
+    );
+    for (final ancien in ['5711', '7011', '7061', '7073', '4431', '4432']) {
+      expect(choisis, isNot(contains(ancien)), reason: ancien);
+    }
+    expect(comptesDe(16), contains('558'));
+    expect(comptesDe(17), contains('5212'));
+    // La note de chambre sur un compte client SANS centre par défaut passe :
+    // le centre est celui du compte par défaut du rôle (Structure).
+    final noteChoisie = ((serveurCorrespondance[19] as Map)['piece'] as List)
+        .cast<Map<String, dynamic>>();
+    final client = noteChoisie.firstWhere((l) => l['compte'] == '4112');
+    expect(client['centre'], 'Structure');
+
+    // Deux rôles de TVA sur le même compte : DEUX lignes, comme au serveur.
+    final memeCompte = ((serveurCorrespondance[23] as Map)['piece'] as List)
+        .cast<Map<String, dynamic>>();
+    expect(memeCompte.where((l) => l['compte'] == '4433').length, 2);
+
+    // Les refus : le compte absent du plan, puis la division.
+    expect(
+      (serveurCorrespondance[32] as Map)['refus'],
+      contains('Compte comptable inconnu : 7999'),
+    );
+    expect((serveurCorrespondance[33] as Map)['ok'], isTrue);
+    expect(
+      (serveurCorrespondance[35] as Map)['refus'],
+      contains('Le compte 70 est une division du plan comptable'),
+    );
   });
 
   test('le scénario éprouve les chemins qui comptent (pas un vert à vide)', () {
@@ -356,7 +675,8 @@ void main() {
         for (final l in ((r as Map)['piece'] as List))
           (l as Map)['compte'] as String,
     };
-    // Les trois trésoreries, la créance client, les deux produits, les deux TVA.
+    // Les trois trésoreries, la créance client, les produits (dont la location,
+    // 7073), les deux TVA.
     expect(
       comptes,
       containsAll(<String>[
@@ -366,6 +686,7 @@ void main() {
         '4111',
         '7011',
         '7061',
+        '7073',
         '4431',
         '4432',
       ]),
@@ -387,6 +708,42 @@ void main() {
       expect(debit, centimesDepuisChaine(r['montant'] as String));
     }
   });
+
+  test(
+    'un plat SANS FICHE se vend des deux côtés et n’écrit aucun mouvement '
+    '(PO, 30/10/2026) — et le compteur du serveur MORD sur un plat à fiche',
+    () async {
+      // Les ventes de la « salade » (fiche vide) : réussies, zéro sortie.
+      var salades = 0;
+      for (var i = 0; i < _scenario.length; i++) {
+        final op = _scenario[i];
+        if (op['op'] == 'sorties_derniere_vente') {
+          final vente = serveur[i - 1] as Map;
+          expect(vente['ok'], isTrue, reason: 'opération ${i - 1}');
+          expect((serveur[i] as Map)['sorties'], 0, reason: 'serveur, op $i');
+          expect((local[i] as Map)['sorties'], 0, reason: 'poste, op $i');
+          salades++;
+        }
+      }
+      expect(salades, 4);
+
+      // Garde contre le vert à vide : sur un plat À FICHE, le serveur écrit bien
+      // une sortie de stock (le comptoir poste, lui, n'en écrit pas : écart nommé).
+      final r = await executerPhp(
+        'rejouer_ventes.php',
+        dossier: 'ventes',
+        entree: {
+          'aujourdhui': '2031-06-15',
+          'catalogue': _catalogue,
+          'ops': [
+            _vente('comptoir', 'especes', [_ligne('riz', 2)]),
+            {'op': 'sorties_derniere_vente'},
+          ],
+        },
+      );
+      expect(((r['resultats'] as List)[1] as Map)['sorties'], greaterThan(0));
+    },
+  );
 
   test('un refus n’écrit RIEN : les comptes sont ceux des seuls succès', () {
     final comptes = [
@@ -465,26 +822,96 @@ void main() {
     // Les tables : le journal, les comptes, les centres, les contreparties.
     expect(l['journal'], journalDesVentes);
     expect(l['modules_encaissables'], modulesEncaissables);
-    expect(l['comptes_produit'], comptesProduitParModule);
-    expect(l['comptes_tva'], comptesTvaParModule);
+    // Depuis le 26/10/2026 le serveur déclare des RÔLES (la correspondance des
+    // comptes est modifiable) : le poste porte les mêmes.
+    expect(l['roles_produit'], rolesProduitParModule);
+    expect(l['roles_tva'], rolesTvaParModule);
     expect(l['centres_par_module'], centresParModule);
-    expect(
-      l['compte_clients'],
-      compteDeContrepartie(ModeReglement.noteChambre),
-    );
+    expect(l['role_clients'], roleDeContrepartie(ModeReglement.noteChambre));
     expect(l['modules'], MessagesVentes.modulesDuServeur);
     final contreparties = (l['contreparties'] as Map).cast<String, String>();
     expect(contreparties.length, 4);
     for (final e in contreparties.entries) {
       final mode = ModeReglement.parCode(e.key);
       expect(
-        compteDeContrepartie(mode),
-        TresorerieDepense.depuisCode(e.value)!.compte,
+        roleDeContrepartie(mode),
+        TresorerieDepense.depuisCode(e.value)!.role,
         reason: e.key,
       );
     }
     // Non vide : sinon l'égalité ci-dessus comparerait des vides.
-    expect(l['comptes_produit'], isNotEmpty);
+    expect(l['roles_produit'], isNotEmpty);
+  });
+
+  test('LA REMISE (21/10/2026) : le net, ses centimes, ses refus — chaque '
+      'valeur lue du serveur, jamais recopiée', () {
+    final l = (serveur.first as Map)['libelles'] as Map<dynamic, dynamic>;
+    // Les phrases du serveur, relues par PHP, sont celles du poste.
+    expect(
+      l['remise_valeur_invalide'],
+      MessagesVentes.remiseValeurInvalide,
+      reason: 'phrase du serveur',
+    );
+    expect(
+      l['remise_pourcentage_hors_bornes'],
+      MessagesVentes.remisePourcentageHorsBornes,
+    );
+    expect(
+      l['remise_superieure_au_total'],
+      MessagesVentes.remiseSuperieureAuTotal,
+    );
+    expect(l['remise_ligne_facture'], MessagesVentes.remiseLigneFacture);
+    expect(l['remise_appliquee'], 'Sur un total de :brut');
+
+    // Les opérations à remise, serveur et poste, résultat par résultat.
+    final indices = [
+      for (var i = 0; i < _scenario.length; i++)
+        if (_scenario[i]['remise'] != null) i,
+    ];
+    expect(indices.length, greaterThanOrEqualTo(15));
+    String montant(int i) => (serveur[i] as Map)['montant'] as String;
+    String refus(int i) => (serveur[i] as Map)['refus'] as String;
+
+    // 10 % de 3 000 + 5 000 = 800 : le serveur encaisse 7 200.
+    expect(montant(indices[0]), '7200.00');
+    expect(montant(indices[1]), '4500.00'); // 5 000 − 500
+    // 12,5 % de 4 333 F : 541,62 F tronqués par bcmath, net 3 791,38 F.
+    expect(montant(indices[2]), '3791.38');
+    // 100 % : le net est nul, et « une pièce à zéro n'enregistre rien » — le
+    // moteur comptable refuse, des deux côtés, avec la même phrase.
+    expect(refus(indices[4]), contains('Une pièce à zéro'));
+    // « Aucune » : la valeur retombe à zéro, le total est celui des lignes.
+    expect(montant(indices[7]), '2500.00');
+    // Les refus, à la saisie : dans l'ordre du scénario.
+    expect(refus(indices[8]), MessagesVentes.remiseValeurInvalide);
+    expect(refus(indices[9]), MessagesVentes.remiseValeurInvalide);
+    expect(refus(indices[10]), MessagesVentes.remisePourcentageHorsBornes);
+    expect(refus(indices[11]), MessagesVentes.remiseSuperieureAuTotal);
+    expect(refus(indices[12]), MessagesVentes.remiseValeurInvalide);
+    expect(refus(indices[13]), MessagesVentes.remiseSuperieureAuTotal);
+
+    // Le net est l'argent encaissé : la pièce porte le net, au centime.
+    for (final i in indices.take(8)) {
+      if ((serveur[i] as Map).containsKey('refus')) continue;
+      final piece = ((serveur[i] as Map)['piece'] as List)
+          .cast<Map<String, dynamic>>();
+      var debit = 0;
+      var credit = 0;
+      for (final ligne in piece) {
+        debit += centimesDepuisChaine(ligne['debit'] as String);
+        credit += centimesDepuisChaine(ligne['credit'] as String);
+      }
+      expect(debit, credit, reason: 'pièce équilibrée : ${_scenario[i]}');
+      expect(
+        debit,
+        centimesDepuisChaine(montant(i)),
+        reason: 'la pièce passe sur le NET : ${_scenario[i]}',
+      );
+    }
+    // Et le poste a joué les MÊMES opérations (déjà comparées champ à champ).
+    for (final i in indices) {
+      expect(local[i], equals(_sansFinRetiree(serveur[i])), reason: '$i');
+    }
   });
 
   test('la TVA du poste est celle de bcmath, centime pour centime', () async {
@@ -627,6 +1054,31 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
               prixVente: prix.toDouble(),
             ),
           );
+    } else if (module == 'M9') {
+      await db
+          .into(db.circuitsLocal)
+          .insert(
+            CircuitsLocalCompanion.insert(
+              id: id,
+              nom: a['libelle'] as String,
+              theme: 'nature',
+              zone: 'Atacora',
+              prix: prix.toDouble(),
+              capaciteMax: 12,
+            ),
+          );
+    } else if (module == 'M8') {
+      await db
+          .into(db.vehiculesLocal)
+          .insert(
+            VehiculesLocalCompanion.insert(
+              id: id,
+              categorie: '4x4',
+              immatriculation: a['libelle'] as String,
+              tarifJour: prix.toDouble(),
+              statut: 'disponible',
+            ),
+          );
     } else {
       await db
           .into(db.platsLocal)
@@ -651,31 +1103,6 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
       prix: prix,
     );
   }
-  // Un véhicule et un circuit : le poste offre ces rayons au panier (le serveur
-  // les refuse dès l'ajout), et leur clôture doit être refusée.
-  await db
-      .into(db.vehiculesLocal)
-      .insert(
-        VehiculesLocalCompanion.insert(
-          id: 'veh-1',
-          categorie: 'Berline',
-          immatriculation: 'AB-123-BJ',
-          tarifJour: 25000,
-          statut: 'disponible',
-        ),
-      );
-  await db
-      .into(db.circuitsLocal)
-      .insert(
-        CircuitsLocalCompanion.insert(
-          id: 'cir-1',
-          nom: 'Cascades de Tanougou',
-          theme: 'Nature',
-          zone: 'Atacora',
-          prix: 4500,
-          capaciteMax: 12,
-        ),
-      );
   final client = await creerClient(db);
   await semerReservation(db, id: 'res-1', clientId: client.id);
 
@@ -728,6 +1155,11 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
     );
   }
 
+  Future<int> compterMouvements() async =>
+      (await db.select(db.mouvementsStockLocal).get()).length;
+  var mouvementsAvantVente = 0;
+  var mouvementsApresVente = 0;
+
   final resultats = <Map<String, Object?>>[];
 
   for (final op in scenario) {
@@ -770,7 +1202,17 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
                 (await compta.toutesLesEcritures()).length - departEcritures,
           },
         });
+      case 'sorties_derniere_vente':
+        // Le poste n'écrit AUCUN mouvement de stock à la vente d'un plat (ni avec
+        // fiche, ni sans) : on mesure donc la variation de ses mouvements autour
+        // de la dernière vente.
+        resultats.add({
+          'ok': true,
+          'sorties': mouvementsApresVente - mouvementsAvantVente,
+        });
       case 'vente':
+        mouvementsAvantVente = await compterMouvements();
+        mouvementsApresVente = mouvementsAvantVente;
         final canal = op['canal'] as String;
         final sejour = canal == 'sejour';
         if (!sejour) {
@@ -813,6 +1255,24 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
           );
         }
 
+        // La remise, posée comme l'opérateur la pose (`appliquerRemise`) : un
+        // refus de la formule est le résultat de l'opération, le panier est
+        // abandonné.
+        final remise = op['remise'] as Map<String, Object?>?;
+        if (remise != null) {
+          try {
+            await dao.appliquerRemise(
+              panier.id,
+              TypeRemise.values.firstWhere((t) => t.name == remise['type']),
+              remise['valeur'] as String,
+            );
+          } on RefusVente catch (e) {
+            resultats.add({'refus': e.message});
+            await dao.annuler(panier.id, 'essai');
+            continue;
+          }
+        }
+
         try {
           final cloture = await dao.cloturer(
             panier.id,
@@ -827,9 +1287,21 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
               await decrireLigne(e),
           ]..sort((a, b) => cle(a).compareTo(cle(b)));
           final mode = ModeReglement.parCode(cloture.modePaiement!);
+          // Le NET exact est celui de la PIÈCE (le débit) ; `montantCloture`
+          // en est l'arrondi au franc (le poste compte en francs entiers).
+          final debits = piece.fold<int>(
+            0,
+            (t, l) => t + centimesDepuisChaine(l['debit']! as String),
+          );
+          expect(
+            cloture.montantCloture,
+            (debits + 50) ~/ 100,
+            reason: 'montantCloture = net arrondi au franc : ${op['lignes']}',
+          );
+          mouvementsApresVente = await compterMouvements();
           resultats.add({
             'ok': true,
-            'montant': chaineDepuisCentimes(cloture.montantCloture! * 100),
+            'montant': chaineDepuisCentimes(debits),
             'mode': mode.code,
             'encaisse': mode.encaisse,
             'session': cloture.sessionEncaissementId != null,

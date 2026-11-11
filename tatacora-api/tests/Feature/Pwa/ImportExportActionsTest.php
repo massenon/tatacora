@@ -424,30 +424,25 @@ final class ImportExportActionsTest extends TestCase
     }
 
     // =====================================================================
-    // Rendu HTTP réel des quatre onglets — « une page HTML livrée vide que
+    // Rendu HTTP réel des trois onglets — « une page HTML livrée vide que
     // seule une exécution réelle a révélée » (CLAUDE.md).
     // =====================================================================
 
     #[Test]
-    public function les_quatre_onglets_sont_reellement_servis_dans_leurs_deux_etats(): void
+    public function les_trois_onglets_sont_reellement_servis_et_l_ancien_quatrieme_n_existe_plus(): void
     {
         $this->actingAs($this->utilisateur('administrateur'));
 
-        foreach (['importer', 'sauvegardes', 'restaurer', 'seeders'] as $onglet) {
+        foreach (['importer', 'sauvegardes', 'restaurer'] as $onglet) {
             $this->get('/pwa/import-export?onglet='.$onglet)->assertOk();
         }
 
-        // L'état VERROUILLÉ du quatrième onglet (bascule fermée) porte le
-        // cadenas et le renvoi vers Paramètres…
+        // Le quatrième onglet (« Réinitialiser les données de test ») n'est plus ici :
+        // il est revenu dans Paramètres › Activation & Sécurité (09/11/2026, PO). Un
+        // ancien lien `?onglet=seeders` retombe sur « Importer ».
         $html = (string) $this->get('/pwa/import-export?onglet=seeders')->assertOk()->getContent();
-        $this->assertStringContainsString(e((string) __('pwa.import_export.seeders_verrouille_titre')), $html);
-
-        // …et l'état OUVERT rend les deux listes dérivées du réel.
-        $this->ouvrirBascule();
-        $html = (string) $this->get('/pwa/import-export?onglet=seeders')->assertOk()->getContent();
-        $this->assertStringContainsString(e((string) __('pwa.import_export.seeders_vide_titre')), $html);
-        $this->assertStringContainsString(e((string) __('pwa.import_export.seeders_conserve_titre')), $html);
-        $this->assertStringContainsString('journal_audit', $html);
+        $this->assertStringNotContainsString(e((string) __('pwa.import_export.seeders_verrouille_titre')), $html);
+        $this->assertStringNotContainsString(e((string) __('pwa.import_export.onglet_seeders')), $html);
         $this->assertStringContainsString('reservations', $html);
     }
 

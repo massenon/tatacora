@@ -473,7 +473,7 @@ final class ApiRestaurantTest extends TestCase
         $ligne = $this->lignePouletDg();
 
         $this->assertSame(0, $ligne['portions_vendables']);
-        $this->assertTrue($ligne['rupture']);
+        $this->assertFalse($ligne['rupture']); // 09/11/2026 (PO) : un plat n'est JAMAIS en rupture
         $this->assertNull($ligne['motif_sans_stock']);
     }
 
@@ -1054,27 +1054,17 @@ final class ApiRestaurantTest extends TestCase
      * pas assumée.
      */
     #[Test]
-    public function rg06_une_rupture_est_refusee_avec_son_drapeau_de_confirmation(): void
+    public function rg06_une_rupture_d_ingredient_ne_refuse_plus_la_transmission(): void
     {
         Sanctum::actingAs($this->cuisinier());
 
-        // 20 portions demandent 8 kg de poulet ; il n'en reste que 4.
+        // 20 portions demandent 8 kg de poulet ; il n'en reste que 4 (PO 10/11/2026 : la vente
+        // d'un plat n'est jamais refusée pour manque de stock).
         $id = $this->postJson('/api/v1/restaurant/commandes', [
             'lignes' => [['plat_id' => $this->pouletDg->id, 'quantite' => 20]],
         ])->assertCreated()->json('data.id');
 
         $this->patchJson("/api/v1/restaurant/commandes/{$id}/transmission")
-            ->assertStatus(422)
-            ->assertJsonPath('necessite_validation_rupture', true);
-
-        $this->assertSame('en_preparation', CommandeRestaurant::findOrFail($id)->statut);
-        // La transaction a tout annulé : même le riz, pourtant suffisant, n'a
-        // pas bougé. Une commande transmise à moitié laisserait la cuisine avec
-        // un bon qu'elle ne peut pas honorer.
-        $this->assertSame('10.00', $this->stockRiz());
-
-        // Assumée par un utilisateur habilité, elle passe.
-        $this->patchJson("/api/v1/restaurant/commandes/{$id}/transmission", ['validation_rupture' => true])
             ->assertOk()
             ->assertJsonPath('data.statut', 'transmise_cuisine');
 
@@ -1082,12 +1072,13 @@ final class ApiRestaurantTest extends TestCase
     }
 
     /**
-     * Une fiche technique vide est refusée SANS drapeau de confirmation :
-     * elle ne s'assume pas, elle se corrige. Laisser passer vendrait le plat
-     * sans rien consommer, et l'écart n'apparaîtrait qu'à l'inventaire.
+     * Décision du PO du 30/10/2026 (« le stock s'ajoute après ») : une fiche
+     * technique vide ne refuse plus la transmission. Le plat part en cuisine
+     * SANS aucun mouvement de stock (il était refusé, 422, avec `plat`). Un plat
+     * qui a une fiche garnie, dans la même commande, décrémente toujours.
      */
     #[Test]
-    public function rg05_un_plat_sans_fiche_technique_ne_se_transmet_pas_meme_en_forcant(): void
+    public function rg05_un_plat_sans_fiche_technique_se_transmet_sans_mouvement_de_stock(): void
     {
         Sanctum::actingAs($this->cuisinier());
 
@@ -1095,14 +1086,12 @@ final class ApiRestaurantTest extends TestCase
             'lignes' => [['plat_id' => $this->saladeSansRecette->id, 'quantite' => 1]],
         ])->assertCreated()->json('data.id');
 
-        $reponse = $this->patchJson(
-            "/api/v1/restaurant/commandes/{$id}/transmission",
-            ['validation_rupture' => true],
-        )->assertStatus(422);
+        $this->patchJson("/api/v1/restaurant/commandes/{$id}/transmission")
+            ->assertOk()
+            ->assertJsonPath('data.statut', 'transmise_cuisine');
 
-        $reponse->assertJsonPath('plat', 'Salade César');
-        $reponse->assertJsonMissingPath('necessite_validation_rupture');
-        $this->assertSame('en_preparation', CommandeRestaurant::findOrFail($id)->statut);
+        $this->assertSame('10.00', $this->stockRiz(), 'Aucun mouvement de stock pour un plat sans fiche.');
+        $this->assertSame('transmise_cuisine', CommandeRestaurant::findOrFail($id)->statut);
     }
 
     /**

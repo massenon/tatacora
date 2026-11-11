@@ -5,12 +5,19 @@ declare(strict_types=1);
 namespace App\Pwa\Livewire\Transverse;
 
 use App\Models\User;
+use App\Pwa\Support\ChampsProfil;
+use App\Pwa\Support\EmpreinteMotDePasseEnSession;
 use App\Shared\Audit\Models\JournalAudit as EntreeJournalAudit;
+use App\Shared\Auth\Services\MotDePassePerduService;
+use App\Shared\Mail\Support\AdresseEmailFacultative;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
+use RuntimeException;
 
 /**
  * Mon profil — maitre : `prototype_v2/pages/mon-profil.html`.
@@ -28,6 +35,19 @@ use Livewire\Attributes\Title;
  * desormais ailleurs sur ce depot), mais parce qu'aucune colonne de
  * `utilisateurs` ne porte ce que ce formulaire collecte : voir le bloc dedie
  * ci-dessous, qui distingue les deux raisons.
+ *
+ * ⚠ MIS À JOUR LE 03/11/2026 (décision du PO) : « Nom complet », « Téléphone » et
+ * le nouveau champ « Intitulé de poste » sont désormais des colonnes de
+ * `utilisateurs` (`nom_complet`, `telephone`, `intitule_poste`), modifiables par
+ * leur titulaire SOUS DROIT (trois droits RBAC `PROFIL_*`, voir
+ * `enregistrerInformations()`). « Fonction » reste en lecture : c'est la fiche RH
+ * ou le rôle RBAC, géré par l'administrateur. Ce qui suit sur « Nom complet » /
+ * « Téléphone » en lecture est l'HISTORIQUE.
+ *
+ * ⚠ MIS À JOUR LE 28/10/2026 (décision du PO) : `utilisateurs.email` existe désormais,
+ * FACULTATIF. Le champ « Email » est ÉDITABLE et « Enregistrer les informations »
+ * est rendu (`enregistrerInformations()`, l'e-mail du compte courant seul). Seul
+ * « Téléphone » reste « — » : ce qui suit, sur l'e-mail, est l'historique.
  *
  * ÉCART DÉLIBÉRÉ — `mon-profil.html` l.61-97 (« Informations personnelles »)
  * Le maitre : quatre champs de saisie — « Nom complet », « Email »,
@@ -138,7 +158,7 @@ use Livewire\Attributes\Title;
  * @see RG-15 Traçabilité des actions sensibles
  * @see LARAVEL_PWA.md §1, §6
  */
-#[Title('Mon profil — TATACORA AFRIQUE')]
+#[Title('Mon profil — LogiReStock — TATACORA AFRIQUE')]
 class MonProfil extends PageTransverse
 {
     /**
@@ -171,11 +191,187 @@ class MonProfil extends PageTransverse
      */
     public ?string $etatFormulaire = null;
 
+    /**
+     * L'e-mail FACULTATIF du compte (28/10/2026, décision du PO) : le champ
+     * « Email » des informations personnelles, seul champ du bloc que le compte
+     * porte lui-même (`utilisateurs.email`). Destinataire des notifications
+     * e-mail adressées à ce compte ; vide = non renseigné.
+     */
+    public string $emailSaisi = '';
+
+    /**
+     * « Nom complet », « Téléphone », « Intitulé de poste » (03/11/2026, décision
+     * du PO) : trois champs modifiables SOUS DROIT (`ChampsProfil::DROITS`,
+     * module RBAC transverse). Le droit est relu côté serveur à chaque
+     * enregistrement : un champ rendu en lecture seule dont la valeur serait
+     * forgée est REFUSÉ (403), jamais ignoré en silence.
+     */
+    public string $nomSaisi = '';
+
+    public string $telephoneSaisi = '';
+
+    public string $intituleSaisi = '';
+
     public string $ancienMotDePasse = '';
 
     public string $nouveauMotDePasse = '';
 
     public string $confirmationMotDePasse = '';
+
+    /**
+     * « Code de secours » (29/10/2026, option A du PO) : le mot de passe de
+     * confirmation saisi, puis le code lui-même — affiché UNE seule fois, vidé
+     * par `fermerModales()`. Réservé aux deux rôles d\'administration.
+     */
+    public string $motDePasseCodeSecours = '';
+
+    public ?string $codeSecoursAffiche = null;
+
+    public function mount(): void
+    {
+        $utilisateur = Auth::user();
+        $this->emailSaisi = (string) $utilisateur?->email;
+        $this->nomSaisi = (string) ($utilisateur === null ? null : $this->valeurCourante($utilisateur, ChampsProfil::NOM));
+        $this->telephoneSaisi = (string) $utilisateur?->telephone;
+        $this->intituleSaisi = (string) $utilisateur?->intitule_poste;
+    }
+
+    /**
+     * La valeur enregistrée d'un champ de profil. Le nom retombe, tant qu'il
+     * n'est pas saisi, sur celui de la fiche RH rattachée (ce que l'écran
+     * affichait avant le 03/11/2026) ; les deux autres champs n'ont que leur
+     * colonne.
+     */
+    private function valeurCourante(User $utilisateur, string $champ): ?string
+    {
+        if ($champ === ChampsProfil::NOM) {
+            $propre = ChampsProfil::normaliser($utilisateur->nom_complet);
+
+            if ($propre !== null || $utilisateur->employe === null) {
+                return $propre;
+            }
+
+            return ChampsProfil::normaliser($utilisateur->employe->prenom.' '.$utilisateur->employe->nom);
+        }
+
+        return ChampsProfil::normaliser($utilisateur->{$champ});
+    }
+
+    /**
+     * Les phrases de refus de l'e-mail facultatif — celles du poste, mot pour mot.
+     *
+     * @return array<string, string>
+     */
+    protected function messages(): array
+    {
+        return [
+            'emailSaisi.email' => __('rh_pwa.email_invalide'),
+            'emailSaisi.max' => __('rh_pwa.email_invalide'),
+            'emailSaisi.not_regex' => __('rh_pwa.email_invalide'),
+            'nomSaisi.max' => __('pwa.profil.nom_complet_invalide'),
+            'nomSaisi.not_regex' => __('pwa.profil.nom_complet_invalide'),
+            'telephoneSaisi.max' => __('pwa.profil.telephone_invalide'),
+            'telephoneSaisi.regex' => __('pwa.profil.telephone_invalide'),
+            'intituleSaisi.max' => __('pwa.profil.intitule_invalide'),
+            'intituleSaisi.not_regex' => __('pwa.profil.intitule_invalide'),
+        ];
+    }
+
+    /**
+     * « Enregistrer les informations » — écrit les informations du compte
+     * COURANT, et d'aucun autre : l'e-mail (facultatif, sans droit particulier)
+     * puis, SOUS DROIT, le nom complet, le téléphone et l'intitulé de poste.
+     * Même famille que `changerMotDePasse()` : aucun module métier, le geste ne
+     * porte que sur le compte qui le fait.
+     *
+     * ## Le droit est appliqué ICI, jamais seulement dans la vue
+     *
+     * Chaque champ DONT LA VALEUR CHANGE est confronté à son droit
+     * (`User::peutModifierSonProfil`) AVANT toute écriture : un champ forgé sans
+     * le droit lève un 403 et rien n'est écrit — pas même l'e-mail. Un champ
+     * rendu en lecture seule et inchangé ne déclenche rien.
+     *
+     * Normalisation : trim et espaces internes réduits ; vide efface la valeur.
+     * Validation : nom et intitulé 120 caractères au plus, sans caractère de
+     * contrôle ; téléphone 30 au plus, chiffres, +, espaces, tirets.
+     *
+     * Journal d'audit « Profil modifié » : les champs changés, ancien → nouveau,
+     * jamais un secret (le profil n'en porte aucun).
+     */
+    public function enregistrerInformations(): void
+    {
+        /** @var User|null $utilisateur */
+        $utilisateur = Auth::user();
+
+        if ($utilisateur === null) {
+            abort(401, __('auth.requise'));
+        }
+
+        $this->emailSaisi = (string) AdresseEmailFacultative::normaliser($this->emailSaisi);
+        $this->nomSaisi = (string) ChampsProfil::normaliser($this->nomSaisi);
+        $this->telephoneSaisi = (string) ChampsProfil::normaliser($this->telephoneSaisi);
+        $this->intituleSaisi = (string) ChampsProfil::normaliser($this->intituleSaisi);
+
+        $saisies = [
+            ChampsProfil::NOM => ChampsProfil::normaliser($this->nomSaisi),
+            ChampsProfil::TELEPHONE => ChampsProfil::normaliser($this->telephoneSaisi),
+            ChampsProfil::INTITULE => ChampsProfil::normaliser($this->intituleSaisi),
+        ];
+
+        // 1. Le droit, champ par champ, sur ce qui CHANGE réellement.
+        $changes = [];
+        foreach ($saisies as $champ => $nouveau) {
+            if ($nouveau === $this->valeurCourante($utilisateur, $champ)) {
+                continue;
+            }
+
+            abort_unless($utilisateur->peutModifierSonProfil($champ), 403, __('pwa.profil.champ_refuse'));
+
+            $changes[$champ] = $nouveau;
+        }
+
+        // 2. La forme.
+        $this->validate([
+            'emailSaisi' => AdresseEmailFacultative::REGLES,
+            'nomSaisi' => ['nullable', 'string', 'max:'.ChampsProfil::NOM_MAX, 'not_regex:'.ChampsProfil::MOTIF_CONTROLE],
+            'telephoneSaisi' => ['nullable', 'string', 'max:'.ChampsProfil::TELEPHONE_MAX, 'regex:'.ChampsProfil::MOTIF_TELEPHONE],
+            'intituleSaisi' => ['nullable', 'string', 'max:'.ChampsProfil::INTITULE_MAX, 'not_regex:'.ChampsProfil::MOTIF_CONTROLE],
+        ]);
+
+        $email = AdresseEmailFacultative::normaliser($this->emailSaisi);
+
+        if ($email !== $utilisateur->email) {
+            $changes['email'] = $email;
+        }
+
+        if ($changes === []) {
+            session()->flash('pwa-succes', __('pwa.profil.aucun_changement'));
+
+            return;
+        }
+
+        $avant = [];
+        foreach (array_keys($changes) as $champ) {
+            $avant[$champ] = $champ === 'email' ? $utilisateur->email : $this->valeurCourante($utilisateur, $champ);
+        }
+
+        $utilisateur->forceFill($changes)->save();
+
+        EntreeJournalAudit::create([
+            'id' => (string) Str::uuid(),
+            'utilisateur_id' => $utilisateur->id,
+            'action' => 'profil_modifie',
+            'entite_concernee' => 'utilisateurs',
+            'entite_id' => (string) $utilisateur->id,
+            'valeur_avant' => $avant,
+            'valeur_apres' => $changes,
+            'adresse_poste' => request()->ip(),
+        ]);
+
+        session()->flash('pwa-succes', array_keys($changes) === ['email']
+            ? __('rh_pwa.email_enregistre')
+            : __('pwa.profil.infos_enregistrees'));
+    }
 
     /**
      * Ouvre la modale « Modifier le mot de passe ». N'ecrit rien : remet la
@@ -193,8 +389,80 @@ class MonProfil extends PageTransverse
     public function fermerModales(): void
     {
         $this->etatFormulaire = null;
-        $this->reset(['ancienMotDePasse', 'nouveauMotDePasse', 'confirmationMotDePasse']);
+        $this->reset([
+            'ancienMotDePasse', 'nouveauMotDePasse', 'confirmationMotDePasse',
+            'motDePasseCodeSecours', 'codeSecoursAffiche',
+        ]);
         $this->resetValidation();
+    }
+
+    /**
+     * Ouvre « Générer un code de secours » (administrateurs seulement). N\'écrit
+     * rien : remet la saisie à zéro, comme `ouvrirFormulaireMotDePasse()`.
+     */
+    public function ouvrirFormulaireCodeSecours(): void
+    {
+        abort_unless(Auth::user()?->estAdministrateur() ?? false, 403, __('pwa.comptes.refus_droit'));
+
+        $this->reset(['motDePasseCodeSecours', 'codeSecoursAffiche']);
+        $this->resetValidation();
+        $this->etatFormulaire = 'code_secours';
+    }
+
+    /**
+     * Pose un NOUVEAU code de secours à l\'administrateur COURANT, après
+     * confirmation de son mot de passe, et le rend UNE fois. L\'ancien code, s\'il
+     * existe, est remplacé. Comme `changerMotDePasse()` : aucun module RBAC, le
+     * geste ne porte que sur le compte qui le fait. Cinq essais de mot de passe
+     * par quart d\'heure — le formulaire ne sert pas à deviner un mot de passe.
+     */
+    public function genererCodeSecours(MotDePassePerduService $service): void
+    {
+        /** @var User|null $utilisateur */
+        $utilisateur = Auth::user();
+
+        if ($utilisateur === null) {
+            abort(401, __('auth.requise'));
+        }
+
+        abort_unless($utilisateur->estAdministrateur(), 403, __('pwa.comptes.refus_droit'));
+
+        $this->validate(['motDePasseCodeSecours' => ['required', 'string']], [
+            'motDePasseCodeSecours.required' => __('pwa.profil.mdp_ancien_invalide'),
+        ]);
+
+        $cle = 'code-secours-generer|'.$utilisateur->id;
+
+        if (RateLimiter::tooManyAttempts($cle, MotDePassePerduService::ESSAIS_MAX)) {
+            $this->reset('motDePasseCodeSecours');
+            $this->addError('motDePasseCodeSecours', __('pwa.code_secours.bloque', [
+                'minutes' => (string) max(1, (int) ceil(RateLimiter::availableIn($cle) / 60)),
+            ]));
+
+            return;
+        }
+
+        $valide = Auth::validate([
+            'login' => $utilisateur->login,
+            'password' => $this->motDePasseCodeSecours,
+        ]);
+
+        $this->reset('motDePasseCodeSecours');
+
+        if (! $valide) {
+            RateLimiter::hit($cle, MotDePassePerduService::BLOCAGE_SECONDES);
+            $this->addError('motDePasseCodeSecours', __('pwa.profil.mdp_ancien_invalide'));
+
+            return;
+        }
+
+        RateLimiter::clear($cle);
+
+        try {
+            $this->codeSecoursAffiche = $service->poserCodeDeSecours($utilisateur, request()->ip());
+        } catch (RuntimeException $refus) {
+            $this->addError('motDePasseCodeSecours', $refus->getMessage());
+        }
     }
 
     /**
@@ -252,6 +520,10 @@ class MonProfil extends PageTransverse
 
         $utilisateur->forceFill(['mot_de_passe_hash' => Hash::make($donnees['nouveauMotDePasse'])])->save();
 
+        // Le titulaire reste connecte : sa session retient la nouvelle empreinte
+        // (sans quoi `FermerLesSessionsPerimees` la fermerait a la requete suivante).
+        EmpreinteMotDePasseEnSession::poser($utilisateur);
+
         // Ni `Auth::logout()`, ni regeneration de session : l'utilisateur
         // reste connecte apres avoir change son propre mot de passe.
         $this->etatFormulaire = null;
@@ -284,10 +556,18 @@ class MonProfil extends PageTransverse
             // rend `null` et l'ecran l'affiche EN CLAIR — jamais une couleur
             // choisie au hasard pour une valeur qu'on n'a pas comprise.
             'statut' => $utilisateur === null ? null : (self::STATUTS[$utilisateur->statut] ?? null),
-            'nomComplet' => $employe === null ? null : trim($employe->prenom.' '.$employe->nom),
-            'fonction' => $employe?->poste,
+            'nomComplet' => $utilisateur === null ? null : $this->valeurCourante($utilisateur, ChampsProfil::NOM),
+            // La FONCTION n'est pas modifiable ici : la fiche RH si elle existe,
+            // sinon le rôle RBAC (qui porte les droits).
+            'fonction' => $employe?->poste ?? ($utilisateur?->role === null ? null : \Illuminate\Support\Str::ucfirst($utilisateur->role->libelle)),
+            'peutModifierNom' => $utilisateur?->peutModifierSonProfil(ChampsProfil::NOM) ?? false,
+            'peutModifierTelephone' => $utilisateur?->peutModifierSonProfil(ChampsProfil::TELEPHONE) ?? false,
+            'peutModifierIntitule' => $utilisateur?->peutModifierSonProfil(ChampsProfil::INTITULE) ?? false,
             // L'adresse vue par le SERVEUR — la remarque du maitre appliquee.
             'adressePoste' => request()->ip(),
+            // Le code de secours (29/10/2026) : réservé aux administrateurs.
+            'estAdministrateur' => $utilisateur?->estAdministrateur() ?? false,
+            'codeSecoursPoseLe' => $utilisateur?->recovery_code_generated_at,
         ]))->layout('layouts.pwa', ['title' => __('pwa.profil.titre_page')]);
     }
 }

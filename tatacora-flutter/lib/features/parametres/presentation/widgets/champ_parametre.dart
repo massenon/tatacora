@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/transverse/parametres.blade.php
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -97,7 +98,7 @@ class _ChampParametreState extends State<ChampParametre> {
             decoration: InputDecoration(labelText: d.libelle, isDense: true),
             items: [
               for (final c in d.choix)
-                DropdownMenuItem(value: c, child: Text(c)),
+                DropdownMenuItem(value: c, child: Text(d.libelleDuChoix(c))),
             ],
             onChanged: widget.modifiable ? widget.onChange : null,
           ),
@@ -198,6 +199,11 @@ class _TypeInconnu extends StatelessWidget {
           const SizedBox(height: AppSpacing.unit),
           Text(
             'Valeur actuelle : ${definition.valeurTexte.isEmpty ? "(vide)" : definition.valeurTexte}',
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+          // `pwa.parametres.type_inconnu` (la vue), puis ce que le poste ajoute.
+          Text(
+            'Type non reconnu par cet écran : la valeur est affichée telle que le serveur la stocke, sans interprétation.',
             style: Theme.of(context).textTheme.labelMedium,
           ),
           Text(

@@ -86,7 +86,7 @@ final class FacturationEcritureTest extends TestCase
         $this->fail('Aucun rôle du référentiel ne porte `M2 = C`.');
     }
 
-    private function facture(string $statut = 'en_attente_certification', ?string $numero = null): Facture
+    private function facture(string $statut = 'en_attente_certification', ?string $numero = null, array $extra = []): Facture
     {
         $client = Client::create([
             'nom' => 'KORA',
@@ -103,6 +103,7 @@ final class FacturationEcritureTest extends TestCase
             'montant_ttc' => '50000.00',
             'statut' => $statut,
             'numero_mecef' => $numero,
+            ...$extra,
         ]);
 
         LigneFacture::create([
@@ -179,9 +180,9 @@ final class FacturationEcritureTest extends TestCase
     {
         // `comptable` porte `M2 = 'L'` : il consulte le registre, il n'écrit
         // pas dedans. C'est le cas le plus utile — un rôle qui VOIT l'écran.
-        $this->assertSame('L', Role::where('libelle', 'comptable')->firstOrFail()->niveauSurModule('M2'));
+        $this->assertSame('L', Role::where('libelle', 'lecteur')->firstOrFail()->niveauSurModule('M2'));
 
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
         $facture = $this->facture();
 
         Livewire::test(Facturation::class)
@@ -207,7 +208,7 @@ final class FacturationEcritureTest extends TestCase
         // `estFigee()` porte l'ÉTAT DU CYCLE DE VIE : une facture certifiée en
         // démonstration se fige comme une vraie, sans quoi ce chemin ne serait
         // jamais emprunté hors Production.
-        $facture = $this->facture('certifiee', 'MECEF-DEMO-000123');
+        $facture = $this->facture('certifiee', null);
         $this->assertTrue($facture->estFigee());
 
         $leve = false;
@@ -230,71 +231,78 @@ final class FacturationEcritureTest extends TestCase
     // Le document A4 et son filigrane (PA-124)
     // =====================================================================
 
+    private function modeFacturation(string $mode): void
+    {
+        \App\Shared\Parametres\Models\ParametreSysteme::updateOrCreate(
+            ['cle' => \App\Domain\Facturation\Services\ModeFacturation::CLE],
+            ['valeur' => $mode],
+        );
+    }
+
     /**
-     * ⚠ CONTRAT RENVERSÉ le 01/09/2026 — décision du Product Owner : « on
-     * enlève le filigrane de démonstration, on passe au réel ». La facture
-     * est un document commercial remis au client. Ce qui se vérifie
-     * désormais : AUCUN filigrane, AUCUN numéro « MECEF-DEMO- » imprimé
-     * (référence interne FAC-<année>-<uuid8> à la place), et la mention
-     * d'attente DÉRIVÉE — présente tant que la certification n'est pas
-     * réelle, absente après (PA-61 : ni affirmer une certification
-     * inexistante, ni taire l'attente).
+     * ⚠ CONTRAT RENVERSÉ le 07/11/2026 — décision du PO : en mode DÉSACTIVÉ, la facture est une
+     * facture SIMPLE, ordinaire, intitulée « Facture » : AUCUNE mention du tout (ni démonstration,
+     * ni « non normalisé », ni « en attente », ni cachet réservé), AUCUN numéro MECeF, AUCUN QR.
      */
     #[Test]
-    public function sans_certification_reelle_le_document_porte_la_reference_interne_et_la_mention_d_attente(): void
+    public function en_mode_desactive_la_facture_simple_ne_porte_aucune_mention_ni_numero_mecef(): void
     {
-        $facture = $this->facture('certifiee', 'MECEF-DEMO-000123');
+        $this->modeFacturation('desactive');
+        $facture = $this->facture('certifiee', null);
 
         $this->assertTrue($facture->estFigee());
         $this->assertFalse($facture->estCertifiee());
 
         $html = $this->documentDe($facture);
 
-        $this->assertStringNotContainsString('DOCUMENT DE DÉMONSTRATION', $html);
-        $this->assertStringNotContainsString('MECEF-DEMO', $html, "Un numéro de démonstration ne s'imprime jamais sur un document remis.");
-        $this->assertMatchesRegularExpression('/FAC-\d{4}-[0-9A-F]{8}/', $html, 'La référence interne manque.');
-        $this->assertStringContainsString('en attente d', $html, "La mention d'attente de certification manque.");
+        $this->assertStringContainsString('Facture', $html);
+        $this->assertStringContainsString((string) $facture->numero, $html, 'Le numéro continu de la facture manque.');
+        foreach (['DÉMONSTRATION', 'MECEF-DEMO', 'en attente', 'non normalisé', 'normalisation', 'normalisée', 'MECeF', 'cachet fiscal', 'code QR', 'sans valeur fiscale'] as $mention) {
+            $this->assertStringNotContainsStringIgnoringCase($mention, $html, "La facture simple porte « {$mention} ».");
+        }
+        $this->assertStringNotContainsString('<svg', $html);
+        $this->assertDoesNotMatchRegularExpression('/FAC-\d{4}-[0-9A-F]{8}/', $html, 'Une référence inventée remplace le numéro de la facture.');
+    }
+
+    /** e-MECeF / boîtier : « en attente de normalisation » ne s'affiche QUE dans ces modes. */
+    #[Test]
+    public function en_mode_normalisable_une_facture_non_normalisee_dit_qu_elle_attend_sa_normalisation(): void
+    {
+        foreach (['emecef', 'boitier'] as $mode) {
+            $this->modeFacturation($mode);
+            $html = $this->documentDe($this->facture('certifiee', null));
+
+            $this->assertStringContainsString('Facture en attente de normalisation', $html, $mode);
+            $this->assertStringNotContainsString('<svg', $html, 'aucun QR avant la normalisation');
+            $this->assertStringNotContainsString('Facture normalisée MECeF', $html);
+        }
     }
 
     #[Test]
-    public function avec_une_certification_reelle_le_numero_mecef_remplace_la_reference_et_la_mention_disparait(): void
+    public function une_facture_normalisee_porte_son_numero_mecef_son_qr_et_ses_mentions(): void
     {
-        $facture = $this->facture('certifiee', 'MECEF-2026-00187');
+        $this->modeFacturation('emecef');
+        $facture = $this->facture('certifiee', 'ED04000999-12', [
+            'normalisation_statut' => 'normalisee',
+            'normalisation_mode' => 'emecef',
+            'qr_code_fiscal' => 'F;ED04000999;ABCD-EFGH-IJKL-MNOP;3201910768821;20261107101500',
+            'code_mecef' => 'ABCD-EFGH-IJKL-MNOP',
+        ]);
 
-        $this->assertTrue($facture->estCertifiee());
-
+        $this->assertTrue($facture->estNormalisee());
         $html = $this->documentDe($facture);
 
-        $this->assertStringContainsString('MECEF-2026-00187', $html);
-        $this->assertDoesNotMatchRegularExpression('/FAC-\d{4}-[0-9A-F]{8}/', $html);
-        $this->assertStringNotContainsString('en attente d', $html);
+        $this->assertStringContainsString('ED04000999-12', $html);
+        $this->assertStringContainsString('Facture normalisée MECeF', $html);
+        $this->assertStringContainsString('data:image/svg+xml;base64', $html, 'le QR est DESSINÉ');
+        $this->assertStringNotContainsString('en attente', $html);
     }
 
-    /**
-     * ⚠ CONTRAT RENVERSÉ le 02/09/2026 — directive du Product Owner : tant
-     * que MECeF n'est PAS configurée, « Emplacement réservé au cachet fiscal
-     * MECeF » (et sa phrase « Aucun cachet n'est imprimé… ») ne s'impriment
-     * PLUS. L'emplacement ne revient que quand
-     * `MecefServiceProvider::etatConfiguration()` dit `active` — dérivé du
-     * client réellement lié (PA-61), jamais une constante. La mention
-     * d'attente (« en attente d'inscription »), elle, RESTE : elle est
-     * honnête (voir le cas précédent).
-     *
-     * Mutation faite le 02/09/2026 pour éprouver la garde : retirer le `@if`
-     * autour du bloc `.cachet` de `pdf/facture-mecef.blade.php` → ROUGE
-     * (l'emplacement revient sur un document non configuré). Restauré.
-     */
     #[Test]
-    public function le_document_ne_porte_ni_identifiant_fiscal_ni_cachet_tant_que_mecef_n_est_pas_configuree(): void
+    public function le_document_ne_porte_ni_identifiant_fiscal_ni_cachet_tant_que_la_facture_n_est_pas_normalisee(): void
     {
-        $facture = $this->facture('certifiee', 'MECEF-DEMO-000123');
-
-        // L'état dérivé réel de cette installation de test : rien n'est
-        // configuré — le prédicat est vérifié, pas supposé.
-        $this->assertNotSame(
-            'active',
-            \App\Domain\Facturation\Providers\MecefServiceProvider::etatConfiguration(),
-        );
+        $this->modeFacturation('desactive');
+        $facture = $this->facture('certifiee', null);
 
         $html = $this->documentDe($facture);
 
@@ -302,74 +310,31 @@ final class FacturationEcritureTest extends TestCase
         // imprimer un exemple de format sur un document remis à un client
         // serait un faux identifiant fiscal (PA-101, PA-113).
         foreach (['IFU', 'RCCM'] as $mention) {
-            $this->assertStringNotContainsString(
-                $mention,
-                $html,
-                "Le document porte « {$mention} » alors qu aucun n est renseigné.",
-            );
+            $this->assertStringNotContainsString($mention, $html, "Le document porte « {$mention} » alors qu aucun n est renseigné.");
         }
 
-        $this->assertStringNotContainsString(
-            'Emplacement réservé au cachet fiscal MECeF',
-            $html,
-            "L'emplacement du cachet s'imprime alors que MECeF n'est pas configurée (directive PO 02/09/2026).",
-        );
+        $this->assertStringNotContainsString('Emplacement réservé au cachet fiscal MECeF', $html);
         $this->assertStringNotContainsString('Aucun cachet n', $html);
-        $this->assertStringNotContainsString('<svg', $html, 'Un tracé a été posé à la place du cachet : il serait pris pour un cachet fiscal.');
-        $this->assertStringNotContainsString('data:image/png;base64', $html, 'Une image a été posée à la place du cachet.');
-    }
-
-    /**
-     * L'état `active` SIMULÉ de bout en bout — numéro contribuable renseigné,
-     * clé API en configuration, et client MECeF RÉEL lié : les trois
-     * conditions que `etatConfiguration()` dérive réellement (PA-61). Ce
-     * jour-là, l'emplacement réservé du cachet revient sur le document.
-     */
-    #[Test]
-    public function l_emplacement_du_cachet_revient_quand_mecef_est_reellement_active(): void
-    {
-        \App\Shared\Parametres\Models\ParametreSysteme::updateOrCreate(
-            ['cle' => 'entreprise_numero_mecef'],
-            ['valeur' => '3202600000001'],
-        );
-        config(['services.mecef.api_key' => 'cle-de-test-integration']);
-
-        // Le client REEL n'existe pas (PA-17) : on lie un client qui se dit
-        // en mode réel, exactement ce que `etatConfiguration()` interroge.
-        $this->app->bind(
-            \App\Domain\Facturation\Services\MecefClientInterface::class,
-            fn () => new class () implements \App\Domain\Facturation\Services\MecefClientInterface {
-                public function certifier(\App\Domain\Facturation\Models\Facture $facture): \App\Domain\Facturation\Services\CertificationMecefResultat
-                {
-                    throw new \RuntimeException('Jamais appelé par ce cas.');
-                }
-
-                public function estModeReel(): bool
-                {
-                    return true;
-                }
-            },
-        );
-
-        $this->assertSame(
-            'active',
-            \App\Domain\Facturation\Providers\MecefServiceProvider::etatConfiguration(),
-            "L'état simulé n'atteint pas `active` : le cas ne prouverait rien.",
-        );
-
-        $html = $this->documentDe($this->facture('certifiee', 'MECEF-2026-00187'));
-
-        $this->assertStringContainsString('Emplacement réservé au cachet fiscal MECeF', $html);
-        // Toujours RIEN de scannable : l'emplacement se réserve et se nomme.
         $this->assertStringNotContainsString('<svg', $html);
         $this->assertStringNotContainsString('data:image/png;base64', $html);
+    }
+
+    #[Test]
+    public function l_ifu_et_le_nom_saisis_pour_le_client_s_impriment_sur_la_facture(): void
+    {
+        $facture = $this->facture('certifiee', null, ['acheteur_ifu' => '3201910768821', 'acheteur_nom' => 'SARL Atacora']);
+
+        $html = $this->documentDe($facture);
+
+        $this->assertStringContainsString('SARL Atacora', $html);
+        $this->assertStringContainsString('3201910768821', $html);
     }
 
     #[Test]
     public function le_document_rend_les_avoirs_rattaches_et_le_net(): void
     {
         $valideur = $this->utilisateur($this->roleQuiEcritSurM2());
-        $facture = $this->facture('certifiee', 'MECEF-DEMO-000123');
+        $facture = $this->facture('certifiee', null);
 
         Avoir::create([
             'facture_id' => $facture->id,
@@ -403,7 +368,7 @@ final class FacturationEcritureTest extends TestCase
         // qui compte, pas le HTML qui le précède.
         $this->actingAs($this->utilisateur($this->roleQuiEcritSurM2()));
 
-        $facture = $this->facture('certifiee', 'MECEF-DEMO-000123');
+        $facture = $this->facture('certifiee', null);
 
         // Le composant est appele DIRECTEMENT : c est son flux qui est lu,
         // pas un rendu refait a cote. `imprimerFacture()` exige le droit,

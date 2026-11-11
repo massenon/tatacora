@@ -8,12 +8,20 @@
 /// rend vraie la phrase que l'écran affiche au Gérant.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/export_etat_a4.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
+import '../../transverse/data/boite_envoi_emails_dao.dart';
+import '../../transverse/data/envoi_boite_emails.dart';
+import '../../transverse/data/envoi_messages_editeur.dart'
+    show ConfigurationSmtp;
+import '../../transverse/domain/boite_envoi_emails.dart';
+import '../../transverse/presentation/providers_contact_editeur.dart';
 import '../data/notifications_dao.dart';
 import '../domain/entities/canal_notification.dart';
 import '../domain/entities/declencheur_notification.dart';
@@ -26,14 +34,110 @@ final notificationsDaoProvider = Provider<NotificationsDao>(
   (ref) => NotificationsDao(ref.watch(baseLocaleProvider)),
 );
 
-/// Les transports RÉELLEMENT montés sur ce poste : aucun.
-///
-/// Exposé comme provider plutôt qu'écrit en dur dans l'écran : le jour où un
-/// transport existera, il se déclarera ici, et les quatre endroits qui lisent
-/// l'état d'un canal suivront sans être touchés.
-final transportsLocauxProvider = Provider<TransportsLocaux>(
-  (ref) => const TransportsLocaux.aucun(),
+/// Le seul écrivain de `boite_envoi_emails_local` (schéma v39).
+final boiteEnvoiEmailsDaoProvider = Provider<BoiteEnvoiEmailsDao>(
+  (ref) => BoiteEnvoiEmailsDao(ref.watch(baseLocaleProvider)),
 );
+
+/// L'unique expéditeur des e-mails de notification — UNE instance pour le
+/// geste de l'écran et la relance : c'est elle qui empêche un double envoi.
+/// Le message de notification passe « Envoyé par le système » dans la MÊME
+/// transaction que la boîte, après l'accusé du relais SMTP.
+final serviceBoiteEnvoiEmailsProvider = Provider<ServiceBoiteEnvoiEmails>((
+  ref,
+) {
+  final notifications = ref.watch(notificationsDaoProvider);
+  return ServiceBoiteEnvoiEmails(
+    dao: ref.watch(boiteEnvoiEmailsDaoProvider),
+    lecteur: ref.watch(serviceMessagesEditeurProvider).lecteurSmtp,
+    auSucces: (email, envoyeLe) async {
+      final messageId = email.sourceId;
+      if (email.source == SourceEmail.notification && messageId != null) {
+        await notifications.marquerEnvoyeParLeSysteme(
+          messageId,
+          envoyeLe: envoyeLe,
+        );
+      }
+    },
+  );
+});
+
+/// Un compteur qui avance à chaque écriture de la boîte (geste, relance) : la
+/// file et les états se relisent.
+final revisionBoiteEmailsProvider = NotifierProvider<_RevisionBoiteEmails, int>(
+  _RevisionBoiteEmails.new,
+);
+
+final class _RevisionBoiteEmails extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void avancer() => state++;
+}
+
+/// L'e-mail en boîte de chaque message de notification, par identifiant du
+/// message — l'état VRAI de l'envoi (tentatives, cause, statut).
+final emailsDesMessagesProvider =
+    FutureProvider.autoDispose<Map<String, EmailEnBoite>>((ref) {
+      ref.watch(revisionBoiteEmailsProvider);
+      return ref
+          .watch(boiteEnvoiEmailsDaoProvider)
+          .parSources(SourceEmail.notification);
+    });
+
+/// La configuration SMTP de ce poste est-elle COMPLÈTE (serveur, utilisateur,
+/// mot de passe) ? Relue du poste (paramètres + `poste.json`) — jamais posée.
+final smtpCompletProvider = FutureProvider.autoDispose<bool>((ref) async {
+  ref.watch(revisionBoiteEmailsProvider);
+  final lecture = await ref
+      .watch(serviceMessagesEditeurProvider)
+      .lecteurSmtp
+      .lire();
+  return lecture is ConfigurationSmtp;
+});
+
+/// Les transports RÉELLEMENT montés sur ce poste : l'e-mail, et lui seul,
+/// quand la configuration SMTP est complète.
+///
+/// DÉRIVÉ de la configuration relue (`smtpCompletProvider`), jamais écrit :
+/// WhatsApp, Android et SMS n'ont aucun client dans ce dépôt. Tant que la
+/// lecture n'est pas revenue, aucun transport n'est affirmé.
+final transportsLocauxProvider = Provider<TransportsLocaux>((ref) {
+  final complet = ref.watch(smtpCompletProvider).value ?? false;
+  return complet
+      ? const TransportsLocaux({CanalNotification.email})
+      : const TransportsLocaux.aucun();
+});
+
+/// La RELANCE des e-mails de notification en attente : une première fois au
+/// démarrage du poste, puis toutes les `PolitiqueRelanceEmail.periode` tant que
+/// l'application tourne. Démarrée par `main.dart` (PAS par `main_demo.dart`).
+///
+/// Aucune sonde de connectivité : la tentative est l'autorité. L'interrupteur
+/// « Synchronisation activée » ne la coupe pas : l'e-mail n'est pas de la
+/// synchronisation, il part directement au relais SMTP.
+final relanceBoiteEmailsProvider = Provider<void>((ref) {
+  final service = ref.watch(serviceBoiteEnvoiEmailsProvider);
+
+  Future<void> relancer() async {
+    try {
+      final bilan = await service.relancer();
+      if (bilan != null && (bilan.envoyes > 0 || bilan.restants > 0)) {
+        ref.read(revisionBoiteEmailsProvider.notifier).avancer();
+      }
+    } on Object {
+      // Une base fermée pendant l'arrêt, par exemple : la relance suivante
+      // recommencera. Rien ne doit remonter jusqu'à l'interface.
+    }
+  }
+
+  unawaited(relancer());
+  final minuteur = Timer.periodic(
+    PolitiqueRelanceEmail.periode,
+    (_) => unawaited(relancer()),
+  );
+  ref.onDispose(minuteur.cancel);
+});
 
 /* ============================================================== filtres */
 
@@ -221,11 +325,75 @@ final detecterMaintenantProvider = Provider<Future<BilanDetection> Function()>(
     final reservations = await ref
         .read(depotReservationProvider)
         .reservations();
-    return ref
-        .read(notificationsDaoProvider)
-        .detecter(reservations: reservations, aujourdHui: DateTime.now());
+    final dao = ref.read(notificationsDaoProvider);
+    final bilan = await dao.detecter(
+      reservations: reservations,
+      aujourdHui: DateTime.now(),
+      emailsClients: await dao.emailsDesClients(),
+    );
+    ref.read(revisionBoiteEmailsProvider.notifier).avancer();
+    // Les e-mails mis en boîte partent tout de suite si le relais répond ; un
+    // échec est noté et la relance le reprendra. Jamais attendu par l'écran.
+    unawaited(
+      ref
+          .read(serviceBoiteEnvoiEmailsProvider)
+          .relancer()
+          .then((_) => ref.read(revisionBoiteEmailsProvider.notifier).avancer())
+          .catchError((Object _) {}),
+    );
+    return bilan;
   },
 );
+
+/// Ce que « Envoyer » / « Renvoyer » a fait d'un message, avec la phrase que
+/// l'écran dit — les mots de la vue (`lang/fr/notifications_pwa.php`).
+typedef ResultatGesteEnvoiNotification = ({bool succes, String phrase});
+
+/// « Envoyer » / « Renvoyer » — met le message en boîte (adresse lue au geste),
+/// puis le tente aussitôt. JAMAIS « envoyé » avant l'accusé du relais : l'issue
+/// est celle du transport.
+final envoyerMessageNotificationProvider =
+    Provider<Future<ResultatGesteEnvoiNotification> Function(String messageId)>(
+      (ref) => (messageId) async {
+        final dao = ref.read(notificationsDaoProvider);
+        final service = ref.read(serviceBoiteEnvoiEmailsProvider);
+        final reservations = await ref
+            .read(depotReservationProvider)
+            .reservations();
+        try {
+          final mise = await dao.mettreEnBoite(
+            messageId,
+            reservations: reservations,
+          );
+          if (mise.issue == IssueMiseEnBoite.sansAdresse) {
+            return (succes: false, phrase: TextesEnvoiNotification.sansAdresse);
+          }
+          final email = mise.email!;
+          final resultat = email.tentatives > 0
+              ? await service.renvoyer(email.id)
+              : await service.envoyer(email.id);
+          return switch (resultat.issue) {
+            IssueEnvoiEmail.envoye => (
+              succes: true,
+              phrase: TextesEnvoiNotification.envoiReussi,
+            ),
+            IssueEnvoiEmail.dejaEnCours => (
+              succes: false,
+              phrase: TextesEnvoiNotification.dejaEnCours,
+            ),
+            IssueEnvoiEmail.nonConfigure || IssueEnvoiEmail.echoue => (
+              succes: false,
+              phrase: resultat.raison ?? TextesEnvoiNotification.sansRelais,
+            ),
+          };
+        } on RefusNotification catch (refus) {
+          return (succes: false, phrase: refus.message);
+        } finally {
+          ref.read(revisionBoiteEmailsProvider.notifier).avancer();
+          ref.invalidate(vueNotificationsProvider);
+        }
+      },
+    );
 
 /// La description du filtre courant — reprise TELLE QUELLE en tête de l'export.
 ///

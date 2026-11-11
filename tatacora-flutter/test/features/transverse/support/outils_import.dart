@@ -19,6 +19,8 @@ import 'package:tatacora_flutter/features/restaurant/data/restaurant_dao.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/entities/plat.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
+import 'package:tatacora_flutter/features/synchronisation/presentation/providers_synchronisation.dart'
+    show cheminConfigurationPosteProvider;
 
 /// L'auteur de toutes les saisies d'essai.
 const String auteurImport = 'u-import';
@@ -36,6 +38,7 @@ final class CasImport {
     required this.fautive,
     required this.colonneFautive,
     required this.debutMessageFautif,
+    this.enteteModele,
   });
 
   /// La clé fermée du serveur (`m3-clients`…).
@@ -62,6 +65,11 @@ final class CasImport {
   final String fautive;
   final String colonneFautive;
   final String debutMessageFautif;
+
+  /// L'en-tête du MODÈLE téléchargé quand il porte plus de colonnes que le
+  /// fichier d'essai (09/11/2026 : « Point de stockage », « Seuil d'alerte »,
+  /// « Valeur d'achat » facultatifs de m4 et m5) ; `null` = [entete].
+  final String? enteteModele;
 
   /// Les clés naturelles des lignes valides (premier champ).
   List<String> get cles => [for (final l in valides) l.split(';').first];
@@ -119,6 +127,9 @@ const List<CasImport> casImport = [
     colonne: 'libelle',
     entete:
         'Nom de la boisson;Catégorie;Prix de vente (FCFA);Article de stock lié',
+    enteteModele:
+        'Nom de la boisson;Catégorie;Prix de vente (FCFA);Article de stock lié;'
+        "Point de stockage;Seuil d'alerte;Valeur d'achat",
     valides: [
       'Bière Béninoise 66 cl;locale;1200;Béninoise 66 cl',
       'Béninoise bien fraîche;maison;1300;Béninoise 66 cl',
@@ -133,12 +144,17 @@ const List<CasImport> casImport = [
     nom: 'Carte du restaurant',
     table: 'plats_local',
     colonne: 'libelle',
-    entete: 'Nom du plat;Prix de vente (FCFA);Menu;Fiche recette',
+    entete:
+        'Nom du plat;Catégorie;Prix de vente (FCFA);Menu;Fiche recette;'
+        'Description',
+    enteteModele:
+        'Nom du plat;Catégorie;Prix de vente (FCFA);Menu;Fiche recette;'
+        "Description;Point de stockage;Seuil d'alerte;Valeur d'achat",
     valides: [
-      'Poulet DG;4500;Menu local;Poulet DG',
-      'Poulet braisé;4000;Menu local;Poulet DG',
+      'Poulet DG;plats;4500;Menu local;Poulet DG;Poulet, plantain mûr',
+      'Poulet braisé;plats;4000;Menu local;Poulet DG;',
     ],
-    fautive: 'Pâte rouge;3000;Menu inconnu;Poulet DG',
+    fautive: 'Pâte rouge;plats;3000;Menu inconnu;Poulet DG;',
     colonneFautive: 'Menu',
     debutMessageFautif: 'aucun enregistrement « Menu inconnu »',
   ),
@@ -181,9 +197,14 @@ const List<CasImport> casImport = [
     nom: 'Parc de véhicules',
     table: 'vehicules_local',
     colonne: 'immatriculation',
-    entete: 'Immatriculation;Catégorie;Tarif journalier (FCFA)',
-    valides: ['AB 1234 RB;4x4;45000', 'AC 5678 RB;moto;8000'],
-    fautive: 'AD 0000 RB;4x4;-5',
+    entete:
+        'Immatriculation;Catégorie;Année;Nombre de places;Transmission;'
+        'Tarif journalier (FCFA)',
+    valides: [
+      'AB 1234 RB;4x4;2022;5;Manuelle;45000',
+      'AC 5678 RB;moto;2020;;;8000',
+    ],
+    fautive: 'AD 0000 RB;4x4;2022;5;Manuelle;-5',
     colonneFautive: 'Tarif journalier (FCFA)',
     debutMessageFautif: 'montant négatif (-5)',
   ),
@@ -209,6 +230,8 @@ const List<CasImport> casImport = [
 /// Les droits d'écriture sur les huit modules et sur l'écran Import & Export.
 const Map<String, String> droitsImportComplets = {
   'PARAM': 'C',
+  // Le droit transverse qui ouvre la page (09/11/2026) : lecture pour tous par défaut.
+  'IMPORT_EXPORT': 'C',
   'M1': 'C',
   'M3': 'C',
   'M4': 'C',
@@ -282,12 +305,19 @@ Future<AppDatabase> baseImport() async {
 
 /// Les surcharges d'un conteneur (ou d'un écran) monté sur [db], avec une
 /// session qui porte [droits].
+///
+/// [cheminPoste] : le `poste.json` fictif dont le dossier héberge `sauvegardes/`
+/// (les sauvegardes conservées du poste). Absent, un dossier SANS entrée-sortie
+/// asynchrone : le temps d'un test de widget est simulé.
 List<Override> surchargesImport(
   AppDatabase db, {
   Map<String, String> droits = droitsImportComplets,
+  String cheminPoste = '/inexistant/poste.json',
+  String role = 'administrateur',
 }) {
   final garde = GardeAcces.depuisJson(droits);
   return [
+    cheminConfigurationPosteProvider.overrideWithValue(() async => cheminPoste),
     baseLocaleProvider.overrideWithValue(db),
     droitsProvider.overrideWithValue(garde),
     sessionProvider.overrideWithBuild(
@@ -295,7 +325,7 @@ List<Override> surchargesImport(
         utilisateurId: auteurImport,
         login: 'import',
         nom: 'Responsable import',
-        role: 'administrateur',
+        role: role,
         droits: garde,
       ),
     ),

@@ -95,6 +95,24 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
         'le serveur refuse toute modification de cette table',
       );
     }
+    if (type == TypeOperationSync.suppression) {
+      // Registre FERMÉ (A5, puis les comptes le 03/11/2026) : trois tables, jamais une de plus. Le serveur exige
+      // un corps non vide : le libellé de l'élément purgé.
+      if (!table.accepteSuppression) {
+        throw ArgumentError.value(
+          table.nomServeur,
+          'table',
+          'le serveur refuse toute suppression de cette table',
+        );
+      }
+      if (payload.isEmpty) {
+        throw ArgumentError.value(
+          payload,
+          'payload',
+          'suppression sans libellé',
+        );
+      }
+    }
     if (type == TypeOperationSync.creation && payload.isEmpty) {
       throw ArgumentError.value(payload, 'payload', 'création sans document');
     }
@@ -103,6 +121,10 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
 
     final maintenant = _maintenant();
     final uuidOperation = _uuid.v4();
+    // QUI écrit et depuis quel poste (v38) : relu à l'instant de l'écriture,
+    // pour le Journal d'Audit. `null` si personne n'est connu (démonstration,
+    // banc sans session) : l'écran dit « — », il n'invente aucun compte.
+    final auteur = attachedDatabase.auteurEcriture();
     await into(_operations).insert(
       OperationsSyncLocalCompanion.insert(
         uuidOperation: uuidOperation,
@@ -113,6 +135,8 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
         horodatageClient: (horodatage ?? maintenant).toUtc().toIso8601String(),
         dateMetier: Value(dateMetier),
         creeLe: maintenant,
+        auteurLogin: Value(auteur.login),
+        posteNom: Value(auteur.poste),
       ),
     );
     return uuidOperation;
@@ -127,8 +151,10 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
   /// absent) et un bail de [bail].
   ///
   /// Deux règles d'ordre :
-  ///  * la réclamation s'ARRÊTE à la première opération en attente dont le
-  ///    repli n'est pas échu — un document ne double jamais ce qu'il cite ;
+  ///  * une opération en attente dont le repli n'est pas échu est laissée de côté,
+  ///    avec les suivantes de SON élément — mais ne retient plus la file entière
+  ///    (09/11/2026) ; le serveur remet en file une opération qui cite un élément
+  ///    encore absent (`dependance_manquante`) ;
   ///  * une opération dont l'élément a une opération ANTÉRIEURE non aboutie
   ///    (en cours, rejetée, en conflit, bloquée) est laissée de côté.
   ///    Plusieurs opérations du même élément peuvent partir dans un même lot
@@ -177,7 +203,18 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
           continue;
         }
         final prochaine = o.prochaineTentative;
-        if (prochaine != null && prochaine.isAfter(maintenant)) break;
+        if (prochaine != null && prochaine.isAfter(maintenant)) {
+          // Une opération EN REPLI (différée par le serveur, échec transitoire) ne
+          // bloque PAS la file (09/11/2026, « aucune opération ne doit bloquer la
+          // synchronisation ») : seules les suivantes du MÊME élément l'attendent, les
+          // autres partent. Avant, un `break` arrêtait la réclamation à la première
+          // opération en repli : une seule opération en erreur retardait toutes celles
+          // qui la suivaient, tant que son repli (jusqu'à une heure) n'était pas échu.
+          // Une opération qui en cite une autre encore en repli est rejugée par le
+          // serveur (`dependance_manquante`) et remise en file, dans l'ordre.
+          retenus.add(cle);
+          continue;
+        }
         reclames.add(o.seq);
       }
       if (reclames.isEmpty) return const <OperationSync>[];
@@ -266,6 +303,15 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
         ),
       );
 
+      if (statut == StatutOperationSync.synchronise) {
+        // 09/11/2026 : une opération qui ABOUTIT (le plus souvent la remplaçante d'un
+        // rejet renvoyé depuis « À traiter ») libère d'elle-même les opérations bloquées
+        // derrière le rejet, dès que TOUTES les antérieures de l'élément sont abouties :
+        // ce que « Débloquer » ferait, sans attendre un administrateur. Une file ne reste
+        // plus bloquée parce que personne n'a cliqué.
+        await _debloquerSuivantes(operation);
+      }
+
       if (statut == StatutOperationSync.rejete) {
         await (update(_operations)..where(
               (o) =>
@@ -285,6 +331,34 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
             );
       }
     });
+  }
+
+  /// Remet `en_attente` les opérations BLOQUÉES de l'élément de [o] dont toutes les
+  /// antérieures sont désormais abouties (voir [debloquable]) — dans la transaction de
+  /// [marquerResultat], donc sur l'état qu'elle vient d'écrire.
+  Future<void> _debloquerSuivantes(OperationSyncLocale o) async {
+    final bloquees =
+        await (select(_operations)
+              ..where(
+                (b) =>
+                    b.tableServeur.equals(o.tableServeur) &
+                    b.entiteId.equals(o.entiteId) &
+                    b.statut.equals(StatutOperationSync.bloque.code),
+              )
+              ..orderBy([(b) => OrderingTerm.asc(b.seq)]))
+            .get();
+    if (bloquees.isEmpty) return;
+    final remplacements = await remplacees();
+    for (final b in bloquees) {
+      if (!await _anterieuresAbouties(b, remplacements)) continue;
+      await (update(_operations)..where((a) => a.seq.equals(b.seq))).write(
+        OperationsSyncLocalCompanion(
+          statut: Value(StatutOperationSync.enAttente.code),
+          derniereErreur: const Value(null),
+          prochaineTentative: const Value(null),
+        ),
+      );
+    }
   }
 
   /// Un échec TRANSITOIRE (réseau, 5xx, lot entier refusé) : l'opération
@@ -365,8 +439,26 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
   /// `operation_remplacee:<ancien>` → nouvel uuid), dans la MÊME transaction
   /// que l'enfilement, et ne retient plus son élément. Rend le nouvel uuid.
   ///
+  /// [chargeCorrigee] (26/10/2026, « Corriger » de l'écran) : la charge
+  /// CORRIGÉE par l'utilisateur remplace celle de l'ancienne opération — elle
+  /// doit être un document non vide (une `creation` sans document est refusée,
+  /// comme à l'enfilement) ; tout le reste (horodatage de saisie, élément,
+  /// type) est inchangé. L'ancienne charge reste, intacte, dans la ligne
+  /// rejetée : c'est l'historique de la correction.
+  ///
   /// @throws StateError opération inconnue, non rejetée, ou déjà renvoyée
-  Future<String> renvoyer(String uuidOperation) {
+  /// @throws ArgumentError charge corrigée vide
+  Future<String> renvoyer(
+    String uuidOperation, {
+    Map<String, Object?>? chargeCorrigee,
+  }) {
+    if (chargeCorrigee != null && chargeCorrigee.isEmpty) {
+      throw ArgumentError.value(
+        chargeCorrigee,
+        'chargeCorrigee',
+        'charge corrigée vide',
+      );
+    }
     return transaction(() async {
       final ancienne = await _parUuid(uuidOperation);
       if (ancienne.statut != StatutOperationSync.rejete.code) {
@@ -385,10 +477,16 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
           tableServeur: ancienne.tableServeur,
           entiteId: ancienne.entiteId,
           type: ancienne.type,
-          payload: ancienne.payload,
+          payload: chargeCorrigee == null
+              ? ancienne.payload
+              : jsonEncode(chargeCorrigee),
           horodatageClient: ancienne.horodatageClient,
           dateMetier: Value(ancienne.dateMetier),
           creeLe: maintenant,
+          // La remplaçante est la MÊME écriture, renvoyée : elle garde son
+          // auteur et son poste (celui qui « Renvoie » n'a pas saisi le document).
+          auteurLogin: Value(ancienne.auteurLogin),
+          posteNom: Value(ancienne.posteNom),
         ),
       );
       await into(attachedDatabase.etatSynchronisationLocal).insert(
@@ -652,5 +750,7 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
     idServeur: l.idServeur,
     creeLe: l.creeLe,
     synchroniseLe: l.synchroniseLe,
+    auteurLogin: l.auteurLogin,
+    posteNom: l.posteNom,
   );
 }

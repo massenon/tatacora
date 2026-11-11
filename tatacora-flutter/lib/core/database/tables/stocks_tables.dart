@@ -82,8 +82,32 @@ class ArticlesLocal extends Table {
   TextColumn get pointStockageId =>
       text().nullable().references(PointsStockageLocal, #id)();
 
+  /// v57 (09/11/2026) — la VALEUR D'ACHAT DE RÉFÉRENCE posée par l'import (colonne
+  /// « Valeur d'achat » des modèles m4/m5/m6), en dix-millièmes de franc ; `null`
+  /// = aucune (« — », jamais « 0 provisoire »). Ce n'est NI un mouvement NI le
+  /// CMP : elle ne sert qu'à l'AFFICHAGE de « Valeur d'achat » tant qu'aucune
+  /// entrée valorisée n'existe — une entrée valorisée la remplace à l'affichage,
+  /// le CMP reste calculé des entrées. Posée seulement si vide
+  /// (`StocksDao.poserValeurAchatReference`), descendue du serveur sans jamais
+  /// effacer une valeur locale.
+  IntColumn get prixAchatReference => integer().nullable()();
+
+  /// v59 (10/11/2026) — le COÛT MOYEN PONDÉRÉ du serveur (`articles.cout_moyen_pondere`),
+  /// en dix-millièmes ; `null` = inconnu. Une entrée saisie au web AVANT la colonne
+  /// `mouvements_stock.cout_unitaire` n'a jamais conservé son coût : sans cette référence le
+  /// poste affichait « — » en CMP et en Valeur stock là où le web dit 4 000 FCFA. Elle ne sert
+  /// QUE tant que l'article n'a aucune entrée valorisée sur ce poste (alors le CMP est rejoué
+  /// des mouvements, comme avant) ; écrite par la seule descente, jamais saisie.
+  IntColumn get cmpReference => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
+
+  /// v35 (21/10/2026) : `false` = archivé ; `null` ou `true` = actif. NULLABLE
+  /// à dessein : un fichier ramené en arrière par les fixtures n'a pas la
+  /// colonne, et sa lecture typée ne doit pas lever (`DEFAULT 1` à l'ajout).
+  BoolColumn get actif =>
+      boolean().nullable().withDefault(const Constant(true))();
 }
 
 class MouvementsStockLocal extends Table {

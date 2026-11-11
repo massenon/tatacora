@@ -70,6 +70,7 @@ final class Client {
     this.email,
     this.solde = 0,
     this.statutSync = 'synchronise',
+    this.actif = true,
   });
 
   /// UUID v4 posé **côté client**, comme partout ailleurs : c'est lui qui rend
@@ -101,6 +102,11 @@ final class Client {
   /// différence d'un panier, qui ne part jamais et sur lequel un badge « en
   /// attente » serait un mensonge (PA-98).
   final String statutSync;
+
+  /// `false` : le client est ARCHIVÉ (`clients.actif`) — il reste dans la liste,
+  /// marqué « Archivé », et reste restaurable. `null` en base (lignes d'avant la
+  /// v35) se lit actif.
+  final bool actif;
 
   bool get enAttenteDeSynchronisation =>
       statutSync == 'en_attente_synchronisation';

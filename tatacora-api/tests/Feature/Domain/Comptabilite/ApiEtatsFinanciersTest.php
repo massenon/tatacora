@@ -355,6 +355,15 @@ final class ApiEtatsFinanciersTest extends TestCase
         // Trésorerie-Passif : rubrique à `0.00`, jamais supprimée du modèle
         // (`MODULE_COMPTABILITE_COMPLET_PART2.md` §2.3).
         $this->assertSame('0.00', $passif['tresorerie_passif']['net']);
+
+        // 10/11/2026 : le poste des ressources assimilees (16 a 19) existe, a zero,
+        // et le « dont dividendes a payer » (465, deja dans le passif circulant)
+        // descend avec le bilan sans jamais s'ajouter aux totaux.
+        $this->assertSame('0.00', $passif['dettes_financieres']['net']);
+        $this->assertContains('19', $passif['dettes_financieres']['prefixes']);
+        $this->assertSame('0.00', $bilan['dividendes_a_payer']);
+        $this->assertContains('465', $passif['passif_circulant']['prefixes']);
+        $this->assertContains('104', $passif['capitaux_propres']['prefixes']);
     }
 
     /**
@@ -419,6 +428,17 @@ final class ApiEtatsFinanciersTest extends TestCase
         $this->assertSame('542000.00', $tafire['ressources']['total']);
 
         $this->assertSame('300000.00', $tafire['emplois']['total']);
+
+        // 10/11/2026 : TAFIRE sur le resultat de N seul, trois flux dont la somme
+        // est la variation de tresorerie ; ni cession, ni emprunt, ni dividende ici.
+        $this->assertSame('0.00', $tafire['emplois']['dividendes_verses']);
+        $this->assertSame('0.00', $tafire['ressources']['variation_emprunts']);
+        $this->assertSame('0.00', $tafire['ressources']['variation_dettes_participations']);
+        $this->assertSame('0.00', $tafire['ressources']['quote_part_subventions']);
+        $this->assertSame(
+            '734000.00',
+            bcadd(bcadd($tafire['flux']['exploitation'], $tafire['flux']['investissement'], 2), $tafire['flux']['financement'], 2),
+        );
 
         $this->assertSame('30000.00', $tafire['besoin_fonds_roulement']['variation_creances']);
         // 401 + 4191 + 431 : les TROIS. PART3 §2.3 ne compte que 401.
@@ -584,11 +604,14 @@ final class ApiEtatsFinanciersTest extends TestCase
         $this->assertSame(NotesAnnexes::ETAT_NON_SAISIE, $note7['etat']);
         $this->assertNull($note7['texte']);
 
-        // Note 2 — immobilisations : disponible, MAIS bornée par l'absence de
-        // report à nouveau, qui rend la valeur d'ouverture inconnue.
+        // Note 2 — immobilisations : disponible, plus bornée par l'absence de
+        // report à nouveau (lot 2, 20/10/2026) : l'ouverture et la variation
+        // sont rendues (exercice inaugural : ouverture 0).
         $this->assertSame(NotesAnnexes::ETAT_DISPONIBLE, $note2['etat']);
-        $this->assertSame(NotesAnnexesService::MOTIF_REPORT_ABSENT, $note2['motif']);
+        $this->assertNull($note2['motif']);
         $this->assertSame('300000.00', $note2['postes'][0]['montant']);
+        $this->assertSame('0.00', $note2['postes'][0]['ouverture']);
+        $this->assertSame('300000.00', $note2['postes'][0]['variation']);
 
         // Note 1 — texte traduit, jamais une chaîne en dur dans le service.
         $this->assertSame(__('comptabilite.notes.regles_et_methodes'), $note1['texte']);

@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/features/transverse/data/roles_dao.dart';
+import 'package:tatacora_flutter/features/transverse/domain/champs_profil.dart';
 import 'package:tatacora_flutter/features/transverse/domain/roles_du_poste.dart';
 
 /// `RolesDao` (D438–D441, 14/10/2026) : le socle relu sur le VRAI seeder du
@@ -102,7 +103,19 @@ void main() {
     );
     final cree = (await dao.roles()).singleWhere((r) => r.id == id);
     expect(cree.libelle, 'Serveur');
-    expect(cree.niveaux.values.toSet(), {'-'});
+    // Fermé partout, sauf le nom complet et le téléphone de « Mon profil »
+    // (ouverts à tous les rôles par défaut, décision du PO du 03/11/2026) et la
+    // LECTURE des trois entrées de menu ouvertes à tous (09/11/2026).
+    expect(
+      {
+        for (final e in cree.niveaux.entries)
+          if (e.value != '-') e.key,
+      },
+      {...droitsProfilPourTous, ...droitsOuvertsATous},
+    );
+    for (final code in droitsOuvertsATous) {
+      expect(cree.niveaux[code], 'L', reason: code);
+    }
     expect(cree.niveaux.keys.toSet(), codesModulesSocle.toSet());
     expect(cree.conforme, isNull);
 

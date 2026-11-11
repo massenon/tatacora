@@ -139,11 +139,15 @@ void main() {
             login: 'caissier',
             nom: 'Caissier',
             role: 'gerant',
-            droits: GardeAcces.depuisJson(const {'M1': 'C'}),
+            droits: GardeAcces.depuisJson(const {
+              'M1': 'C',
+              'ANNULATIONS': 'C',
+            }),
           ),
         ),
         droitsProvider.overrideWithValue(
-          droits ?? GardeAcces.depuisJson(const {'M1': 'C'}),
+          droits ??
+              GardeAcces.depuisJson(const {'M1': 'C', 'ANNULATIONS': 'C'}),
         ),
         // Les deux exports (PDF et tableur) sont des ACTIONS injectées : un
         // test de widget n'a pas de fenêtre « Enregistrer sous » (14/10/2026).
@@ -278,6 +282,30 @@ void main() {
     expect(find.byKey(Key('hist-annuler-${r.id}')), findsNothing);
   });
 
+  testWidgets('sans le droit local ANNULATIONS, aucune action d’annulation '
+      '(même avec M1 en écriture) : le contrôle « qui annule » est au poste', (
+    tester,
+  ) async {
+    final r = await enBase(dansNJours: 10, puisNJours: 12);
+    await monter(
+      tester,
+      droits: GardeAcces.depuisJson(const {'M1': 'C', 'ANNULATIONS': '-'}),
+    );
+    expect(find.byKey(Key('hist-annuler-${r.id}')), findsNothing);
+  });
+
+  testWidgets('la colonne « Unités » dit le NOM de l’unité — jamais son '
+      'identifiant — même quand la réservation n’a aucune ligne (reçue d’un '
+      'autre poste)', (tester) async {
+    final r = await enBase(dansNJours: 10, puisNJours: 12, avecChambre: false);
+    expect(r.lignes, isEmpty);
+    await monter(tester);
+
+    expect(find.textContaining('BNG-01 — Bungalow'), findsOneWidget);
+    expect(find.textContaining('u-1'), findsNothing);
+    expect(find.text('Hébergement'), findsWidgets);
+  });
+
   testWidgets('un séjour TERMINÉ n’est plus annulable', (tester) async {
     // Annuler un séjour consommé ne libère rien et fausserait le chiffre
     // d'affaires du mois écoulé.
@@ -401,9 +429,9 @@ void main() {
 
     final relue = await depot.parId(r.id);
     expect(relue!.statut, StatutReservation.annulee);
-    // 2 nuits à 28 000 F, taux de référence de 50 %.
+    // 2 nuits à 28 000 F ; arrivée dans 10 jours, au-delà du seuil : taux 0 % (grille par délai).
     expect(relue.annulation!.totalCentimes, 5600000);
-    expect(relue.annulation!.commissionCentimes, 2800000);
+    expect(relue.annulation!.commissionCentimes, 0);
     // Conservée : elle passe en annulée, elle n'est pas effacée (RG-02).
     expect(await depot.reservations(), hasLength(1));
   });

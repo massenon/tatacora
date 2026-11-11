@@ -541,7 +541,7 @@ final class HebergementPwaTest extends TestCase
     public function l_onglet_disponibilites_n_offre_pas_reserver_a_un_role_en_lecture_seule(): void
     {
         $this->jeuDeDonnees();
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         $html = (string) Livewire::test(\App\Pwa\Livewire\Hebergement\Hebergement::class)
             ->set('dispoArrivee', '2031-06-10')

@@ -43,8 +43,11 @@ abstract final class LibellesCoquille {
   /// TROISIÈME DÉCISION DU PO DU 14/10/2026 : la ligne sous la marque
   /// devient « Système de gestion Intégré — Gîte Chez Noël, Natitingou
   /// (Bénin) », comme la clé serveur `rapports.entete.localisation`.
-  static const String localisation =
-      'Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)';
+  ///
+  /// QUATRIÈME DÉCISION DU PO (28/10/2026) : la barre supérieure n'affiche plus
+  /// « — Gîte Chez Noël, Natitingou (Bénin) » ; la mention reste dans l'en-tête
+  /// des états (`rapports.entete.localisation`). La barre rend `pwa.barre_localisation`.
+  static const String localisation = 'Système de gestion Intégré';
 
   /// `pwa.alt_logo` — le texte de remplacement du logo, rendu en sémantique.
   static const String altLogo = 'Logo TATACORA AFRIQUE';
@@ -54,6 +57,19 @@ abstract final class LibellesCoquille {
 
   /// `pwa.accueil.deconnexion`.
   static const String deconnexion = 'Déconnexion';
+
+  /// `pwa.coquille.banniere_lecture_titre` — le gras du bandeau de la coquille.
+  static const String banniereLectureTitre = 'Accès lecture seule';
+
+  /// `pwa.coquille.banniere_lecture_detail` — la suite du bandeau, UN seul
+  /// littéral (la vue écrit « les actions d'écriture » à la place des trois
+  /// boutons du maître ; écart motivé dans le partiel de la vue).
+  static const String banniereLectureDetail =
+      "sur ce module avec le profil actuel — les actions d'écriture sont masquées (droits RBAC).";
+
+  /// `pwa.coquille.banniere_changer_profil` — la flèche fait partie du libellé.
+  static const String banniereChangerProfil =
+      'Se connecter avec un autre profil →';
 
   /// `pwa.coquille.ouvrir_menu` — l'`aria-label` du bouton de menu mobile.
   static const String ouvrirMenu = 'Ouvrir le menu';
@@ -100,14 +116,7 @@ abstract final class LibellesCoquille {
   /// de `DIRECTIVE_CONFORMITE_100.md` interdit un contrôle muet : le clic DIT
   /// que l'écran n'est pas encore porté sur CE poste — « consultation » est le
   /// mot du canal web, il ne suffit pas à dire ce qui manque ici.
-  static String ecranNonPorte(String nom) =>
-      '« $nom » : écran non encore porté sur ce poste.';
-
-  /// La pastille d'environnement, hors production seulement — AJOUT déclaré
-  /// (la vue n'en a pas : elle est servie par un seul serveur ; voir
-  /// `_BarreSuperieure`). Aucune clé de langue ne la porte : la chaîne vit ici,
-  /// avec les autres libellés de la coquille, pas dans le widget.
-  static String environnement(String libelle) => 'Environnement : $libelle';
+  static String ecranNonPorte(String nom) => '« $nom » n\'est pas disponible.';
 
   /// `pwa.recherche_globale.*` — la recherche globale de la barre supérieure.
   static const String rechercheInvite = 'Rechercher partout…';
@@ -136,7 +145,7 @@ abstract final class LibellesCoquille {
   /// aucun paramètre d'URL, ils s'ouvrent donc non filtrés. Le dire évite de
   /// laisser croire que la liste affichée est le résultat de la recherche.
   static String rechercheEcranNonFiltre(String terme, String famille) =>
-      '« $famille » ouvert sans filtre sur ce poste : saisissez « $terme » '
+      '« $famille » ouvert sans filtre : saisissez « $terme » '
       "dans la recherche de l'écran.";
 }
 

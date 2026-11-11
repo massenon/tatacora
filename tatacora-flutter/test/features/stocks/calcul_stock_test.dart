@@ -827,4 +827,84 @@ void main() {
       expect(f.lignes.first.date, '2026-10-02 08:30:00');
     });
   });
+
+  group(
+    'Le CMP du serveur tient lieu de référence (v59, constat du PO 10/11/2026)',
+    () {
+      // Le web affiche Aileron : 15 en stock, valeur d'achat 4 000, CMP 4 000, valeur 60 000. Son
+      // entrée a été saisie AVANT la colonne `cout_unitaire` : le mouvement descend SANS coût.
+      // Sans référence, le poste disait « — » : le chiffre du web, calculé À LA MAIN : 15 × 4 000.
+      final maintenant = DateTime(2026, 11, 10, 12);
+      final entreeSansCout = MouvementCalcul(
+        id: 'm1',
+        articleId: 'aileron',
+        pointId: 'cuisine',
+        type: TypeMouvement.entree,
+        centiemes: 1500,
+        ordre: 1,
+        date: DateTime(2026, 11, 1),
+      );
+
+      EtatStock etat(ArticleCalcul a, List<MouvementCalcul> m) => calculerEtat(
+        articles: [a],
+        mouvements: m,
+        maintenant: maintenant,
+        libellesPoints: const {'cuisine': 'Cuisine'},
+      );
+
+      ArticleCalcul article({int? cmp, int? achat}) => ArticleCalcul(
+        id: 'aileron',
+        libelle: 'Aileron',
+        categorie: 'Denrées',
+        uniteMesure: 'unité',
+        seuilCentiemes: 500,
+        suivi: SuiviArticle.permanent,
+        pointStockageId: 'cuisine',
+        prixAchatReference: achat,
+        cmpReference: cmp,
+      );
+
+      test(
+        'sans aucune entrée valorisée, CMP et valeur viennent de la référence',
+        () {
+          final l = etat(article(cmp: 40000000, achat: 40000000), [
+            entreeSansCout,
+          ]).lignes.single;
+          expect(l.prixAchatAffiche, '4000.0000');
+          expect(l.cmpInconnu, isFalse);
+          expect(l.valeurInconnue, isFalse);
+          expect(l.coutMoyenPondere, '4000.0000');
+          expect(l.valeurStock, '60000');
+        },
+      );
+
+      test(
+        'sans référence ni coût, la valeur reste INCONNUE (jamais un zéro)',
+        () {
+          final l = etat(article(), [entreeSansCout]).lignes.single;
+          expect(l.cmpInconnu, isTrue);
+          expect(l.valeurInconnue, isTrue);
+        },
+      );
+
+      test(
+        'dès qu\u2019une entrée valorisée existe, le CMP est REJOUÉ, la référence est ignorée',
+        () {
+          final valorisee = MouvementCalcul(
+            id: 'm2',
+            articleId: 'aileron',
+            pointId: 'cuisine',
+            type: TypeMouvement.entree,
+            centiemes: 1500,
+            ordre: 2,
+            date: DateTime(2026, 11, 2),
+            coutDixMilliemes: 20000000,
+          );
+          final l = etat(article(cmp: 40000000), [valorisee]).lignes.single;
+          expect(l.coutMoyenPondere, '2000.0000');
+          expect(l.cmpDeReference, isFalse);
+        },
+      );
+    },
+  );
 }

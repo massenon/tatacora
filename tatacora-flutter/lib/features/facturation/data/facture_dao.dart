@@ -7,9 +7,11 @@ import '../../../core/database/app_database.dart';
 // réexporte pas. Sans ces lignes, le mixin généré est VIDE — sans erreur de
 // génération, ce qui rend le diagnostic trompeur (leçon `reservation_dao.dart`).
 import '../../../core/database/tables/registre_facturation_tables.dart';
+import '../domain/client_mecef.dart';
 import '../domain/entities/piece_facturation.dart';
+import '../domain/ifu_client.dart';
 import '../domain/repositories/facture_repository.dart';
-import '../../synchronisation/data/documents_autres_postes.dart';
+import '../domain/statut_normalisation.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
@@ -230,6 +232,14 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
   /// change demain, cette pièce ne bouge pas.
   Future<PieceFacturation> emettre(BrouillonFacture brouillon) async {
     if (brouillon.lignes.isEmpty) throw const FactureSansLigne();
+    // L'IFU du client : facultatif, 13 chiffres s'il est rempli — la règle du serveur.
+    if (!IfuClient.valide(brouillon.acheteurIfu)) {
+      throw const IfuClientInvalide();
+    }
+    final acheteurIfu = IfuClient.nettoyer(brouillon.acheteurIfu);
+    final acheteurNom = (brouillon.acheteurNom ?? '').trim().isEmpty
+        ? null
+        : brouillon.acheteurNom!.trim();
 
     final id = _uuid.v4();
 
@@ -248,6 +258,8 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
           panierId: Value(brouillon.panierId),
           modePaiement: Value(brouillon.modePaiement),
           pointVente: Value(brouillon.pointVente),
+          acheteurIfu: Value(acheteurIfu),
+          acheteurNom: Value(acheteurNom),
           statut: Value(StatutPiece.emise.code),
           // Identité FISCALE : nulle à l'émission, toujours. La certification
           // n'a pas lieu (PA-17 / PA-61).
@@ -284,6 +296,9 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
                 quantite: l.quantite,
               ),
           ],
+          acheteurIfu: acheteurIfu,
+          acheteurNom: acheteurNom,
+          retenirIfu: brouillon.retenirIfu,
         ),
       );
     });
@@ -311,13 +326,10 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
   }) async {
     final motifNet = motif.trim();
     if (motifNet.isEmpty) throw const MotifAnnulationRequis();
-    // Q3 (lot F6) : la facture d'un autre poste (ou du serveur), par
-    // l'administration ou le comptable seulement.
-    if (!await DocumentsAutresPostes(
-      attachedDatabase,
-    ).peutAnnuler('factures', pieceId, auteurId)) {
-      throw const AnnulationAutrePosteRefusee();
-    }
+    // 09/11/2026 (décision du PO) : plus de règle « facture d'un autre poste » ici ni au
+    // serveur ; qui peut annuler est jugé par l'ÉCRAN (droit ANNULATIONS + M2 en écriture de
+    // l'utilisateur connecté). Ce geste exécute, et garde la cohérence : une facture NORMALISÉE
+    // est figée et se corrige par avoir, un avoir total déjà émis refuse, déjà annulée = refusée.
 
     final idAvoir = _uuid.v4();
 
@@ -331,6 +343,9 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
       if (StatutPiece.depuisCode(entete.statut) == StatutPiece.annulee) {
         throw FactureDejaAnnulee(entete.numero);
       }
+      // Un avoir sur une facture NORMALISÉE se fait EN LIGNE (décision du PO du 07/11/2026,
+      // point 4) : RIEN n'est écrit ici — ni avoir, ni statut, ni file.
+      _exigerNonNormalisee(entete);
 
       final maintenant = _maintenant();
 
@@ -410,6 +425,392 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
     );
   }
 
+  /// Émet un avoir PARTIEL sur la facture [pieceId] — l'« Émettre un avoir » de
+  /// la PWA (`emettreAvoir($facture, $montant, $motif)`).
+  ///
+  /// ## La règle est celle du SERVICE, pas une règle du poste
+  ///
+  /// Un avoir ne dépasse jamais le TTC de sa facture ([AvoirExcessif]) ; il peut
+  /// s'ajouter à d'autres, le service ne les cumule pas — le reste dû
+  /// (`creances.dart`, UNE formule : TTC − avoirs − paiements − acomptes) le
+  /// montrera négatif si on le pousse trop loin, et c'est visible. Le montant
+  /// entier du TTC est une ANNULATION : [annuler] (la facture devient
+  /// `annulee`) ; ce geste-ci ne l'est pas.
+  ///
+  /// ## Ce qu'il écrit
+  ///
+  /// Une pièce-avoir à elle, de son propre numéro, d'UNE ligne « Avoir partiel
+  /// — motif » (quantité −1, prix = montant) : la forme que prend un avoir
+  /// partiel descendu du serveur ([inscrireAvoirDescendu]). La facture d'origine
+  /// n'est PAS touchée (RG-03). L'avoir part au serveur sous SON identifiant
+  /// (`avoir_id`) : il y naît sous le même UUID, son rejeu ne le double pas, et
+  /// la descente le reconnaît.
+  Future<PieceFacturation> emettreAvoirPartiel(
+    String pieceId,
+    int montant,
+    String motif,
+  ) async {
+    final motifNet = motif.trim();
+    if (motifNet.isEmpty) throw const MotifAnnulationRequis();
+    final idAvoir = _uuid.v4();
+
+    await transaction(() async {
+      final entete = await (select(
+        piecesFacturationLocal,
+      )..where((p) => p.id.equals(pieceId))).getSingleOrNull();
+      if (entete == null) throw PieceIntrouvable(pieceId);
+      if (entete.avoirDe != null) throw AvoirNonAnnulable(entete.numero);
+      if (StatutPiece.depuisCode(entete.statut) == StatutPiece.annulee) {
+        throw FactureDejaAnnulee(entete.numero);
+      }
+      _exigerNonNormalisee(entete);
+
+      final lignes = await _lignesDe(pieceId);
+      final ttc = lignes.fold<int>(
+        0,
+        (t, l) => t + l.prixUnitaire * l.quantite,
+      );
+      if (montant <= 0) throw const AvoirMontantNul();
+      if (montant > ttc) throw const AvoirExcessif();
+
+      final numeroAvoir = await _numeroSuivantDansTransaction();
+      await into(piecesFacturationLocal).insert(
+        PiecesFacturationLocalCompanion.insert(
+          id: idAvoir,
+          numero: numeroAvoir,
+          origine: entete.origine,
+          dateEmission: _maintenant(),
+          clientNom: entete.clientNom,
+          clientId: Value(entete.clientId),
+          reservationId: Value(entete.reservationId),
+          panierId: Value(entete.panierId),
+          modePaiement: Value(entete.modePaiement),
+          pointVente: Value(entete.pointVente),
+          statut: Value(StatutPiece.emise.code),
+          numeroMecef: const Value(null),
+          avoirDe: Value(entete.numero),
+          motifAvoir: Value(motifNet),
+          statutTransmission: Value(
+            entete.statutTransmission ==
+                    StatutTransmissionPiece.nonTransmissible.code
+                ? StatutTransmissionPiece.nonTransmissible.code
+                : StatutTransmissionPiece.enAttente.code,
+          ),
+        ),
+      );
+      await _copierLignes([
+        LignesPieceFacturationLocalCompanion.insert(
+          id: _uuid.v4(),
+          pieceId: idAvoir,
+          moduleSource: lignes.isEmpty
+              ? ModuleFacturable.m1Hebergement.code
+              : lignes.first.moduleSource,
+          libelle: 'Avoir partiel — $motifNet',
+          prixUnitaire: montant,
+          quantite: -1,
+          ordre: 0,
+        ),
+      ]);
+
+      // Une pièce d'avant la synchronisation (non transmissible) ne part pas :
+      // le serveur répondrait « facture inconnue » à chaque tentative.
+      if (entete.statutTransmission !=
+          StatutTransmissionPiece.nonTransmissible.code) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.factures,
+          entiteId: pieceId,
+          type: TypeOperationSync.modification,
+          payload: chargeAvoirPartielFacture(
+            montantFrancs: montant,
+            motif: motifNet,
+            avoirId: idAvoir,
+          ),
+        );
+      }
+    });
+
+    return (await parId(idAvoir))!;
+  }
+
+  /* ================================================================== */
+  /* Normalisation fiscale — boîtier CC300 (07/11/2026, schéma v50)       */
+  /* ================================================================== */
+
+  /// Une facture NORMALISÉE n'a d'avoir qu'EN LIGNE (décision du PO du 07/11/2026) : l'avoir
+  /// naît au serveur, sous l'identifiant du serveur, puis descend ici (`inscrireAvoirDescendu`).
+  /// Lever AVANT toute écriture : rien de local n'est jamais écrit hors ligne.
+  void _exigerNonNormalisee(PiecesFacturationLocalData facture) {
+    if (facture.normalisationStatut == StatutNormalisation.normalisee.code) {
+      throw const AvoirEnLigneRequis();
+    }
+  }
+
+  /// Note, AVANT l'envoi d'une requête de facturation, le compteur du boîtier
+  /// lu à l'instant : si l'application s'arrête brutalement, le rejeu sait qu'une
+  /// tentative est partie et compare le compteur avant de reposter. Une pièce
+  /// déjà normalisée n'est jamais touchée.
+  Future<void> noterTentativeNormalisation(
+    String pieceId, {
+    required String compteurAvant,
+    required VoieNormalisation voie,
+  }) async {
+    final entete = await _enteteOuLeve(pieceId);
+    if (entete.normalisationStatut == StatutNormalisation.normalisee.code) {
+      throw FactureDejaNormalisee(entete.numero);
+    }
+    await (update(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(pieceId))).write(
+      PiecesFacturationLocalCompanion(
+        normalisationStatut: Value(StatutNormalisation.enAttente.code),
+        normalisationMode: Value(voie.code),
+        normalisationCompteurAvant: Value(compteurAvant),
+      ),
+    );
+  }
+
+  /// Range l'issue d'une normalisation sur la pièce, et la met en file vers le
+  /// serveur (qui la RANGE, sans re-certifier). **Une pièce déjà normalisée est
+  /// figée** : elle n'est jamais écrasée ([FactureDejaNormalisee]).
+  ///
+  /// Le compteur noté avant l'envoi est retiré quand l'issue est CERTAINE
+  /// (normalisée, refusée, échec avant envoi) et conservé quand elle ne l'est pas
+  /// (à vérifier, ou en attente après une requête partie sans réponse).
+  Future<PieceFacturation> enregistrerIssueNormalisation(
+    String pieceId,
+    IssueCertification issue, {
+    required VoieNormalisation voie,
+  }) => transaction(() async {
+    final entete = await _enteteOuLeve(pieceId);
+    if (entete.normalisationStatut == StatutNormalisation.normalisee.code) {
+      throw FactureDejaNormalisee(entete.numero);
+    }
+    final maintenant = _maintenant();
+
+    final PiecesFacturationLocalCompanion champs;
+    String statut;
+    String? motif;
+    String? numeroMecef;
+    String? qr;
+    String? code;
+    String? compteur;
+    DateTime? date;
+    switch (issue) {
+      case Certifiee(:final resultat):
+        statut = StatutNormalisation.normalisee.code;
+        numeroMecef = resultat.numeroMecef;
+        qr = resultat.qrCode;
+        code = resultat.codeMecef;
+        compteur = '${resultat.compteur}';
+        date = resultat.dateCertification;
+        champs = PiecesFacturationLocalCompanion(
+          normalisationStatut: Value(statut),
+          normalisationMotif: const Value(null),
+          normalisationMode: Value(voie.code),
+          normalisationCompteur: Value(compteur),
+          normalisationCompteurAvant: const Value(null),
+          numeroMecef: Value(numeroMecef),
+          qrCodeFiscal: Value(qr),
+          codeMecef: Value(code),
+          normaliseeLe: Value(date),
+        );
+      case EnAttente(motif: final m, :final incertaine, :final compteurAvant):
+        statut = StatutNormalisation.enAttente.code;
+        motif = m;
+        champs = PiecesFacturationLocalCompanion(
+          normalisationStatut: Value(statut),
+          normalisationMotif: Value(motif),
+          normalisationMode: Value(voie.code),
+          // Une requête partie sans réponse : le compteur noté RESTE.
+          normalisationCompteurAvant: incertaine
+              ? Value(compteurAvant ?? entete.normalisationCompteurAvant)
+              : const Value(null),
+        );
+      case Refusee(motif: final m):
+        statut = StatutNormalisation.refusee.code;
+        motif = m;
+        champs = PiecesFacturationLocalCompanion(
+          normalisationStatut: Value(statut),
+          normalisationMotif: Value(motif),
+          normalisationMode: Value(voie.code),
+          normalisationCompteurAvant: const Value(null),
+        );
+      case AVerifier(
+        motif: final m,
+        :final compteurAvant,
+        :final qrCode,
+        :final codeMecef,
+      ):
+        statut = StatutNormalisation.aVerifier.code;
+        motif = m;
+        qr = qrCode;
+        code = codeMecef;
+        champs = PiecesFacturationLocalCompanion(
+          normalisationStatut: Value(statut),
+          normalisationMotif: Value(motif),
+          normalisationMode: Value(voie.code),
+          normalisationCompteurAvant: Value(
+            compteurAvant ?? entete.normalisationCompteurAvant,
+          ),
+          // Le QR rendu par le boîtier est CONSERVÉ (la facture existe), sans
+          // numéro fiscal tant que son compteur n'est pas confirmé : la pièce
+          // n'est PAS « normalisée ».
+          qrCodeFiscal: Value(qr),
+          codeMecef: Value(code),
+        );
+    }
+
+    await (update(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(pieceId))).write(champs);
+
+    // Vers le serveur : il range, il ne re-certifie jamais. Une pièce que le
+    // serveur ne connaît pas (d'avant la synchronisation) ne part pas.
+    if (entete.statutTransmission !=
+        StatutTransmissionPiece.nonTransmissible.code) {
+      final String? factureId;
+      final String? avoirId;
+      if (entete.avoirDe != null) {
+        factureId = (await parNumero(entete.avoirDe!))?.id;
+        avoirId = entete.id;
+      } else {
+        factureId = entete.id;
+        avoirId = null;
+      }
+      if (factureId != null) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.factures,
+          entiteId: factureId,
+          type: TypeOperationSync.modification,
+          payload: chargeNormalisationFacture(
+            statut: statut,
+            mode: voie.code,
+            motif: motif,
+            numeroMecef: numeroMecef,
+            qrCode: qr,
+            codeMecef: code,
+            compteur: compteur,
+            date: date ?? maintenant,
+            avoirId: avoirId,
+          ),
+        );
+      }
+    }
+    return (await parId(pieceId))!;
+  });
+
+  /// Une normalisation faite AILLEURS (un autre poste, ou e-MECeF au serveur),
+  /// reçue par la descente : adoptée seulement si CE poste n'a pas déjà normalisé
+  /// la pièce. Jamais renvoyée au serveur, jamais d'écrasement.
+  Future<void> adopterNormalisationDescendue(
+    String pieceId, {
+    required StatutNormalisation statut,
+    required VoieNormalisation? voie,
+    String? motif,
+    String? numeroMecef,
+    String? qrCode,
+    String? codeMecef,
+    String? compteur,
+    DateTime? date,
+  }) async {
+    final entete = await _enteteOuLeve(pieceId);
+    if (entete.normalisationStatut == StatutNormalisation.normalisee.code) {
+      return;
+    }
+    // Une pièce « à vérifier » ici ne se laisse pas écraser par un simple
+    // « en attente » du serveur : seule une normalisation réelle l'emporte.
+    if (statut != StatutNormalisation.normalisee &&
+        entete.normalisationStatut != null) {
+      return;
+    }
+    await (update(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(pieceId))).write(
+      PiecesFacturationLocalCompanion(
+        normalisationStatut: Value(statut.code),
+        normalisationMotif: Value(
+          statut == StatutNormalisation.normalisee ? null : motif,
+        ),
+        normalisationMode: Value(voie?.code),
+        normalisationCompteur: Value(compteur),
+        normalisationCompteurAvant: const Value(null),
+        numeroMecef: statut == StatutNormalisation.normalisee
+            ? Value(numeroMecef)
+            : const Value.absent(),
+        qrCodeFiscal: statut == StatutNormalisation.normalisee
+            ? Value(qrCode)
+            : const Value.absent(),
+        codeMecef: statut == StatutNormalisation.normalisee
+            ? Value(codeMecef)
+            : const Value.absent(),
+        normaliseeLe: statut == StatutNormalisation.normalisee
+            ? Value(date)
+            : const Value.absent(),
+      ),
+    );
+  }
+
+  /// Le RÉSULTAT d'une normalisation e-MECeF demandée AU SERVEUR depuis ce poste, rendu dans la
+  /// réponse (07/11/2026). Écrit sur la pièce, JAMAIS renvoyé au serveur (il le détient déjà),
+  /// jamais d'écrasement d'une pièce normalisée. Un « normalisée » sans numéro fiscal réel ET
+  /// sans QR de la forme `F;NIM;code;IFU;date` n'est PAS écrit comme tel : la pièce reste en
+  /// attente, avec la phrase qui le dit (un indicateur se dérive de ce qui est en place).
+  Future<PieceFacturation> adopterResultatServeur(
+    String pieceId, {
+    required StatutNormalisation statut,
+    String? motif,
+    String? numeroMecef,
+    String? qrCode,
+    String? codeMecef,
+    String? compteur,
+    DateTime? date,
+  }) => transaction(() async {
+    final entete = await _enteteOuLeve(pieceId);
+    if (entete.normalisationStatut == StatutNormalisation.normalisee.code) {
+      return (await parId(pieceId))!;
+    }
+    var effectif = statut;
+    var motifEffectif = motif;
+    if (statut == StatutNormalisation.normalisee) {
+      final qr = (qrCode ?? '').trim();
+      final valide =
+          RegExp(r'^[A-Za-z0-9]+-[0-9]+$').hasMatch(numeroMecef ?? '') &&
+          qr.startsWith('F;') &&
+          qr.split(';').length == 5;
+      if (!valide) {
+        effectif = StatutNormalisation.enAttente;
+        motifEffectif =
+            'Le serveur a répondu sans numéro fiscal ni QR valides : la '
+            'facture n’est pas normalisée.';
+      }
+    }
+    final normalisee = effectif == StatutNormalisation.normalisee;
+    await (update(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(pieceId))).write(
+      PiecesFacturationLocalCompanion(
+        normalisationStatut: Value(effectif.code),
+        normalisationMotif: Value(normalisee ? null : motifEffectif),
+        normalisationMode: Value(VoieNormalisation.emecef.code),
+        normalisationCompteur: Value(normalisee ? compteur : null),
+        normalisationCompteurAvant: const Value(null),
+        numeroMecef: normalisee ? Value(numeroMecef) : const Value.absent(),
+        qrCodeFiscal: normalisee ? Value(qrCode) : const Value.absent(),
+        codeMecef: normalisee ? Value(codeMecef) : const Value.absent(),
+        normaliseeLe: normalisee ? Value(date) : const Value.absent(),
+      ),
+    );
+    return (await parId(pieceId))!;
+  });
+
+  Future<PiecesFacturationLocalData> _enteteOuLeve(String pieceId) async {
+    final entete = await (select(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(pieceId))).getSingleOrNull();
+    if (entete == null) throw PieceIntrouvable(pieceId);
+    return entete;
+  }
+
   /* ================================================================== */
   /* Régularisation du numéro — lot F5c                                  */
   /* ================================================================== */
@@ -459,6 +860,23 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
     await _marquerTransmise(entete.id);
   });
 
+  /// Pose le numéro `AV-…` attribué par le serveur à l'avoir PARTIEL [avoirId]
+  /// émis par ce poste (l'avoir y est né sous le même identifiant). Idempotent ;
+  /// même règle que [regulariserNumeros] pour un numéro déjà porté (LÈVE
+  /// `StateError`, rien n'est écrit).
+  Future<void> regulariserAvoir(String avoirId, String numero) =>
+      transaction(() async {
+        await customStatement('PRAGMA defer_foreign_keys = ON');
+        final avoir = await (select(
+          piecesFacturationLocal,
+        )..where((p) => p.id.equals(avoirId))).getSingleOrNull();
+        if (avoir == null) return;
+        if (numero.isNotEmpty && avoir.numero != numero) {
+          await _renumeroter(avoir.id, avoir.numero, numero);
+        }
+        await _marquerTransmise(avoir.id);
+      });
+
   /* ================================================================== */
   /* Pièces DESCENDUES du serveur — lot F5c                              */
   /* ================================================================== */
@@ -477,6 +895,8 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
     required String? reservationId,
     required String? panierId,
     required List<LigneBrouillon> lignes,
+    String? acheteurIfu,
+    String? acheteurNom,
   }) => transaction(() async {
     await into(piecesFacturationLocal).insert(
       PiecesFacturationLocalCompanion.insert(
@@ -488,6 +908,10 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
         clientId: Value(clientId),
         reservationId: Value(reservationId),
         panierId: Value(panierId),
+        acheteurIfu: Value(IfuClient.nettoyer(acheteurIfu)),
+        acheteurNom: Value(
+          (acheteurNom ?? '').trim().isEmpty ? null : acheteurNom!.trim(),
+        ),
         statut: Value(StatutPiece.emise.code),
         numeroMecef: const Value(null),
         statutTransmission: Value(StatutTransmissionPiece.recue.code),
@@ -580,12 +1004,18 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
   });
 
   /// L'avoir LOCAL encore provisoire de la facture [factureId] — celui que
-  /// ce poste a émis en l'annulant, et dont le serveur rend le numéro.
+  /// ce poste a émis en l'ANNULANT, et dont le serveur rend le numéro.
   Future<String?> avoirProvisoireDe(String factureId) async {
     final facture = await (select(
       piecesFacturationLocal,
     )..where((p) => p.id.equals(factureId))).getSingleOrNull();
-    if (facture == null) return null;
+    // Seule une facture ANNULÉE par ce poste a un avoir « d'annulation » à
+    // régulariser par la descente : un avoir PARTIEL provisoire, lui, se
+    // reconnaît par son identifiant (`regulariserAvoir`).
+    if (facture == null ||
+        StatutPiece.depuisCode(facture.statut) != StatutPiece.annulee) {
+      return null;
+    }
     final avoirs =
         await (select(piecesFacturationLocal)..where(
               (p) =>
@@ -717,6 +1147,18 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
       motifAvoir: entete.motifAvoir,
       motifAnnulation: entete.motifAnnulation,
       dateAnnulation: entete.dateAnnulation,
+      normalisationStatut: StatutNormalisation.depuisCode(
+        entete.normalisationStatut,
+      ),
+      normalisationMotif: entete.normalisationMotif,
+      normalisationMode: VoieNormalisation.depuisCode(entete.normalisationMode),
+      normalisationCompteur: entete.normalisationCompteur,
+      normalisationCompteurAvant: entete.normalisationCompteurAvant,
+      codeMecef: entete.codeMecef,
+      qrCodeFiscal: entete.qrCodeFiscal,
+      normaliseeLe: entete.normaliseeLe,
+      acheteurIfu: entete.acheteurIfu,
+      acheteurNom: entete.acheteurNom,
     );
   }
 

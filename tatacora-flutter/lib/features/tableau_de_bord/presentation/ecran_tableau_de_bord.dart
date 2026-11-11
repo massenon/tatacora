@@ -1,6 +1,7 @@
 // Vue Blade maîtresse (PA-183) : pwa/livewire/accueil.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/format/formats.dart';
@@ -12,6 +13,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../caisse/presentation/providers_caisse.dart'
     show depotSessionsCaisseProvider;
+import '../../comptabilite/presentation/providers_etats_financiers.dart'
+    show lireChargesDatees;
 import '../../facturation/presentation/providers_facturation.dart';
 import '../../facturation/presentation/providers_paiements.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
@@ -45,6 +48,7 @@ final tableauDeBordLocalProvider = Provider<TableauDeBordLocal>(
     creances: () => lireCreances(ref.read),
     paiements: () => ref.read(depotPaiementsFactureProvider).paiements(),
     sessions: () => ref.read(depotSessionsCaisseProvider).sessions(),
+    charges: () => lireChargesDatees(ref),
     peutLire: () =>
         ref.read(droitsProvider).peutLire(ModuleTatacora.m11TableauxDeBord),
     maintenant: ref.watch(horlogeTableauDeBordProvider),
@@ -143,7 +147,7 @@ final seriesTableauDeBordProvider = FutureProvider.autoDispose<ResultatSeries>(
 /// ## La « Vue d'exploitation » suit la vue, bloc par bloc (12/10/2026)
 ///
 /// Lot 2 de `INSTRUCTION.txt` du Product Owner. L'en-tête est celui de la vue
-/// (titre SANS icône, sous-titre, trois onglets, libellé de période à leur
+/// (icône et titre, sous-titre, trois onglets, libellé de période à leur
 /// droite, sélecteur, « Actualiser », « Exporter ») ; le corps porte, dans son
 /// ordre, la grille des raccourcis, la bande des huit indicateurs, le bandeau
 /// d'alertes de stock, le récapitulatif de la journée, la ligne des
@@ -168,10 +172,17 @@ final seriesTableauDeBordProvider = FutureProvider.autoDispose<ResultatSeries>(
 /// `domain/entities/tableau_de_bord.dart`. Aucun cache : les fournisseurs sont
 /// `autoDispose`, et chaque visite recalcule (PA-59/60/61).
 class EcranTableauDeBord extends ConsumerWidget {
-  const EcranTableauDeBord({super.key});
+  /// [periodeDemandee] : le code de période DEMANDÉ par l'adresse
+  /// (`/tableau-de-bord?periode=…`, la propriété `#[Url] filtrePeriode` du
+  /// composant de la vue). Absent, il est lu de l'adresse de la route, quand
+  /// l'écran est monté par le routeur.
+  const EcranTableauDeBord({this.periodeDemandee, super.key});
+
+  final String? periodeDemandee;
 
   /// Les libellés et les notes des huit indicateurs, indexés par la clé du
-  /// serveur — ceux de `lang/fr/accueil_pwa.php` (`kpi.<clé>.libelle|note`),
+  /// serveur — ceux de `lang/fr/accueil_pwa.php` (clés `accueil_pwa.kpi.<clé>.libelle`
+  /// et `accueil_pwa.kpi.<clé>.note`, composées à la volée par la vue),
   /// relus par un test : une copie qui divergerait de la vue resterait verte.
   ///
   /// Registre **fermé** : une clé inconnue s'affiche avec sa clé brute plutôt
@@ -203,6 +214,26 @@ class EcranTableauDeBord extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A3 — LE REPLI DE PÉRIODE SE DIT. Une période demandée que le sélecteur ne
+    // connaît pas retombe sur le défaut ET le nomme (`periodeRefusee()` de la
+    // vue) ; une période connue est appliquée UNE fois, à l'ouverture (sinon
+    // l'adresse écraserait chaque choix du sélecteur).
+    final demande =
+        periodeDemandee ??
+        GoRouter.maybeOf(
+          context,
+        )?.routeInformationProvider.value.uri.queryParameters['periode'];
+    final connue = demande == null
+        ? null
+        : PeriodeTableauDeBord.parCode(demande);
+    final refusee = (demande != null && connue == null) ? demande : null;
+    return _AppliquePeriodeDemandee(
+      periode: connue,
+      child: _corps(context, ref, refusee),
+    );
+  }
+
+  Widget _corps(BuildContext context, WidgetRef ref, String? refusee) {
     final resultat = ref.watch(tableauDeBordProvider);
     final onglet = ref.watch(ongletTableauDeBordProvider);
     final autorise = ref
@@ -227,7 +258,12 @@ class EcranTableauDeBord extends ConsumerWidget {
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(marge, marge, marge, 0),
-            child: const _EnTete(),
+            child: Column(
+              children: [
+                const _EnTete(),
+                if (refusee != null) _BandeauPeriodeInconnue(code: refusee),
+              ],
+            ),
           ),
           Expanded(
             child: EcranPilotageConsolide(
@@ -253,6 +289,7 @@ class EcranTableauDeBord extends ConsumerWidget {
         enfants: [
           const _EnTete(),
           const SizedBox(height: AppSpacing.mdPlus), // mb-5
+          if (refusee != null) _BandeauPeriodeInconnue(code: refusee),
           PanneauTableauCroise(tableau: tableau),
         ],
       );
@@ -263,6 +300,7 @@ class EcranTableauDeBord extends ConsumerWidget {
       enfants: [
         const _EnTete(),
         const SizedBox(height: AppSpacing.mdPlus), // mb-5
+        if (refusee != null) _BandeauPeriodeInconnue(code: refusee),
         resultat.when(
           loading: () => const Padding(
             padding: EdgeInsets.all(AppSpacing.xl),
@@ -310,17 +348,33 @@ class _EnTete extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          autorise ? 'Tableau de bord' : 'Consultation de secours',
-          key: const Key('tdb-titre'),
-          style: styleExploitation(
-            large ? TaillesContenu.xl : TaillesContenu.lg,
-            poids: FontWeight.w700,
-            interligne: large
-                ? TaillesContenu.interligneXl
-                : TaillesContenu.interligneLg,
-            couleur: AppColors.navy,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // `flex items-center gap-2.5` : l'icône « dashboard » de la barre
+            // latérale (directive du PO du 26/10/2026), puis le `<h1>`.
+            const IconeTrace(
+              key: Key('tdb-icone-titre'),
+              trace: TracesAccueil.titre,
+              taille: AppLayout.iconeTitrePage,
+              couleur: AppColors.navy,
+            ),
+            const SizedBox(width: AppSpacing.xsPlus), // gap-2.5
+            Flexible(
+              child: Text(
+                autorise ? 'Tableau de bord' : 'Consultation de secours',
+                key: const Key('tdb-titre'),
+                style: styleExploitation(
+                  large ? TaillesContenu.xl : TaillesContenu.lg,
+                  poids: FontWeight.w700,
+                  interligne: large
+                      ? TaillesContenu.interligneXl
+                      : TaillesContenu.interligneLg,
+                  couleur: AppColors.navy,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.unit), // mt-1
         Text(
@@ -822,4 +876,67 @@ String noteCarteIndicateur(IndicateurTableauDeBord indicateur) {
   // Un indicateur sans source n'a jamais de mention (`indisponible`).
   final mention = indicateur.mention;
   return mention == null ? base : '$base · $mention';
+}
+
+/// Applique UNE fois la période demandée par l'adresse (`#[Url]` de la vue).
+class _AppliquePeriodeDemandee extends ConsumerStatefulWidget {
+  const _AppliquePeriodeDemandee({required this.periode, required this.child});
+
+  final PeriodeTableauDeBord? periode;
+  final Widget child;
+
+  @override
+  ConsumerState<_AppliquePeriodeDemandee> createState() =>
+      _EtatAppliquePeriodeDemandee();
+}
+
+class _EtatAppliquePeriodeDemandee
+    extends ConsumerState<_AppliquePeriodeDemandee> {
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.periode;
+    if (p == null) return;
+    // Hors de la construction : un fournisseur ne se modifie pas pendant elle.
+    Future.microtask(() {
+      if (mounted) ref.read(periodeTableauDeBordProvider.notifier).definir(p);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
+/// « La période demandée (« x ») n'existe pas… » — `accueil_pwa.periode_inconnue`
+/// (l.309-313) : `rounded-xl px-4 py-3 mb-5 text-[13px]`, fond `#FFFBEB`,
+/// liseré `#FDE68A`, texte `#78350F`.
+class _BandeauPeriodeInconnue extends StatelessWidget {
+  const _BandeauPeriodeInconnue({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('tdb-periode-inconnue'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSpacing.mdPlus), // mb-5
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md, // px-4
+        vertical: AppSpacing.sm, // py-3
+      ),
+      decoration: BoxDecoration(
+        color: PaletteMaitre.ambre50,
+        border: Border.all(color: PaletteMaitre.ambre200),
+        borderRadius: BorderRadius.circular(AppRadius.roundedXl),
+      ),
+      child: Text(
+        "La période demandée (« $code ») n'existe pas. Les chiffres ci-dessous sont ceux de la période par défaut, « ${PeriodeTableauDeBord.parDefaut.libelle} » — ils ne répondent pas à la demande qui a été faite.",
+        style: styleExploitation(
+          TaillesContenu.t13,
+          couleur: PaletteMaitre.ambre900,
+        ),
+      ),
+    );
+  }
 }

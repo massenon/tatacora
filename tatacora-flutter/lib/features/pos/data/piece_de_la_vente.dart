@@ -1,6 +1,5 @@
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/calcul_tva.dart';
-import '../../comptabilite/domain/comptes_syscohada.dart';
 import '../../depenses/domain/categories_depense.dart';
 import '../domain/entities/mode_reglement.dart';
 import '../domain/messages_ventes.dart';
@@ -14,26 +13,54 @@ const String journalDesVentes = 'VTE';
 /// Les modules réellement encaissables — `VenteService::MODULES_ENCAISSABLES`,
 /// DANS CET ORDRE : c'est aussi l'ordre de la pièce (deux tickets portant les
 /// mêmes articles produisent la même pièce).
-const List<String> modulesEncaissables = ['M4', 'M5'];
+///
+/// Depuis le 22/10/2026 (directive du PO : « tourisme et location sont
+/// encaissables au comptoir, au poste comme au web »), M8 (location de
+/// véhicules, `tarif_jour`) et M9 (tourisme, `circuits.prix`) s'ajoutent à M4
+/// et M5 : ils ont un catalogue local d'où figer prix et libellé. Vente LIBRE
+/// de prestation — voir `CLAUDE.md`, « Tourisme et location au comptoir ».
+const List<String> modulesEncaissables = ['M4', 'M5', 'M8', 'M9'];
 
-/// Le compte de produits de chaque module — `VenteService::COMPTES_PRODUIT`.
-const Map<String, String> comptesProduitParModule = {
-  'M4': ComptesSyscohada.produitPrestations,
-  'M5': ComptesSyscohada.produitMarchandises,
+/// Les modules que le panier d'un SÉJOUR (note de chambre) porte : bar et
+/// restaurant. Le tourisme et la location s'encaissent au COMPTOIR, pas sur la
+/// note de chambre (`PosHeberges::MODULES_DU_SEJOUR` au serveur) ; la clôture
+/// d'un séjour qui en porterait une ligne est refusée, comme sur le web.
+const List<String> modulesEncaissablesAuSejour = ['M4', 'M5'];
+
+/// Le RÔLE du compte de produits de chaque module — `VenteService::ROLES_PRODUIT`.
+/// Le compte qu'un rôle désigne est celui de la correspondance (modifiable
+/// depuis le 26/10/2026), lu par le moteur au moment de passer la pièce ; ses
+/// défauts sont ceux de `ComptesSyscohada` : restaurant (M4) 7061, bar (M5)
+/// 7011, location de véhicules (M8) 7073 « Locations », tourisme (M9) 7061
+/// « services vendus » (le plan du PO n'a pas de compte dédié aux circuits ;
+/// validés par le PO le 26/10/2026).
+const Map<String, String> rolesProduitParModule = {
+  'M4': 'PRODUIT_PRESTATIONS',
+  'M5': 'PRODUIT_MARCHANDISES',
+  'M8': 'PRODUIT_LOCATIONS',
+  'M9': 'PRODUIT_CIRCUITS',
 };
 
-/// Le compte de TVA facturée de chaque module — `VenteService::COMPTES_TVA` :
-/// boissons revendues (M5) sur 4431, prestations servies (M4) sur 4432. Table
-/// « à valider par le comptable », comme `ComptesSyscohada`.
-const Map<String, String> comptesTvaParModule = {
-  'M4': ComptesSyscohada.tvaFactureePrestations,
-  'M5': ComptesSyscohada.tvaFactureeBiens,
+/// Le RÔLE de la TVA facturée de chaque module — `VenteService::ROLES_TVA` :
+/// boissons revendues (M5) sur 4431 par défaut, prestations servies (M4 repas,
+/// M8 location, M9 circuit) sur 4432 par défaut (validé par le PO le
+/// 26/10/2026).
+const Map<String, String> rolesTvaParModule = {
+  'M4': 'TVA_FACTUREE_PRESTATIONS',
+  'M5': 'TVA_FACTUREE_BIENS',
+  'M8': 'TVA_FACTUREE_PRESTATIONS',
+  'M9': 'TVA_FACTUREE_PRESTATIONS',
 };
 
 /// Le centre de coût de chaque module — `VenteService::CENTRES_PAR_MODULE` :
 /// les comptes 7061/7011 ne distinguent plus restaurant et bar, le centre le
-/// fait (RG-12).
-const Map<String, String> centresParModule = {'M4': 'Restaurant', 'M5': 'Bar'};
+/// fait (RG-12) ; de même « Tourisme » sur 7061 et « Véhicules » sur 7073.
+const Map<String, String> centresParModule = {
+  'M4': 'Restaurant',
+  'M5': 'Bar',
+  'M8': 'Véhicules',
+  'M9': 'Tourisme',
+};
 
 /// Un franc CFA vaut cent centimes de pièce (voir `piece_de_la_depense.dart`).
 const int _centimesParFranc = 100;
@@ -52,21 +79,21 @@ String libelleDeLaPiece(String panierId) {
   return '${MessagesVentes.libelleDeLaPiece(courte)} — $panierId';
 }
 
-/// Le compte de DÉBIT d'une vente selon le mode — `VenteService::
-/// compteDeContrepartie`.
+/// Le RÔLE du compte de DÉBIT d'une vente selon le mode — `VenteService::
+/// roleDeContrepartie`.
 ///
 /// `note_chambre` : aucune trésorerie ne bouge, la consommation devient une
-/// créance client (`4111`). Débiter la caisse gonflerait le fond de caisse d'un
-/// argent que personne n'a remis. Les quatre autres modes passent par la table
-/// de trésorerie des dépenses (`TresorerieDepense`, réplique de
-/// `DepenseService::TRESORERIES`), seule à faire foi : « carte » entre en
+/// créance client (rôle `CLIENTS`, 4111 par défaut). Débiter la caisse gonflerait
+/// le fond de caisse d'un argent que personne n'a remis. Les quatre autres modes
+/// passent par la table de trésorerie des dépenses (`TresorerieDepense`, réplique
+/// de `DepenseService::TRESORERIES`), seule à faire foi : « carte » entre en
 /// BANQUE, le TPE crédite le compte bancaire, jamais le tiroir.
-String compteDeContrepartie(ModeReglement mode) => switch (mode) {
-  ModeReglement.noteChambre => ComptesSyscohada.clients,
-  ModeReglement.especes => TresorerieDepense.caisse.compte,
-  ModeReglement.mobileMoney => TresorerieDepense.momo.compte,
-  ModeReglement.carte => TresorerieDepense.banque.compte,
-  ModeReglement.virement => TresorerieDepense.banque.compte,
+String roleDeContrepartie(ModeReglement mode) => switch (mode) {
+  ModeReglement.noteChambre => 'CLIENTS',
+  ModeReglement.especes => TresorerieDepense.caisse.role,
+  ModeReglement.mobileMoney => TresorerieDepense.momo.role,
+  ModeReglement.carte => TresorerieDepense.banque.role,
+  ModeReglement.virement => TresorerieDepense.banque.role,
 };
 
 /// La pièce comptable d'une vente — **fonction pure**, réplique de
@@ -115,18 +142,19 @@ DemandePiece pieceDeLaVente({
   }
 
   final lignes = <LigneDemandee>[
-    LigneDemandee(compte: compteDeContrepartie(mode), debitCentimes: total),
+    LigneDemandee(role: roleDeContrepartie(mode), debitCentimes: total),
   ];
 
   final tvaActive = tva.estActive;
   // Dans l'ordre d'insertion, comme le tableau PHP : le premier module qui
-  // porte de la TVA ouvre sa ligne.
-  final tvaParCompte = <String, int>{};
+  // porte de la TVA ouvre sa ligne. Groupée par RÔLE (deux rôles de TVA
+  // rattachés au même compte donnent deux lignes, comme au serveur).
+  final tvaParRole = <String, int>{};
 
   for (final e in ordonne.entries) {
     final module = e.key;
-    final compte = comptesProduitParModule[module];
-    if (compte == null) {
+    final roleProduit = rolesProduitParModule[module];
+    if (roleProduit == null) {
       throw RefusVente(
         MessagesVentes.compteProduitAbsent(
           MessagesVentes.modulesDuServeur[module] ?? module,
@@ -137,23 +165,23 @@ DemandePiece pieceDeLaVente({
     var credit = e.value;
     if (tvaActive) {
       final ht = tva.ventiler(e.value).htCentimes;
-      final compteTva = comptesTvaParModule[module]!;
-      tvaParCompte[compteTva] = (tvaParCompte[compteTva] ?? 0) + (e.value - ht);
+      final roleTva = rolesTvaParModule[module]!;
+      tvaParRole[roleTva] = (tvaParRole[roleTva] ?? 0) + (e.value - ht);
       credit = ht;
     }
 
     lignes.add(
       LigneDemandee(
-        compte: compte,
+        role: roleProduit,
         creditCentimes: credit,
         centreId: centreDuModule(module),
       ),
     );
   }
 
-  for (final e in tvaParCompte.entries) {
+  for (final e in tvaParRole.entries) {
     if (e.value > 0) {
-      lignes.add(LigneDemandee(compte: e.key, creditCentimes: e.value));
+      lignes.add(LigneDemandee(role: e.key, creditCentimes: e.value));
     }
   }
 

@@ -7,6 +7,7 @@ namespace App\Domain\Restaurant\Services;
 use App\Domain\Carte\MarquesDePrix;
 use App\Domain\Restaurant\Models\Menu;
 use App\Domain\Restaurant\Models\Plat;
+use App\Domain\Restaurant\Support\DescriptionPlat;
 use App\Domain\Stocks\Models\Article;
 use RuntimeException;
 
@@ -57,7 +58,7 @@ class CartePlatMenuService
             (string) ($donnees['libelle'] ?? ''),
         );
 
-        return Plat::create($donnees);
+        return Plat::create($this->normaliserDescription($donnees));
     }
 
     /**
@@ -82,7 +83,7 @@ class CartePlatMenuService
         // provisoire EST la correction manuelle. La déduction vit dans
         // `MarquesDePrix`, partagée avec le bar : la recopier ici la ferait
         // diverger de celle des boissons au premier ajustement.
-        $donnees = MarquesDePrix::completer($plat, $donnees);
+        $donnees = MarquesDePrix::completer($plat, $this->normaliserDescription($donnees));
 
         $plat->update($donnees);
 
@@ -151,6 +152,23 @@ class CartePlatMenuService
         $menu->update($donnees);
 
         return $menu->refresh();
+    }
+
+    /**
+     * La description facultative (30/10/2026) : trim, vide = `null`. Absente du
+     * lot, elle n'est PAS ajoutée (une modification qui ne la soumet pas la
+     * laisse en place).
+     *
+     * @param  array<string, mixed>  $donnees
+     * @return array<string, mixed>
+     */
+    private function normaliserDescription(array $donnees): array
+    {
+        if (array_key_exists('description', $donnees)) {
+            $donnees['description'] = DescriptionPlat::normaliser($donnees['description']);
+        }
+
+        return $donnees;
     }
 
     /**

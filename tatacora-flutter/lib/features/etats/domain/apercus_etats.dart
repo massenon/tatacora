@@ -1,4 +1,6 @@
 import '../../achats/domain/decimal_texte.dart';
+import '../../comptabilite/domain/etats_financiers.dart'
+    show DonneesEtats, balanceDe;
 import '../../comptabilite/domain/montant_comptable.dart'
     show chaineDepuisCentimes;
 import '../../crm/domain/entities/registre_clients.dart';
@@ -96,7 +98,9 @@ ApercuEtat _apercu(
   required List<List<String>> lignes,
   List<String> mentions = const [],
   List<String>? libellesIndicateurs,
+  List<String>? entetes,
 }) {
+  final colonnes = entetes ?? etat.entetes;
   final libelles = libellesIndicateurs ?? etat.indicateurs;
   assert(
     libelles.length == valeurs.length,
@@ -105,8 +109,8 @@ ApercuEtat _apercu(
   );
   for (final l in lignes) {
     assert(
-      l.length == etat.entetes.length,
-      '${etat.code} : ${l.length} cellules pour ${etat.entetes.length} '
+      l.length == colonnes.length,
+      '${etat.code} : ${l.length} cellules pour ${colonnes.length} '
       'colonnes — un décalage place chaque valeur sous le mauvais intitulé.',
     );
   }
@@ -119,7 +123,7 @@ ApercuEtat _apercu(
       for (var i = 0; i < valeurs.length; i++)
         IndicateurApercu(libelles[i], valeurs[i]),
     ],
-    entetes: etat.entetes,
+    entetes: colonnes,
     lignes: lignes,
     mentions: mentions,
   );
@@ -139,7 +143,7 @@ String _arreteAu(EtatLocal etat, DateTime maintenant) =>
 /// lit un solde de `0.00` et le range « sous seuil » (D146). Ici il se lit
 /// « non suivi » et « — », jamais « 0 ».
 const String phraseVentesSansSortie =
-    'Ce stock ne compte que les mouvements saisis sur ce poste : les ventes '
+    'Ce stock ne compte que les mouvements saisis ici : les ventes '
     'du bar et du restaurant n\'y écrivent aucune sortie, il peut donc '
     'dépasser le stock réel d\'autant.';
 
@@ -334,35 +338,93 @@ ApercuEtat apercuParcVehicules(
   );
 }
 
+/// `etats_m14.locations.col_statut` — la colonne ajoutée par la case « Inclure
+/// les contrats annulés » (`pwa.etats.inclure_annules`). Libellés relus du
+/// serveur par `registre_contre_serveur_test.dart`.
+const String colonneStatutLocations = 'Statut';
+
+/// `etats_m14.locations.annules_exclus` / `annules_inclus` : ce que la période
+/// de l'état DIT des contrats annulés.
+const String annulesExclusLocations = 'contrats annulés exclus';
+const String annulesInclusLocations =
+    'contrats annulés inclus, non comptés dans les totaux';
+
+/// `vehicules.pwa.contrat_actif` / `contrat_annule` : le statut d'un contrat.
+const String statutActifLocations = 'Actif';
+const String statutAnnuleLocations = 'Annulé';
+
+/// L'état « Locations » (M8) — `EtatLocations::calculer`.
+///
+/// ## Les contrats annulés (PRD corrections Locations R4/R5, décision du PO du
+/// 28/10/2026)
+///
+/// Case [inclureAnnules] DÉCOCHÉE par défaut = `inclure_annules` absent au
+/// serveur : les annulés sont exclus des lignes, du nombre et du montant (B1).
+/// COCHÉE : ils sont ajoutés, avec les MÊMES garanties que le serveur :
+///
+///  - un annulé n'est JAMAIS compté : ni dans « Contrats », ni dans « Montant
+///    total » (les totaux sont identiques case cochée ou non) ;
+///  - il est listé À PART, après tous les contrats actifs, avec la colonne
+///    « Statut » (ajoutée seulement case cochée) et une cellule « Montant »
+///    VIDE (« — ») : son montant théorique, dans la colonne qu'on additionne,
+///    ferait lire un total faux ;
+///  - la période de l'état DIT si les annulés sont exclus ou inclus.
 ApercuEtat apercuLocations(
-  List<ContratLocation> contrats,
-  List<Vehicule> parc,
-) {
+  List<ContratLocation> tousLesContrats,
+  List<Vehicule> parc, {
+  bool inclureAnnules = false,
+}) {
   const modele = EtatLocal.locationsVehicules;
+  final contrats = [
+    for (final c in tousLesContrats)
+      if (c.statut != statutContratAnnule) c,
+  ];
+  final annulesListes = [
+    for (final c in tousLesContrats)
+      if (c.statut == statutContratAnnule) c,
+  ];
+  final annules = annulesListes.length;
   final categorieDe = {
     for (final v in parc) v.immatriculation: v.categorieBrute,
   };
-  final montant = Somme.de(contrats.map((c) => c.montant));
+  // Le montant FIGÉ à la signature (v41) ; un contrat d'avant n'en a pas (`null`) :
+  // case vide et hors du cumul, jamais le tarif d'aujourd'hui.
+  final montant = Somme.de(contrats.map((c) => c.montant ?? ''));
+  final sansMontant = contrats.where((c) => c.montant == null).length;
+
+  List<String> ligne(ContratLocation c, {required bool annule}) => [
+    c.clientNom ?? '',
+    '${categorieDe[c.immatriculation] ?? tiretApercu} — ${c.immatriculation}',
+    dateIsoServeur(c.debut),
+    dateIsoServeur(c.fin),
+    '${c.nombreJours}',
+    // Un annulé n'a pas de montant dans l'état : cellule vide.
+    annule || c.montant == null ? '' : _montantEcrit(c.montant!),
+    if (inclureAnnules) annule ? statutAnnuleLocations : statutActifLocations,
+  ];
 
   return _apercu(
     modele,
-    periode: modele.periode!,
+    periode:
+        '${modele.periode!} · '
+        '${inclureAnnules ? annulesInclusLocations : annulesExclusLocations}',
     valeurs: ['${contrats.length}', montant.ecrite],
+    entetes: [...modele.entetes, if (inclureAnnules) colonneStatutLocations],
     lignes: [
-      for (final c in contrats)
-        [
-          c.clientNom ?? '',
-          '${categorieDe[c.immatriculation] ?? tiretApercu} — ${c.immatriculation}',
-          dateIsoServeur(c.debut),
-          dateIsoServeur(c.fin),
-          '${c.nombreJours}',
-          _montantEcrit(c.montant),
-        ],
+      for (final c in contrats) ligne(c, annule: false),
+      if (inclureAnnules)
+        for (final c in annulesListes) ligne(c, annule: true),
     ],
-    mentions: const [
-      'Le montant d\'un contrat est recalculé au tarif courant du véhicule : '
-          'aucune colonne ne le fige à la signature (constaté le 10/10/2026). '
-          'Modifier la grille réécrit les contrats déjà signés.',
+    mentions: [
+      if (annules > 0 && !inclureAnnules)
+        '$annules contrat(s) annulé(s) exclu(s) de l\'état.',
+      if (annules > 0 && inclureAnnules)
+        '$annules contrat(s) annulé(s) listé(s) à part, non comptés dans les '
+            'totaux.',
+      if (sansMontant > 0)
+        '$sansMontant contrat(s) sans montant connu (signé avant que ce poste '
+            'le fige, et pas encore reçu du serveur) : case vide, hors du '
+            'cumul.',
     ],
   );
 }
@@ -434,8 +496,8 @@ ApercuEtat apercuReservations(
         : modele.indicateurs.sublist(0, 3),
     lignes: lignes,
     mentions: [
-      'Le statut est déduit des dates (À venir, En cours, Terminée) : ce poste '
-          'n\'enregistre ni confirmation ni arrivée. Les réservations '
+      'Le statut est déduit des dates (À venir, En cours, Terminée) : '
+          'ni confirmation ni arrivée n\'est enregistrée. Les réservations '
           'annulées sont exclues, comme au serveur.',
       if (sansTarif > 0)
         '$sansTarif réservation(s) sans tarif figé : hors des montants, '
@@ -488,8 +550,7 @@ ApercuEtat apercuVentes(List<Vente> ventes, {int paniersOuverts = 0}) {
     ],
     lignes: lignes,
     mentions: [
-      'N° : identifiant local abrégé de la vente — aucune séquence de numéros '
-          'de vente n\'existe sur ce poste.',
+      'N° : identifiant abrégé de la vente.',
       if (sansMode > 0)
         '$sansMode vente(s) sans mode de règlement : « Encaissée » se lit '
             '« — », elles ne sont pas comptées parmi les encaissées.',
@@ -537,15 +598,15 @@ ApercuEtat apercuDepenses(List<Depense> depenses) {
         ],
     ],
     mentions: [
-      'N° : aucune séquence de numéros de dépense n\'existe sur ce poste.',
+      'N° : identifiant abrégé de la dépense.',
       if (depenses.any((d) => !d.estComptabilisee && !d.pieceAuServeur))
         'Écriture : « Absente » pour ${depenses.where((d) => !d.estComptabilisee && !d.pieceAuServeur).length} '
-            'dépense(s) saisie(s) avant que ce poste passe une pièce '
+            'dépense(s) saisie(s) avant le passage d\'une pièce '
             'comptable ; elles manquent au grand livre tant que leur pièce '
-            'n\'est pas passée (constaté le 10/10/2026).'
+            'n\'est pas passée.'
       else
         'Écriture : « Passée » pour chaque dépense de cette liste, lue de la '
-            'pièce comptable qu\'elle porte (constaté le 10/10/2026).',
+            'pièce comptable qu\'elle porte.',
     ],
   );
 }
@@ -624,8 +685,7 @@ ApercuEtat apercuTourisme(
     ],
     mentions: [
       'Le montant est le prix actuel du circuit multiplié par les '
-          'participants : aucune colonne ne le fige à la réservation '
-          '(constaté le 10/10/2026).',
+          'participants : aucune colonne ne le fige à la réservation.',
       if (illisibles > 0)
         '$illisibles réservation(s) de statut inconnu écartée(s) : hors des '
             'comptes et des montants.',
@@ -731,6 +791,75 @@ ApercuEtat apercuCreancesClients(
           '${l.nbPieces}',
           chaineDepuisCentimes(l.soldeCentimes),
         ],
+    ],
+  );
+}
+
+/// L'exercice le plus récent des [donnees], ou `null` : l'état n'en a pas.
+int? exerciceDeLaBalance(DonneesEtats donnees) => donnees.statutParAnnee.isEmpty
+    ? null
+    : donnees.statutParAnnee.keys.reduce((a, b) => a > b ? a : b);
+
+/// La phrase du serveur quand aucun exercice n'a jamais été ouvert
+/// (`etats_m14.balance.aucun_exercice`).
+const String balanceSansExercice =
+    "Aucun exercice comptable n'a encore été ouvert.";
+
+/// `EtatBalance` : la balance générale de l'exercice le plus récent, par
+/// compte, en montants `decimal:2`. Réutilise `balanceDe` — LA MÊME
+/// agrégation que l'onglet « Balance générale » du hub et que l'état
+/// financier (à-nouveaux provisoires compris), jamais une seconde requête.
+///
+/// Écart nommé : le serveur lit par défaut tous les statuts ; ce poste ne
+/// calcule ses états que sur les écritures VALIDÉES (les seules qui font foi),
+/// et le dit en mention.
+ApercuEtat apercuBalance(DonneesEtats donnees) {
+  const modele = EtatLocal.balance;
+  final annee = exerciceDeLaBalance(donnees)!;
+  final balance = balanceDe(annee, donnees);
+  final lignes = [...balance.lignes]
+    ..sort((a, b) => a.numeroCompte.compareTo(b.numeroCompte));
+  var debit = 0;
+  var credit = 0;
+  var soldesDebiteurs = 0;
+  var soldesCrediteurs = 0;
+  final cellules = <List<String>>[];
+  for (final l in lignes) {
+    debit += l.debitCentimes;
+    credit += l.creditCentimes;
+    final net = l.debitCentimes - l.creditCentimes;
+    final sd = net > 0 ? net : 0;
+    final sc = net < 0 ? -net : 0;
+    soldesDebiteurs += sd;
+    soldesCrediteurs += sc;
+    cellules.add([
+      l.numeroCompte,
+      l.libelle,
+      chaineDepuisCentimes(l.debitCentimes),
+      chaineDepuisCentimes(l.creditCentimes),
+      chaineDepuisCentimes(sd),
+      chaineDepuisCentimes(sc),
+    ]);
+  }
+  final equilibree = debit == credit && soldesDebiteurs == soldesCrediteurs;
+  return ApercuEtat(
+    code: modele.code,
+    titre: 'Balance générale — Exercice $annee',
+    periode: 'Du 01/01/$annee au 31/12/$annee',
+    moduleSource: modele.module.code,
+    indicateurs: [
+      IndicateurApercu(modele.indicateurs[0], '${lignes.length}'),
+      IndicateurApercu(modele.indicateurs[1], chaineDepuisCentimes(debit)),
+      IndicateurApercu(modele.indicateurs[2], chaineDepuisCentimes(credit)),
+      IndicateurApercu(modele.indicateurs[3], equilibree ? 'Oui' : 'Non'),
+    ],
+    entetes: modele.entetes,
+    lignes: cellules,
+    mentions: [
+      if (balance.aNouveauxProvisoiresDe != null)
+        "À-nouveaux provisoires : l'exercice ${balance.aNouveauxProvisoiresDe} "
+            "n'est pas clôturé, ses soldes sont reportés sans l'être définitivement.",
+      'Écritures validées seulement.',
     ],
   );
 }

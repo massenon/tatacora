@@ -147,7 +147,7 @@ final class MoteurEtatsTest extends TestCase
         $this->assertSame($stocks->email, $autre->email);
         $this->assertSame($stocks->siteWeb, $autre->siteWeb);
         $this->assertSame($stocks->mentionsLegales(), $autre->mentionsLegales());
-        $this->assertSame($stocks->mentionInstitutionnelle, $autre->mentionInstitutionnelle);
+        $this->assertSame($stocks->lignesIdentite(), $autre->lignesIdentite());
         $this->assertSame($stocks->auteur, $autre->auteur);
 
         // ...seuls le titre et la période distinguent les deux documents.

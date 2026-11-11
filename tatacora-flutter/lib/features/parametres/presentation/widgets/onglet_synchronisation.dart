@@ -13,6 +13,7 @@ import '../../../../shared_widgets/bouton_standard.dart';
 import '../../../synchronisation/domain/appairage.dart';
 import '../../../synchronisation/presentation/providers_synchronisation.dart';
 import '../../../transverse/data/configuration_poste.dart';
+import 'cartes_adresse_serveur.dart';
 
 /// Les mots de l'onglet « Synchronisation » (lot F2a, 15/10/2026). La vue
 /// de Paramètres n'a pas cet onglet : c'est un AJOUT du poste (le serveur
@@ -24,6 +25,17 @@ abstract final class TextesOngletSynchronisation {
       'en tâche de fond, sans jamais bloquer un écran. Pour cela, un '
       'Administrateur l’appaire UNE fois avec un compte du serveur : le mot '
       'de passe sert à obtenir un jeton, il n’est enregistré nulle part.';
+  static const interrupteur = 'Synchronisation activée';
+  static const aideActivee =
+      'Le poste envoie ses opérations au serveur et reçoit le catalogue en '
+      'tâche de fond.';
+  static const aideDesactivee =
+      'Désactivée : ce poste travaille seul, sans aucune connexion au '
+      'serveur. Tout reste enregistré ici ; les opérations en attente '
+      'partiront à la réactivation, dans l’ordre.';
+  static const interrupteurEchec =
+      'L’interrupteur n’a pas pu être enregistré : le fichier de '
+      'configuration du poste est inaccessible.';
   static const champIdentifiant = 'Identifiant (compte serveur)';
   static const champMotDePasse = 'Mot de passe (compte serveur)';
   static const champNomPoste = 'Nom du poste';
@@ -92,12 +104,20 @@ class OngletSynchronisation extends ConsumerStatefulWidget {
 class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
   final _identifiant = TextEditingController();
   final _motDePasse = TextEditingController();
-  late final TextEditingController _nomPoste = TextEditingController(
-    text: ref.read(nomPosteParDefautProvider),
-  );
+  late final TextEditingController _nomPoste;
   bool _occupe = false;
   String? _message;
   bool _messageErreur = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Posé ici et non à la première lecture : `dispose` ne doit pas lire
+    // `ref` d'un widget déjà démonté (vue d'un non-administrateur).
+    _nomPoste = TextEditingController(
+      text: ref.read(nomPosteParDefautProvider),
+    );
+  }
 
   @override
   void dispose() {
@@ -149,8 +169,8 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
   }
 
   /// Le lien vers l'écran de synchronisation (lot F2b) — offert à qui voit
-  /// l'onglet, administrateur ou non : l'écran se LIT avec le droit sur
-  /// Paramètres, ses gestes restent réservés aux Administrateurs.
+  /// l'onglet, administrateur ou non : l'écran est ouvert à TOUS les rôles (10/11/2026) :
+  /// relancer, corriger et débloquer y sont ouverts à tous ; seul l'appairage reste administrateur.
   Widget _lienEcran(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -204,6 +224,10 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
           TextesOngletSynchronisation.intro,
           style: _style(TaillesContenu.t13, couleur: AppColors.neutre600),
         ),
+        const SizedBox(height: AppSpacing.md),
+        _interrupteur(),
+        const SizedBox(height: AppSpacing.md),
+        const CartesAdresseServeur(),
         const SizedBox(height: AppSpacing.md),
         appairage.when(
           loading: () => const LinearProgressIndicator(),
@@ -319,6 +343,53 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
             ),
           ),
         ],
+      ],
+    );
+  }
+
+  /// La bascule « Synchronisation activée » (Administrateurs).
+  Widget _interrupteur() {
+    final activee = ref.watch(synchronisationActiveeProvider).value ?? true;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Switch(
+          key: const Key('sync-interrupteur'),
+          value: activee,
+          onChanged: _occupe
+              ? null
+              : (v) => _geste(() async {
+                  await ref.read(basculerSynchronisationProvider)(
+                    v,
+                    par: ref.read(sessionProvider)?.login ?? '',
+                  );
+                  return (
+                    v
+                        ? TextesOngletSynchronisation.aideActivee
+                        : TextesOngletSynchronisation.aideDesactivee,
+                    false,
+                  );
+                }),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                TextesOngletSynchronisation.interrupteur,
+                style: _style(TaillesContenu.t13, poids: FontWeight.w600),
+              ),
+              Text(
+                activee
+                    ? TextesOngletSynchronisation.aideActivee
+                    : TextesOngletSynchronisation.aideDesactivee,
+                key: const Key('sync-interrupteur-aide'),
+                style: _style(TaillesContenu.t13, couleur: AppColors.neutre600),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

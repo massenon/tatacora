@@ -162,6 +162,31 @@ final class Reservation {
 
   int get nuits => periode.nuits;
 
+  /// TOUTES les chambres de la réservation (multi-chambres, décision du PO du 10/11/2026) :
+  /// la principale ([uniteId]) puis les chambres SUPPLÉMENTAIRES, qui sont des lignes
+  /// d'hébergement dont l'unité diffère. Sans doublon.
+  List<String> get uniteIds => [
+    uniteId,
+    ...{
+      for (final l in lignes)
+        if (l.service == ServiceReservation.hebergement && l.itemId != uniteId)
+          l.itemId,
+    },
+  ];
+
+  /// Le tarif de nuit de TOUTES les chambres : la principale ([tarifNuit]) plus le tarif figé de
+  /// chaque chambre SUPPLÉMENTAIRE (multi-chambres, 10/11/2026). Ce que la facture de séjour
+  /// compte par nuitée — comme `EmissionFactureService` du serveur.
+  int get tarifNuitTotal =>
+      tarifNuit +
+      lignes
+          .where(
+            (l) =>
+                l.service == ServiceReservation.hebergement &&
+                l.itemId != uniteId,
+          )
+          .fold(0, (somme, l) => somme + l.prixUnitaire);
+
   /// Somme des lignes de service, en francs CFA.
   int get sousTotalServices =>
       lignes.fold(0, (somme, ligne) => somme + ligne.sousTotal);

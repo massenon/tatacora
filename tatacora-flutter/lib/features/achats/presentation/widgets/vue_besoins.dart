@@ -47,8 +47,9 @@ import 'modale_commande.dart';
 /// comme au serveur (D132) — seule une entrée de la modale « Mouvement » de M6
 /// (ou l'ouverture d'un article) en porte un. Il est affiché, et « — » reste la
 /// valeur d'un article jamais valorisé, réceptionné ou non. Ce n'est jamais le
-/// **coût moyen pondéré** (une moyenne d'achats passés) : il ne pré-remplit pas
-/// non plus le prix unitaire de la commande.
+/// **coût moyen pondéré** (une moyenne d'achats passés). Celui-ci, en revanche,
+/// pré-remplit le prix unitaire de la commande — comme la vue — quand il est
+/// connu (voir `commander`).
 /// L'export, lui, garde la portée du calcul et le coût moyen pondéré sous leur
 /// vrai nom.
 ///
@@ -174,8 +175,14 @@ class EtatVueBesoins extends ConsumerState<VueBesoins> {
             libelle: l.libelle,
             uniteMesure: l.uniteMesure,
             quantite: _quantites[l.id]!,
-            // Vide, jamais le coût moyen pondéré : voir `ouvrirModaleCommande`.
-            prixUnitaire: '',
+            // PRÉ-REMPLI avec le coût moyen pondéré connu de l'article, comme la
+            // vue (`prix_unitaire` = `cout_moyen_pondere`) et comme elle le dit
+            // au-dessus de la grille : c'est une valorisation d'achats passés,
+            // PAS un tarif négocié. Un article sans entrée valorisée n'a pas de
+            // coût (« — ») : le champ reste VIDE, jamais un « 0.00 » plausible.
+            prixUnitaire: l.cmpInconnu
+                ? ''
+                : arrondirAuCentieme(l.coutMoyenPondere) ?? '',
           ),
     ];
 
@@ -314,6 +321,8 @@ class EtatVueBesoins extends ConsumerState<VueBesoins> {
           alignment: Alignment.centerLeft,
           child: Checkbox(
             key: Key('besoin-coche-${l.id}'),
+            // `aria-label` de la vue (`achats_pwa.tableau.selection_ligne`).
+            semanticLabel: 'Sélectionner cette ligne',
             value: _coche(l.id),
             onChanged: (v) => setState(() {
               if (v ?? false) {

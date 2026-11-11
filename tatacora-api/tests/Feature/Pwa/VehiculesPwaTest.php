@@ -537,6 +537,7 @@ final class VehiculesPwaTest extends TestCase
         foreach ([
             \App\Pwa\Livewire\Transverse\ClocheNotifications::class,
             \App\Pwa\Livewire\Transverse\RechercheGlobale::class,
+            \App\Pwa\Livewire\Transverse\SynchronisationBarre::class,
         ] as $imbrique) {
             foreach ((new \ReflectionClass($imbrique))->getMethods(\ReflectionMethod::IS_PUBLIC) as $m) {
                 $publiques[] = $m->getName();

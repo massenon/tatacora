@@ -7,6 +7,7 @@ namespace App\Shared\Rbac\Services;
 use App\Shared\Rbac\Models\Permission;
 use App\Shared\Rbac\Models\Role;
 use Database\Seeders\RolePermissionSeeder;
+use App\Shared\Sync\Services\EpoqueSynchronisation;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -70,7 +71,7 @@ class RolePermissionService
             throw new RuntimeException(__('pwa.roles.libelle_requis'));
         }
 
-        return DB::transaction(function () use ($libellePropre, $description, $id): Role {
+        $cree = DB::transaction(function () use ($libellePropre, $description, $id): Role {
             $existe = Role::query()
                 ->where('libelle', $libellePropre)
                 ->lockForUpdate()
@@ -80,13 +81,33 @@ class RolePermissionService
                 throw new RuntimeException(__('pwa.roles.role_deja_existant', ['libelle' => $libellePropre]));
             }
 
-            return Role::create([
+            $role = Role::create([
                 // L'UUID du poste quand le rôle y est né (synchronisation).
                 ...($id !== null ? ['id' => $id] : []),
                 'libelle' => $libellePropre,
                 'description' => filled($description) ? trim($description) : null,
             ]);
+
+            // « Mon profil » (03/11/2026, décision du PO) : modifier SON nom
+            // et SON téléphone est ouvert à tous les rôles par défaut, y
+            // compris un rôle ajouté. Le seul écart au « rôle fermé » ; tout
+            // le reste n'obtient un droit que si quelqu'un le lui donne.
+            foreach (RolePermissionSeeder::DROITS_PROFIL_POUR_TOUS as $module) {
+                $this->synchroniserSansGarde($role, $module, 'C');
+            }
+
+            // Les trois entrées de menu ouvertes à tous (09/11/2026) : la
+            // LECTURE, y compris pour un rôle ajouté.
+            foreach (RolePermissionSeeder::DROITS_OUVERTS_A_TOUS as $module) {
+                $this->synchroniserSansGarde($role, $module, 'L');
+            }
+
+            return $role->refresh();
         });
+
+        $this->annoncerAuxPostes();
+
+        return $cree;
     }
 
     /**
@@ -105,7 +126,7 @@ class RolePermissionService
             throw new RuntimeException(__('pwa.roles.verrouillage_administrateur'));
         }
 
-        return DB::transaction(function () use ($role, $module, $niveau): Role {
+        $modifie = DB::transaction(function () use ($role, $module, $niveau): Role {
             $actions = self::ACTIONS_PAR_NIVEAU[$niveau];
 
             $idsAGarder = [];
@@ -128,20 +149,32 @@ class RolePermissionService
 
             return $role->refresh();
         });
+
+        $this->annoncerAuxPostes();
+
+        return $modifie;
     }
 
     /**
      * Rétablit la matrice du CdCF sur les rôles du SOCLE — jamais ceux
      * ajoutés depuis cet écran (voir l'en-tête).
      *
+     * `$seulement` (10/11/2026) borne le rétablissement à des rôles NOMMÉS du
+     * socle (commande `roles:realigner-socle --role=barman`) ; `null` = tous.
+     *
+     * @param  list<string>|null  $seulement  libellés de rôles du socle
      * @return int le nombre de rôles réellement rétablis
      */
-    public function retablirSocle(): int
+    public function retablirSocle(?array $seulement = null): int
     {
-        return DB::transaction(function (): int {
+        $restaures = DB::transaction(function () use ($seulement): int {
             $restaures = 0;
 
             foreach (RolePermissionSeeder::MATRICE as $libelle => $droits) {
+                if ($seulement !== null && ! in_array($libelle, $seulement, true)) {
+                    continue;
+                }
+
                 $role = Role::query()->where('libelle', $libelle)->lockForUpdate()->first();
 
                 if ($role === null) {
@@ -159,6 +192,38 @@ class RolePermissionService
 
             return $restaures;
         });
+
+        if ($restaures > 0) {
+            $this->annoncerAuxPostes();
+        }
+
+        return $restaures;
+    }
+
+    /**
+     * L'ÉCART d'un rôle au socle : `module => [niveau_actuel, niveau_du_socle]`
+     * pour chaque colonne qui diffère ; `[]` si conforme ; `null` si le rôle
+     * n'appartient pas au socle (rôle créé à l'écran).
+     *
+     * @return array<string, array{0: string, 1: string}>|null
+     */
+    public function ecartAuSocle(Role $role): ?array
+    {
+        $matrice = RolePermissionSeeder::MATRICE[$role->libelle] ?? null;
+
+        if ($matrice === null) {
+            return null;
+        }
+
+        $ecart = [];
+        foreach ($matrice as $module => $niveau) {
+            $actuel = $role->niveauSurModule($module);
+            if ($actuel !== $niveau) {
+                $ecart[$module] = [$actuel, $niveau];
+            }
+        }
+
+        return $ecart;
     }
 
     /**
@@ -189,6 +254,17 @@ class RolePermissionService
      * `administrateur`, ce que la garde autorise déjà — mais l'appeler ICI
      * évite toute dépendance d'ordre dans la boucle du dessus.
      */
+    /**
+     * Un rôle vient de changer au serveur (10/11/2026, PO : « si l'admin modifie le RBAC, l'application
+     * doit prendre en compte le rôle modifié et le synchroniser ») : l'ÉPOQUE de synchronisation
+     * avance, les postes la lisent au battement de 30 s et DESCENDENT tout de suite le rôle (et
+     * le recopient sur leurs comptes) au lieu d'attendre le passage complet de 5 minutes.
+     */
+    private function annoncerAuxPostes(): void
+    {
+        app(EpoqueSynchronisation::class)->incrementer();
+    }
+
     private function synchroniserSansGarde(Role $role, string $module, string $niveau): void
     {
         $actions = self::ACTIONS_PAR_NIVEAU[$niveau] ?? [];

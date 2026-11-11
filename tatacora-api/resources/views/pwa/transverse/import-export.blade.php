@@ -29,7 +29,7 @@
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1200px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         <div class="mb-6">
           <div class="flex items-center gap-2.5">
@@ -42,6 +42,7 @@
         <div class="flex flex-wrap gap-2 mb-5">
           <button type="button" wire:click="$set('onglet', 'importer')"
                   class="{{ \App\Pwa\Support\Onglets::classes($onglet === 'importer') }}">{{ __('pwa.import_export.onglet_importer') }}</button>
+          @if ($accesAdministration)
           <button type="button" wire:click="$set('onglet', 'sauvegardes')"
                   class="{{ \App\Pwa\Support\Onglets::classes($onglet === 'sauvegardes') }}">{{ __('pwa.import_export.onglet_sauvegardes') }}</button>
           <button type="button" wire:click="$set('onglet', 'restaurer')"
@@ -51,8 +52,7 @@
               <span class="ml-1 text-[10px] font-bold text-white rounded-full px-1.5 py-0.5" style="background:var(--gold)">{{ $nombreRestaurables }}</span>
             @endif
           </button>
-          <button type="button" wire:click="$set('onglet', 'seeders')"
-                  class="{{ \App\Pwa\Support\Onglets::classes($onglet === 'seeders') }}">{{ __('pwa.import_export.onglet_seeders') }}</button>
+          @endif
         </div>
 
         {{-- ============================================ ONGLET 1 : IMPORTER --}}
@@ -132,7 +132,7 @@
                 <div class="flex items-start justify-between gap-3 mb-1">
                   <h2 class="text-sm font-bold text-slate-700">{{ __('pwa.import_export.importer_modele_titre') }}</h2>
                   @if ($peutEcrire)
-                    <button type="button" wire:click="telechargerModeleCsv" @if ($moduleChoisi === null) disabled @endif
+                    <button type="button" wire:click="telechargerModele" @if ($moduleChoisi === null) disabled @endif
                             class="btn shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg text-white text-[13px] font-semibold disabled:opacity-50" style="background:var(--gold)">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                       {{ __('pwa.import_export.importer_modele_bouton') }}
@@ -143,6 +143,13 @@
                   {{ __('pwa.import_export.importer_modele_aide_1') }}
                   <strong>{{ __('pwa.import_export.importer_modele_aide_format') }}</strong>.
                 </p>
+                @if ($peutEcrire && $moduleChoisi !== null && in_array($moduleChoisi->cle, \App\Shared\ImportExport\Services\CarteGiteChezNoelService::MODULES, true))
+                  <p class="text-[13px] text-slate-500 mt-3">
+                    <button type="button" wire:click="telechargerExempleGite"
+                            class="text-[13px] font-semibold underline" style="color:var(--navy)">{{ __('pwa.import_export.importer_gite_bouton') }}</button>
+                    — {{ __('pwa.import_export.importer_gite_aide') }}
+                  </p>
+                @endif
               </div>
 
               <div class="bg-white rounded-xl border border-slate-200 p-5">
@@ -167,7 +174,7 @@
                      zone cliquable, comme au maître (l.92) : un champ interne
                      ferait boucler le clic programmatique sur son parent. --}}
                 @if ($moduleChoisi !== null && $peutEcrire)
-                  <input type="file" accept=".csv,text/csv" x-ref="fichier" wire:model="fichierImport" class="hidden">
+                  <input type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" x-ref="fichier" wire:model="fichierImport" class="hidden">
                 @endif
                 </div>
                 @if ($fichierImport !== null)
@@ -311,7 +318,7 @@
                     <div class="px-5 py-3">
                       <p class="text-[15px] font-semibold text-slate-700">{{ \App\Shared\ImportExport\Data\ReferentielsImport::parCle($entree->module_cle)?->nom ?? $entree->module_cle }}</p>
                       <p class="text-[13px] text-slate-500">{{ __('pwa.import_export.historique_lignes', ['nombre' => $entree->nombre_lignes]) }}</p>
-                      <p class="text-[12px] text-slate-400 mt-0.5">{{ $entree->date_heure->format('d/m/Y H:i') }} · {{ $entree->utilisateur?->login ?? '—' }}</p>
+                      <p class="text-[12px] text-slate-400 mt-0.5">{{ \App\Shared\Support\HeureLocale::formater($entree->date_heure, 'd/m/Y H:i') }} · {{ $entree->utilisateur?->libelleAuteur() ?? '—' }}</p>
                     </div>
                   @empty
                     <p class="px-5 py-8 text-center text-[13px] text-slate-400">{{ __('pwa.import_export.historique_vide') }}</p>
@@ -322,6 +329,7 @@
           </div>
         </section>
 
+        @if ($accesAdministration)
         {{-- ========================================= ONGLET 2 : SAUVEGARDES --}}
         <section data-panneau-ie="sauvegardes" class="@if ($onglet !== 'sauvegardes') hidden @endif">
           {{-- Bandeau (maquette l.157, rendu de `rendreBandeauSauvegarde`) :
@@ -416,7 +424,7 @@
                         <span class="text-[13px] font-mono-tatacora font-semibold text-slate-700">{{ $fichier['nom'] }}</span>
                         <span class="block text-[12px] text-slate-400">{{ number_format($fichier['taille'] / 1024, 0, ',', ' ') }} Ko{{ $fichier['telechargee'] ? '' : ' · '.__('pwa.import_export.sauvegarde_non_telechargee') }}</span>
                       </td>
-                      <td class="px-5 py-3 text-[13px] text-slate-600 whitespace-nowrap">{{ $fichier['date']->format('d/m/Y') }}<span class="block text-[12px] text-slate-400">{{ $fichier['date']->format('H:i') }}</span></td>
+                      <td class="px-5 py-3 text-[13px] text-slate-600 whitespace-nowrap">{{ $fichier['date']->format('d/m/Y') }}<span class="block text-[12px] text-slate-400">{{ \App\Shared\Support\HeureLocale::formater($fichier['date'], 'H:i') }}</span></td>
                       <td class="px-5 py-3 text-[13px] text-slate-600">{{ __('pwa.import_export.sauvegarde_contenu') }}</td>
                       <td class="px-5 py-3 text-right whitespace-nowrap">
                         @if ($peutEcrire)
@@ -489,8 +497,8 @@
                       </td>
                       <td class="px-5 py-3 text-[13px] text-slate-600">{{ \App\Pwa\Livewire\Transverse\RolesPermissions::MODULES[$entree['module']] ?? $entree['module'] }}</td>
                       <td class="px-5 py-3 text-[13px] text-slate-600 whitespace-nowrap">
-                        {{ $entree['archive_le']?->format('d/m/Y') ?? '—' }}
-                        <span class="block text-[12px] text-slate-400">{{ $entree['archive_le']?->format('H:i') ?? '' }}</span>
+                        {{ \App\Shared\Support\HeureLocale::formater($entree['archive_le'], 'd/m/Y') ?? '—' }}
+                        <span class="block text-[12px] text-slate-400">{{ \App\Shared\Support\HeureLocale::formater($entree['archive_le'], 'H:i') ?? '' }}</span>
                       </td>
                       <td class="px-5 py-3 text-[13px] text-slate-600">{{ $entree['archive_par'] ?? '—' }}</td>
                       <td class="px-5 py-3 text-right whitespace-nowrap">
@@ -519,139 +527,11 @@
             </div>
           </div>
         </section>
-
-        {{-- ====================================== ONGLET 4 : RÉINITIALISER --}}
-        <section data-panneau-ie="seeders" class="@if ($onglet !== 'seeders') hidden @endif">
-          @unless ($reinitialisationAutorisee)
-            <div class="rounded-xl p-4 mb-5" style="background:#FEF2F2;border:1px solid #FECACA">
-              <p class="text-[13px]" style="color:#7F1D1D">{{ __('pwa.import_export.reset_environnement_production') }}</p>
-            </div>
-          @endunless
-
-          {{-- Phase d'essais en production (19/10/2026, décision du PO) :
-               `TATACORA_PHASE_ESSAIS=true` au `.env`. Dit tant qu'elle dure. --}}
-          @if ($reinitialisationPhaseEssais)
-            <div id="phase-essais" class="rounded-xl p-4 mb-5" style="background:#FFFBEB;border:1px solid #FDE68A">
-              <p class="text-[13px]" style="color:#78350F">{{ __('pwa.import_export.reset_phase_essais') }}</p>
-            </div>
-          @endif
-
-          @if (! $reinitialisationOuverte)
-            {{-- L'état VERROUILLÉ du maître (l.261-273) — la bascule
-                 `reinitialisation_seeders` est fermée. --}}
-            <div class="bg-white rounded-xl border border-slate-200 p-8 text-center">
-              <div class="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style="background:#F3F4F6">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path stroke-linecap="round" d="M7 11V7a5 5 0 0110 0v4"/></svg>
-              </div>
-              <p class="text-sm font-bold text-slate-700">{{ __('pwa.import_export.seeders_verrouille_titre') }}</p>
-              <p class="text-[15px] text-slate-500 mt-1.5 max-w-lg mx-auto">{{ __('pwa.import_export.seeders_verrouille_texte') }}</p>
-              <p class="text-[13px] text-slate-400 mt-2.5">
-                {{ __('pwa.import_export.seeders_verrouille_ouvrir_avant') }}
-                <a href="{{ route('pwa.parametres') }}" class="underline font-semibold" wire:navigate>{{ __('pwa.import_export.seeders_verrouille_ouvrir_lien') }}</a>.
-              </p>
-            </div>
-          @else
-            <div class="rounded-xl border p-4 mb-5 flex items-start gap-3" style="background:#FDECEC;border-color:#F5B5B5">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--erreur)" stroke-width="2.2" class="shrink-0 mt-0.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-              <div class="min-w-0">
-                <p class="text-[15px] font-bold" style="color:#8C1D1D">{{ __('pwa.import_export.seeders_bandeau_titre') }}</p>
-                <p class="text-[13px] mt-1 leading-relaxed" style="color:#8C1D1D">{{ __('pwa.import_export.seeders_bandeau_texte') }}</p>
-              </div>
-            </div>
-
-            {{-- Les deux listes du maître (l.287-299), pastilles comprises
-                 (rendu de `rendreSeeders`, l.730-742) — DÉRIVÉES du réel :
-                 `ReinitialisationDonneesTestService::tablesEffacables()` et
-                 `tablesPreservees()`, mesurées sur la base. --}}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <section class="bg-white rounded-xl border border-slate-200 p-5">
-                <h2 class="text-sm font-bold mb-1" style="color:var(--erreur)">{{ __('pwa.import_export.seeders_vide_titre') }}</h2>
-                <p class="text-[13px] text-slate-500 mb-3">{{ __('pwa.import_export.seeders_vide_texte') }}</p>
-                <div class="space-y-1 max-h-72 overflow-y-auto">
-                  @forelse ($tablesEffacables as $table)
-                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg" style="background:#FDECEC">
-                      <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:#8C1D1D"></span>
-                      <span class="text-[13px] font-mono-tatacora" style="color:#8C1D1D">{{ $table }}</span>
-                    </div>
-                  @empty
-                    <p class="text-[13px] text-slate-400">{{ __('pwa.import_export.seeders_rien_a_vider') }}</p>
-                  @endforelse
-                </div>
-              </section>
-
-              <section class="bg-white rounded-xl border border-slate-200 p-5">
-                <h2 class="text-sm font-bold mb-1" style="color:var(--succes)">{{ __('pwa.import_export.seeders_conserve_titre') }}</h2>
-                <p class="text-[13px] text-slate-500 mb-3">{{ __('pwa.import_export.seeders_conserve_texte') }}</p>
-                <div class="space-y-1 max-h-72 overflow-y-auto">
-                  @foreach ($tablesPreservees as $table)
-                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg" style="background:#E8F5E9">
-                      <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:#1B5E20"></span>
-                      <span class="text-[13px] font-mono-tatacora" style="color:#1B5E20">{{ $table }}</span>
-                    </div>
-                  @endforeach
-                </div>
-              </section>
-            </div>
-
-            @if ($peutEcrire && $reinitialisationAutorisee && $reinitialisationPermise)
-              <button type="button" wire:click="ouvrirReinitialisation"
-                      class="btn w-full mt-5 flex items-center justify-center gap-2 px-5 py-3 rounded-lg text-white text-sm font-bold" style="background:var(--erreur)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/></svg>
-                {{ __('pwa.import_export.seeders_bouton') }}
-              </button>
-            @endif
-          @endif
-        </section>
+        @endif
 
       </div>
     </main>
   </div>
-
-  {{-- ============== MODALE — RÉINITIALISATION (markup du maître, l.313-339).
-       Rendue derrière la condition d'état : un formulaire d'écriture ne se
-       rend jamais au premier GET (doctrine RefuseLaSaisie). Le bouton reste
-       inerte tant que la phrase n'est pas tapée — la garde d'interface du
-       maître (l.864-866) ; le serveur revalide la phrase ET les deux verrous. --}}
-  @if ($etatFormulaire === 'reinitialisation')
-    <div class="overlay-modale no-print" style="display:flex" wire:keydown.escape.window="fermerModales"
-         x-data="{ saisie: '' }">
-      <div class="absolute inset-0" wire:click="fermerModales"></div>
-      <div class="boite-modale relative max-w-lg">
-        <div class="flex items-start gap-3 px-6 pt-6 pb-4">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#FDECEC">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--erreur)" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-          </div>
-          <div class="min-w-0">
-            <h2 class="text-base font-bold" style="color:var(--erreur)">{{ __('pwa.import_export.seeders_modale_titre') }}</h2>
-            <p class="text-[15px] text-slate-600 mt-1.5 leading-relaxed">
-              <strong>{{ __('pwa.import_export.seeders_modale_texte_avant', ['nombre' => count($tablesEffacables)]) }}</strong>
-              {{ __('pwa.import_export.seeders_modale_texte_1') }}<br><br>
-              {{ __('pwa.import_export.seeders_modale_texte_2') }}
-              <strong>{{ __('pwa.import_export.seeders_modale_texte_2_fort') }}</strong>{{ __('pwa.import_export.seeders_modale_texte_2_fin') }}
-            </p>
-          </div>
-        </div>
-        <div class="px-6 pb-2">
-          <label class="block text-[13px] font-semibold text-slate-700 mb-1.5">
-            {{ __('pwa.import_export.seeders_confirmation_avant') }}
-            <span class="font-mono-tatacora px-1.5 py-0.5 rounded bg-slate-100" style="color:var(--erreur)">{{ __('pwa.import_export.seeders_phrase_confirmation') }}</span>
-          </label>
-          <input type="text" autocomplete="off" placeholder="{{ __('pwa.import_export.seeders_phrase_confirmation') }}"
-                 wire:model="phraseConfirmationReset" x-on:input="saisie = $event.target.value"
-                 class="champ w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-mono-tatacora">
-          <p class="text-[12px] text-slate-400 mt-1.5">{{ __('pwa.import_export.seeders_confirmation_aide') }}</p>
-          @error('phraseConfirmationReset') <p class="text-[12px] text-red-600 mt-1.5">{{ $message }}</p> @enderror
-        </div>
-        <div class="flex justify-end gap-3 px-6 py-5">
-          <button type="button" wire:click="fermerModales"
-                  class="btn px-5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-600">{{ __('pwa.modale.annuler') }}</button>
-          <button type="button" wire:click="reinitialiserDonneesTest" wire:loading.attr="disabled"
-                  :disabled="saisie.trim().toUpperCase() !== '{{ __('pwa.import_export.seeders_phrase_confirmation') }}'"
-                  class="btn px-5 py-2.5 rounded-lg text-white text-sm font-semibold disabled:opacity-50" style="background:var(--erreur)">{{ __('pwa.import_export.seeders_confirmer') }}</button>
-        </div>
-      </div>
-    </div>
-  @endif
 
   {{-- ================= MODALE — EXPORT D'UNE TABLE (markup du maître, l.342-358).
        Portée le 02/09/2026 sur directive du Product Owner — le refus antérieur

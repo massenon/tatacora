@@ -397,11 +397,13 @@ final class PanierServiceTest extends TestCase
         $panier = $this->paniers->ouvrirPourPoste('Bar', null);
 
         $this->expectException(RuntimeException::class);
-        // PA-24 : ni le tourisme ni la location n'ont de catalogue d'ou FIGER
-        // un prix. Les accepter obligerait l'ecran a en transmettre un.
-        $this->assertNotContains('M9', VenteService::MODULES_ENCAISSABLES);
+        // PA-24 : l'hebergement (M1) n'a pas de catalogue d'ou FIGER un prix.
+        // Le tourisme (M9) et la location (M8) en ont un depuis le 22/10/2026.
+        $this->assertNotContains('M1', VenteService::MODULES_ENCAISSABLES);
+        $this->assertContains('M9', VenteService::MODULES_ENCAISSABLES);
+        $this->assertContains('M8', VenteService::MODULES_ENCAISSABLES);
 
-        $this->paniers->ajouterLigne($panier, 'M9', (string) Str::uuid());
+        $this->paniers->ajouterLigne($panier, 'M1', (string) Str::uuid());
     }
 
     #[Test]

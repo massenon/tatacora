@@ -109,7 +109,7 @@ use RuntimeException;
  * @see DIRECTIVE_CONFORMITE_100.md Articles 3.3, 4, 7
  */
 #[Layout('layouts.pwa')]
-#[Title('Notifications — TATACORA AFRIQUE')]
+#[Title('Notifications — LogiReStock — TATACORA AFRIQUE')]
 class Hub extends PageMetier
 {
     use FormulaireModal;
@@ -258,6 +258,12 @@ class Hub extends PageMetier
         $message = MessageNotificationCompose::findOrFail($messageId);
 
         try {
+            // « Renvoyer » après épuisement des relances : le compteur repart.
+            if ($message->enEchec()) {
+                $service->remettreEnFile($message);
+                $message->refresh();
+            }
+
             $resultat = $service->envoyer($message);
         } catch (RuntimeException $refus) {
             session()->flash('pwa-erreur', $refus->getMessage());
@@ -718,7 +724,7 @@ class Hub extends PageMetier
 
         if ($onglet === 'journal') {
             return $service->journal()->map(static fn ($envoi): array => [
-                $envoi->date_envoi->format('d/m/Y H:i'),
+                \App\Shared\Support\HeureLocale::formater($envoi->date_envoi, 'd/m/Y H:i'),
                 $envoi->destinataire,
                 (string) ($envoi->modele->evenement ?? ''),
                 (string) ($envoi->modele->canal ?? ''),

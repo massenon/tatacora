@@ -14,7 +14,9 @@
 /// quel — exactement comme le composant PWA rend le message du service.
 library;
 
+import '../../../core/format/adresse_email_facultative.dart';
 import '../../../core/format/formats.dart';
+import '../../achats/domain/messages_achats.dart';
 
 /// Base de tous les refus de M13.
 ///
@@ -125,6 +127,15 @@ final class ServiceInconnu extends RefusRh {
   String get message => "Le service désigné n'existe pas.";
 }
 
+/// L'e-mail facultatif est renseigné mais mal formé — la phrase du serveur
+/// (`rh_pwa.email_invalide`), relue par `email_facultatif_contre_serveur_test`.
+final class EmailInvalide extends RefusRh {
+  const EmailInvalide();
+
+  @override
+  String get message => AdresseEmailFacultative.messageInvalide;
+}
+
 final class ContratInconnu extends RefusRh {
   const ContratInconnu(this.code);
 
@@ -151,6 +162,18 @@ final class EmployeDejaArchive extends RefusRh {
 
   @override
   String get message => '$nom est déjà archivé (statut « parti »).';
+}
+
+/// L'archivage du personnel refusé : l'option « Suppression d'un
+/// enregistrement » est fermée pour ce profil (`exigerArchivage()` du serveur,
+/// `pwa.archivage.refus_bascule`). La phrase est celle des fournisseurs,
+/// confrontée au PHP exécuté par `archivage_contre_serveur_test` : UN seul
+/// auteur ([MessagesAchats.refusBascule]).
+final class ArchivageEmployeRefuse extends RefusRh {
+  const ArchivageEmployeRefuse();
+
+  @override
+  String get message => MessagesAchats.refusBascule;
 }
 
 /// Un salarié parti n'a plus de bulletin à établir.

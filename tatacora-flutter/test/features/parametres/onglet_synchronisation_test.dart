@@ -11,6 +11,7 @@ import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/parametres/presentation/ecran_parametres.dart';
+import 'package:tatacora_flutter/features/synchronisation/presentation/ecran_synchronisation_postes.dart';
 import 'package:tatacora_flutter/features/parametres/presentation/widgets/onglet_synchronisation.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/transport_synchronisation.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/appairage.dart';
@@ -18,8 +19,8 @@ import 'package:tatacora_flutter/features/synchronisation/presentation/providers
 
 import '../synchronisation/support/faux_transport.dart';
 
-/// Paramètres → « Synchronisation » (lot F2a) : l'appairage du poste, par
-/// l'écran, sur une base FICHIER et un `poste.json` réels — seul le réseau
+/// L'appairage du poste (lot F2a) — depuis le 09/11/2026 une SECTION de l'écran « Appairage
+/// Postes » du menu latéral (PO : l'onglet a quitté les Paramètres) : par l'écran, sur une base FICHIER et un `poste.json` réels — seul le réseau
 /// est simulé.
 void main() {
   const url = 'https://serveur.essai/api/v1';
@@ -70,7 +71,7 @@ void main() {
     String role = 'administrateur',
   }) async {
     tester.view
-      ..physicalSize = const Size(1600, 1800)
+      ..physicalSize = const Size(1600, 4200)
       ..devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     final droits = GardeAcces({'PARAM': 'C'});
@@ -94,6 +95,40 @@ void main() {
             () async => cheminPoste,
           ),
           nomPosteParDefautProvider.overrideWithValue('PC-COMPTOIR'),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.clair,
+          home: const Scaffold(body: EcranSynchronisationPostes()),
+        ),
+      ),
+    );
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> monterParametres(
+    WidgetTester tester, {
+    String role = 'administrateur',
+  }) async {
+    tester.view
+      ..physicalSize = const Size(1600, 1800)
+      ..devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final droits = GardeAcces({'PARAM': 'C'});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          baseLocaleProvider.overrideWithValue(db),
+          droitsProvider.overrideWithValue(droits),
+          sessionProvider.overrideWithBuild(
+            (ref, n) => Session(
+              utilisateurId: 'u-admin',
+              login: 'essai',
+              nom: 'Essai',
+              role: role,
+              droits: droits,
+            ),
+          ),
         ],
         child: MaterialApp(
           theme: AppTheme.clair,
@@ -125,8 +160,8 @@ void main() {
     expect(cible, findsWidgets);
   }
 
+  // Depuis le 09/11/2026 la section est sur l'écran : il suffit d'attendre sa lecture.
   Future<void> ouvrirOnglet(WidgetTester tester) async {
-    await tester.tap(find.byKey(const Key('param-onglet-synchronisation')));
     await laisserTourner(tester);
   }
 
@@ -158,10 +193,30 @@ void main() {
     return const ReponseHttp(statut: 200, corps: {});
   });
 
-  testWidgets('l’onglet n’existe que pour un Administrateur', (tester) async {
+  testWidgets(
+    'l’onglet « Appairage Postes » a QUITTÉ les Paramètres (09/11/2026) : '
+    'son contenu est un écran du menu latéral',
+    (tester) async {
+      await monterParametres(tester);
+      expect(
+        find.byKey(const Key('param-onglet-synchronisation')),
+        findsNothing,
+      );
+      expect(find.byKey(const Key('param-onglet-activation')), findsOneWidget);
+      expect(find.text('Appairage Postes'), findsNothing);
+    },
+  );
+
+  testWidgets('tout rôle voit la section ; l’appairage reste réservé aux '
+      'Administrateurs', (tester) async {
     await monter(tester, serveur(), role: 'caissier');
-    expect(find.byKey(const Key('param-onglet-synchronisation')), findsNothing);
-    expect(find.byKey(const Key('param-onglet-activation')), findsOneWidget);
+    await ouvrirOnglet(tester);
+    expect(find.byKey(const Key('appairage-de-ce-poste')), findsOneWidget);
+    expect(find.byKey(const Key('sync-appairer')), findsNothing);
+    expect(
+      find.text(TextesOngletSynchronisation.reserveAdministrateurs),
+      findsOneWidget,
+    );
   });
 
   testWidgets('appairer par l’écran : le jeton dans poste.json, le mot de '
@@ -240,6 +295,66 @@ void main() {
     expect(File(cheminPoste).existsSync(), isFalse);
   });
 
+  testWidgets(
+    'l’interrupteur « Synchronisation activée » : éteint, plus AUCUNE '
+    'requête (tester, synchroniser) ; rallumé, tout reprend',
+    (tester) async {
+      final t = serveur();
+      await monter(tester, t);
+      await ouvrirOnglet(tester);
+      await saisirEtAppairer(tester);
+      await attendre(tester, find.byKey(const Key('sync-interrupteur')));
+
+      // Allumé par défaut, et la phrase le dit.
+      expect(
+        tester.widget<Switch>(find.byKey(const Key('sync-interrupteur'))).value,
+        isTrue,
+      );
+
+      final avant = t.requetes.length;
+      await tester.tap(find.byKey(const Key('sync-interrupteur')));
+      await laisserTourner(tester);
+      final contenu =
+          jsonDecode(
+                (await tester.runAsync(
+                  () => File(cheminPoste).readAsString(),
+                ))!,
+              )
+              as Map<String, Object?>;
+      expect(contenu['synchronisation_activee'], false);
+      expect(contenu['jeton_api'], isNotNull, reason: 'l’appairage est gardé');
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('sync-interrupteur-aide')))
+            .data,
+        TextesOngletSynchronisation.aideDesactivee,
+      );
+
+      // Éteint : « Tester la connexion » et « Synchroniser maintenant » ne
+      // touchent pas le réseau.
+      await tester.tap(find.byKey(const Key('sync-tester')));
+      await laisserTourner(tester);
+      await tester.tap(find.byKey(const Key('sync-maintenant')));
+      await laisserTourner(tester);
+      expect(t.requetes.length, avant, reason: 'AUCUNE requête réseau');
+
+      // Rallumé : la clé disparaît, et le poste rattrape aussitôt.
+      await tester.tap(find.byKey(const Key('sync-interrupteur')));
+      await laisserTourner(tester);
+      final apres =
+          jsonDecode(
+                (await tester.runAsync(
+                  () => File(cheminPoste).readAsString(),
+                ))!,
+              )
+              as Map<String, Object?>;
+      expect(apres.containsKey('synchronisation_activee'), isFalse);
+      await tester.tap(find.byKey(const Key('sync-tester')));
+      await laisserTourner(tester);
+      expect(t.requetes.length, greaterThan(avant));
+    },
+  );
+
   testWidgets('tester, synchroniser, dissocier', (tester) async {
     final t = serveur();
     await monter(tester, t);
@@ -264,7 +379,8 @@ void main() {
     expect(t.lots, isEmpty);
     expect(
       [for (final r in t.requetes.skip(avant)) '${r.methode} ${r.url.path}'],
-      ['GET /api/v1/referentiels'],
+      // + les images signature/cachet des documents A4 (07/11/2026), jamais bloquantes.
+      ['GET /api/v1/referentiels', 'GET /api/v1/sync/apparence-documents'],
     );
 
     await tester.ensureVisible(find.byKey(const Key('sync-dissocier')));

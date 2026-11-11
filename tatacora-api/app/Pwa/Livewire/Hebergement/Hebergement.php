@@ -75,7 +75,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * @see RG-02 Disponibilité toujours calculée
  */
 #[Layout('layouts.pwa')]
-#[Title('Hébergement & Réservations — TATACORA AFRIQUE')]
+#[Title('Hébergement & Réservations — LogiReStock — TATACORA AFRIQUE')]
 final class Hebergement extends PageMetier
 {
     use FormulaireModal;
@@ -693,7 +693,7 @@ final class Hebergement extends PageMetier
                 : UniteHebergement::find($this->uniteAArchiver),
         ]))->layout('layouts.pwa', [
             'module' => self::MODULE,
-            'title' => 'Hébergement & Réservations — TATACORA AFRIQUE',
+            'title' => 'Hébergement & Réservations — LogiReStock — TATACORA AFRIQUE',
         ]);
     }
 
@@ -806,17 +806,24 @@ final class Hebergement extends PageMetier
         $sejoursEnCours = Sejour::query()
             ->whereNotNull('date_checkin_reel')
             ->whereNull('date_checkout_reel')
-            ->with('reservation')
+            ->with('reservation.lignes')
             ->get()
-            ->keyBy(static fn (Sejour $sejour): string => (string) $sejour->reservation?->unite_id);
+            // Multi-chambres : le séjour occupe CHACUNE des chambres de sa réservation.
+            ->flatMap(static function (Sejour $sejour): array {
+                $ids = $sejour->reservation?->uniteIds() ?? [];
+
+                return array_map(static fn (string $id): array => [$id, $sejour], $ids);
+            })
+            ->mapWithKeys(static fn (array $paire): array => [$paire[0] => $paire[1]]);
 
         $reservationsDuJour = Reservation::query()
             ->whereNot('statut', 'annulee')
             ->where('date_arrivee', '<=', $aujourdhui)
             ->where('date_depart', '>', $aujourdhui)
-            ->with('client')
+            ->with(['client', 'lignes'])
             ->get()
-            ->keyBy('unite_id');
+            ->flatMap(static fn (Reservation $r): array => array_map(static fn (string $id): array => [$id, $r], $r->uniteIds()))
+            ->mapWithKeys(static fn (array $paire): array => [$paire[0] => $paire[1]]);
 
         // Une réservation dont le séjour a déjà eu lieu ne rouvre pas un
         // check-in : sans ce filtre, un départ anticipé ferait réapparaître
@@ -867,7 +874,7 @@ final class Hebergement extends PageMetier
         $aujourdhui = CarbonImmutable::today()->toDateString();
 
         return Reservation::query()
-            ->where('unite_id', $uniteId)
+            ->surUnite($uniteId)
             ->whereNot('statut', 'annulee')
             ->where('date_arrivee', '<=', $aujourdhui)
             ->where('date_depart', '>', $aujourdhui)
@@ -990,8 +997,11 @@ final class Hebergement extends PageMetier
             ->where('date_arrivee', '<', $depart->toDateString())
             ->where('date_depart', '>', $arrivee->toDateString())
             ->orderBy('date_arrivee')
+            ->with('lignes')
             ->get()
-            ->groupBy('unite_id');
+            ->flatMap(static fn (Reservation $r): array => array_map(static fn (string $id): array => [$id, $r], $r->uniteIds()))
+            ->groupBy(0)
+            ->map(static fn ($paires) => $paires->pluck(1)->values());
 
         $lignes = [];
 

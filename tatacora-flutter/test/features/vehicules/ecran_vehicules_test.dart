@@ -104,6 +104,7 @@ void main() {
     WidgetTester tester, {
     List<Override> surcharges = const [],
     double largeur = 1600,
+    Map<String, String> droits = const {'M8': 'C', 'M3': 'C'},
   }) async {
     tester.view
       ..physicalSize = Size(largeur, 2400)
@@ -114,9 +115,7 @@ void main() {
       ProviderScope(
         overrides: [
           baseLocaleProvider.overrideWithValue(db),
-          droitsProvider.overrideWithValue(
-            GardeAcces.depuisJson(const {'M8': 'C', 'M3': 'C'}),
-          ),
+          droitsProvider.overrideWithValue(GardeAcces.depuisJson(droits)),
           ...surcharges,
         ],
         child: MaterialApp(
@@ -169,7 +168,7 @@ void main() {
       expect(carte(tester, 'contrats'), [
         'CONTRATS ACTIFS',
         '1',
-        '— annulé(s)',
+        '0 annulé(s)',
       ]);
       expect(carte(tester, 'ca'), [
         "CHIFFRE D'AFFAIRES",
@@ -182,9 +181,11 @@ void main() {
         '5 %',
         'Sur la période',
       ]);
+      // v41 : le reste à encaisser est la somme des restes dus (montant FIGÉ −
+      // acompte, ici zéro) des contrats actifs de la période.
       expect(carte(tester, 'reste'), [
         'RESTE À ENCAISSER',
-        '—',
+        '50 000 FCFA',
         'Soldes de location',
       ]);
       expect(carte(tester, 'jours'), ['JOURS LOUÉS', '2', 'Toutes catégories']);
@@ -216,8 +217,22 @@ void main() {
 
     testWidgets('la raison d’une absence est dans l’infobulle, pas dans la '
         'carte', (tester) async {
+      // Un contrat d'AVANT la v41 : ni montant, ni acompte. Ni le chiffre
+      // d'affaires ni le reste à encaisser ne se somment — « — » et sa raison,
+      // jamais « 0 FCFA » ni le tarif d'aujourd'hui.
+      await semer();
+      await db.customStatement(
+        'UPDATE contrats_location_local SET montant = NULL, acompte = NULL, '
+        'remise = NULL',
+      );
       await monter(tester);
 
+      expect(carte(tester, 'reste'), [
+        'RESTE À ENCAISSER',
+        '—',
+        'Soldes de location',
+      ]);
+      expect(carte(tester, 'ca')[1], '—');
       final infobulle = tester.widget<Tooltip>(
         find.byKey(const Key('vehicules-kpi-reste-raison')),
       );
@@ -225,13 +240,24 @@ void main() {
         infobulle.message,
         IndicateursVehicules.raisons['reste_a_encaisser'],
       );
+      expect(
+        tester
+            .widget<Tooltip>(find.byKey(const Key('vehicules-kpi-ca-raison')))
+            .message,
+        IndicateursVehicules.raisons['chiffre_affaires'],
+      );
       // Elle n'est PAS écrite sous le détail : sur six cartes côte à côte, la
       // plus bavarde poussait toute la page de ~96 px.
       expect(
         find.text(IndicateursVehicules.raisons['reste_a_encaisser']!),
         findsNothing,
       );
-      // Et la raison du taux ne ment plus sur une période pourtant choisie.
+    });
+
+    testWidgets('la raison du taux ne ment pas sur une période pourtant '
+        'choisie', (tester) async {
+      await monter(tester);
+
       final taux = tester.widget<Tooltip>(
         find.byKey(const Key('vehicules-kpi-occupation-raison')),
       );
@@ -547,6 +573,202 @@ void main() {
   });
 
   /* ================================================================== */
+  group('Reçu de location — le bouton « Reçu » (28/10/2026)', () {
+    testWidgets('« Reçu » remet le contrat à l’action d’impression, pour un '
+        'rôle en LECTURE (M8 = L), sans rien écrire ; le contrat annulé '
+        'l’offre aussi', (tester) async {
+      await semer();
+      final id = (await dao.contrats()).single.id;
+      final recus = <ContratLocation>[];
+      await monter(
+        tester,
+        droits: const {'M8': 'L'},
+        surcharges: [
+          imprimerRecuLocationProvider.overrideWithValue((c) async {
+            recus.add(c);
+          }),
+        ],
+      );
+      await ouvrirOnglet(tester, 'contrats');
+
+      // Lecture seule : « Annuler » n'est pas offert, « Reçu » l'est.
+      expect(find.byKey(Key('vehicules-annuler-$id')), findsNothing);
+      expect(find.text('Reçu'), findsOneWidget);
+      await tester.tap(find.byKey(Key('vehicules-recu-$id')));
+      await tester.pump();
+
+      expect(recus.single.id, id);
+      expect(recus.single.immatriculation, 'AB 1234 RB');
+      expect((await dao.contrats()).single.annule, isFalse);
+    });
+
+    testWidgets('un contrat ANNULÉ offre « Reçu » (le document porte ANNULÉ)', (
+      tester,
+    ) async {
+      await semer();
+      final id = (await dao.contrats()).single.id;
+      await dao.annulerContrat(id);
+      await monter(tester);
+      await ouvrirOnglet(tester, 'contrats');
+      await tester.tap(find.byKey(const Key('vehicules-filtre-statut')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tous').last);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(Key('vehicules-recu-$id')), findsOneWidget);
+    });
+  });
+
+  group('Annuler un contrat — l’écran (v38, 26/10/2026)', () {
+    Future<String> ouvrirContrats(WidgetTester tester) async {
+      await semer();
+      await monter(tester);
+      await ouvrirOnglet(tester, 'contrats');
+      return (await dao.contrats()).single.id;
+    }
+
+    Future<void> choisirStatut(WidgetTester tester, String libelle) async {
+      await tester.tap(find.byKey(const Key('vehicules-filtre-statut')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(libelle).last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('« Annuler » demande confirmation, annule, dit la phrase de la '
+        'vue, et le contrat quitte la liste « Contrats actifs »', (
+      tester,
+    ) async {
+      final id = await ouvrirContrats(tester);
+
+      expect(find.byKey(Key('vehicules-etat-actif-$id')), findsOneWidget);
+      await tester.tap(find.byKey(Key('vehicules-annuler-$id')));
+      await tester.pumpAndSettle();
+
+      // La question de la vue, nommant le contrat.
+      expect(
+        find.text(MessagesVehicules.questionAnnulerContrat('AB 1234 RB')),
+        findsOneWidget,
+      );
+      // Rien n'est écrit tant qu'on ne confirme pas.
+      expect((await dao.contrats()).single.annule, isFalse);
+
+      await tester.tap(find.text('Supprimer définitivement'));
+      await tester.pumpAndSettle();
+
+      expect((await dao.contrats()).single.annule, isTrue);
+      expect(
+        find.text(MessagesVehicules.contratAnnule('AB 1234 RB')),
+        findsOneWidget,
+      );
+      // Filtre par défaut « Contrats actifs » : la liste est vide, avec le
+      // message de la vue.
+      expect(
+        find.text('Aucun contrat ne correspond à ces critères.'),
+        findsOneWidget,
+      );
+      // Les indicateurs ne comptent plus ce contrat.
+      expect(carte(tester, 'ca'), [
+        "CHIFFRE D'AFFAIRES",
+        '0 FCFA',
+        '0 jour(s) loué(s)',
+      ]);
+    });
+
+    testWidgets('refuser la confirmation n’annule rien', (tester) async {
+      final id = await ouvrirContrats(tester);
+
+      await tester.tap(find.byKey(Key('vehicules-annuler-$id')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Annuler').last);
+      await tester.pumpAndSettle();
+
+      expect((await dao.contrats()).single.annule, isFalse);
+      expect(find.byKey(Key('vehicules-etat-actif-$id')), findsOneWidget);
+    });
+
+    testWidgets('« Tous » et « Annulés » : le contrat annulé reste lisible, '
+        'hors du TOTAL, sans bouton ; la carte compte les annulés', (
+      tester,
+    ) async {
+      await semer();
+      final id = (await dao.contrats()).single.id;
+      await dao.annulerContrat(id);
+      await monter(tester);
+      await ouvrirOnglet(tester, 'contrats');
+
+      // Par défaut (« Contrats actifs ») : rien, et « 0 annulé(s) » comme la vue.
+      expect(
+        find.text('Aucun contrat ne correspond à ces critères.'),
+        findsOneWidget,
+      );
+      expect(carte(tester, 'contrats'), [
+        'CONTRATS ACTIFS',
+        '0',
+        '0 annulé(s)',
+      ]);
+
+      await choisirStatut(tester, 'Tous');
+      expect(find.byKey(Key('vehicules-etat-annule-$id')), findsOneWidget);
+      expect(find.text('Annulé'), findsOneWidget);
+      expect(find.byKey(Key('vehicules-annuler-$id')), findsNothing);
+      // Le TOTAL ne compte que les contrats NON annulés.
+      expect(find.text('TOTAL — 0 contrat(s) actif(s)'), findsOneWidget);
+      expect(
+        texteDe(
+          tester,
+          find.byKey(const Key('vehicules-contrats-total-montant')),
+        ),
+        '0 FCFA',
+      );
+      expect(carte(tester, 'contrats'), [
+        'CONTRATS ACTIFS',
+        '0',
+        '1 annulé(s)',
+      ]);
+      // Le chiffre d'affaires et les jours ne comptent pas le contrat annulé.
+      expect(carte(tester, 'ca'), [
+        "CHIFFRE D'AFFAIRES",
+        '0 FCFA',
+        '0 jour(s) loué(s)',
+      ]);
+
+      await choisirStatut(tester, 'Annulés');
+      expect(find.byKey(Key('vehicules-etat-annule-$id')), findsOneWidget);
+    });
+
+    testWidgets('un contrat annulé libère le planning : plus aucune case '
+        '« location », quel que soit le filtre de statut', (tester) async {
+      await semer();
+      await dao.annulerContrat((await dao.contrats()).single.id);
+      await monter(tester);
+      await ouvrirOnglet(tester, 'planning');
+
+      Finder cases(String etat, [String? vehiculeId]) => find.byWidgetPredicate(
+        (w) =>
+            w.key is ValueKey<String> &&
+            (w.key! as ValueKey<String>).value.startsWith(
+              'planning-case-$etat-${vehiculeId ?? ''}',
+            ),
+      );
+
+      // `$c->statut !== 'annule'` (l.510) : le contrat annulé ne colore plus.
+      expect(cases('loue'), findsNothing);
+      expect(cases('libre', libre.id), findsNWidgets(14));
+    });
+
+    testWidgets('sans le droit d’écriture M8, le bouton « Annuler » n’est '
+        'pas offert', (tester) async {
+      await semer();
+      await monter(tester, droits: const {'M8': 'L', 'M3': 'L'});
+      await ouvrirOnglet(tester, 'contrats');
+      final id = (await dao.contrats()).single.id;
+
+      expect(find.byKey(Key('vehicules-annuler-$id')), findsNothing);
+      expect(find.byKey(Key('vehicules-etat-actif-$id')), findsOneWidget);
+    });
+  });
+
+  /* ================================================================== */
   group('Onglet « Planning du parc »', () {
     testWidgets('14 jours comme la vue, trois couches, cases exactes', (
       tester,
@@ -745,6 +967,77 @@ void main() {
   });
 
   /* ================================================================== */
+  group('Immobiliser — un entretien daté, écrit et affiché', () {
+    testWidgets('le bouton écrit la ligne, le statut ne bouge pas, l’onglet '
+        'la montre', (tester) async {
+      await semer();
+      final avant = (await dao.vehicule(libre.id))?.statut;
+      await monter(tester);
+
+      await tester.ensureVisible(
+        find.byKey(const Key('vehicules-immobiliser')),
+      );
+      await tester.tap(find.byKey(const Key('vehicules-immobiliser')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('modale-immobilisation')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('modale-immobilisation-vehicule')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('AB 1234 RB').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('modale-immobilisation-cout')),
+        '15000',
+      );
+      await tester.tap(find.byKey(const Key('modale-immobilisation-valider')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('modale-immobilisation')), findsNothing);
+      final lignes = await dao.entretiens();
+      expect(lignes, hasLength(1));
+      expect(lignes.single.coutFrancs, 15000);
+      expect(
+        (await dao.vehicule(libre.id))?.statut,
+        avant,
+        reason: 'statut ≠ disponibilité : la PWA ne le touche pas',
+      );
+
+      await ouvrirOnglet(tester, 'immo');
+      expect(find.text('AB 1234 RB'), findsWidgets);
+      expect(find.text('Entretien'), findsWidgets);
+      expect(find.text('Aucune immobilisation enregistrée.'), findsNothing);
+    });
+
+    testWidgets('un coût illisible est refusé sous son champ, rien n’est '
+        'écrit', (tester) async {
+      await semer();
+      await monter(tester);
+
+      await tester.ensureVisible(
+        find.byKey(const Key('vehicules-immobiliser')),
+      );
+      await tester.tap(find.byKey(const Key('vehicules-immobiliser')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('modale-immobilisation-vehicule')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('AB 1234 RB').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('modale-immobilisation-cout')),
+        'beaucoup',
+      );
+      await tester.tap(find.byKey(const Key('modale-immobilisation-valider')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(MessagesVehicules.coutEntretienInvalide),
+        findsOneWidget,
+      );
+      expect(await dao.entretiens(), isEmpty);
+    });
+  });
+
+  /* ================================================================== */
   group('La barre de filtres', () {
     testWidgets('large : la recherche est basse, les trois boutons finissent '
         'À DROITE', (tester) async {
@@ -761,7 +1054,9 @@ void main() {
       final bouton = tester.getTopRight(
         find.byKey(const Key('vehicules-nouveau-contrat')),
       );
-      const droiteCarte = 1600 - AppSpacing.xl;
+      // La page est plafonnée à `max-w-[1440px]` et centrée.
+      final droiteCarte =
+          1600 - (1600 - AppLayout.maxContentWidth) / 2 - AppSpacing.xl;
       expect(
         bouton.dx,
         closeTo(
@@ -815,7 +1110,10 @@ void main() {
         tester.getTopLeft(find.text('Véhicules & Locations')).dx,
         // 32 de marge + 24 d'icône + 10 d'écart.
         closeTo(
-          AppSpacing.xl + AppLayout.iconeTitrePage + AppSpacing.xsPlus,
+          (1600 - AppLayout.maxContentWidth) / 2 +
+              AppSpacing.xl +
+              AppLayout.iconeTitrePage +
+              AppSpacing.xsPlus,
           0.5,
         ),
       );
@@ -917,7 +1215,7 @@ void main() {
   /* ================================================================== */
   group('Le bloc « Ce que cet écran ne rend pas » est RETIRÉ (PO, 14/10)', () {
     testWidgets('la page se termine sur le tableau, sans bloc d’écarts ; le '
-        'refus d’annuler un contrat reste une phrase du DAO', (tester) async {
+        'l’annulation d’un contrat est une phrase du DAO', (tester) async {
       await monter(tester);
 
       expect(
@@ -925,8 +1223,8 @@ void main() {
         findsNothing,
       );
       expect(find.textContaining('Ce que cet écran ne rend pas'), findsNothing);
-      // Le refus, lui, existe toujours (testé par `vehicule_dao_test`).
-      expect(refusAnnulationContrat, contains('ne peut pas être annulé'));
+      // L'annulation existe (v38) : sa phrase de refus est celle de la vue.
+      expect(MessagesVehicules.contratDejaAnnule, contains('déjà annulé'));
       // Les trois motifs périmés ne sont plus affichés.
       expect(find.textContaining('Le NOM d’un véhicule'), findsNothing);
       expect(find.textContaining('Le permis « dispensé »'), findsNothing);

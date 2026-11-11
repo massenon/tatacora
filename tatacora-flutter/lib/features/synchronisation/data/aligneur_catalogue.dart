@@ -1,26 +1,46 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../achats/domain/entities/fournisseur.dart';
 import '../../achats/data/reglements_fournisseur_dao.dart';
 import '../../comptabilite/data/comptabilite_dao.dart';
+import '../../crm/domain/entities/relance.dart' show CanalRelance;
+import '../../depenses/data/depense_dao.dart';
+import '../../depenses/domain/recu_depense.dart' show StatutRecu;
+import '../../comptabilite/data/affectations_recues_dao.dart';
+import '../../comptabilite/data/ecritures_serveur_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart'
     show StatutExercice;
 import '../../facturation/data/facture_dao.dart';
+import '../../facturation/data/proforma_dao.dart';
+import '../../hebergement/data/canaux_reservation_dao.dart';
+import '../../hebergement/data/parc_dao.dart';
+import '../../vehicules/data/vehicule_dao.dart';
+import '../../pos/data/historique_prix_carte_dao.dart';
+import '../../pos/domain/changement_prix_carte.dart';
 import '../../hebergement/domain/entities/fiche_reservation.dart'
     show CanalReservation;
 import '../../notifications/data/notifications_dao.dart';
 import '../../parametres/data/parametres_depot_local.dart';
+import '../../transverse/data/journal_securite_dao.dart';
 import '../../transverse/data/roles_dao.dart';
+import '../../transverse/domain/comptes_utilisateurs.dart'
+    show compteSupprimable;
+import '../../transverse/domain/journal_poste.dart' show ActionJournalPoste;
+import '../../vehicules/domain/entities/contrat_location.dart'
+    show statutContratActif, statutContratAnnule;
 import '../../pos/data/panier_dao.dart';
 import '../../facturation/data/paiements_facture_dao.dart';
 import '../../facturation/domain/entities/paiement_facture.dart';
 import '../../facturation/domain/entities/piece_facturation.dart';
 import '../../facturation/domain/repositories/facture_repository.dart';
+import '../../facturation/domain/statut_normalisation.dart';
 import '../../restaurant/domain/calcul_restaurant.dart' show typesDeMenu;
+import '../../rh/domain/entities/conge_planning.dart';
 import '../../stocks/domain/calcul_stock.dart' show echelleQuantite;
 import '../../stocks/domain/entities/etat_stock.dart';
 import '../domain/descente_catalogue.dart';
@@ -85,7 +105,11 @@ class AligneurCatalogue {
   /// Aligne UN élément. À appeler dans une transaction (le moteur l'isole
   /// dans un point de sauvegarde : une exception n'emporte que lui).
   Future<IssueAlignement> aligner(ElementCatalogue e) async {
+    // Les comptes SUPPRIMÉS (03/11/2026) s'apparient par le LOGIN, pas par un
+    // identifiant : ni correspondance ni opération en suspens à consulter.
+    if (e.table == TableDescendue.utilisateurs) return _compteSupprime(e);
     final idLocal = await _dao.idLocal(e.table.nomServeur, e.id);
+    if (e.supprime) return _suppression(idLocal, e);
     final synchronisee = e.table.tableSynchronisee;
     if (synchronisee != null &&
         await _file.enSuspens(synchronisee.nomServeur, idLocal)) {
@@ -101,9 +125,12 @@ class AligneurCatalogue {
       TableDescendue.menus => _menu(idLocal, d),
       TableDescendue.recettes => _recette(idLocal, d),
       TableDescendue.plats => _plat(idLocal, d),
+      TableDescendue.indisponibilitesCarte => _indisponibilite(idLocal, d),
+      TableDescendue.historiquePrixCarte => _historiquePrix(idLocal, e),
       TableDescendue.categoriesHebergement => _categorie(idLocal, d),
       TableDescendue.unitesHebergement => _unite(idLocal, e),
       TableDescendue.fournisseurs => _fournisseur(idLocal, e),
+      TableDescendue.canauxReservation => _canalReservation(idLocal, e),
       TableDescendue.clients => _client(idLocal, e),
       TableDescendue.reservations => _reservation(idLocal, e),
       // Lot F4 : les documents des autres postes (`aligneur_documents.dart`).
@@ -114,6 +141,7 @@ class AligneurCatalogue {
       TableDescendue.tablesSalle ||
       TableDescendue.paniers ||
       TableDescendue.factures ||
+      TableDescendue.proformas ||
       TableDescendue.avoirs ||
       TableDescendue.paiements ||
       TableDescendue.commandesAchat ||
@@ -125,15 +153,86 @@ class AligneurCatalogue {
       TableDescendue.reservationsTour ||
       TableDescendue.vehicules ||
       TableDescendue.contratsLocation ||
+      TableDescendue.entretiensVehicule ||
       TableDescendue.servicesRh ||
       TableDescendue.employes ||
-      TableDescendue.bulletinsPaie => alignerDocument(idLocal, e),
+      TableDescendue.bulletinsPaie ||
+      TableDescendue.plannings ||
+      TableDescendue.relancesClients ||
+      TableDescendue.conges => alignerDocument(idLocal, e),
       TableDescendue.centresCout => _centre(e),
       TableDescendue.parametresSysteme => _parametre(e),
       TableDescendue.roles => _role(idLocal, e),
       TableDescendue.modelesNotification => _modeleNotification(idLocal, e),
       TableDescendue.exercicesComptables => _exercice(e),
+      TableDescendue.planComptable => _compteDuPlan(e),
+      TableDescendue.ecrituresComptables => _ecritureServeur(e),
+      TableDescendue.affectationsResultat => _affectationRecue(e),
+      TableDescendue.immobilisations => alignerDocument(idLocal, e),
+      TableDescendue.inventaires => alignerDocument(idLocal, e),
+      // Déjà traité plus haut (par le login) ; ce cas ne s'atteint pas.
+      TableDescendue.utilisateurs => _compteSupprime(e),
     };
+  }
+
+  /* ================================================================== */
+  /* Comptes supprimés au serveur (03/11/2026)                           */
+  /* ================================================================== */
+
+  /// Un compte SUPPRIMÉ au serveur (web, ou un autre poste dont le jeton est super
+  /// administrateur). Apparié par le LOGIN : le compte local de même login reçoit
+  /// `supprime_le` (la date du serveur) ET `actif` faux — il ne se connecte plus —
+  /// et la trace « Compte supprimé » est consignée (sans auteur local : la décision
+  /// vient du serveur).
+  ///
+  /// Ce que cette méthode ne fait JAMAIS :
+  ///  * créer un compte (login inconnu de ce poste : rien, c'est un [Aligne]) ;
+  ///  * écrire autre chose que `supprime_le` et `actif` — ni mot de passe, ni rôle,
+  ///    ni e-mail, ni droits ;
+  ///  * supprimer un compte d'ADMINISTRATION (un administrateur se désactive) : un
+  ///    login homonyme d'un administrateur local est REFUSÉ, lisiblement ;
+  ///  * enfiler (une suppression qui descend ne remonte jamais) ;
+  ///  * rien refaire pour un compte déjà supprimé (idempotent).
+  Future<IssueAlignement> _compteSupprime(ElementCatalogue e) async {
+    final login = _texte(e.donnees['login'])?.toLowerCase();
+    if (login == null) {
+      return const RefuseParLePoste('identifiant du compte absent');
+    }
+    final brut = _texte(e.donnees['supprime_le']);
+    final quand = brut == null
+        ? null
+        : DateTime.tryParse(
+            brut.contains('T') || brut.contains('Z') || brut.contains('+')
+                ? brut
+                : '${brut.replaceFirst(' ', 'T')}Z',
+          );
+    if (quand == null) {
+      return const RefuseParLePoste('date de suppression du compte illisible');
+    }
+    final ligne = await (_db.select(
+      _db.utilisateursLocal,
+    )..where((u) => u.login.equals(login))).getSingleOrNull();
+    // Jamais de création : un compte né ailleurs n'existe pas ici.
+    if (ligne == null || ligne.supprimeLe != null) return const Aligne();
+    if (!compteSupprimable(ligne.role)) {
+      return const RefuseParLePoste(
+        'compte administrateur : un administrateur se désactive, il ne se supprime pas',
+      );
+    }
+    await (_db.update(
+      _db.utilisateursLocal,
+    )..where((u) => u.id.equals(ligne.id))).write(
+      UtilisateursLocalCompanion(
+        supprimeLe: Value(quand.toLocal()),
+        actif: const Value(false),
+      ),
+    );
+    await JournalSecuriteDao(_db, horloge: _maintenant).tracer(
+      action: ActionJournalPoste.compteSupprime,
+      cibleId: ligne.id,
+      cibleLogin: ligne.login,
+    );
+    return const Aligne();
   }
 
   /* ================================================================== */
@@ -191,6 +290,216 @@ class AligneurCatalogue {
       if (await _file.enSuspens(synchronisee.nomServeur, l.id)) return true;
     }
     return false;
+  }
+
+  /* ================================================================== */
+  /* Canaux de réservation (21/10/2026)                                  */
+  /* ================================================================== */
+
+  /// Un canal du serveur. Apparié par son NOM (insensible à la casse) à un
+  /// canal né ici sous un autre identifiant — le jeu initial du poste, ou un
+  /// canal saisi hors ligne : la correspondance est retenue et l'identifiant
+  /// LOCAL reste (les réservations le citent). Un canal local dont l'ajout ou
+  /// le renommage attend encore de partir est CONSERVÉ : il partira, et le
+  /// dernier écrit gagnant du serveur tranchera. L'état (`actif`) est celui du
+  /// serveur : un canal désactivé là-bas l'est ici, jamais supprimé.
+  Future<IssueAlignement> _canalReservation(
+    String id,
+    ElementCatalogue e,
+  ) async {
+    final nom = _texte(e.donnees['nom']);
+    if (nom == null) return const RefuseParLePoste('nom de canal absent');
+    final dao = CanauxReservationDao(_db);
+    var cible = id;
+    final connu = await (_db.select(
+      _db.canauxReservationLocal,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (connu == null) {
+      final homonyme = await dao.parNom(nom);
+      if (homonyme != null) {
+        if (await _file.enSuspens(
+          TableSynchronisee.canauxReservation.nomServeur,
+          homonyme.id,
+        )) {
+          return _homonyme;
+        }
+        await _dao.retenirCorrespondance(
+          table: e.table.nomServeur,
+          idServeur: e.id,
+          idLocal: homonyme.id,
+          origine: 'libelle',
+        );
+        cible = homonyme.id;
+      }
+    }
+    await dao.inscrireDescendu(id: cible, nom: nom, actif: e.actif);
+    return const Aligne();
+  }
+
+  /* ================================================================== */
+  /* Retraits de la carte du jour (21/10/2026)                           */
+  /* ================================================================== */
+
+  /// Un retrait du serveur (un autre poste, la PWA). L'article cité doit être
+  /// détenu ici. Le serveur tient UN retrait en cours par article : celui qui
+  /// arrive remplace un retrait local EN COURS du même article (déjà parti), et
+  /// attend si ce dernier n'est pas encore envoyé (l'envoi le fera fusionner).
+  Future<IssueAlignement> _indisponibilite(
+    String id,
+    Map<String, Object?> d,
+  ) async {
+    final motif = _texte(d['motif']);
+    if (motif == null) return const RefuseParLePoste('motif absent');
+    final boissonServeur = _texte(d['boisson_id']);
+    final platServeur = _texte(d['plat_id']);
+    if ((boissonServeur == null) == (platServeur == null)) {
+      return const RefuseParLePoste(
+        'un retrait porte sur une boisson ou sur un plat, pas sur les deux',
+      );
+    }
+    DateTime? instant(Object? v) {
+      if (v == null) return null;
+      final lu = DateTime.tryParse('$v'.trim().replaceFirst(' ', 'T'));
+      if (lu == null) throw const FormatException('instant illisible');
+      return lu;
+    }
+
+    final debut = instant(d['date_indisponibilite']);
+    if (debut == null) return const RefuseParLePoste('date de retrait absente');
+    final retour = instant(d['date_retour_disponibilite']);
+
+    String? boisson;
+    String? plat;
+    if (boissonServeur != null) {
+      boisson = await _cite(
+        TableDescendue.cartesBoisson,
+        boissonServeur,
+        _db.cartesBoissonLocal,
+      );
+      if (boisson == null) {
+        return const EnAttenteDeDependance('boisson pas encore reçue');
+      }
+    } else {
+      plat = await _cite(TableDescendue.plats, platServeur!, _db.platsLocal);
+      if (plat == null) {
+        return const EnAttenteDeDependance('plat pas encore reçu');
+      }
+    }
+
+    final t = _db.indisponibilitesCarteLocal;
+    if (retour == null) {
+      final memeArticle =
+          await (_db.select(t)..where(
+                (l) =>
+                    l.id.equals(id).not() &
+                    l.dateRetourDisponibilite.isNull() &
+                    (boisson != null
+                        ? l.boissonId.equals(boisson)
+                        : l.platId.equals(plat!)),
+              ))
+              .get();
+      for (final autre in memeArticle) {
+        if (await _file.enSuspens('indisponibilites_carte', autre.id)) {
+          return _homonyme;
+        }
+      }
+      for (final autre in memeArticle) {
+        await (_db.delete(t)..where((l) => l.id.equals(autre.id))).go();
+      }
+    }
+    await _db
+        .into(t)
+        .insertOnConflictUpdate(
+          IndisponibilitesCarteLocalCompanion.insert(
+            id: id,
+            boissonId: Value(boisson),
+            platId: Value(plat),
+            motif: motif,
+            commentaire: Value(_texte(d['commentaire'])),
+            dateIndisponibilite: debut,
+            dateRetourDisponibilite: Value(retour),
+          ),
+        );
+    return const Aligne();
+  }
+
+  /* ================================================================== */
+  /* Historique des prix de la carte (26/10/2026)                        */
+  /* ================================================================== */
+
+  /// Une trace de prix du serveur — d'un autre poste, de la PWA, ou celle du
+  /// changement que CE poste lui a poussé. Rien ne la suspend : `source_id`
+  /// n'est pas une clé étrangère, la trace se lit sans l'article. Écrite par
+  /// `HistoriquePrixCarteDao.inscrireDescendue`, qui l'ADOPTE à la trace locale
+  /// équivalente plutôt que d'en ajouter une seconde ; la correspondance
+  /// `id serveur -> id local` est alors retenue, et le rejeu retombe sur la même
+  /// ligne. Jamais enfilée : la trace n'est pas poussée.
+  Future<IssueAlignement> _historiquePrix(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final source = SourceCarte.depuisCode(_texte(d['source']) ?? '');
+    if (source == null) {
+      return RefuseParLePoste(
+        'rayon de prix inconnu « ${_texte(d['source']) ?? ''} »',
+      );
+    }
+    final champ = _texte(d['champ']);
+    if (champ == null || !champsDePrixTraces.contains(champ)) {
+      return RefuseParLePoste('champ de prix inconnu « ${champ ?? ''} »');
+    }
+    final sourceServeur = _texte(d['source_id']);
+    if (sourceServeur == null) {
+      return const RefuseParLePoste('article de la trace absent');
+    }
+    final decimal = RegExp(r'^-?\d+(\.\d+)?$');
+    String? valeur(Object? v) {
+      final t = _texte(v);
+      return t == null
+          ? null
+          : (decimal.hasMatch(t)
+                ? t
+                : throw const FormatException('prix illisible'));
+    }
+
+    final String? ancien;
+    final String? nouveau;
+    final DateTime quand;
+    try {
+      ancien = valeur(d['ancien_prix']);
+      nouveau = valeur(d['nouveau_prix']);
+      final lu = DateTime.tryParse(
+        (_texte(d['created_at']) ?? '').replaceFirst(' ', 'T'),
+      );
+      if (lu == null) {
+        return const RefuseParLePoste('date de la trace illisible');
+      }
+      quand = lu;
+    } on FormatException {
+      return const RefuseParLePoste('prix de la trace illisible');
+    }
+
+    final article = await _dao.idLocal(
+      source == SourceCarte.boisson ? 'cartes_boisson' : 'plats',
+      sourceServeur,
+    );
+    final adoptee = await HistoriquePrixCarteDao(_db).inscrireDescendue(
+      id: id,
+      source: source,
+      sourceId: article,
+      champ: champ,
+      ancien: ancien,
+      nouveau: nouveau,
+      par: _texte(d['par']),
+      creeLe: quand,
+    );
+    if (adoptee != null) {
+      await _dao.retenirCorrespondance(
+        table: e.table.nomServeur,
+        idServeur: e.id,
+        idLocal: adoptee,
+        origine: 'libelle',
+      );
+    }
+    return const Aligne();
   }
 
   static const _homonyme = ConserveLocalement(
@@ -311,6 +620,21 @@ class AligneurCatalogue {
         );
       }
     }
+    // v57 : la valeur d'achat du serveur n'est reprise que lisible, positive, et
+    // SEULEMENT si ce poste n'en porte pas déjà une.
+    final luAchat = d['prix_achat'] == null
+        ? null
+        : entierDepuisDecimal(d['prix_achat'], 4);
+    final valeurAchat =
+        (luAchat != null && luAchat > 0 && existant?.prixAchatReference == null)
+        ? luAchat
+        : null;
+    // v59 : le CMP du serveur, comme RÉFÉRENCE seulement (affiché tant que ce poste n'a aucune
+    // entrée valorisée). Le serveur fait foi : il se remplace à chaque descente ; illisible ou
+    // nul, il est laissé tel quel (jamais effacé).
+    final luCmp = d['cout_moyen_pondere'] == null
+        ? null
+        : entierDepuisDecimal(d['cout_moyen_pondere'], 4);
     await _db
         .into(t)
         .insertOnConflictUpdate(
@@ -326,9 +650,23 @@ class AligneurCatalogue {
                 : seuil / echelleQuantite,
             suivi: Value(suivi.code),
             pointStockageId: Value(point),
+            // v35 : l'archive du serveur est APPLIQUÉE (`false` archive, `true`
+            // restaure). Une modification locale encore en file a déjà été
+            // gardée en amont (`aligner` : `ConserveLocalement`), donc ceci
+            // n'écrase jamais un archivage non poussé.
+            actif: Value(e.actif),
+            // v57 : la valeur d'achat de référence du serveur (`prix_achat`) —
+            // posée seulement si elle est lisible ET si ce poste n'en porte pas
+            // déjà une : jamais d'effacement ni d'écrasement d'une valeur locale.
+            prixAchatReference: valeurAchat == null
+                ? const Value.absent()
+                : Value(valeurAchat),
+            cmpReference: luCmp == null || luCmp <= 0
+                ? const Value.absent()
+                : Value(luCmp),
           ),
         );
-    return Aligne(archiveNonPortee: !e.actif);
+    return const Aligne();
   }
 
   /* ================================================================== */
@@ -364,6 +702,7 @@ class AligneurCatalogue {
       }
       article = local;
     }
+    final unites = _decimalPositif(d['unites_vendables_par_unite_stock']);
     final t = _db.cartesBoissonLocal;
     if (await (_db.select(
           t,
@@ -388,9 +727,18 @@ class AligneurCatalogue {
             libelle: libelle,
             categorie: categorie!,
             prixVente: prix.toDouble(),
+            unitesVendables: Value(unites),
           ),
         );
     return const Aligne();
+  }
+
+  /// Un décimal strictement positif, gardé EN TEXTE (`24.0000`) ; tout le
+  /// reste est « non reçu » (`null`) — jamais un 1 inventé.
+  static String? _decimalPositif(Object? brut) {
+    final texte = brut?.toString().trim();
+    if (texte == null || !RegExp(r'^\d+(\.\d+)?$').hasMatch(texte)) return null;
+    return double.parse(texte) > 0 ? texte : null;
   }
 
   /* ================================================================== */
@@ -493,7 +841,13 @@ class AligneurCatalogue {
     )..where((r) => r.id.equals(id))).getSingleOrNull();
     if (existante != null) {
       await (_db.update(t)..where((r) => r.id.equals(id))).write(
-        RecettesLocalCompanion(libelle: Value(libelle)),
+        RecettesLocalCompanion(
+          libelle: Value(libelle),
+          // La marque « composition provisoire » suit le serveur : posée par
+          // son référentiel de démonstration, levée quand une composition est
+          // réenregistrée (`CompositionRecetteService`).
+          compositionProvisoire: Value(_booleen(d['composition_provisoire'])),
+        ),
       );
     } else {
       final tous = await _db.select(t).get();
@@ -515,6 +869,9 @@ class AligneurCatalogue {
               libelle: libelle,
               creeLe: _maintenant(),
               creePar: auteur,
+              compositionProvisoire: Value(
+                _booleen(d['composition_provisoire']),
+              ),
             ),
           );
     }
@@ -543,10 +900,9 @@ class AligneurCatalogue {
     final menuServeur = _texte(d['menu_id']);
     final recetteServeur = _texte(d['recette_id']);
     if (menuServeur == null || recetteServeur == null) {
-      // `plats_local` exige un menu ET une fiche (vraies clés étrangères) :
-      // le rattachement direct à un article n'est pas porté sur ce poste.
+      // `plats_local` exige un menu ET une fiche (vraies clés étrangères).
       return const RefuseParLePoste(
-        'plat sans menu ou sans fiche technique : non porté sur ce poste',
+        'plat sans menu ou sans fiche technique : refusé',
       );
     }
     final prix = entierDepuisDecimal(d['prix_vente'], 0);
@@ -568,6 +924,25 @@ class AligneurCatalogue {
     if (recette == null) {
       return const EnAttenteDeDependance('fiche technique pas encore reçue');
     }
+    // Le lien direct au stock (v36) : l'article ET son conditionnement vont
+    // ensemble. Un article pas encore reçu = attente (jamais un lien perdu).
+    String? lienArticle;
+    String? lienUnites;
+    final articleServeur = _texte(d['article_id']);
+    final unitesServeur = _decimalPositif(
+      d['unites_vendables_par_unite_stock'],
+    );
+    if (articleServeur != null && unitesServeur != null) {
+      lienArticle = await _cite(
+        TableDescendue.articles,
+        articleServeur,
+        _db.articlesLocal,
+      );
+      if (lienArticle == null) {
+        return const EnAttenteDeDependance('article de stock pas encore reçu');
+      }
+      lienUnites = unitesServeur;
+    }
     final t = _db.platsLocal;
     final existant = await (_db.select(
       t,
@@ -578,9 +953,16 @@ class AligneurCatalogue {
           menuId: Value(menu),
           recetteId: Value(recette),
           libelle: Value(libelle),
+          // v47 : la description facultative du plat (texte rogné, vide = `null`).
+          description: Value(_texte(d['description'])),
           prixVente: Value(prix),
+          articleId: Value(lienArticle),
+          unitesVendables: Value(lienUnites),
           prixProvisoire: Value(_booleen(d['prix_provisoire'])),
           prixCorrigeMain: Value(_booleen(d['prix_corrige_main'])),
+          // v41 : la catégorie du plat (les dix clés de la carte), texte brut du
+          // serveur — `null` si le plat n'en a pas.
+          categorie: Value(_texte(d['categorie'])),
         ),
       );
       return const Aligne();
@@ -604,9 +986,13 @@ class AligneurCatalogue {
             menuId: menu,
             recetteId: recette,
             libelle: libelle,
+            description: Value(_texte(d['description'])),
             prixVente: prix,
+            articleId: Value(lienArticle),
+            unitesVendables: Value(lienUnites),
             prixProvisoire: Value(_booleen(d['prix_provisoire'])),
             prixCorrigeMain: Value(_booleen(d['prix_corrige_main'])),
+            categorie: Value(_texte(d['categorie'])),
             creeLe: _maintenant(),
             creePar: auteur,
           ),
@@ -675,6 +1061,45 @@ class AligneurCatalogue {
   /// → `hors_service`) ou sa réintégration (`actif: true` sur une unité hors
   /// service → `libre`, comme `ParcDao.restaurer`). Une unité NOUVELLE naît
   /// dans le statut du serveur.
+  /// Une PURGE faite ailleurs (A5, 28/10/2026) : l'élément est retiré de CE poste
+  /// SEULEMENT si aucune saisie locale n'y est rattachée — ni opération qui
+  /// attend de partir, ni réservation / contrat / entretien qui le cite.
+  /// Sinon il est CONSERVÉ (le journal de réception le dit). Le retrait passe
+  /// par l'écrivain du module et n'enfile rien : le serveur a déjà purgé.
+  Future<IssueAlignement> _suppression(String id, ElementCatalogue e) async {
+    final table = e.table.tableSynchronisee;
+    if (table == null || !table.accepteSuppression) {
+      return const RefuseParLePoste('suppression non admise pour cette table');
+    }
+    if (await _file.enSuspens(table.nomServeur, id)) {
+      return const ConserveLocalement(raisonPurgeSaisieEnAttente);
+    }
+    final retire = switch (e.table) {
+      TableDescendue.unitesHebergement => await ParcDao(
+        _db,
+      ).retirerUnitePurgeeAilleurs(id),
+      TableDescendue.vehicules => await VehiculeDao(
+        _db,
+      ).retirerVehiculePurgeAilleurs(id),
+      _ => null,
+    };
+    if (retire == null) {
+      return const RefuseParLePoste('suppression non admise pour cette table');
+    }
+    return retire
+        ? const Aligne()
+        : const ConserveLocalement(raisonPurgeSaisieRattachee);
+  }
+
+  /// Pourquoi une purge faite ailleurs n'est pas rejouée sur ce poste.
+  static const String raisonPurgeSaisieEnAttente =
+      'purgé définitivement sur un autre poste, mais une saisie de ce poste '
+      'concernant cet élément attend encore de partir : il est conservé';
+  static const String raisonPurgeSaisieRattachee =
+      'purgé définitivement sur un autre poste, mais une saisie faite sur ce '
+      'poste le cite encore (réservation, contrat de location ou entretien) : '
+      'il est conservé';
+
   Future<IssueAlignement> _unite(String id, ElementCatalogue e) async {
     final d = e.donnees;
     final numero = _texte(d['numero']);
@@ -807,9 +1232,11 @@ class AligneurCatalogue {
   /// aucun contrôle d'homonyme ici non plus. La modification d'une fiche
   /// part au serveur (dernière saisie gagnante) : la version descendue est
   /// celle qui a gagné, et elle remplace la fiche locale quand plus rien
-  /// n'attend (garde d'[aligner]). `solde` ne descend pas (calcul) ; un
-  /// client archivé reste proposé (aucune archive locale), et le bilan le
-  /// compte.
+  /// n'attend (garde d'[aligner]). `solde` ne descend pas (calcul). Depuis le
+  /// 21/10/2026 `actif` descend aussi (`clients_local.actif`, v35) : un client
+  /// archivé au serveur est archivé ici, un client restauré l'est aussi — le
+  /// poste archive lui-même (`ClientDao.archiver`), donc plus aucun archivé
+  /// n'est « proposé faute d'archive locale ».
   Future<IssueAlignement> _client(String id, ElementCatalogue e) async {
     final d = e.donnees;
     final nom = _texte(d['nom']);
@@ -832,9 +1259,16 @@ class AligneurCatalogue {
             email: Value(_texte(d['email'])),
             typeClient: type!,
             statutSync: const Value('synchronise'),
+            actif: Value(e.actif),
+            // L'IFU de la fiche (07/11/2026, « Retenir pour ce client ») : LECTURE SEULE ici,
+            // il préremplit l'IFU du client à la facturation ; jamais renvoyé au serveur.
+            ifu: Value(_texte(d['ifu'])),
           ),
         );
-    return Aligne(archiveNonPortee: !e.actif);
+    // Le serveur détient ce client (un geste qui le cite ou le modifie peut
+    // partir sans lui renvoyer sa création — `ClientDao.assurerConnuDuServeur`).
+    await _retenirOrigine(e, id);
+    return const Aligne();
   }
 
   /* ================================================================== */
@@ -873,20 +1307,24 @@ class AligneurCatalogue {
   /// serveur cite SES canaux) ; AUCUNE pièce comptable — le serveur a passé
   /// celle de l'acompte, il est le seul comptable (D246).
   ///
-  /// ## Déjà sur ce poste : seul le STATUT avance, jamais il ne recule
+  /// ## Déjà sur ce poste : la FICHE du serveur, le STATUT n'avance que
   ///
-  /// Le poste ne pousse que la CRÉATION d'une réservation (le serveur
-  /// refuse toute modification) : un séjour ouvert ou annulé ICI n'est pas
-  /// connu du serveur. Réécrire la fiche locale avec la version du serveur
-  /// effacerait ces gestes. Donc :
+  /// (09/11/2026, décision du PO : « toute modification se propage complètement
+  /// et identiquement à tous les postes »). Une réservation SANS opération en
+  /// attente reprend la fiche du serveur — chambre, dates, client, tarif,
+  /// acompte, remise, mode de paiement, canal ET services (avec la ligne
+  /// d'hébergement, sans laquelle le total ne compterait que les services) — et
+  /// devient « Synchronisée ». Jamais ici : une réservation dont une opération
+  /// attend encore (l'appelant, `aligner`, la conserve) ni une réservation
+  /// REFUSÉE par le serveur (son badge et « À traiter » portent le refus). Avant
+  /// cette date seul le statut avançait : un service ajouté ou un prix changé
+  /// ailleurs n'arrivait jamais (75 000 ici, 80 000 là-bas).
   ///  * annulée ici → rien ne change (l'annulation locale porte sa pièce) ;
   ///  * annulée au serveur → annulée ici, avec ses conditions (taux,
   ///    montants, date), sans pièce ;
   ///  * sinon le statut du serveur n'est pris que s'il est PLUS AVANCÉ dans
-  ///    le cycle (`en_attente` → `confirmee` → `en_cours` → `terminee`).
-  /// Les dates, l'unité, le client et les montants d'une réservation
-  /// existante ne sont pas réécrits — écart nommé : un séjour déplacé au
-  /// serveur garde ici ses anciennes dates.
+  ///    le cycle (`en_attente` → `confirmee` → `en_cours` → `terminee`) : un
+  ///    check-in fait ICI ne recule pas.
   Future<IssueAlignement> _reservation(String id, ElementCatalogue e) async {
     final d = e.donnees;
     final statut = _texte(d['statut']);
@@ -905,6 +1343,8 @@ class AligneurCatalogue {
       int? commission,
       int? rembourse,
       DateTime? date,
+      String? mode,
+      String? auteur,
     })
     annulation;
     try {
@@ -913,28 +1353,22 @@ class AligneurCatalogue {
       return RefuseParLePoste(erreur.message);
     }
 
-    if (existante != null) {
-      if (existante.statut == 'annulee') return const Aligne();
-      if (statut == 'annulee') {
-        await (_db.update(t)..where((r) => r.id.equals(id))).write(
-          ReservationsLocalCompanion(
-            statut: const Value('annulee'),
-            tauxAnnulationCentiemes: Value(annulation.taux),
-            montantTotalAnnulationCentimes: Value(annulation.total),
-            montantCommissionAnnulationCentimes: Value(annulation.commission),
-            montantRembourseAnnulationCentimes: Value(annulation.rembourse),
-            dateAnnulation: Value(annulation.date),
-          ),
-        );
-        return const Aligne();
-      }
-      final rangLocal = _rangStatut[existante.statut] ?? 0;
-      if (_rangStatut[statut]! > rangLocal) {
-        await (_db.update(t)..where((r) => r.id.equals(id))).write(
-          ReservationsLocalCompanion(statut: Value(statut)),
+    // Une annulation REÇUE est celle qu'aucun compte de ce poste n'a faite
+    // (`utilisateur_annulation_id` nul) : le serveur en est l'autorité, jusqu'à sa FICHE.
+    // Une annulation faite ICI garde ce poste (sa pièce, son auteur) : rien ne change.
+    var annuleeRecue = false;
+    if (existante != null && existante.statut == 'annulee') {
+      annuleeRecue = existante.utilisateurAnnulationId == null;
+      if (!annuleeRecue || statut != 'annulee') return const Aligne();
+    }
+    if (existante != null && statut != 'annulee') {
+      // Un refus du serveur reste visible (badge « Refusée », « À traiter ») : la
+      // descente ne le fait pas disparaître en réécrivant la fiche.
+      if (existante.statutSync == 'rejete') {
+        return const ConserveLocalement(
+          'un refus du serveur attend sa correction (« À traiter »)',
         );
       }
-      return const Aligne();
     }
 
     final clientServeur = _texte(d['client_id']);
@@ -981,17 +1415,22 @@ class AligneurCatalogue {
       clientServeur,
       _db.clientsLocal,
     );
-    if (client == null) {
-      return const EnAttenteDeDependance('client pas encore reçu');
-    }
     final unite = await _cite(
       TableDescendue.unitesHebergement,
       uniteServeur,
       _db.unitesHebergementLocal,
     );
-    if (unite == null) {
-      return const EnAttenteDeDependance(
-        'unité d’hébergement pas encore reçue',
+    if (client == null || unite == null) {
+      if (existante != null && statut == 'annulee') {
+        // Une annulation ne attend pas ses références : la réservation existe ici, le
+        // statut et les conditions s'écrivent TOUT DE SUITE (la fiche suivra).
+        await _ecrireAnnulationRecue(id, annulation);
+        return const Aligne();
+      }
+      return EnAttenteDeDependance(
+        client == null
+            ? 'client pas encore reçu'
+            : 'unité d’hébergement pas encore reçue',
       );
     }
 
@@ -1002,6 +1441,9 @@ class AligneurCatalogue {
       'bar': TableDescendue.cartesBoisson,
       'tourisme': TableDescendue.circuits,
       'vehicule': null,
+      // Chambres SUPPLÉMENTAIRES d'une réservation multi-chambres (10/11/2026) : la source est
+      // l'unité d'hébergement ; la chambre principale est `unite_id`.
+      'hebergement': TableDescendue.unitesHebergement,
     };
     final lignesService =
         <
@@ -1043,6 +1485,93 @@ class AligneurCatalogue {
         quantite: quantite,
       ));
     }
+    final nomCanal = _texte(d['canal']);
+    final canalLocal = nomCanal == null
+        ? null
+        : await CanauxReservationDao(_db).parNom(nomCanal);
+    // Le canal pas encore descendu (ou hors flux pour ce compte) : un canal du
+    // jeu initial se lit encore par son code `can-…`, qu'une lecture des canaux
+    // remplacera par l'identifiant de la table (`CanauxReservationDao.tous`).
+    final canalEcrit =
+        canalLocal?.id ??
+        (nomCanal == null
+            ? null
+            : CanalReservation.jeuInitial
+                  .where(
+                    (c) => c.libelle.toLowerCase() == nomCanal.toLowerCase(),
+                  )
+                  .firstOrNull
+                  ?.code);
+    if (existante != null) {
+      final rangLocal = _rangStatut[existante.statut] ?? 0;
+      await (_db.update(t)..where((r) => r.id.equals(id))).write(
+        ReservationsLocalCompanion(
+          clientId: Value(client),
+          uniteId: Value(unite),
+          dateArrivee: Value(arrivee),
+          dateDepart: Value(depart),
+          // Un tarif absent du serveur ne réécrit pas celui du poste.
+          tarifNuit: d['tarif_nuit'] == null
+              ? const Value.absent()
+              : Value(tarif),
+          acompte: Value(acompte.toDouble()),
+          modePaiement: Value(mode),
+          canal: Value(canalEcrit),
+          remiseType: Value(remiseType),
+          remiseValeur: Value(
+            remiseType == 'aucune' ? null : remiseCentiemes / 100,
+          ),
+          statut: statut == 'annulee'
+              ? const Value('annulee')
+              : (_rangStatut[statut]! > rangLocal
+                    ? Value(statut)
+                    : const Value.absent()),
+          // Plus rien n'attend (l'appelant l'a vérifié) : la ligne EST celle du serveur.
+          statutSync: const Value('synchronise'),
+          motifRejet: const Value(null),
+          // Annulée au serveur : TOUT ce qu'il a fixé, sans compte local (l'auteur est un login).
+          tauxAnnulationCentiemes: statut == 'annulee'
+              ? Value(annulation.taux)
+              : const Value.absent(),
+          montantTotalAnnulationCentimes: statut == 'annulee'
+              ? Value(annulation.total)
+              : const Value.absent(),
+          montantCommissionAnnulationCentimes: statut == 'annulee'
+              ? Value(annulation.commission)
+              : const Value.absent(),
+          montantRembourseAnnulationCentimes: statut == 'annulee'
+              ? Value(annulation.rembourse)
+              : const Value.absent(),
+          modeSaisieRemboursement: statut == 'annulee'
+              ? Value(annulation.mode)
+              : const Value.absent(),
+          dateAnnulation: statut == 'annulee'
+              ? Value(annulation.date)
+              : const Value.absent(),
+          auteurAnnulationLogin: statut == 'annulee'
+              ? Value(annulation.auteur)
+              : const Value.absent(),
+        ),
+      );
+      if (brutes is List) {
+        final chambreAvant =
+            await (_db.select(_db.lignesReservationLocal)..where(
+                  (l) =>
+                      l.reservationId.equals(id) &
+                      l.service.equals('hebergement'),
+                ))
+                .get();
+        await _ecrireLignesDescendues(
+          id,
+          unite: unite,
+          tarif: d['tarif_nuit'] == null ? existante.tarifNuit : tarif,
+          nuits: depart.difference(arrivee).inDays,
+          services: lignesService,
+          avecChambre: lignesService.isNotEmpty || chambreAvant.isNotEmpty,
+        );
+      }
+      return const Aligne();
+    }
     await _db
         .into(t)
         .insert(
@@ -1060,12 +1589,9 @@ class AligneurCatalogue {
             modePaiement: Value(mode),
             // Lot 10f : le canal descend par son NOM (celui du serveur) ;
             // un nom que ce poste ne connaît pas reste sans canal.
-            canal: Value(
-              CanalReservation.values
-                  .where((c) => c.libelle == _texte(d['canal']))
-                  .firstOrNull
-                  ?.code,
-            ),
+            // 21/10/2026 : par le NOM, relu de la table des canaux (descendue
+            // AVANT les réservations) — insensible à la casse.
+            canal: Value(canalEcrit),
             remiseType: Value(remiseType),
             remiseValeur: Value(
               remiseType == 'aucune' ? null : remiseCentiemes / 100,
@@ -1075,32 +1601,93 @@ class AligneurCatalogue {
             montantTotalAnnulationCentimes: Value(annulation.total),
             montantCommissionAnnulationCentimes: Value(annulation.commission),
             montantRembourseAnnulationCentimes: Value(annulation.rembourse),
+            modeSaisieRemboursement: Value(annulation.mode),
             dateAnnulation: Value(annulation.date),
+            auteurAnnulationLogin: Value(annulation.auteur),
             dateCreationLocale: Value(_maintenant()),
           ),
         );
     // Lot F6 (audit de couverture) : ses services, au prix et au libellé
-    // figés au serveur.
-    for (var i = 0; i < lignesService.length; i++) {
-      final l = lignesService[i];
+    // figés au serveur — et, depuis le 09/11/2026, la ligne d'hébergement qui les
+    // accompagne.
+    await _ecrireLignesDescendues(
+      id,
+      unite: unite,
+      tarif: tarif,
+      nuits: depart.difference(arrivee).inDays,
+      services: lignesService,
+      avecChambre: lignesService.isNotEmpty,
+    );
+    // Lot F6 : son origine (Q3, et « connue du serveur »).
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Réécrit les lignes d'une réservation REÇUE : ses services (au prix et au
+  /// libellé figés par le poste d'origine) et, quand il y en a, la ligne
+  /// d'HÉBERGEMENT — la fiche du poste calcule le total en SOMMANT ses lignes dès
+  /// qu'elle en a : des services sans la chambre feraient un séjour à 5 000 au lieu
+  /// de 80 000 (constaté le 09/11/2026).
+  Future<void> _ecrireLignesDescendues(
+    String reservationId, {
+    required String unite,
+    required int tarif,
+    required int nuits,
+    required List<
+      ({String service, String item, String libelle, int prix, int quantite})
+    >
+    services,
+    required bool avecChambre,
+  }) async {
+    await (_db.delete(
+      _db.lignesReservationLocal,
+    )..where((l) => l.reservationId.equals(reservationId))).go();
+    var ordre = 0;
+    if (avecChambre) {
+      final chambre = await (_db.select(_db.unitesHebergementLocal).join([
+        innerJoin(
+          _db.categoriesHebergementLocal,
+          _db.categoriesHebergementLocal.id.equalsExp(
+            _db.unitesHebergementLocal.categorieId,
+          ),
+        ),
+      ])..where(_db.unitesHebergementLocal.id.equals(unite))).getSingleOrNull();
+      final libelle = chambre == null
+          ? unite
+          : '${chambre.readTable(_db.categoriesHebergementLocal).libelle} '
+                '(${chambre.readTable(_db.unitesHebergementLocal).numero})';
       await _db
           .into(_db.lignesReservationLocal)
           .insert(
             LignesReservationLocalCompanion.insert(
-              id: '$id:$i',
-              reservationId: id,
+              id: '$reservationId:h',
+              reservationId: reservationId,
+              service: 'hebergement',
+              itemId: unite,
+              libelle: libelle,
+              prixUnitaire: tarif,
+              quantite: nuits,
+              ordre: ordre++,
+            ),
+          );
+    }
+    for (var i = 0; i < services.length; i++) {
+      final l = services[i];
+      await _db
+          .into(_db.lignesReservationLocal)
+          .insert(
+            LignesReservationLocalCompanion.insert(
+              id: '$reservationId:$i',
+              reservationId: reservationId,
               service: l.service,
               itemId: l.item,
               libelle: l.libelle,
               prixUnitaire: l.prix,
               quantite: l.quantite,
-              ordre: i,
+              ordre: ordre++,
             ),
           );
     }
-    // Lot F6 : son origine (Q3, et « connue du serveur »).
-    await _retenirOrigine(e, id);
-    return const Aligne();
   }
 
   /// Minuit UTC du jour d'une date du serveur — la convention de
@@ -1114,13 +1701,17 @@ class AligneurCatalogue {
   }
 
   /// Les conditions d'annulation du serveur, dans les unités de la v19 :
-  /// taux en centièmes de pour cent, montants en centimes.
+  /// taux en centièmes de pour cent, montants en centimes. Le MODE de saisie et l'AUTEUR
+  /// (`par`, un login) descendent aussi (09/11/2026) : sans eux, une annulation reçue n'était
+  /// jamais complète et l'onglet « Annulations » la montrait avec des tirets.
   static ({
     int? taux,
     int? total,
     int? commission,
     int? rembourse,
     DateTime? date,
+    String? mode,
+    String? auteur,
   })
   _conditionsAnnulation(Map<String, Object?> d) {
     int? centiemes(String colonne) {
@@ -1134,12 +1725,14 @@ class AligneurCatalogue {
 
     DateTime? date;
     if (d['date_annulation'] != null) {
-      date = DateTime.tryParse(
-        '${d['date_annulation']}'.replaceFirst(' ', 'T'),
-      );
+      // Le serveur écrit l'instant en UTC (sans fuseau) : le poste l'affiche à son heure
+      // locale, la même que celle de l'annulation faite ici.
+      final brut = '${d['date_annulation']}'.trim().replaceFirst(' ', 'T');
+      date = DateTime.tryParse(brut.endsWith('Z') ? brut : '${brut}Z');
       if (date == null) {
         throw const FormatException('date d’annulation illisible');
       }
+      date = date.toLocal();
     }
     return (
       taux: centiemes('taux_annulation'),
@@ -1147,6 +1740,39 @@ class AligneurCatalogue {
       commission: centiemes('montant_commission_annulation'),
       rembourse: centiemes('montant_rembourse_annulation'),
       date: date,
+      mode: _texte(d['mode_saisie_remboursement']),
+      auteur: _texte(d['par']),
+    );
+  }
+
+  /// Écrit sur une réservation DÉJÀ ICI ce que le serveur a fixé en l'annulant (statut,
+  /// taux, montants, date, mode, auteur) — sans pièce : le serveur est le seul comptable.
+  Future<void> _ecrireAnnulationRecue(
+    String id,
+    ({
+      int? taux,
+      int? total,
+      int? commission,
+      int? rembourse,
+      DateTime? date,
+      String? mode,
+      String? auteur,
+    })
+    a,
+  ) async {
+    await (_db.update(
+      _db.reservationsLocal,
+    )..where((r) => r.id.equals(id))).write(
+      ReservationsLocalCompanion(
+        statut: const Value('annulee'),
+        tauxAnnulationCentiemes: Value(a.taux),
+        montantTotalAnnulationCentimes: Value(a.total),
+        montantCommissionAnnulationCentimes: Value(a.commission),
+        montantRembourseAnnulationCentimes: Value(a.rembourse),
+        modeSaisieRemboursement: Value(a.mode),
+        dateAnnulation: Value(a.date),
+        auteurAnnulationLogin: Value(a.auteur),
+      ),
     );
   }
 
@@ -1247,6 +1873,18 @@ class AligneurCatalogue {
     if (annee == null || debut == null || fin == null || statut == null) {
       return const RefuseParLePoste('exercice illisible');
     }
+    // 26/10/2026 : une clôture, une réouverture ou une reprise de saisie faite
+    // SUR CE POSTE (`ClotureExerciceLocale`) a ses pièces CL et AN ici ; tant
+    // que sa demande n'est pas ACCEPTÉE par le serveur (en file, bloquée, ou
+    // refusée et pas renvoyée), le statut du serveur ne la défait pas : un
+    // exercice « ouvert » redescendu rouvrirait l'écriture dans un exercice dont
+    // les pièces de clôture existent déjà. Dès que la dernière demande de
+    // l'année est acceptée, le serveur — seul comptable — reprend la main.
+    if (await _demandeDeClotureEnSuspens(annee)) {
+      return const ConserveLocalement(
+        'une demande de clôture de ce poste n’est pas encore acceptée par le serveur',
+      );
+    }
     await ComptabiliteDao(_db).alignerExerciceDescendu(
       annee: annee,
       dateDebut: debut.substring(0, 10),
@@ -1255,6 +1893,172 @@ class AligneurCatalogue {
       dateCloture: DateTime.tryParse(_texte(d['date_cloture']) ?? ''),
     );
     return const Aligne();
+  }
+
+  /// La DERNIÈRE demande de clôture de cette année (par ordre d'enfilement) n'a-
+  /// t-elle pas été acceptée ? `true` : en file, en cours, bloquée, en conflit ou
+  /// refusée. Une année sans demande, ou dont la dernière est acceptée : `false`.
+  Future<bool> _demandeDeClotureEnSuspens(int annee) async {
+    StatutOperationSync? dernier;
+    for (final o in await _file.operations(
+      table: TableSynchronisee.demandesClotureExercice,
+    )) {
+      final payload = jsonDecode(o.payload);
+      if (payload is Map && payload['annee'] == annee) dernier = o.statut;
+    }
+    return dernier != null && dernier != StatutOperationSync.synchronise;
+  }
+
+  /// Un compte du plan du serveur (28/10/2026, D246 rouvert). Reconnu à son
+  /// NUMÉRO : ajouté s'il manque, JAMAIS réécrit — un compte créé ici et pas
+  /// encore accepté garde son libellé (c'est l'envoi qui arbitre, et un libellé
+  /// différent y devient un refus lisible « À traiter »). Rien n'est enfilé. Un
+  /// numéro mal formé, une classe qui n'est pas son premier chiffre ou une nature
+  /// hors registre est refusé, pas deviné.
+  Future<IssueAlignement> _compteDuPlan(ElementCatalogue e) async {
+    final d = e.donnees;
+    final numero = _texte(d['numero_compte']);
+    final libelle = _texte(d['libelle']);
+    final nature = _texte(d['nature']);
+    if (numero == null ||
+        libelle == null ||
+        !RegExp(r'^[1-9][0-9]*$').hasMatch(numero) ||
+        _texte(d['classe']) != numero.substring(0, 1) ||
+        (nature != null &&
+            !const ['actif', 'passif', 'charge', 'produit'].contains(nature))) {
+      return const RefuseParLePoste('compte du plan illisible');
+    }
+    await ComptabiliteDao(_db).insererCompteDescendu(
+      id: e.id,
+      numero: numero,
+      libelle: libelle,
+      nature: nature,
+    );
+    return const Aligne();
+  }
+
+  /// Une écriture VALIDÉE du serveur, en miroir de lecture (v34). Ajoutée si
+  /// elle manque, jamais réécrite (RG-11) ; aucune clé étrangère, donc rien à
+  /// attendre. Une fraction de centime ou un champ manquant la refuse.
+  Future<IssueAlignement> _ecritureServeur(ElementCatalogue e) async {
+    final d = e.donnees;
+    final annee = d['annee'] is int
+        ? d['annee']! as int
+        : int.tryParse('${d['annee']}');
+    final journal = _texte(d['code_journal']);
+    final compte = _texte(d['numero_compte']);
+    final classe = _texte(d['classe']);
+    final jour = _jour(d['date_ecriture']);
+    final libelle = d['libelle'] is String ? d['libelle'] as String : null;
+    final debit = entierDepuisDecimal(d['debit'], 2);
+    final credit = entierDepuisDecimal(d['credit'], 2);
+    if (annee == null ||
+        annee <= 0 ||
+        journal == null ||
+        compte == null ||
+        classe == null ||
+        jour == null ||
+        libelle == null ||
+        debit == null ||
+        credit == null) {
+      return const RefuseParLePoste('écriture illisible');
+    }
+    await EcrituresServeurDao(_db).ajouterSiAbsente(
+      id: e.id,
+      annee: annee,
+      codeJournal: journal,
+      numeroCompte: compte,
+      libelleCompte: _texte(d['libelle_compte']) ?? compte,
+      classe: classe,
+      dateEcriture: jour,
+      libelle: libelle,
+      debitCentimes: debit,
+      creditCentimes: credit,
+      numeroPiece: _texte(d['numero_piece']),
+      ecritureContrepasseeId: _texte(d['ecriture_contrepassee_id']),
+      pieceOrigineId: _texte(d['piece_origine_id']),
+    );
+    return const Aligne();
+  }
+
+  /// Une AFFECTATION DU RÉSULTAT du serveur (09/11/2026, v53) : passée au web, par un
+  /// autre poste ou par celui-ci, ACTIVE ou CONTRE-PASSÉE. Inscrite (ou mise à jour —
+  /// c'est ainsi qu'une contre-passation faite ailleurs arrive) dans le miroir de
+  /// lecture ; jamais enfilée, jamais une écriture du poste touchée. Un montant à
+  /// fraction de centime, une année ou une date illisible la refuse, pas deviné.
+  Future<IssueAlignement> _affectationRecue(ElementCatalogue e) async {
+    final d = e.donnees;
+    final annee = d['annee'] is int
+        ? d['annee']! as int
+        : int.tryParse('${d['annee']}');
+    final resultat = entierDepuisDecimal(d['resultat'], 2);
+    final reserve = entierDepuisDecimal(d['reserve_legale'], 2);
+    final autres = entierDepuisDecimal(d['autres_reserves'], 2);
+    final dividendes = entierDepuisDecimal(d['dividendes'], 2);
+    final reportCrediteur = entierDepuisDecimal(
+      d['report_a_nouveau_crediteur'],
+      2,
+    );
+    final reportDebiteur = entierDepuisDecimal(
+      d['report_a_nouveau_debiteur'],
+      2,
+    );
+    final piece = _texte(d['piece_affectation']);
+    String? approbation;
+    try {
+      approbation = _jour(d['date_approbation']);
+    } on FormatException {
+      approbation = null;
+    }
+    final affectee = _instantServeur(d['affectee_le']);
+    final brutContrepassee = _texte(d['contrepassee_le']);
+    final contrepassee = brutContrepassee == null
+        ? null
+        : _instantServeur(brutContrepassee);
+    if (annee == null ||
+        annee <= 0 ||
+        resultat == null ||
+        reserve == null ||
+        autres == null ||
+        dividendes == null ||
+        reportCrediteur == null ||
+        reportDebiteur == null ||
+        piece == null ||
+        approbation == null ||
+        affectee == null ||
+        (brutContrepassee != null && contrepassee == null)) {
+      return const RefuseParLePoste('affectation du résultat illisible');
+    }
+    await AffectationsRecuesDao(_db).inscrire(
+      AffectationRecueDuServeur(
+        id: e.id,
+        annee: annee,
+        resultatCentimes: resultat,
+        dateApprobation: approbation,
+        reserveLegaleCentimes: reserve,
+        autresReservesCentimes: autres,
+        dividendesCentimes: dividendes,
+        reportCrediteurCentimes: reportCrediteur,
+        reportDebiteurCentimes: reportDebiteur,
+        numeroPiece: piece,
+        pieceOrigineId: _texte(d['piece_origine_id']),
+        auteurLogin: _texte(d['par']),
+        affecteeLe: affectee,
+        contrepasseeLe: contrepassee,
+      ),
+    );
+    return const Aligne();
+  }
+
+  /// Un horodatage du serveur (`2026-11-09 10:00:00`, sans fuseau) lu à l'HEURE
+  /// D'HORLOGE du serveur, sans conversion : Drift le garde et le relit en heure
+  /// locale, la carte affiche donc la même heure que la vue web, et deux horodatages du
+  /// serveur (la clôture d'un exercice, une affectation) se comparent entre eux.
+  /// `null` si illisible.
+  static DateTime? _instantServeur(Object? v) {
+    final brut = _texte(v);
+    if (brut == null) return null;
+    return DateTime.tryParse(brut.replaceFirst(' ', 'T'));
   }
 
   /// Un rôle du serveur et sa matrice, recopiée sur les comptes qui le

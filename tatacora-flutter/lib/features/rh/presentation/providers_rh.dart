@@ -11,22 +11,29 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart' show PdfPageFormat;
+import 'package:printing/printing.dart';
 
 import '../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../../core/rbac/regle_archivage.dart';
+import '../../parametres/presentation/providers_options_systeme.dart';
 import '../data/employe_dao.dart';
 import '../data/paie_dao.dart';
 import '../domain/entities/bulletin_paie.dart';
 import '../domain/entities/employe.dart';
 import '../domain/entities/periode_paie.dart';
 import '../domain/entities/taux_paie.dart';
+import '../domain/refus_rh.dart';
 import '../domain/services/bulletin_paie_service.dart';
 import '../domain/services/calcul_paie_service.dart';
 import '../domain/services/livre_de_paie_service.dart';
+import '../impression/bulletin_paie_a4.dart';
 import '../impression/etat_paie.dart';
 
 /* ====================================================================== */
@@ -63,33 +70,65 @@ final peutEcrirePaieProvider = Provider<bool>(
 
 /// Qui peut ARCHIVER le personnel (`rh/paie.blade.php` l.291, l.378).
 ///
-/// La vue reçoit `peutArchiver` du composant (`AutoriseArchivage`), qui dit :
-/// `administrateur` et `super_admin` en `C` sur M13, sans condition ; tout
-/// autre rôle en `C` SEULEMENT quand la bascule `activation_suppression` des
-/// Paramètres est ouverte — elle naît FERMÉE.
-///
-/// ⚠ Ce provider ne LIT PAS cette bascule. Jusqu'au 09/10/2026 aucune table
-/// locale ne la portait ; depuis la v11 l'écran Paramètres peut l'écrire
-/// (`parametres_systeme_local`, clé `activation_suppression`), mais ce
-/// provider ne l'interroge pas : brancher la lecture changerait QUI peut
-/// archiver le personnel, ce qui relève d'une décision du Product Owner et non
-/// d'un câblage. Sa valeur d'effet reste donc « fermée » : la règle se réduit
-/// ici aux deux rôles d'administration. La condition de rouverture
-/// (« si les Paramètres deviennent locaux ») est REMPLIE — reste la décision.
-final peutArchiverPaieProvider = Provider<bool>((ref) {
-  if (!ref.watch(peutEcrirePaieProvider)) return false;
+/// La vue reçoit `peutArchiver` du composant (`AutoriseArchivage`) : droit `C`
+/// sur M13 ET (`administrateur` / `super_admin` sans condition, tout autre rôle
+/// SEULEMENT quand la bascule `activation_suppression` des Paramètres est
+/// ouverte — elle naît FERMÉE). Depuis le 27/10/2026 (D272 levée par la
+/// décision du PO « le poste fait comme le web ») cette règle est la règle
+/// UNIQUE de `core/rbac/regle_archivage.dart`, appliquée à la session courante
+/// par [peutArchiverProvider] : la Paie n'en porte plus de copie réduite aux
+/// deux rôles. Ce provider ne sert qu'à RENDRE (bouton, cases) ; le geste
+/// relit la règle à chaque appel ([exigerArchivagePaieProvider]).
+final peutArchiverPaieProvider = Provider.autoDispose<bool>(
+  (ref) => ref.watch(peutArchiverProvider(ModuleTatacora.m13Rh)),
+);
 
-  final role = (ref.watch(sessionProvider)?.role ?? '')
-      .trim()
-      .toLowerCase()
-      .replaceAll(' ', '_');
+/// `exigerArchivage()` : le droit d'archiver, relu À CHAQUE geste — à
+/// l'OUVERTURE de la confirmation (`ouvrirArchivageEmployes`) comme à
+/// l'EXÉCUTION (`archiverEmployes`) : la bascule peut se refermer entre les
+/// deux, et le rôle est celui de la session, jamais celui du rendu. Lève
+/// [ArchivageEmployeRefuse] aux mots du serveur (`pwa.archivage.refus_bascule`).
+final exigerArchivagePaieProvider = Provider<Future<void> Function()>(
+  (ref) => () async {
+    final autorise = peutArchiver(
+      droits: ref.read(droitsProvider),
+      module: ModuleTatacora.m13Rh,
+      role: ref.read(sessionProvider)?.role,
+      suppressionActive: await lireSuppressionActive(
+        ref.read(baseLocaleProvider),
+      ),
+    );
+    if (!autorise) throw const ArchivageEmployeRefuse();
+  },
+);
 
-  return rolesAdministrationPaie.contains(role);
-});
+/// Le bilan d'un archivage en lot : combien d'employés ont été archivés et les
+/// refus du service (`Paie::archiverEmployes` : « perdre le lot entier pour une
+/// ligne déjà traitée serait le refus d'opération de PA-65 appliqué à
+/// l'envers »).
+typedef BilanArchivageEmployes = ({int archives, List<String> refus});
 
-/// `User::ROLES_ADMINISTRATION` côté serveur — les deux rôles qui archivent
-/// sans la bascule des Paramètres.
-const Set<String> rolesAdministrationPaie = {'administrateur', 'super_admin'};
+/// `Paie::archiverEmployes` : le droit est exigé de nouveau, puis chaque
+/// employé du lot est archivé par [EmployeDao.archiver] (écrivain unique, il
+/// enfile dans sa transaction) ; un refus n'empêche pas les autres.
+final archiverEmployesProvider =
+    Provider<Future<BilanArchivageEmployes> Function(List<String>)>(
+      (ref) => (ids) async {
+        await ref.read(exigerArchivagePaieProvider)();
+        final dao = ref.read(employeDaoProvider);
+        var archives = 0;
+        final refus = <String>[];
+        for (final id in ids) {
+          try {
+            await dao.archiver(id);
+            archives++;
+          } on RefusRh catch (r) {
+            refus.add(r.message);
+          }
+        }
+        return (archives: archives, refus: refus);
+      },
+    );
 
 /* ====================================================================== */
 /* Amorçage — les DEUX référentiels ont ici leur appelant réel              */
@@ -660,6 +699,51 @@ final exporterPaiePdfProvider = Provider<Future<String?> Function(EtatPaie)>(
       (etat) =>
           enregistrerEtatA4(ref, etat.etatA4(), base: etat.prefixeFichier),
 );
+
+/// Le bulletin de la modale, composé pour le papier : l'en-tête est lu des
+/// paramètres au moment d'éditer, le login est celui de la session
+/// (`$utilisateur->login`), la période est celle du BULLETIN.
+final bulletinA4Provider =
+    Provider.family<Future<BulletinPaieA4>, RecapitulatifBulletin>((
+      ref,
+      recapitulatif,
+    ) async {
+      final periode = PeriodePaie.depuisTexte(recapitulatif.bulletin.periode);
+      return BulletinPaieA4(
+        recapitulatif: recapitulatif,
+        periodeLongue: periode?.libelleLong ?? recapitulatif.bulletin.periode,
+        auteur: ref.read(sessionProvider)?.login,
+      ).avecEntete(await ref.read(lireEnteteEtablissementProvider)());
+    });
+
+/// « Imprimer » du bulletin : la boîte d'impression du système, avec le papier
+/// A4. Une action injectable — un test de widget n'a pas de greffon natif, et il
+/// doit exister un seul endroit où l'impression est déclenchée.
+final imprimerBulletinProvider =
+    Provider<Future<void> Function(BulletinPaieA4)>(
+      (ref) => (bulletin) async {
+        await Printing.layoutPdf(
+          onLayout: (_) => bulletin.pdf(),
+          name: bulletin.prefixeFichier,
+          format: PdfPageFormat.a4,
+        );
+      },
+    );
+
+/// « PDF » du bulletin : le fichier `bulletin_<numéro>.pdf` par la fenêtre
+/// « Enregistrer sous » (la vue le télécharge, `streamDownload`). Rend le
+/// chemin écrit, `null` : annulé.
+final exporterBulletinPdfProvider =
+    Provider<Future<String?> Function(BulletinPaieA4)>(
+      (ref) =>
+          (bulletin) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: bulletin.prefixeFichier,
+                type: TypeFichierEnregistre.pdf,
+                octets: await bulletin.pdf(),
+              ),
+    );
 
 /// Recharge tout ce qui dépend de la paie, après une écriture.
 ///

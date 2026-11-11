@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Gestionnaires;
 
+use App\Models\User;
 use App\Pwa\Support\ReglesDeLApi;
 use App\Shared\Sync\Contracts\GestionnaireSynchronisation;
 use App\Shared\Sync\Exceptions\DonneesSynchroniseesInvalidesException;
@@ -21,7 +22,9 @@ use RuntimeException;
 /**
  * Les choix PAR DÉFAUT d'un gestionnaire — tous du côté prudent.
  *
- * - Niveau `C` : toute opération synchronisée est une écriture (PA-65).
+ * - Niveau `C` : toute opération synchronisée est une écriture (PA-65) ; mais depuis
+ *   le 09/11/2026 le compte du jeton n'est plus jugé sur le module (`modulesRequis`
+ *   vide par défaut : le RBAC se juge au poste).
  * - Modification REFUSÉE : une table doit l'accepter explicitement, en la
  *   faisant passer par son service. Oublier de la déclarer donne un rejet
  *   lisible, jamais une écriture brute. (Le catalogue entier l'accepte depuis
@@ -39,9 +42,29 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
         return 'C';
     }
 
+    /**
+     * Par défaut : AUCUN droit du compte d'appairage (décision du PO du 09/11/2026).
+     * Une opération sensible déclare ses modules ici, ET se range dans
+     * `OperationsSensibles` (le test d'architecture relit la liste fermée).
+     */
     public function modulesRequis(array $payload): array
     {
+        return [];
+    }
+
+    /**
+     * Le RBAC du WEB pour corriger / relancer / ignorer une opération reçue : le module
+     * de la table, par défaut (une table qui en exige d'autres le redéclare).
+     */
+    public function modulesDeLaCorrection(array $payload): array
+    {
         return [$this->module()];
+    }
+
+    /** Par défaut : aucun droit particulier — le RBAC se juge au poste, sur l'utilisateur connecté. */
+    public function refusDeDroit(array $payload, User $utilisateur): ?string
+    {
+        return null;
     }
 
     public function estFinanciere(): bool
@@ -52,6 +75,18 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
     public function accepteModification(): bool
     {
         return false;
+    }
+
+    /** Par défaut : aucune suppression ne se synchronise (registre fermé, A5). */
+    public function accepteSuppression(): bool
+    {
+        return false;
+    }
+
+    public function supprimer(string $entiteId, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        // Jamais appelé quand `accepteSuppression()` est faux : bogue de programmation.
+        throw new LogicException(__('sync.interne.modification_non_declaree', ['table' => $this->table()]));
     }
 
     public function champDateDocument(): ?string

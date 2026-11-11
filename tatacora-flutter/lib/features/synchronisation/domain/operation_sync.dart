@@ -25,6 +25,10 @@ enum TableSynchronisee {
   /// réels, par `SejourService`.
   sejours('sejours', accepteModification: true),
   clients('clients', accepteModification: true),
+
+  /// 21/10/2026 : une relance de client est un FAIT daté (création seule), après
+  /// le client qu'elle cite.
+  relancesClients('relances_clients', accepteModification: false),
   fournisseurs('fournisseurs', accepteModification: true),
   pointsStockage('points_stockage', accepteModification: true),
   articles('articles', accepteModification: true),
@@ -32,8 +36,18 @@ enum TableSynchronisee {
   menus('menus', accepteModification: true),
   recettes('recettes', accepteModification: true),
   plats('plats', accepteModification: true),
+
+  /// 21/10/2026 : le retrait (création) et la remise à la carte (modification).
+  indisponibilitesCarte('indisponibilites_carte', accepteModification: true),
   categoriesHebergement('categories_hebergement', accepteModification: true),
-  unitesHebergement('unites_hebergement', accepteModification: true),
+
+  /// 28/10/2026 (A5) : avec les véhicules, la SEULE table dont une `suppression`
+  /// (la purge définitive d'un élément archivé) se synchronise.
+  unitesHebergement(
+    'unites_hebergement',
+    accepteModification: true,
+    accepteSuppression: true,
+  ),
 
   /// Lot F6 : l'envoi et la clôture (le statut seul).
   commandesAchat('commandes_achat', accepteModification: true),
@@ -60,6 +74,11 @@ enum TableSynchronisee {
   /// l'encaissement après sa facture ; l'ANNULATION est leur seule
   /// modification (avoir, contre-passation).
   factures('factures', accepteModification: true),
+
+  /// Facture PROFORMA (07/11/2026, document non fiscal) : APRÈS la facture qu'elle
+  /// peut avoir produite (conversion hors ligne) ; création (brouillon ou émise),
+  /// modification (lignes, émission, annulation, lien vers la facture).
+  proformas('proformas', accepteModification: true),
   paiements('paiements', accepteModification: true),
 
   /// Tourisme (lot F4, 17/10/2026) : les définitions (dernier écrit gagnant)
@@ -71,13 +90,25 @@ enum TableSynchronisee {
 
   /// Audit de couverture (18/10/2026) : le parc M8 (retouches et statut par
   /// ses gestes), puis les contrats (création seule, RG-08 au serveur).
-  vehicules('vehicules', accepteModification: true),
-  contratsLocation('contrats_location', accepteModification: false),
+  vehicules('vehicules', accepteModification: true, accepteSuppression: true),
+
+  /// 26/10/2026 : l'annulation d'un contrat (`statut = annule`) est la SEULE
+  /// modification admise ; le contrat se crée, ne se corrige pas.
+  contratsLocation('contrats_location', accepteModification: true),
+
+  /// 21/10/2026 : un entretien ou une carburation est un fait daté, jamais modifié.
+  entretiensVehicule('entretiens_vehicule', accepteModification: false),
 
   /// Audit de couverture (18/10/2026) : M13 — le dossier (matricule du
   /// serveur), puis le bulletin (recalculé au serveur ; l'annulation).
   employes('employes', accepteModification: true),
   bulletinsPaie('bulletins_paie', accepteModification: true),
+
+  /// 21/10/2026 : un créneau de planning se crée, il ne se modifie pas (RG-13
+  /// au serveur) ; un congé se DEMANDE, puis sa décision est l'unique
+  /// modification (RG-14 au serveur).
+  plannings('plannings', accepteModification: false),
+  conges('conges', accepteModification: true),
 
   /// Lot 10e (18/10/2026) : un ENREGISTREMENT de l'écran Paramètres (le lot
   /// soumis, sous un identifiant propre au geste — création seule), puis le
@@ -93,9 +124,57 @@ enum TableSynchronisee {
 
   /// Lot 10f : la configuration M12 (couple événement × canal) ; les
   /// messages tracés restent sur leur poste.
-  modelesNotification('modeles_notification', accepteModification: true);
+  modelesNotification('modeles_notification', accepteModification: true),
 
-  const TableSynchronisee(this.nomServeur, {required this.accepteModification});
+  /// 28/10/2026 (D246 rouvert par le PO) : un COMPTE du plan comptable créé sur le
+  /// poste (création seule, `PlanComptableService` au serveur), AVANT les pièces
+  /// saisies à la main qui le citent par son numéro.
+  planComptable('plan_comptable', accepteModification: false),
+
+  /// 28/10/2026 : une PIÈCE saisie à la main (en-tête et lignes en centimes,
+  /// brouillon ou validée) — document source, jamais une écriture reçue : le
+  /// serveur la rejoue par `PasserEcritureService` et passe SA pièce. Création
+  /// seule. Jamais une pièce d'un module (vente, dépense…) ni une pièce descendue.
+  piecesSaisie('pieces_saisie', accepteModification: false),
+
+  /// 21/10/2026 : une immobilisation (M10) se crée, elle ne se modifie pas ; son
+  /// plan d'amortissement est CALCULÉ, jamais envoyé.
+  immobilisations('immobilisations', accepteModification: false),
+
+  /// 21/10/2026 : les canaux de réservation (Paramètres) — création (nom), puis
+  /// l'état entier en modification (renommage, désactivation, réactivation).
+  canauxReservation('canaux_reservation', accepteModification: true),
+
+  /// 21/10/2026 : un inventaire physique CLÔTURÉ — le document complet (point,
+  /// jour, lignes comptées), création seule ; sa régularisation part en
+  /// `mouvements_stock` (excédent `inventaire`, manquant `perte`).
+  inventaires('inventaires', accepteModification: false),
+
+  /// 26/10/2026 : la DEMANDE de clôture ou de réouverture d'un exercice (M10),
+  /// document source — le serveur, seul comptable, rejoue ses règles de
+  /// clôture ; il ne reçoit aucune pièce du poste. Création seule.
+  demandesClotureExercice(
+    'demandes_cloture_exercice',
+    accepteModification: false,
+  ),
+
+  /// 03/11/2026 (décision du PO : supprimer un compte, avec synchronisation) : la
+  /// SEULE chose qui se synchronise d'un compte est sa SUPPRESSION — jamais une
+  /// création, une modification, un mot de passe ni un dérivé. La clé d'appariement
+  /// est le LOGIN (`payload.login`) : les identifiants diffèrent entre le web et les
+  /// postes. Le serveur vérifie l'AUTORITÉ (le compte du jeton d'appairage doit être
+  /// super administrateur) et refuse lisiblement sinon, dans « À traiter ».
+  utilisateurs(
+    'utilisateurs',
+    accepteModification: false,
+    accepteSuppression: true,
+  );
+
+  const TableSynchronisee(
+    this.nomServeur, {
+    required this.accepteModification,
+    this.accepteSuppression = false,
+  });
 
   /// Le nom au registre du serveur — jamais le nom local (`_local`).
   final String nomServeur;
@@ -104,6 +183,13 @@ enum TableSynchronisee {
   /// la refuse la rejetterait (`sync.modification_non_synchronisable`) :
   /// `OperationsSyncDao.enfiler` refuse donc de l'enfiler.
   final bool accepteModification;
+
+  /// Le gestionnaire serveur accepte-t-il une `suppression` (A5, 28/10/2026) ?
+  /// REGISTRE FERMÉ : les unités d'hébergement et les véhicules (leur purge
+  /// définitive), et — depuis le 03/11/2026 — les comptes utilisateurs (leur
+  /// suppression logique, par le login). Un test relit le serveur (`GestionnaireSynchronisation::
+  /// accepteSuppression`) pour que cette liste ne diverge pas.
+  final bool accepteSuppression;
 
   static TableSynchronisee? depuisNom(String nom) {
     for (final t in values) {
@@ -116,7 +202,11 @@ enum TableSynchronisee {
 /// `operations.*.type` du protocole.
 enum TypeOperationSync {
   creation('creation'),
-  modification('modification');
+  modification('modification'),
+
+  /// 28/10/2026 (A5) : la purge définitive d'un élément archivé (registre
+  /// FERMÉ : [TableSynchronisee.accepteSuppression]).
+  suppression('suppression');
 
   const TypeOperationSync(this.code);
   final String code;
@@ -124,6 +214,7 @@ enum TypeOperationSync {
   static TypeOperationSync depuisCode(String code) => switch (code) {
     'creation' => creation,
     'modification' => modification,
+    'suppression' => suppression,
     _ => throw StateError('Type d’opération inconnu : « $code ».'),
   };
 }
@@ -184,6 +275,8 @@ final class OperationSync {
     required this.idServeur,
     required this.creeLe,
     required this.synchroniseLe,
+    this.auteurLogin,
+    this.posteNom,
   });
 
   final int seq;
@@ -207,6 +300,12 @@ final class OperationSync {
   final String? idServeur;
   final DateTime creeLe;
   final DateTime? synchroniseLe;
+
+  /// Le login du compte qui a écrit, et le nom du poste (v38) — pour le Journal
+  /// d'Audit seulement, jamais envoyés. `null` : inconnus (avant la v38, ou
+  /// aucun compte connecté à l'enfilement).
+  final String? auteurLogin;
+  final String? posteNom;
 }
 
 /// Une ligne de la liste « À traiter » de l'écran de synchronisation (lot

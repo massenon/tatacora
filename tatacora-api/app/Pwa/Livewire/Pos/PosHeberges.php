@@ -6,6 +6,8 @@ namespace App\Pwa\Livewire\Pos;
 
 use App\Domain\Facturation\Models\LigneFacture;
 use App\Domain\Facturation\Services\EmissionFactureService;
+use App\Domain\Facturation\Services\ModeFacturation;
+use App\Domain\Facturation\Support\IfuClient;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Ventes\Models\Panier;
 use App\Domain\Ventes\Services\PanierService;
@@ -77,13 +79,11 @@ use RuntimeException;
  * `VenteService` — le meme chemin que le comptoir, la meme numerotation, la
  * meme deduction RG-05.
  *
- * ## Tourisme et location sont AFFICHES et REFUSES, jamais omis
+ * ## Tourisme et location ne sont plus proposes (26/10/2026)
  *
- * `VenteService::MODULES_ENCAISSABLES` vaut `['M4','M5']` : M8 et M9 n'ont pas
- * de catalogue d'ou FIGER un prix, et les accepter obligerait l'ecran a
- * transmettre un montant au clavier (PA-24). Le maitre pose pourtant leur
- * rayon : il reste affiche, avec sa raison a l'ecran. Un rayon retire ne se
- * distingue pas d'un rayon vide.
+ * Directive du PO : ni carte, ni pastille, ni mention. Le catalogue ne porte
+ * que le bar et le restaurant ; {@see MODULES_DU_SEJOUR} reste la garde
+ * defensive d'une action Livewire forgee.
  *
  * @see EF-M2-01 Emission de facture
  * @see RG-04 Facture consolidee multi-modules — AMENDEE le 02/09/2026
@@ -95,7 +95,7 @@ use RuntimeException;
  * @see docs/PROPOSITION_MODELE_PANIER_POS.md §5 (R-a a R-d)
  */
 #[Layout('layouts.pwa')]
-#[Title('Point de vente — clients hébergés — TATACORA AFRIQUE')]
+#[Title('Point de vente — clients hébergés — LogiReStock — TATACORA AFRIQUE')]
 class PosHeberges extends PageMetier
 {
     use ComposePanier;
@@ -104,14 +104,23 @@ class PosHeberges extends PageMetier
     /** Le module RBAC de l'ecran : ce qui s'y vend est du bar et du restaurant. */
     public const MODULE = 'M5';
 
+    /**
+     * Les rayons que le panier d'un SEJOUR porte : bar et restaurant.
+     */
+    public const MODULES_DU_SEJOUR = ['M4', 'M5'];
+
     /** Emettre une facture est une ecriture sur M2, exigee EN PLUS. */
     public const MODULE_FACTURATION = 'M2';
 
     /** Le module d'hebergement, dont ce POS porte le poste de vente. */
     public const MODULE_HEBERGEMENT = 'M1';
 
-    /** Les statuts de sejour qui peuvent recevoir une consommation. */
-    private const STATUTS_EN_SEJOUR = ['confirmee', 'en_cours'];
+    /**
+     * Les statuts de sejour qui peuvent recevoir une consommation (PO 10/11/2026 : AUCUNE regle de
+     * periode — un sejour peut etre rallonge, raccourci ou decale ; seules `annulee` et `terminee`
+     * en sont exclues).
+     */
+    private const STATUTS_EN_SEJOUR = ['en_attente', 'confirmee', 'en_cours'];
 
     #[Url(as: 'sejour')]
     public ?string $selectedReservationId = null;
@@ -135,6 +144,23 @@ class PosHeberges extends PageMetier
      * de la regle, c'est sa levee explicite, datee.
      */
     public bool $payerSeparement = false;
+
+    /**
+     * L'ACHETEUR de la facture (décision du PO du 07/11/2026, point 2) : IFU du client
+     * (facultatif, 13 chiffres s'il est rempli), son nom, et « Retenir pour ce client »
+     * (décoché par défaut). Préremplis depuis la fiche du client du séjour.
+     */
+    public string $acheteurIfu = '';
+
+    public string $acheteurNom = '';
+
+    public bool $retenirIfu = false;
+
+    /**
+     * « Normaliser maintenant » (mode e-MECeF seulement) : décoché par défaut, JAMAIS automatique
+     * (point 1). Un échec de normalisation ne bloque jamais la facture ni le séjour.
+     */
+    public bool $normaliserMaintenant = false;
 
     /** L'hebergement entre-t-il dans la facture de cette cloture ? */
     private function payerHebergement(): bool
@@ -227,9 +253,10 @@ class PosHeberges extends PageMetier
             return;
         }
 
-        if (! in_array($module, VenteService::MODULES_ENCAISSABLES, true)) {
-            // PA-24 — nomme a l'ecran, jamais un echec silencieux.
-            $this->notifier(__('pos_pwa.heberges.prestation_refusee'), 'error');
+        if (! in_array($module, self::MODULES_DU_SEJOUR, true)) {
+            // Defense du serveur : aucune carte ne propose ces rayons, mais une
+            // action Livewire se pose depuis le navigateur.
+            $this->notifier(__('pos_pwa.commun.reference_inconnue'), 'error');
 
             return;
         }
@@ -384,6 +411,14 @@ class PosHeberges extends PageMetier
         // separement est un choix EXPLICITE, jamais un reste de la modale
         // precedente (directive PO 02/09/2026).
         $this->payerSeparement = false;
+        $this->retenirIfu = false;
+        $this->normaliserMaintenant = false;
+
+        // L'acheteur : la fiche du client du séjour (IFU retenu, nom) préremplit la saisie.
+        $reservationCloture = Reservation::with('client')->find($this->selectedReservationId);
+        $this->acheteurIfu = (string) ($reservationCloture?->client?->ifu ?? '');
+        $this->acheteurNom = $reservationCloture?->client?->nomComplet() ?? '';
+
         $this->etatFormulaire = 'cloture';
     }
 
@@ -396,6 +431,8 @@ class PosHeberges extends PageMetier
         // Emettre une facture est une ecriture sur M2 : n'exiger que M5
         // donnerait par le navigateur ce que l'API M2 refuse.
         $this->exigerEcriture(self::MODULE_FACTURATION);
+        // Une saisie corrigée ne garde pas l'erreur de la tentative précédente.
+        $this->resetValidation();
 
         if ($this->selectedReservationId === null) {
             $this->notifier(__('pos_pwa.heberges.refus_aucun_sejour'), 'error');
@@ -439,6 +476,14 @@ class PosHeberges extends PageMetier
          */
         $tarifNuit = (string) $reservation->unite->categorie->tarif_base;
 
+        // L'IFU du client : facultatif, 13 chiffres s'il est rempli. Même règle et même phrase
+        // qu'au poste (`IfuClient`) ; une saisie invalide se corrige, elle ne bloque pas autrement.
+        if (! IfuClient::valide($this->acheteurIfu)) {
+            $this->addError('acheteurIfu', __('facturation.ifu_client.invalide'));
+
+            return;
+        }
+
         if ($this->payerHebergement()) {
             if (bccomp($tarifNuit, '0.00', self::PRECISION_MONTANT) <= 0) {
                 // Aucun tarif de repli : facturer un chiffre que personne n'a
@@ -455,8 +500,11 @@ class PosHeberges extends PageMetier
             }
         }
 
+        $factureEmise = null;
+
         try {
             DB::transaction(function () use (
+                &$factureEmise,
                 $ventes,
                 $facturation,
                 $paniers,
@@ -505,8 +553,9 @@ class PosHeberges extends PageMetier
                  *   (`Facture::SQL_ACOMPTES_LIES` ne lie que par M1).
                  */
                 $facture = $this->payerHebergement()
-                    ? $facturation->emettrePourReservation($reservation, $tarifNuit)
-                    : $facturation->emettrePourConsommations($reservation);
+                    ? $facturation->emettrePourReservation($reservation, $tarifNuit, $this->acheteurIfu, $this->acheteurNom)
+                    : $facturation->emettrePourConsommations($reservation, $this->acheteurIfu, $this->acheteurNom);
+                $factureEmise = $facture;
 
                 foreach ($vente->lignes()->get() as $ligne) {
                     $facturation->ajouterLigne(
@@ -532,6 +581,11 @@ class PosHeberges extends PageMetier
                 if (bccomp($remiseVente, '0.00', self::PRECISION_MONTANT) > 0) {
                     $this->ajouterLignesRemise($facturation, $facture, $vente);
                 }
+
+                // Une facture ÉMISE : figée, simple (sans numéro MECeF ni mention) ; la fiche du
+                // client retient l'IFU si la case est cochée.
+                $facturation->figerEmission($facture);
+                $facturation->retenirSurLaFiche($facture, $this->acheteurIfu, $this->retenirIfu);
             });
         } catch (RuntimeException $refus) {
             // Refus du domaine : son message est ecrit pour l'operateur.
@@ -549,6 +603,24 @@ class PosHeberges extends PageMetier
             $this->notifier(__('pos_pwa.heberges.refus_facturation'), 'error');
 
             return;
+        }
+
+        // « Normaliser maintenant » (e-MECeF, case cochée) : APRÈS l'émission, hors transaction.
+        // Un échec ne bloque RIEN : la facture reste émise, « en attente », rejouable par le
+        // bouton « Normaliser » de l'écran Facturation (et par le rejeu).
+        if ($this->normaliserMaintenant && $factureEmise !== null && ModeFacturation::courant() === ModeFacturation::Emecef) {
+            try {
+                $resultat = $facturation->normaliserLaFacture($factureEmise);
+
+                if (! $resultat->estNormalisee()) {
+                    $this->notifier(__('facturation.mode.facture_emise_normalisation_en_attente', [
+                        'motif' => (string) $resultat->normalisation_motif,
+                    ]), 'error');
+                }
+            } catch (\Throwable $erreur) {
+                report($erreur);
+                $this->notifier(__('facturation.mode.facture_emise_normalisation_en_attente', ['motif' => $erreur->getMessage()]), 'error');
+            }
         }
 
         // Le message DIT ce qui a ete facture : une facture de consommations
@@ -635,14 +707,10 @@ class PosHeberges extends PageMetier
     {
         $sejours = $this->sejoursEnCours();
 
-        // PA-24 rendu a l'ecran : `catalogue()` pose lui-meme `encaissable`,
-        // et l'article reste visible en disant pourquoi il ne peut pas etre
-        // porte au panier.
+        // Bar et restaurant seulement (directive PO du 26/10/2026).
         $catalogueComplet = $this->catalogue([
             self::MODULE_BAR,
             self::MODULE_RESTAURANT,
-            self::MODULE_TOURISME,
-            self::MODULE_VEHICULES,
         ]);
 
         // UNE requete pour tous les sejours affiches : une par ligne rendrait

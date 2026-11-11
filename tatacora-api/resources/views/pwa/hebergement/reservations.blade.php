@@ -196,6 +196,11 @@
                               class="btn p-1.5 rounded hover:bg-slate-100 text-slate-500" title="{{ __('pwa.reservations.action_modifier') }}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
+                      {{-- Proforma prérempli depuis la réservation (PO, 07/11/2026). --}}
+                      @if (auth()->user()?->niveauSurModule('M2') === 'C')
+                        <a href="{{ route('pwa.facturation.proformas', ['flux' => 'hebergement', 'source' => $reservation->id]) }}" wire:navigate
+                           class="btn p-1.5 rounded hover:bg-slate-100 text-slate-500 text-[11px] font-semibold" title="{{ __('proforma.ui.creer_depuis_module') }}">{{ __('proforma.ui.creer_court') }}</a>
+                      @endif
                       <button wire:click="imprimerConfirmation('{{ $reservation->id }}')"
                               class="btn p-1.5 rounded hover:bg-slate-100 text-slate-500" title="{{ __('hebergement_pwa.reservations.confirmation_titre') }}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"/></svg>
@@ -226,7 +231,7 @@
                 </div>
 
                 <div class="space-y-1 text-[13px] text-slate-500 border-t border-slate-100 pt-2.5">
-                  <p>{{ __('pwa.reservations.unite') }} : <strong class="text-slate-700">{{ $reservation->unite?->numero ?? $tiret }}</strong>
+                  <p>{{ __('pwa.reservations.unite') }} : <strong class="text-slate-700">{{ count($reservation->uniteIds()) > 1 ? $reservation->numerosDesChambres() : ($reservation->unite?->numero ?? $tiret) }}</strong>
                      — {{ $reservation->unite?->categorie?->libelle ?? $tiret }}</p>
                 </div>
 
@@ -315,8 +320,8 @@
                       <td class="px-4 py-2.5 text-right font-mono-tatacora">{{ $ligne->taux_annulation === null ? $tiret : rtrim(rtrim(number_format((float) $ligne->taux_annulation, 2), '0'), '.').' %' }}</td>
                       <td class="px-4 py-2.5 text-right font-mono-tatacora" style="color:#8C1D1D">{{ $ligne->montant_commission_annulation === null ? $tiret : MontantFcfa::format((string) $ligne->montant_commission_annulation) }}</td>
                       <td class="px-4 py-2.5 text-right font-mono-tatacora text-emerald-700">{{ $ligne->montant_rembourse_annulation === null ? $tiret : MontantFcfa::format((string) $ligne->montant_rembourse_annulation) }}</td>
-                      <td class="px-4 py-2.5 whitespace-nowrap text-slate-500">{{ $ligne->date_annulation?->format('d/m/Y H:i') ?? $tiret }}</td>
-                      <td class="px-4 py-2.5 text-slate-500">{{ $ligne->utilisateurAnnulation?->login ?? $tiret }}</td>
+                      <td class="px-4 py-2.5 whitespace-nowrap text-slate-500">{{ \App\Shared\Support\HeureLocale::formater($ligne->date_annulation, 'd/m/Y H:i') ?? $tiret }}</td>
+                      <td class="px-4 py-2.5 text-slate-500">{{ $ligne->annulee_par_login ?? $ligne->utilisateurAnnulation?->libelleAuteur() ?? $tiret }}</td>
                     </tr>
                   @endforeach
                 </tbody>
@@ -435,10 +440,18 @@
                           <p class="text-[11px] text-slate-400">{{ $ligne->client?->telephone ?? $tiret }}</p></td>
                         <td class="px-4 py-2.5 whitespace-nowrap">{{ $ligne->date_arrivee->format('d/m/Y') }} → {{ $ligne->date_depart->format('d/m/Y') }}</td>
                         <td class="px-4 py-2.5 text-right">{{ $ligne->nombreNuitees() }}</td>
-                        <td class="px-4 py-2.5 text-[12px] text-slate-600">{{ $ligne->unite?->numero ?? $tiret }}</td>
+                        <td class="px-4 py-2.5 text-[12px] text-slate-600">{{ $ligne->unite === null ? $tiret : (count($ligne->uniteIds()) > 1 ? $ligne->numerosDesChambres() : $ligne->unite->numero.' — '.($ligne->unite->categorie?->libelle ?? $tiret)) }}</td>
                         <td class="px-4 py-2.5 text-[11px] text-slate-500">{{ __('hebergement_pwa.reservations.service_hebergement') }}</td>
-                        <td class="px-4 py-2.5 text-right font-semibold">{{ $tiret }}</td>
-                        <td class="px-4 py-2.5 text-right text-slate-400">{{ $tiret }}</td>
+                        @php
+                          // TOTAL = sous-total − remise ; RESTE DÛ = total − acompte, jamais négatif — la
+                          // formule du poste (`RecapitulatifReservation`), en bcmath. `null` (aucun tarif
+                          // figé) reste un tiret : jamais un 0 qui se lirait « séjour gratuit / soldé ».
+                          $totalLigne = $ligne->montantTotal();
+                          $resteLigne = $totalLigne === null ? null : bcsub($totalLigne, (string) $ligne->acompte, 2);
+                          if ($resteLigne !== null && bccomp($resteLigne, '0', 2) < 0) { $resteLigne = '0.00'; }
+                        @endphp
+                        <td class="px-4 py-2.5 text-right font-semibold" data-hist-total>{{ $totalLigne === null ? $tiret : \App\Pwa\Support\MontantFcfa::format($totalLigne) }}</td>
+                        <td class="px-4 py-2.5 text-right {{ $resteLigne !== null && bccomp($resteLigne, '0', 2) > 0 ? 'text-red-600 font-semibold' : 'text-slate-400' }}" data-hist-reste>{{ $resteLigne === null ? $tiret : \App\Pwa\Support\MontantFcfa::format($resteLigne) }}</td>
                         <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[11px] font-semibold {{ $etatLigne['classe'] ?? '' }}">{{ $etatLigne['libelle'] ?? $tiret }}</span></td>
                       </tr>
                     @endforeach
@@ -590,6 +603,11 @@
           <div class="border border-slate-200 rounded-lg p-3.5" style="border-left:3px solid {{ \App\Pwa\Support\CouleursServices::texte('hebergement') }}">
             <div class="flex items-center justify-between mb-2.5">
               <span class="text-[15px] font-bold" style="color:{{ \App\Pwa\Support\CouleursServices::texte('hebergement') }}">{{ __('accueil_pwa.services.hebergement') }}</span>
+              <button type="button" wire:click="ajouterChambre" data-ajouter-chambre
+                      class="text-[13px] font-semibold flex items-center gap-1" style="color:var(--navy)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                {{ __('pwa.reservations.ligne_ajouter') }} {{ \App\Pwa\Support\CouleursServices::labelLigne('hebergement') }}
+              </button>
             </div>
             <p class="text-[12px] mb-2 px-2.5 py-1.5 rounded-lg" style="background:#F1F5F9;color:#334155">
               @if (\App\Pwa\Support\FicheReservationServices::nuits($rDateArrivee, $rDateDepart) === null)
@@ -610,6 +628,23 @@
               <span class="font-mono-tatacora text-[15px] font-semibold w-24 text-right shrink-0" style="color:{{ \App\Pwa\Support\CouleursServices::texte('hebergement') }}">{{ \App\Pwa\Support\MontantFcfa::format(\App\Pwa\Support\FicheReservationServices::sousTotalHebergement($unites, $rUniteId, $rDateArrivee, $rDateDepart)) }}</span>
             </div>
             @error('rUniteId') <p class="message-erreur text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+            {{-- Chambres SUPPLÉMENTAIRES (multi-chambres, 10/11/2026) : une ligne par chambre, même
+                 markup que la première (sélecteur, nuits en lecture seule, montant, retrait). --}}
+            @foreach ($rChambres as $indexChambre => $chambre)
+              <div class="flex items-center gap-2 mt-2" data-chambre-supplementaire>
+                <select wire:model.live="rChambres.{{ $indexChambre }}.unite_id" class="champ flex-1 border border-slate-200 rounded-lg px-2.5 py-2 text-[15px] bg-white">
+                  <option value="">{{ __('pwa.reservations.champ_unite_invite') }}</option>
+                  @foreach ($unites as $unite)
+                    @continue($unite->id === $rUniteId || collect($rChambres)->where('unite_id', $unite->id)->isNotEmpty() && $unite->id !== ($chambre['unite_id'] ?? ''))
+                    <option value="{{ $unite->id }}">{{ $unite->numero }} — {{ $unite->categorie?->libelle ?? $tiret }} — {{ \App\Pwa\Support\MontantFcfa::format((string) ($unite->categorie?->tarif_base ?? '0')) }}</option>
+                  @endforeach
+                </select>
+                <input type="text" value="{{ \App\Pwa\Support\FicheReservationServices::nuits($rDateArrivee, $rDateDepart) ?? $tiret }}" title="{{ __('pwa.reservations.qte_nuits') }}" readonly tabindex="-1"
+                       class="w-20 border border-slate-200 rounded-lg px-2 py-2 text-[15px] text-center bg-slate-100 text-slate-600 font-semibold cursor-not-allowed">
+                <span class="font-mono-tatacora text-[15px] font-semibold w-24 text-right shrink-0" style="color:{{ \App\Pwa\Support\CouleursServices::texte('hebergement') }}">{{ \App\Pwa\Support\MontantFcfa::format(\App\Pwa\Support\FicheReservationServices::sousTotalHebergement($unites, ($chambre['unite_id'] ?? '') === '' ? null : $chambre['unite_id'], $rDateArrivee, $rDateDepart)) }}</span>
+                <button type="button" wire:click="retirerChambre({{ $indexChambre }})" class="text-slate-400 hover:text-red-600" aria-label="{{ __('pwa.reservations.ligne_retirer') }}">✕</button>
+              </div>
+            @endforeach
             <p class="text-right text-[13px] text-slate-500 mt-2 pt-2 border-t border-slate-100">
               {{ __('pwa.reservations.sous_total_service', ['service' => __('accueil_pwa.services.hebergement')]) }}
               <span class="font-mono-tatacora font-bold" style="color:{{ \App\Pwa\Support\CouleursServices::texte('hebergement') }}">{{ \App\Pwa\Support\MontantFcfa::format(\App\Pwa\Support\FicheReservationServices::sousTotalHebergement($unites, $rUniteId, $rDateArrivee, $rDateDepart)) }}</span>
@@ -906,7 +941,7 @@
                   largeur="480px"
                   fermer="$set('detailId', null)">
       <dl class="text-[13px] space-y-2">
-        <div class="flex justify-between"><dt class="text-slate-400">{{ __('pwa.reservations.champ_unite') }}</dt><dd class="font-semibold">{{ $detail->unite?->numero ?? $tiret }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">{{ __('pwa.reservations.champ_unite') }}</dt><dd class="font-semibold">{{ count($detail->uniteIds()) > 1 ? $detail->numerosDesChambres() : ($detail->unite?->numero ?? $tiret) }}</dd></div>
         <div class="flex justify-between"><dt class="text-slate-400">{{ __('pwa.reservations.champ_arrivee') }}</dt><dd class="font-semibold">{{ $detail->date_arrivee->format('d/m/Y') }}</dd></div>
         <div class="flex justify-between"><dt class="text-slate-400">{{ __('pwa.reservations.champ_depart') }}</dt><dd class="font-semibold">{{ $detail->date_depart->format('d/m/Y') }}</dd></div>
         <div class="flex justify-between"><dt class="text-slate-400">{{ __('pwa.reservations.hist_col_nuits') }}</dt><dd class="font-semibold">{{ $detail->nombreNuitees() }}</dd></div>

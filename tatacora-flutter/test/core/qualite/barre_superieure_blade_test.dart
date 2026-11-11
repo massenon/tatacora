@@ -42,6 +42,16 @@ import '../../support/structure_rendue.dart';
 ///   « Natitingou… » : c'est pourquoi le menu du barman vaut 17/24 sans
 ///   define et 18/24 en production. Mesuré, non corrigé.
 ///
+/// ## L'icône de synchronisation (03/11/2026)
+///
+/// Le web a gagné, entre « Vente » et la cloche, l'icône de synchronisation
+/// (`livewire:pwa.synchronisation-barre`) que le poste portait déjà comme
+/// ajout (`BoutonSynchronisation`). La vue compte donc deux éléments de plus
+/// par rôle (l'étiquette « Synchronisation » et la phrase du voyant) : le poste
+/// rend sa propre phrase de voyant (« Poste non appairé… », état de CE poste,
+/// là où le web dit l'état des postes appairés) et son étiquette n'est pas une
+/// infobulle. Le cliquet a été refigé (FIGER_HAUT=1) : le sens est voulu.
+///
 /// ## Le cliquet
 ///
 /// `structure/dette-barre-superieure.json` fige les résultats ; il échoue sur

@@ -53,6 +53,9 @@ class BilanResource extends JsonResource
             'equilibre' => $this->resource->equilibre,
             'ecart' => $this->resource->ecart,
             'resultat_exercice' => $this->resource->resultatExercice,
+            // Le « dont dividendes a payer » (465) du passif circulant : deja
+            // compris dans le poste `passif_circulant`, jamais additionne.
+            'dividendes_a_payer' => $this->resource->dividendesAPayer,
             'impot_non_comptabilise' => $this->resource->impotNonComptabilise,
             'motif_resultat_avant_impot' => $this->resource->motifResultatAvantImpot,
             'comptes_hors_rubrique' => $this->resource->comptesHorsRubrique,

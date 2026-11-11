@@ -72,7 +72,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * @see RG-18 Fiche client unique — détection de doublon avertissante
  */
 #[Layout('layouts.pwa')]
-#[Title('Réservations — TATACORA AFRIQUE')]
+#[Title('Réservations — LogiReStock — TATACORA AFRIQUE')]
 final class Reservations extends PageMetier
 {
     use FormulaireModal;
@@ -183,6 +183,14 @@ final class Reservations extends PageMetier
 
     public ?string $rUniteId = null;
 
+    /**
+     * Les chambres SUPPLÉMENTAIRES de la réservation (multi-chambres, décision du PO du
+     * 10/11/2026) : la première est `rUniteId`. Chaque entrée : `['unite_id' => '…']`.
+     *
+     * @var list<array{unite_id: string}>
+     */
+    public array $rChambres = [];
+
     public string $rDateArrivee = '';
 
     public string $rDateDepart = '';
@@ -277,7 +285,7 @@ final class Reservations extends PageMetier
     {
         return [
             'reservation' => [
-                'reservationId', 'rClientId', 'rUniteId',
+                'reservationId', 'rClientId', 'rUniteId', 'rChambres',
                 'rDateArrivee', 'rDateDepart', 'rAcompte',
                 'rCanalId', 'rRemiseType', 'rRemiseValeur', 'rModePaiement',
                 'rServices', 'rLignes',
@@ -346,6 +354,22 @@ final class Reservations extends PageMetier
         $this->rLignes[] = ['service' => $service, 'source_id' => '', 'quantite' => '1'];
     }
 
+    /** « + Ajouter une chambre » : une ligne de plus, choisie ensuite dans la liste des unités. */
+    public function ajouterChambre(): void
+    {
+        $this->exigerEcriture(self::MODULE);
+
+        $this->rChambres[] = ['unite_id' => ''];
+    }
+
+    public function retirerChambre(int $index): void
+    {
+        $this->exigerEcriture(self::MODULE);
+
+        unset($this->rChambres[$index]);
+        $this->rChambres = array_values($this->rChambres);
+    }
+
     public function retirerLigneFiche(int $index): void
     {
         $this->exigerEcriture(self::MODULE);
@@ -380,7 +404,12 @@ final class Reservations extends PageMetier
         $this->rRemiseType = $reservation->remise_type;
         $this->rRemiseValeur = $reservation->remise_type === 'aucune' ? '' : (string) $reservation->remise_valeur;
         $this->rModePaiement = (string) ($reservation->mode_paiement ?? '');
-        $this->rLignes = $reservation->lignes()->get()
+        // Les chambres supplémentaires sont des lignes `hebergement` : elles se rouvrent comme
+        // CHAMBRES, jamais comme une section de services.
+        $this->rChambres = $reservation->lignes()->where('service', LigneReservation::CHAMBRE)->get()
+            ->map(static fn (LigneReservation $ligne): array => ['unite_id' => (string) $ligne->source_id])
+            ->all();
+        $this->rLignes = $reservation->lignes()->where('service', '!=', LigneReservation::CHAMBRE)->get()
             ->map(static fn (LigneReservation $ligne): array => [
                 'service' => $ligne->service,
                 'source_id' => $ligne->source_id,
@@ -415,6 +444,8 @@ final class Reservations extends PageMetier
             'rRemiseType' => ['required', 'in:aucune,pourcentage,montant'],
             'rRemiseValeur' => ['nullable', 'numeric', 'min:0'],
             'rModePaiement' => ['nullable', 'in:'.implode(',', array_keys(self::MODES_PAIEMENT))],
+            'rChambres' => ['array'],
+            'rChambres.*.unite_id' => ['required', 'uuid', 'exists:unites_hebergement,id'],
             'rLignes' => ['array'],
             'rLignes.*.service' => ['required', 'in:'.implode(',', LigneReservation::SERVICES)],
             'rLignes.*.source_id' => ['required', 'uuid'],
@@ -450,6 +481,16 @@ final class Reservations extends PageMetier
             'source_id' => (string) $ligne['source_id'],
             'quantite' => (string) $ligne['quantite'],
         ], $donnees['rLignes'] ?? []);
+
+        // Multi-chambres : chaque chambre supplémentaire est une ligne `hebergement` (le service
+        // fige le tarif de nuit de sa catégorie et fixe la quantité aux nuitées de la fiche).
+        foreach ($donnees['rChambres'] ?? [] as $chambre) {
+            $lignes[] = [
+                'service' => LigneReservation::CHAMBRE,
+                'source_id' => (string) $chambre['unite_id'],
+                'quantite' => '1',
+            ];
+        }
 
         try {
             // Fiche ET lignes dans la même transaction : une source de
@@ -520,7 +561,7 @@ final class Reservations extends PageMetier
         $this->ouvrirFormulaire('annulation');
 
         $this->reservationAAnnuler = $reservation->id;
-        $this->aTaux = $annulations->tauxParDefaut();
+        $this->aTaux = $annulations->tauxPourReservation($reservation);
         $this->aModeRemboursement = 'pourcentage';
         $this->aDelaiHeures = $annulations->delaiHeuresAvantArrivee($reservation);
         $this->aSousLeSeuil = $annulations->estSousLeSeuil($reservation);
@@ -583,7 +624,7 @@ final class Reservations extends PageMetier
 
     /**
      * Le pourcentage de l'ACOMPTE proposé par défaut dans le formulaire :
-     * ce qu'il resterait de l'acompte après la commission théorique
+     * ce qu'il resterait de l'acompte après la commission
      * (taux × montant total), jamais négatif. Un simple point de départ —
      * `annulerReservation()` ne relit jamais cette suggestion, seule la
      * valeur effectivement soumise compte.
@@ -889,7 +930,7 @@ final class Reservations extends PageMetier
                 : new EloquentCollection(),
         ]))->layout('layouts.pwa', [
             'module' => self::MODULE,
-            'title' => 'Réservations — TATACORA AFRIQUE',
+            'title' => 'Réservations — LogiReStock — TATACORA AFRIQUE',
         ]);
     }
 
@@ -934,7 +975,7 @@ final class Reservations extends PageMetier
     private function historique(): EloquentCollection
     {
         $requete = Reservation::query()
-            ->with(['client', 'unite.categorie'])
+            ->with(['client', 'unite.categorie', 'lignes'])
             ->when(
                 $this->histTerme !== '',
                 fn ($q) => $q->whereHas(
@@ -1116,6 +1157,16 @@ final class Reservations extends PageMetier
         }
 
         $sousTotal = bcmul((string) $tarif, (string) $nuits, 2);
+
+        // Les chambres supplémentaires comptent aussi (tarif de nuit de leur catégorie × nuits).
+        foreach ($this->rChambres as $chambre) {
+            $supplementaire = ($chambre['unite_id'] ?? '') === '' ? null : UniteHebergement::with('categorie')->find($chambre['unite_id']);
+            $tarifSupplementaire = $supplementaire?->categorie?->tarif_base;
+
+            if ($tarifSupplementaire !== null) {
+                $sousTotal = bcadd($sousTotal, bcmul((string) $tarifSupplementaire, (string) $nuits, 2), 2);
+            }
+        }
 
         // Les lignes valides comptent, les lignes en cours de saisie (source
         // pas encore choisie, quantité non numérique) sont ignorées SANS

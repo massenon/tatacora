@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../domain/entities/piece_facturation.dart';
+import '../../domain/mode_facturation.dart';
 import '../../impression/facture_a4.dart';
 import '../../impression/ticket_facture.dart';
 import '../ecran_facturation.dart';
@@ -73,12 +74,18 @@ class VueTicket extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final ticket = TicketFacture.composer(piece);
+    // Mode désactivé = facture SIMPLE, aucune mention ; boîtier / e-MECeF : « en attente de
+    // normalisation » tant que la pièce ne l'est pas (décision du PO du 07/11/2026).
+    final normalisable =
+        (ref.watch(certifieParProvider).value ?? CertifiePar.rien) !=
+        CertifiePar.rien;
+    final ticket = TicketFacture.composer(piece, normalisable: normalisable);
     final auteur = ref.watch(auteurEditionProvider);
-    final peutAnnuler = ref
-        .watch(droitsProvider)
-        .niveau(ModuleTatacora.m2Facturation)
-        .peutEcrire;
+    // 09/11/2026 : M2 en écriture ET droit local ANNULATIONS de l'utilisateur connecté (le seul
+    // contrôle de « qui annule » : plus de règle « facture d'un autre poste », ni ici ni au serveur).
+    final peutAnnuler = ref.watch(
+      peutAnnulerProvider(ModuleTatacora.m2Facturation),
+    );
 
     return AlertDialog(
       key: const Key('facturation-ticket'),
@@ -140,17 +147,20 @@ class VueTicket extends ConsumerWidget {
               // **On ne ferme PAS le ticket d'abord**, et c'est le point que
               // deux essais ont manque : `ref` meurt avec le widget qui l'a
               // fourni. Apres un `pop()`, `ref.read(...)` leve — et
-              // l'exception, avalee par le `catch` d'`annulerParAvoir`,
+              // l'exception, avalee par le `catch` d'`emettreUnAvoir`,
               // faisait croire a une annulation qui n'avait pas eu lieu.
               // Aucun avoir n'etait emis, et rien ne le disait.
               //
               // La confirmation s'ouvre donc PAR-DESSUS le ticket ; celui-ci
               // ne se ferme qu'une fois le travail fait.
-              await annulerParAvoir(context, ref, piece);
-              if (context.mounted) Navigator.of(context).pop();
+              final emis = await emettreUnAvoir(context, piece);
+              // Le ticket ne se ferme que si l'avoir est émis : renoncer dans
+              // la modale laisse le ticket où il était.
+              if (emis && context.mounted) Navigator.of(context).pop();
             },
             child: Text(
-              'Annuler par avoir',
+              // `facturation_pwa.avoir_action` : le mot du bouton de la vue.
+              'Avoir',
               style: TextStyle(color: AppColors.erreur),
             ),
           ),
@@ -218,11 +228,19 @@ class VueTicket extends ConsumerWidget {
       // L'en-tête est lu des paramètres du poste (directive du PO du
       // 14/10/2026), le logo y est greffé.
       final entete = await ref.read(lireEnteteEtablissementProvider)();
+      final par = await ref.read(certifieParProvider.future);
       final facture = FactureA4.composer(
         piece,
         auteur: auteur,
         dateEdition: DateTime.now(),
         entete: entete.avecLogo(logo),
+        normalisable: par != CertifiePar.rien,
+        // Signature et cachet selon l'interrupteur des Paramètres (PO, 07/11/2026) ; le ticket
+        // n'en porte jamais.
+        signature: await composerBlocSignature(
+          ref.read,
+          raisonSociale: entete.raisonSociale,
+        ),
       );
       await ref.read(imprimerFactureA4Provider)(facture);
     } on Object catch (e) {
@@ -238,4 +256,27 @@ class VueTicket extends ConsumerWidget {
       }
     }
   }
+}
+
+/// « Facture A4 » depuis la LIGNE du registre (`imprimerFacture` de la vue,
+/// bouton par ligne) : même document que celui du ticket, même garde — sans
+/// session, pas d'édition, et on le DIT plutôt que de rester muet.
+Future<void> imprimerLaFactureA4Depuis(
+  BuildContext context,
+  WidgetRef ref,
+  PieceFacturation piece,
+) async {
+  final auteur = ref.read(auteurEditionProvider);
+  if (auteur == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Aucune session ouverte : une facture ne s\'édite pas sans '
+          'auteur.',
+        ),
+      ),
+    );
+    return;
+  }
+  await VueTicket(piece: piece)._imprimerFactureA4(context, ref, auteur);
 }

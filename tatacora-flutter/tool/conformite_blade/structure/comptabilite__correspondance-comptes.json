@@ -1,0 +1,545 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "comptabilite/correspondance-comptes",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "a",
+                "texte": "Retour au Hub Comptabilité"
+            },
+            {
+                "type": "h1",
+                "texte": "Correspondance des comptes"
+            },
+            {
+                "type": "p",
+                "texte": "Le compte que chaque pièce automatique utilise pour chaque rôle"
+            },
+            {
+                "type": "p",
+                "texte": "Un changement vaut pour les pièces futures. Une pièce déjà passée n’est jamais réécrite : elle reste sur le compte où elle a été passée."
+            },
+            {
+                "type": "h3",
+                "texte": "Produits des ventes"
+            },
+            {
+                "type": "th",
+                "texte": "Rôle"
+            },
+            {
+                "type": "th",
+                "texte": "Compte actuel"
+            },
+            {
+                "type": "th",
+                "texte": "Par défaut"
+            },
+            {
+                "type": "th",
+                "texte": "Action"
+            },
+            {
+                "type": "div",
+                "texte": "Produits du restaurant"
+            },
+            {
+                "type": "div",
+                "texte": "Crédité par une vente du restaurant au comptoir."
+            },
+            {
+                "type": "span",
+                "texte": "7061"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "7061"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "div",
+                "texte": "Produits du bar"
+            },
+            {
+                "type": "div",
+                "texte": "Crédité par une vente de boissons au comptoir."
+            },
+            {
+                "type": "span",
+                "texte": "7011"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "7011"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "div",
+                "texte": "Produits de la location de véhicules"
+            },
+            {
+                "type": "div",
+                "texte": "Crédité par une location encaissée au comptoir."
+            },
+            {
+                "type": "span",
+                "texte": "7073"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "7073"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "div",
+                "texte": "Produits du tourisme, circuits"
+            },
+            {
+                "type": "div",
+                "texte": "Crédité par un circuit encaissé au comptoir."
+            },
+            {
+                "type": "span",
+                "texte": "7061"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "7061"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "h3",
+                "texte": "TVA"
+            },
+            {
+                "type": "th",
+                "texte": "Rôle"
+            },
+            {
+                "type": "th",
+                "texte": "Compte actuel"
+            },
+            {
+                "type": "th",
+                "texte": "Par défaut"
+            },
+            {
+                "type": "th",
+                "texte": "Action"
+            },
+            {
+                "type": "div",
+                "texte": "TVA facturée sur les ventes de biens (bar)"
+            },
+            {
+                "type": "div",
+                "texte": "Crédité par la part de TVA d’une vente de boissons ; lu par la déclaration de TVA."
+            },
+            {
+                "type": "span",
+                "texte": "4431"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "4431"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "div",
+                "texte": "TVA facturée sur les prestations (restaurant, location, tourisme)"
+            },
+            {
+                "type": "div",
+                "texte": "Crédité par la part de TVA d’une prestation de services ; lu par la déclaration de TVA."
+            },
+            {
+                "type": "span",
+                "texte": "4432"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "4432"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "div",
+                "texte": "TVA récupérable sur les achats"
+            },
+            {
+                "type": "div",
+                "texte": "Lu par la déclaration de TVA, au titre de la TVA déductible."
+            },
+            {
+                "type": "span",
+                "texte": "4452"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "4452"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "h3",
+                "texte": "Trésoreries"
+            },
+            {
+                "type": "th",
+                "texte": "Rôle"
+            },
+            {
+                "type": "th",
+                "texte": "Compte actuel"
+            },
+            {
+                "type": "th",
+                "texte": "Par défaut"
+            },
+            {
+                "type": "th",
+                "texte": "Action"
+            },
+            {
+                "type": "div",
+                "texte": "Caisse"
+            },
+            {
+                "type": "div",
+                "texte": "Trésorerie des règlements en espèces."
+            },
+            {
+                "type": "span",
+                "texte": "5711"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "5711"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "div",
+                "texte": "Banque"
+            },
+            {
+                "type": "div",
+                "texte": "Trésorerie des règlements par carte, virement ou chèque."
+            },
+            {
+                "type": "span",
+                "texte": "5211"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "5211"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "div",
+                "texte": "Mobile Money"
+            },
+            {
+                "type": "div",
+                "texte": "Trésorerie des règlements par Mobile Money."
+            },
+            {
+                "type": "span",
+                "texte": "552"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "552"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "h3",
+                "texte": "Tiers"
+            },
+            {
+                "type": "th",
+                "texte": "Rôle"
+            },
+            {
+                "type": "th",
+                "texte": "Compte actuel"
+            },
+            {
+                "type": "th",
+                "texte": "Par défaut"
+            },
+            {
+                "type": "th",
+                "texte": "Action"
+            },
+            {
+                "type": "div",
+                "texte": "Clients"
+            },
+            {
+                "type": "div",
+                "texte": "Débité par une vente portée sur la note de chambre, crédité par l’encaissement d’une facture."
+            },
+            {
+                "type": "span",
+                "texte": "4111"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "4111"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "div",
+                "texte": "Fournisseurs"
+            },
+            {
+                "type": "div",
+                "texte": "Débité par le règlement d’une commande fournisseur."
+            },
+            {
+                "type": "span",
+                "texte": "4011"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "4011"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "div",
+                "texte": "Avances et acomptes clients"
+            },
+            {
+                "type": "div",
+                "texte": "Crédité par l’acompte d’une réservation, débité par son remboursement."
+            },
+            {
+                "type": "span",
+                "texte": "4191"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "4191"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "h3",
+                "texte": "Résultat de l’exercice"
+            },
+            {
+                "type": "th",
+                "texte": "Rôle"
+            },
+            {
+                "type": "th",
+                "texte": "Compte actuel"
+            },
+            {
+                "type": "th",
+                "texte": "Par défaut"
+            },
+            {
+                "type": "th",
+                "texte": "Action"
+            },
+            {
+                "type": "div",
+                "texte": "Résultat net : bénéfice"
+            },
+            {
+                "type": "div",
+                "texte": "Crédité par la clôture d’un exercice qui dégage un bénéfice."
+            },
+            {
+                "type": "span",
+                "texte": "131"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "131"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "div",
+                "texte": "Résultat net : perte"
+            },
+            {
+                "type": "div",
+                "texte": "Débité par la clôture d’un exercice qui dégage une perte."
+            },
+            {
+                "type": "span",
+                "texte": "139"
+            },
+            {
+                "type": "span",
+                "texte": "— Compte absent du plan"
+            },
+            {
+                "type": "span",
+                "texte": "Défaut"
+            },
+            {
+                "type": "td",
+                "texte": "139"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            }
+        ]
+    }
+}

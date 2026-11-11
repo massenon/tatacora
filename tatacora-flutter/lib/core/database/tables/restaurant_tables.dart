@@ -102,6 +102,11 @@ class RecettesLocal extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  /// v35 (21/10/2026) : la composition a été posée, jamais pesée.
+  /// `null` ou `false` = composition pesée (nullable à dessein).
+  BoolColumn get compositionProvisoire =>
+      boolean().nullable().withDefault(const Constant(false))();
 }
 
 /// La composition d'une fiche technique : de VRAIES clés étrangères vers les
@@ -151,6 +156,37 @@ class PlatsLocal extends Table {
   @ReferenceName('platsModifies')
   TextColumn get modifiePar =>
       text().nullable().references(UtilisateursLocal, #id)();
+
+  /// v36 (21/10/2026) — LE LIEN DIRECT AU STOCK (`plats.article_id` du serveur).
+  /// Un plat se décrémente d'ordinaire par sa fiche ; le lien direct sert ce qui
+  /// se revend en l'état (une bouteille d'eau). `null` : pas de lien. Sans clé
+  /// étrangère (l'article peut descendre après le plat) ; le DAO vérifie
+  /// l'existence à l'écriture. Écrit par `RestaurantDao.lierAuStock` seul, et
+  /// par la descente du catalogue. Va TOUJOURS avec [unitesVendables].
+  TextColumn get articleId => text().nullable()();
+
+  /// v36 — `unites_vendables_par_unite_stock` : combien d'unités VENDUES dans
+  /// une unité de STOCK (un casier de 24 = `24.0000`). Texte décimal tel que le
+  /// serveur l'envoie, jamais un `double`. `null` avec [articleId] nul.
+  TextColumn get unitesVendables => text().nullable()();
+
+  /// v41 (27/10/2026) — LA CATÉGORIE du plat (`plats.categorie` du serveur), l'une
+  /// des dix clés de `CategorieCarte` (« entrees », « plats », « sauces »…). Ce
+  /// n'est PAS le type du menu (`menus.type`, trois valeurs) : le web classe la
+  /// carte par cette colonne-ci (`Restauration::enregistrerPlat`). NULLABLE : un
+  /// plat d'avant la v41 n'en a pas, la migration n'en déduit aucune (le type du
+  /// menu n'est pas une catégorie).
+  ///
+  /// | Qui l'écrit | Qui la lit | Qui la descend |
+  /// |---|---|---|
+  /// | `RestaurantDao.enregistrerPlat` (il enfile) | le catalogue des plats (filtre, colonne, détail) | `AligneurCatalogue._plat` (n'enfile jamais) |
+  TextColumn get categorie => text().nullable()();
+
+  /// v47 (30/10/2026, décision du PO) — la description FACULTATIVE du plat :
+  /// 500 caractères au plus, normalisée à l'écriture (trim, vide = `NULL`),
+  /// rejouée de `DescriptionPlat` du serveur. `NULL` = pas de description, aucune
+  /// n'est déduite pour les plats d'avant.
+  TextColumn get description => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

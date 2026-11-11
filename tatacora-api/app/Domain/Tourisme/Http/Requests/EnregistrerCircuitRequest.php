@@ -18,7 +18,7 @@ use Illuminate\Foundation\Http\FormRequest;
 final class EnregistrerCircuitRequest extends FormRequest
 {
     /** Les thèmes de l'énumération `circuits.theme`. */
-    public const THEMES = ['aventure', 'culture', 'faune', 'nature'];
+    public const THEMES = ['aventure', 'culture', 'faune', 'nature', 'autre'];
 
     public function authorize(): bool
     {

@@ -1,0 +1,165 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "transverse/synchronisation",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Synchronisation"
+            },
+            {
+                "type": "p",
+                "texte": "Ce que le poste envoie au serveur, ce qu'il en reçoit, et ce qui reste à traiter."
+            },
+            {
+                "type": "button",
+                "texte": "Réception"
+            },
+            {
+                "type": "button",
+                "texte": "Envoi"
+            },
+            {
+                "type": "h2",
+                "texte": "Ce que le serveur a reçu des postes"
+            },
+            {
+                "type": "p",
+                "texte": "Chaque opération envoyée par un poste est consignée ici avec son issue et, pour un échec, sa cause. Corrigez la donnée en cause, puis relancez : l'opération est rejouée par le même chemin que la synchronisation, sans doublon."
+            },
+            {
+                "type": "div",
+                "texte": "Opérations reçues"
+            },
+            {
+                "type": "div",
+                "texte": "Acceptées"
+            },
+            {
+                "type": "div",
+                "texte": "À traiter"
+            },
+            {
+                "type": "div",
+                "texte": "Rejetées"
+            },
+            {
+                "type": "div",
+                "texte": "Déjà reçues"
+            },
+            {
+                "type": "div",
+                "texte": "Signalées"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les postes"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les données"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les issues"
+            },
+            {
+                "type": "option",
+                "texte": "Acceptée"
+            },
+            {
+                "type": "option",
+                "texte": "Fusionnée"
+            },
+            {
+                "type": "option",
+                "texte": "Déjà reçue"
+            },
+            {
+                "type": "option",
+                "texte": "Acceptée avec signalement"
+            },
+            {
+                "type": "option",
+                "texte": "Version du serveur conservée"
+            },
+            {
+                "type": "option",
+                "texte": "Conflit à trancher"
+            },
+            {
+                "type": "option",
+                "texte": "Rejetée"
+            },
+            {
+                "type": "option",
+                "texte": "Erreur du serveur"
+            },
+            {
+                "type": "option",
+                "texte": "Aujourd'hui"
+            },
+            {
+                "type": "option",
+                "texte": "7 derniers jours"
+            },
+            {
+                "type": "option",
+                "texte": "30 derniers jours"
+            },
+            {
+                "type": "option",
+                "texte": "Tout l'historique"
+            },
+            {
+                "type": "label",
+                "texte": "À traiter seulement"
+            },
+            {
+                "type": "button",
+                "texte": "Actualiser"
+            },
+            {
+                "type": "th",
+                "texte": "Reçue le"
+            },
+            {
+                "type": "th",
+                "texte": "Poste"
+            },
+            {
+                "type": "th",
+                "texte": "Utilisateur"
+            },
+            {
+                "type": "th",
+                "texte": "Donnée"
+            },
+            {
+                "type": "th",
+                "texte": "Type"
+            },
+            {
+                "type": "th",
+                "texte": "Issue"
+            },
+            {
+                "type": "th",
+                "texte": "Motif"
+            },
+            {
+                "type": "th",
+                "texte": "Envois"
+            },
+            {
+                "type": "th",
+                "texte": "Actions"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune opération reçue pour ces critères."
+            }
+        ]
+    }
+}

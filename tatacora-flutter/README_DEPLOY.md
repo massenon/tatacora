@@ -47,7 +47,21 @@ Le script enchaîne, et **s'arrête à la première erreur** :
    — le point d'entrée de **production** (jamais `main_demo.dart`)
 4. Inno Setup (`ISCC.exe`) compile `installer\tatacora.iss`
 
-Résultat : **`build\installer\TATACORA_Setup_<version>.exe`** (la version est
+**Désinstallation (décision du PO du 28/10/2026)** : un avertissement demande de confirmer
+(Oui / Non, Non par défaut). Oui désinstalle ET supprime les données du poste
+(`%LOCALAPPDATA%\TATACORA`, `%APPDATA%\TATACORA` : base, `poste.json`, archives, reçus) ; Non annule
+tout. Les saisies non synchronisées sont alors perdues. Une désinstallation silencieuse garde les
+données ; une mise à jour (même `AppId`) n'y touche jamais.
+
+Nom commercial et éditeur de l'installateur : **LogiReStock** et **Dr MASSENON
+Rhodes**, définis en tête de `build_windows.bat` (`APP_NOM_COMMERCIAL`,
+`APP_EDITEUR`) et passés à Inno Setup ; ils s'affichent dans l'assistant, le
+menu Démarrer, les raccourcis et « Applications et fonctionnalités ». Le
+programme installé reste `tatacora_flutter.exe`, et les dossiers de données
+(`%LOCALAPPDATA%\TATACORA`, `%APPDATA%\TATACORA`) ne changent pas : une mise à
+jour d'un poste existant garde sa base.
+
+Résultat : **`build\installer\LogiReStock_Setup_<version>.exe`** (la version est
 celle de la ligne `version:` de `pubspec.yaml`, sans le `+build`).
 
 Si Inno Setup est introuvable, le script le dit et s'arrête : l'installer, puis
@@ -63,7 +77,7 @@ relancer. Un autre flavor que la production se construit avec
 
 Sur **chaque** poste, avec un compte Windows administrateur :
 
-1. Copier `TATACORA_Setup_<version>.exe` sur le poste (clé USB, partage…).
+1. Copier `LogiReStock_Setup_<version>.exe` sur le poste (clé USB, partage…).
 2. Le lancer et suivre l'assistant (en français). Si Windows SmartScreen
    avertit « éditeur inconnu », cliquer sur « Informations complémentaires »
    puis « Exécuter quand même » (l'installateur n'est pas signé).
@@ -216,7 +230,7 @@ envoyer, et juste après chaque clôture de caisse. Pour cela, il doit être
 
 Sur chaque poste, connecté avec un compte **Administrateur** du poste :
 
-1. Ouvrir **Paramètres → onglet « Synchronisation »** (l'onglet n'apparaît
+1. Ouvrir **Paramètres → onglet « Appairage Postes »** (l'onglet n'apparaît
    qu'aux Administrateurs).
 2. Saisir l'**identifiant** et le **mot de passe d'un compte du serveur**
    (compte gérant ou administrateur créé sur le serveur — pas un compte du
@@ -265,7 +279,7 @@ croissant après chaque échec, une heure au plus). Rien n'est jamais supprimé.
 
 1. Faire une **sauvegarde** (section 4).
 2. Fermer TATACORA.
-3. Lancer le nouveau `TATACORA_Setup_<version>.exe` : il remplace l'ancienne
+3. Lancer le nouveau `LogiReStock_Setup_<version>.exe` : il remplace l'ancienne
    version au même endroit.
 4. Au premier lancement, la base est mise à jour automatiquement, sans perte
    de données (migrations additives). Ne jamais revenir à une version

@@ -549,7 +549,7 @@ final class AmorcageDemonstrationTest extends TestCase
         $this->assertSame(
             0,
             Recette::query()->whereDoesntHave('ingredients')->count(),
-            'Une fiche vide est une vente refusée au point de vente restaurant.',
+            'Une fiche vide ne sortirait aucun stock à la vente (le plat se vendrait quand même).',
         );
 
         // …et l'autre moitié, qui empêche le déblocage de devenir un mensonge :
@@ -678,7 +678,7 @@ final class AmorcageDemonstrationTest extends TestCase
         // listes d'ingredients, vingt-neuf par les libelles des plats
         // eux-memes (« Frites d'igname », « Demi pintade », « Crepe au miel »).
         // Sans elles, la fiche technique de ces plats n'aurait pu porter
-        // aucune ligne, et une fiche vide REFUSE la vente.
+        // aucune ligne, et une fiche vide ne sortirait aucun stock à la vente.
         $this->assertSame(98, Article::count());
         $this->assertSame(13, \App\Domain\Tourisme\Models\Circuit::count());
         $this->assertSame(8, \App\Domain\Vehicules\Models\Vehicule::count());
@@ -921,10 +921,10 @@ final class AmorcageDemonstrationTest extends TestCase
             bccomp((string) $facture->montant_ttc, bcadd((string) $facture->montant_ht, (string) $facture->montant_tva, 2), 2),
         );
 
-        // La certification est de DÉMONSTRATION et se dit comme telle : le
-        // prédicat la reconnaît, et `estCertifiee()` ne la prend jamais pour
-        // une vraie certification fiscale (PA-61/PA-100).
-        $this->assertTrue($facture->estCertificationDemonstration());
+        // Facture SIMPLE (mode desactive, decision du PO du 07/11/2026) : aucun numero
+        // fictif, jamais prise pour une certification fiscale (PA-61/PA-100).
+        $this->assertFalse($facture->estCertificationDemonstration());
+        $this->assertNull($facture->numero_mecef);
         $this->assertFalse($facture->estCertifiee());
         $this->assertTrue($facture->estFigee());
     }

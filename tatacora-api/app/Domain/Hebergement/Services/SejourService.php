@@ -118,7 +118,7 @@ class SejourService
 
             if ($existant !== null) {
                 throw new RuntimeException(__('sejour.deja_arrive', [
-                    'date' => $existant->date_checkin_reel?->format('d/m/Y H:i') ?? '',
+                    'date' => \App\Shared\Support\HeureLocale::formater($existant->date_checkin_reel, 'd/m/Y H:i') ?? '',
                 ]));
             }
 
@@ -132,7 +132,9 @@ class SejourService
             ]);
 
             $verrouillee->update(['statut' => 'en_cours']);
-            $this->changerStatutUnite($verrouillee->unite_id, self::STATUT_OCCUPEE);
+            foreach ($this->toutesLesChambres($verrouillee) as $uniteId) {
+                $this->changerStatutUnite($uniteId, self::STATUT_OCCUPEE);
+            }
 
             return $sejour->refresh();
         });
@@ -155,7 +157,7 @@ class SejourService
 
             if (! $verrouille->estEnCours()) {
                 throw new RuntimeException(__('sejour.deja_parti', [
-                    'date' => $verrouille->date_checkout_reel?->format('d/m/Y H:i') ?? '',
+                    'date' => \App\Shared\Support\HeureLocale::formater($verrouille->date_checkout_reel, 'd/m/Y H:i') ?? '',
                 ]));
             }
 
@@ -163,7 +165,9 @@ class SejourService
 
             $reservation = $verrouille->reservation;
             $reservation->update(['statut' => 'terminee']);
-            $this->changerStatutUnite($reservation->unite_id, self::STATUT_NETTOYAGE);
+            foreach ($this->toutesLesChambres($reservation) as $uniteId) {
+                $this->changerStatutUnite($uniteId, self::STATUT_NETTOYAGE);
+            }
 
             return $verrouille->refresh();
         });
@@ -206,7 +210,12 @@ class SejourService
     {
         return Sejour::query()
             ->whereNull('date_checkout_reel')
-            ->whereHas('reservation', fn ($requete) => $requete->where('unite_id', $unite->id))
+            ->whereHas('reservation', fn ($requete) => $requete->where(function ($q) use ($unite): void {
+                $q->where('unite_id', $unite->id)
+                    ->orWhereHas('lignes', fn ($l) => $l
+                        ->where('service', \App\Domain\Hebergement\Models\LigneReservation::CHAMBRE)
+                        ->where('source_id', $unite->id));
+            }))
             ->with('reservation.client')
             ->first();
     }
@@ -227,5 +236,23 @@ class SejourService
         }
 
         $unite->update(['statut' => $statut]);
+    }
+
+    /**
+     * TOUTES les chambres de la réservation (multi-chambres, 10/11/2026) : la principale puis
+     * les supplémentaires — l'arrivée les occupe toutes, le départ les passe toutes au ménage.
+     *
+     * @return list<string>
+     */
+    private function toutesLesChambres(Reservation $reservation): array
+    {
+        return array_values(array_unique([
+            (string) $reservation->unite_id,
+            ...$reservation->lignes()
+                ->where('service', \App\Domain\Hebergement\Models\LigneReservation::CHAMBRE)
+                ->pluck('source_id')
+                ->map(static fn ($id): string => (string) $id)
+                ->all(),
+        ]));
     }
 }

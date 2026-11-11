@@ -77,7 +77,7 @@ DemandePiece pieceDeLaDepense({
     lignes: [
       ...charges,
       LigneDemandee(
-        compte: tresorerie.compte,
+        role: tresorerie.role,
         creditCentimes: totalCentimes,
         libelle: libelleDepense,
         centreId: centre,

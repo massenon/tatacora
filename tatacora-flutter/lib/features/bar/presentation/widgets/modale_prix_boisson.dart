@@ -1,4 +1,7 @@
 // Vue Blade maîtresse (PA-183) : pwa/bar/carte.blade.php
+// Le corps de modale est PARTAGÉ par les deux cartes (bar ET restaurant) : ce
+// fichier sert aussi la vue ci-dessous, et c'est ici que se rendent ses mots.
+// Vue Blade maîtresse (PA-183) : pwa/restaurant/carte.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

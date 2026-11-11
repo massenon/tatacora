@@ -126,7 +126,7 @@ class _ModaleGuideState extends ConsumerState<_ModaleGuide> {
             Text(
               // Le message de la vue (l.763), au mot.
               'Aucun guide au référentiel — une réservation ne peut pas être '
-              'prise sans lui (`reservations_tour.guide_id` est NOT NULL).',
+              'prise sans lui.',
               key: const Key('tourisme-guide-aucun-reaffectation'),
               style: TextesRestaurant.secondaire.copyWith(
                 color: PaletteMaitre.ambre700,

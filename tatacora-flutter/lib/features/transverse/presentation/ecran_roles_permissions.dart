@@ -12,6 +12,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../domain/champs_profil.dart';
 import '../domain/roles_du_poste.dart';
 import 'providers_transverses.dart';
 import 'widgets/briques_transverses.dart';
@@ -159,12 +160,13 @@ class EcranRolesPermissions extends ConsumerWidget {
     final fait = await ouvrirModaleDroits(
       context,
       role: role,
-      enregistrer: (niveaux) => ref
+      enregistrer: (niveaux, droitsProfil) => ref
           .read(rolesDaoProvider)
           .definirDroits(
             auteur: ref.read(droitsProvider),
             roleId: role.id,
             niveaux: niveaux,
+            droitsProfil: droitsProfil,
           ),
     );
     if (fait == true && context.mounted) {
@@ -192,12 +194,13 @@ class EcranRolesPermissions extends ConsumerWidget {
 abstract final class TextesRoles {
   static const String titre = 'Rôles & Permissions';
   static const String sousTitre =
-      "Contrôle d'accès basé sur les rôles (RBAC) — socle du chap. 11.2 du CdCF, amendable. C = accès complet, L = lecture seule, — = aucun accès.";
+      "Contrôle d'accès basé sur les rôles (RBAC) — socle amendable. C = accès complet, L = lecture seule, — = aucun accès.";
   static const String matriceTitre = 'Matrice complète des permissions';
   static const String legendeComplet = 'Accès complet (C)';
   static const String legendeLecture = 'Lecture seule (L)';
   static const String legendeAucun = 'Aucun accès';
   static const String colModule = 'Module';
+  static const String sectionProfil = 'Profil';
   static String carteComplet(int n) => '$n accès complet';
   static String carteLecture(int n) => '$n lecture seule';
   static String carteComptes(int n) => '$n compte(s) rattaché(s)';
@@ -588,6 +591,32 @@ class _Matrice extends StatelessWidget {
                     taille: TaillesContenu.t15,
                   ),
                   for (final r in roles) cellule(r.droits.niveau(m.key)),
+                ],
+              // Section « Profil » (03/11/2026) : les trois droits de modifier SES
+              // PROPRES champs de « Mon profil » — binaires, `C` ou `-`.
+              [
+                celluleTexte(
+                  TextesRoles.sectionProfil.toUpperCase(),
+                  poids: FontWeight.bold,
+                  couleur: Ardoise.c500,
+                  taille: TaillesContenu.t13,
+                ),
+                for (final _ in roles) const SizedBox.shrink(),
+              ],
+              for (final c in ChampProfil.values)
+                [
+                  celluleTexte(
+                    c.libelleDroit,
+                    poids: FontWeight.w600,
+                    couleur: Ardoise.c700,
+                    taille: TaillesContenu.t15,
+                  ),
+                  for (final r in roles)
+                    cellule(
+                      r.droitProfil(c.droit)
+                          ? NiveauAcces.complet
+                          : NiveauAcces.aucun,
+                    ),
                 ],
             ],
           ),

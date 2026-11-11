@@ -3,6 +3,7 @@ import '../domain/calcul_restaurant.dart';
 import '../domain/entities/carte_restaurant.dart';
 import '../domain/entities/plat.dart';
 import '../domain/messages_restaurant.dart';
+import '../../bar/domain/entities/trace_prix.dart';
 import 'restaurant_dao.dart';
 
 export 'restaurant_dao.dart' show ArticleChoix, RefusRestaurant;
@@ -96,9 +97,17 @@ final class CompteursCatalogue {
 /// Les compteurs de l'onglet des fiches (trois cartes de la vue) — comptés sur
 /// le référentiel ENTIER.
 final class CompteursFiches {
-  const CompteursFiches({required this.total, required this.vides});
+  const CompteursFiches({
+    required this.total,
+    required this.vides,
+    this.provisoires = 0,
+  });
 
   final int total;
+
+  /// Les fiches dont la composition est PROVISOIRE (`recettes.
+  /// composition_provisoire`) : quantités posées, jamais pesées.
+  final int provisoires;
 
   /// Les fiches sans aucun ingrédient : celles dont la vente ne décrémenterait
   /// rien.
@@ -136,9 +145,9 @@ final class CompteursFiches {
 ///    pas un mouvement d'argent. La VENTE d'un plat, elle, passe par le point
 ///    de vente et sa facture — une écriture d'argent sans pièce comptable sur
 ///    ce poste, qui n'en tient pas : décision du PO à prendre, remontée.
-///  * **Aucune disponibilité du jour, aucun lien direct à un article, aucun
-///    historique de prix, aucune vente du restaurant** : ni table ni colonne
-///    ne les porte ; chaque geste reste proposé et DIT son refus.
+///  * **L'historique des prix et « Prix » existent depuis la v38**
+///    ([historiquePrix], [modifierPrix]). Le lien direct plat -> article existe
+///    depuis la v36 ([lierAuStock]).
 ///  * **Aucune suppression** : un plat est cité par les lignes de panier et de
 ///    facture déjà saisies ; le « D » de CRUD n'existe nulle part ici.
 final class RestaurantApi {
@@ -205,11 +214,11 @@ final class RestaurantApi {
   /* ================================================================== */
 
   /// La carte entière, calculée des plats, des fiches et du stock du point
-  /// cuisine. [categorie] est le type du menu porteur (`local`, `europeen`,
-  /// `special`).
+  /// cuisine. [categorie] est la catégorie du PLAT (`plats.categorie`, l'une des
+  /// dix de [CategorieCarte]) — comme la vue web, plus le type du menu (C1).
   Future<ResultatRestaurant<CarteRestaurant>> carte({
     String? recherche,
-    CategoriePlat? categorie,
+    CategorieCarte? categorie,
     EtatArticleCarte? etat,
   }) async {
     if (!_peutLire()) return _refusLecture();
@@ -247,7 +256,7 @@ final class RestaurantApi {
 
   Future<ResultatRestaurant<PageRestaurant<Plat>>> plats({
     String? recherche,
-    CategoriePlat? categorie,
+    CategorieCarte? categorie,
     String? menuId,
     int page = 1,
     int parPage = platsParPage,
@@ -291,6 +300,68 @@ final class RestaurantApi {
       auteurId: _auteurId(),
     ),
   );
+
+  /* ================================================================== */
+  /* « Lier au stock » (v36)                                             */
+  /* ================================================================== */
+
+  /// Les articles que « Lier au stock » propose (suivi permanent). `null` sans
+  /// droit de lecture : « aucun article » se lirait « le stock est vide ».
+  Future<List<ArticleChoix>?> articlesPourLien() async {
+    if (!_peutLire()) return null;
+    return _dao.articlesLiables();
+  }
+
+  /// Le solde de l'article au point cuisine, en centièmes (`null` : aucun
+  /// point cuisine, ou pas de droit de lecture — on ne sait pas).
+  Future<int?> stockCuisineDe(String articleId) async =>
+      _peutLire() ? _dao.stockCuisineDe(articleId) : null;
+
+  /// Le lien enregistré du plat (article, conditionnement), ou `null`.
+  Future<({String articleId, String unitesVendables})?> lienDe(
+    String platId,
+  ) async => _peutLire() ? _dao.lienDe(platId) : null;
+
+  /// « Enregistrer le lien » : l'article ET son conditionnement.
+  Future<ResultatRestaurant<Plat>> lierAuStock({
+    required String platId,
+    required String articleId,
+    required String conditionnement,
+  }) => _ecrire(
+    () => _dao.lierAuStock(
+      platId: platId,
+      articleId: articleId,
+      conditionnement: conditionnement,
+      auteurId: _auteurId(),
+    ),
+  );
+
+  /// « Retirer le lien » : les deux colonnes repartent ensemble.
+  Future<ResultatRestaurant<Plat>> delierDuStock(String platId) =>
+      _ecrire(() => _dao.delierDuStock(platId: platId, auteurId: _auteurId()));
+
+  /* ================================================================== */
+  /* « Prix » et « Historique des prix » (v38)                           */
+  /* ================================================================== */
+
+  /// « Enregistrer le prix » — le prix SEUL, tracé dans l'historique et enfilé
+  /// en modification du plat (`RestaurantDao.modifierPrix`).
+  Future<ResultatRestaurant<Plat>> modifierPrix({
+    required String platId,
+    required String prix,
+  }) => _ecrire(
+    () => _dao.modifierPrix(platId: platId, prix: prix, auteurId: _auteurId()),
+  );
+
+  /// L'historique des prix d'UN plat, du plus récent au plus ancien. Une
+  /// LECTURE : le droit d'écriture n'est pas exigé (un cuisinier en lecture
+  /// vérifie depuis quand un tarif a changé), le droit de lecture si.
+  Future<ResultatRestaurant<List<TracePrix>>> historiquePrix(
+    String platId,
+  ) async {
+    if (!_peutLire()) return _refusLecture();
+    return RestaurantRecu(await _dao.historiquePrix(platId));
+  }
 
   /* ================================================================== */
   /* Les menus                                                           */
@@ -364,6 +435,7 @@ final class RestaurantApi {
       CompteursFiches(
         total: fiches.length,
         vides: fiches.where((f) => f.composition.isEmpty).length,
+        provisoires: fiches.where((f) => f.compositionProvisoire).length,
       ),
     );
   }

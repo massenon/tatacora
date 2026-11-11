@@ -209,7 +209,7 @@ class _Lignes extends StatelessWidget {
     if (detail.composition.isEmpty) {
       return const Text(
         'Fiche technique vide : la vente de ce plat ne décrémente aucun stock, '
-        'et sa transmission en cuisine sera refusée (RG-05).',
+        'et sa transmission en cuisine sera refusée.',
         key: Key('detail-plat-composition-vide'),
         style: TextesModaleRestaurant.aide,
       );

@@ -56,6 +56,20 @@ class PlanComptableService
     public const NATURES = ['actif', 'passif', 'charge', 'produit'];
 
     /**
+     * LA règle du numéro d'un compte créé : DEUX À QUATRE chiffres, le premier
+     * de 1 à 9. Source unique : le hub (saisie, `maxlength`, invite), ce service
+     * et le poste (`MoteurComptable.creerCompte`) la relisent, un test les
+     * confronte. Le plan du PO (SYSCOHADA révisé, 1 332 comptes) ne compte
+     * aucun numéro de plus de quatre chiffres.
+     */
+    public const NUMERO_COMPTE_FORMAT = '/^[1-9][0-9]{1,3}$/';
+
+    public const NUMERO_COMPTE_CHIFFRES_MAX = 4;
+
+    /** Numéro valide en exemple (invite du champ) : un compte de charge à quatre chiffres. */
+    public const NUMERO_COMPTE_EXEMPLE = '6056';
+
+    /**
      * Les comptes d'une classe, pour remplir un selecteur.
      *
      * Ajoute au lot 0b (PA-159, T4) pour une raison precise : le composant des
@@ -186,9 +200,9 @@ class PlanComptableService
      *
      * @throws RuntimeException numéro déjà pris, nature hors registre, libellé absent
      */
-    public function creerCompte(string $numero, string $libelle, string $nature): CompteComptable
+    public function creerCompte(string $numero, string $libelle, string $nature, ?string $id = null): CompteComptable
     {
-        if (! preg_match('/^[1-9][0-9]{1,3}$/', $numero)) {
+        if (! preg_match(self::NUMERO_COMPTE_FORMAT, $numero)) {
             throw new RuntimeException(__('comptabilite.compte_numero_invalide', ['numero' => $numero]));
         }
 
@@ -207,6 +221,9 @@ class PlanComptableService
         }
 
         return CompteComptable::create([
+            // D246 rouvert (28/10/2026) : un poste crée un compte SOUS SON
+            // identifiant (synchronisation) ; l'écran web n'en passe pas.
+            ...($id === null ? [] : ['id' => $id]),
             'numero_compte' => $numero,
             'libelle' => $libelle,
             'classe' => substr($numero, 0, 1),

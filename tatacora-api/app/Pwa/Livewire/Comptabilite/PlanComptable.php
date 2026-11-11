@@ -82,7 +82,7 @@ use Livewire\Attributes\Url;
  * @see EF-M10-01 Plan comptable parametrable
  * @see LARAVEL_PWA.md §3
  */
-#[Title('Plan Comptable — TATACORA AFRIQUE')]
+#[Title('Plan Comptable — LogiReStock — TATACORA AFRIQUE')]
 class PlanComptable extends PageComptabilite
 {
     #[Url(as: 'classe')]

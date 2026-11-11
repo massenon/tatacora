@@ -21,6 +21,16 @@
 /// inventé est une décision prise à la place de quelqu'un.
 library;
 
+import '../../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
+import 'plat.dart' show CategorieCarte;
+
+/// Le groupe d'un plat SANS catégorie (un plat d'avant la v41, ou reçu sans
+/// elle). La vue web le range sous sa clé brute vide, à l'intitulé VIDE
+/// (`EcranDeCarte::couverture` et `grouperParCategorie`) ; une cellule sans mot
+/// ne se lit pas, le poste écrit « Autres » — le mot que sa fiche des prix
+/// employait déjà. Aucune des dix catégories n'est jamais devinée.
+const String libelleSansCategorie = 'Autres';
+
 /// La catégorie d'un plat — **le type de son menu porteur**, jamais une
 /// colonne de `plats`.
 ///
@@ -207,6 +217,12 @@ final class IngredientLimitant {
   final String? uniteMesure;
 }
 
+/// Le libellé d'une clé de `plats.categorie` : celui du registre, la clé brute
+/// hors registre, [libelleSansCategorie] quand elle est vide.
+String libelleDeCategorie(String cle) =>
+    CategorieCarte.depuisCode(cle)?.libelle ??
+    (cle.isEmpty ? libelleSansCategorie : cle);
+
 /// Un plat de la carte, avec sa couverture de stock.
 final class LigneCarteRestaurant {
   const LigneCarteRestaurant({
@@ -230,18 +246,46 @@ final class LigneCarteRestaurant {
     this.prixProvisoire = false,
     this.prixCorrigeMain = false,
     this.recetteLibelle,
+    this.indisponibilite,
+    this.articleStockId,
+    this.articleStockLibelle,
+    this.articleStockUnite,
+    this.unitesVendables,
+    this.description,
   });
+
+  /// La description FACULTATIVE du plat (v47, 30/10/2026), normalisée ; `null` =
+  /// aucune. Affichée en ligne secondaire sous le nom.
+  final String? description;
+
+  /// Le lien DIRECT au stock (v36) : l'article de stock du plat, son unité et
+  /// le conditionnement (« 24 » pour un casier de 24), ou `null` sans lien.
+  final String? articleStockId;
+  final String? articleStockLibelle;
+  final String? articleStockUnite;
+  final String? unitesVendables;
+
+  bool get aLienDirect => articleStockId != null;
 
   final String id;
   final String libelle;
+
+  /// Le retrait de la carte du jour EN COURS (table `indisponibilites_carte_local`,
+  /// v31), ou `null` : le plat est à la carte.
+  final IndisponibiliteDistante? indisponibilite;
+
+  bool get estRetire => indisponibilite != null;
 
   /// Le libellé de la fiche technique du plat — ce que la colonne « Article de
   /// stock » de la vue nomme, en vert, au-dessus du nombre d'ingrédients.
   /// `null` = non lu.
   final String? recetteLibelle;
 
-  /// Le code brut du serveur. Conservé **en plus** de [categorie] : un type
-  /// inconnu doit rester affichable tel quel plutôt que disparaître.
+  /// La clé de `plats.categorie` (l'une des dix de [CategorieCarte]), ou `''`
+  /// pour un plat sans catégorie — comme la vue web, qui classe la carte par la
+  /// catégorie du PLAT et non par le type de son menu (C1, 28/10/2026). Conservée
+  /// **en plus** de [categorie] : une clé hors registre reste affichable telle
+  /// quelle plutôt que de disparaître.
   final String categorieBrute;
 
   final String? menuId;
@@ -292,11 +336,11 @@ final class LigneCarteRestaurant {
   /// l'enregistrement quand le prix d'un plat provisoire change (jamais coché).
   final bool prixCorrigeMain;
 
-  CategoriePlat? get categorie => CategoriePlat.depuisCode(categorieBrute);
+  CategorieCarte? get categorie => CategorieCarte.depuisCode(categorieBrute);
 
-  /// Le libellé affichable de la catégorie — le code brut si le registre ne le
-  /// connaît pas, jamais une traduction inventée.
-  String get categorieLibelle => categorie?.libelle ?? categorieBrute;
+  /// Le libellé affichable de la catégorie — la clé brute si le registre ne la
+  /// connaît pas, « Autres » sans catégorie ; jamais une traduction inventée.
+  String get categorieLibelle => libelleDeCategorie(categorieBrute);
 }
 
 /// La bande de six cartes du maître (`carte-module.js` l.379-397).
@@ -320,6 +364,8 @@ final class IndicateursCarte {
     this.tauxCouverture,
     this.absents = const {},
     this.prixProvisoires,
+    this.disponibles,
+    this.indisponibles,
   });
 
   final int plats;
@@ -350,6 +396,12 @@ final class IndicateursCarte {
   /// compte est toujours fait : un zéro y est une mesure.
   final int? prixProvisoires;
 
+  /// Les plats à la carte / retirés du jour (21/10/2026, v31). `null` = non
+  /// compté (le serveur, lui, ne les sert pas) : l'écran rend alors « — » et la
+  /// raison de [absents].
+  final int? disponibles;
+  final int? indisponibles;
+
   /// Les indicateurs du maître qu'aucune colonne ne permet de produire, avec
   /// la raison donnée. Clés : `disponibles`, `indisponibles` et, pour un client
   /// qui ne compte pas les prix provisoires, `prix_provisoires`.
@@ -378,8 +430,8 @@ final class CouvertureCategorie {
   /// [IndicateursCarte.tauxCouverture].
   final String? taux;
 
-  CategoriePlat? get categorie => CategoriePlat.depuisCode(categorieBrute);
-  String get categorieLibelle => categorie?.libelle ?? categorieBrute;
+  CategorieCarte? get categorie => CategorieCarte.depuisCode(categorieBrute);
+  String get categorieLibelle => libelleDeCategorie(categorieBrute);
 
   /// Le taux en nombre, pour la barre de progression. `null` quand il manque :
   /// une barre à zéro affirmerait une couverture nulle qui n'a pas été mesurée.

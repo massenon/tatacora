@@ -22,8 +22,17 @@ use RuntimeException;
  * est unique ; une table du même espace et du même numéro saisie sur deux
  * postes FUSIONNE (`fusionne_avec`) au lieu de se doubler. Modification :
  * numéro (`renumeroter`), places (`changerPlaces`), activation (`basculer`,
- * qui refuse une table au panier ouvert). Module M5 (RG-16, la lecture du
- * plan) ; l'écriture exige EN PLUS `PARAM`, le droit de l'écran Paramètres.
+ * qui refuse une table au panier ouvert). Module M5 (RG-16, le point de
+ * vente).
+ *
+ * ## Aucun droit du compte d'appairage (décision du PO du 09/11/2026)
+ *
+ * Citer une table, la créer, la renuméroter, changer ses places, l'activer ou la
+ * désactiver : le serveur ne juge PAS le compte du jeton (celui qui a appairé le
+ * poste), il rejoue les règles de COHÉRENCE du service (clé naturelle, table au
+ * panier ouvert…). Qui peut configurer le plan, c'est le RBAC LOCAL du poste, sur
+ * l'utilisateur connecté. Avant, `modulesRequis` exigeait M5 (usage) ou M5 + `PARAM`
+ * (configuration) du compte du jeton : le barman voyait « Droit manquant ».
  */
 final class GestionnaireTablesSalle extends GestionnaireAbstrait
 {
@@ -42,10 +51,30 @@ final class GestionnaireTablesSalle extends GestionnaireAbstrait
         return PosComptant::MODULE;
     }
 
-    /** L'ÉCRITURE exige en plus le droit de l'écran Paramètres, comme à la PWA. */
-    public function modulesRequis(array $payload): array
+    /**
+     * Le RBAC du WEB pour corriger une opération de salle reçue : M5 (le point de vente) ;
+     * CONFIGURER le plan (table nouvelle, numéro, places, activation) exige EN PLUS `PARAM`,
+     * le droit de l'écran Paramètres, comme à la PWA. Le serveur ne l'applique PLUS au
+     * compte d'appairage d'un poste (décision du PO du 09/11/2026).
+     */
+    public function modulesDeLaCorrection(array $payload): array
     {
-        return [PosComptant::MODULE, Parametres::MODULE];
+        return $this->citeUneTableExistante($payload)
+            ? [PosComptant::MODULE]
+            : [PosComptant::MODULE, Parametres::MODULE];
+    }
+
+    /** @param  array<string, mixed>  $payload */
+    private function citeUneTableExistante(array $payload): bool
+    {
+        if (! isset($payload['espace'], $payload['numero']) || ! is_string($payload['espace']) || ! is_numeric($payload['numero'])) {
+            return false;
+        }
+
+        return TableSalle::query()
+            ->where('espace', $payload['espace'])
+            ->where('numero', (int) $payload['numero'])
+            ->exists();
     }
 
     public function serviceDomaine(): string

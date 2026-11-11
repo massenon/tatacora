@@ -5,19 +5,24 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/fichiers/selecteur_fichiers.dart';
 import '../../../core/format/formats.dart';
+import '../../../core/rbac/garde_acces.dart' show ModuleTatacora;
 import '../../../core/responsive/rangee_flex_wrap.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
-import '../../../shared_widgets/liste_paginee.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
+import '../../achats/domain/entities/archivage_fournisseur.dart';
+import '../../achats/presentation/widgets/modale_archivage_achats.dart';
+import '../../parametres/presentation/providers_options_systeme.dart'
+    show peutArchiverProvider;
 import '../data/stocks_api.dart';
 import '../domain/entities/etat_stock.dart';
 import '../domain/import_articles.dart';
 import '../domain/messages_stock.dart';
 import '../impression/etat_stocks.dart';
+import '../domain/stock_en_attente.dart';
 import 'providers_stocks.dart';
 import 'widgets/modale_article.dart';
 import 'widgets/modale_import_articles.dart';
@@ -54,17 +59,39 @@ import 'widgets/table_stocks.dart';
 ///    raison, jamais zéro ; le compteur de ces articles est dit sous le
 ///    tableau.
 ///
-/// ## Ce que la vue propose et qui n'est pas rendu (écarts nommés, 09/10/2026)
+/// ## Ce que la vue propose et qui n'est pas rendu (écarts nommés, 21/10/2026)
 ///
 ///  * **L'import CSV et son modèle** (vue l.232-235) : PORTÉS le 14/10/2026
 ///    (demande du PO) — `domain/import_articles.dart`, réplique de
 ///    `Stocks::lancerImport` ; le modèle s'enregistre par la fenêtre
 ///    « Enregistrer sous » du poste.
-///  * **L'archivage** — la case de sélection, le geste de retrait, la
-///    restauration et la pagination (vue l.261-283, 417-443) : aucune colonne
-///    `actif` locale, donc ni lecteur ni auteur. Le tableau affiche toutes les
-///    lignes.
-///  * **Le bloc d'entrée de la fiche article** (administrateur) : voir
+///  * **La pagination** (vue l.433-443) : PORTÉE le 21/10/2026, aux mots de la
+///    vue (« Précédent », « Suivant »), 25 articles par page comme
+///    `Stocks::PAR_PAGE` — l'ancienne règle de 10 lignes du 14/10/2026 cède au
+///    maître ; le pied n'existe que s'il y a plusieurs pages (`hasPages()`).
+///  * **L'ARCHIVAGE est PORTÉ** (21/10/2026) : la case de sélection de chaque
+///    ligne et celle de l'en-tête (« Tout sélectionner »), la barre de sélection
+///    groupée (« sélectionné(s) », « Supprimer »), le bouton « Supprimer » de
+///    la ligne (qui ARCHIVE, `actif = false`), le badge « Archivé », « Restaurer »
+///    et la modale « Confirmer la suppression » (vue l.261-283, 304-314,
+///    331-336, 343-346, 417-425, 777-798). Les cases et « Supprimer » sont
+///    RETIRÉS (pas grisés) pour qui ne peut pas archiver — la règle unique
+///    `peutArchiver` (droit C sur M6 ET rôle d'administration OU bascule
+///    « Suppression d'un enregistrement »), reçue de [peutArchiverProvider],
+///    jamais rejouée ici. Un article archivé RESTE dans la liste, marqué ;
+///    « Restaurer » n'est pas derrière la bascule. Les quatre verrous du
+///    serveur (stock, commande en cours, carte, recette) sont rejoués sur les
+///    données locales par `StocksDao.verrousArticle`, à l'ouverture de la
+///    modale ET de nouveau à l'exécution. L'archivage part au serveur
+///    (`actif: false`), qui l'applique sous SES verrous : un refus revient
+///    dans « À traiter ».
+///
+///  * **L'en-tête d'impression de la vue** (`hidden print:block`, l.112-115) :
+///    la vue l'écrit EN DUR pour l'impression du navigateur — « TATACORA AFRIQUE — GÎTE CHEZ NOËL », puis le titre et l'horodatage. Ce poste n'imprime pas l'écran ; il exporte
+///    l'état A4 (`EtatStocks`), dont l'en-tête est LU des Paramètres (raison
+///    sociale, adresse, IFU…, `EnteteEtablissement`). Y coller une seconde ligne
+///    en dur contredirait la raison sociale saisie. Écart nommé, pas un refus.
+///  * **Le bloc d'entrée de la fiche article** : porté, voir
 ///    `modale_article.dart`.
 class EcranStocks extends ConsumerWidget {
   const EcranStocks({super.key});
@@ -247,8 +274,14 @@ class _Corps extends ConsumerWidget {
     ref.invalidate(etatStockProvider);
     if (!context.mounted) return;
 
+    // `faireEntrerLeStock` rend SON message quand un mouvement a eu lieu ;
+    // sinon la fiche seule est annoncée (jamais une entrée qui n'a pas eu lieu).
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Article « ${modifie.libelle} » mis à jour.')),
+      SnackBar(
+        content: Text(
+          modifie.messageEntree ?? 'Article « ${modifie.libelle} » mis à jour.',
+        ),
+      ),
     );
   }
 
@@ -316,14 +349,13 @@ class _Corps extends ConsumerWidget {
 /// serveur sait faire ce que ce poste ne sait pas encore.
 abstract final class TextesStocks {
   static const String ventesSansSortie =
-      'Ce stock ne compte que les mouvements saisis sur ce poste : les ventes '
+      'Ce stock ne compte que les mouvements saisis ici : les ventes '
       'du bar et du restaurant n’y écrivent aucune sortie, il peut donc '
       'dépasser le stock réel d’autant.';
 
   static const String sansComptabilite =
       'Ces mouvements ne produisent aucune écriture comptable : un mouvement '
-      'de stock n’est pas un mouvement d’argent, et leur valorisation '
-      'comptable n’est pas portée sur ce poste (état du 12/10/2026).';
+      'de stock n’est pas un mouvement d’argent.';
 
   static String sansValorisation(int n) =>
       '$n article(s) ont du stock mais aucune entrée valorisée : leur valeur '
@@ -630,6 +662,7 @@ class _FiltresState extends ConsumerState<_Filtres> {
         .enregistrerSous(
           nomSuggere: TextesImportArticles.nomModele,
           octets: modeleImportArticlesOctets(),
+          type: TypeFichierEnregistre.xlsx,
         );
     if (chemin == null || !mounted) return;
     _dire(
@@ -828,9 +861,13 @@ class _Liste<T> extends StatelessWidget {
   }
 }
 
+/// Les articles par page — `Stocks::PAR_PAGE` (vue l.1077 du composant).
+const int articlesParPage = 25;
+
 /// La carte du tableau : le décompte et la mention « Stock calculé — non
-/// modifiable ici », puis soit l'état vide de la vue, soit le tableau.
-class _CarteTableau extends StatelessWidget {
+/// modifiable ici », puis soit l'état vide de la vue, soit le tableau et son
+/// pied de pagination.
+class _CarteTableau extends ConsumerStatefulWidget {
   const _CarteTableau({
     required this.lignes,
     required this.cleFiltre,
@@ -848,8 +885,151 @@ class _CarteTableau extends StatelessWidget {
   final void Function(LigneStock) onModifier;
 
   @override
+  ConsumerState<_CarteTableau> createState() => _CarteTableauState();
+}
+
+class _CarteTableauState extends ConsumerState<_CarteTableau> {
+  int _page = 1;
+
+  /// Les articles cochés. Comme `Stocks::$selection`, elle ne vaut que pour CE
+  /// QUI EST AFFICHÉ : un filtre, une page ou une recherche qui change la remet
+  /// à zéro, sinon « Supprimer » porterait sur des lignes que l'écran ne montre
+  /// plus (le défaut que PA-119 nomme pour l'export, transposé à un geste
+  /// destructeur).
+  final Set<String> _selection = {};
+
+  @override
+  void didUpdateWidget(covariant _CarteTableau ancien) {
+    super.didUpdateWidget(ancien);
+    // Rester en page 3 d'un résultat qui n'en a plus qu'une montrerait un
+    // tableau vide sous un filtre qui trouve pourtant des lignes.
+    if (ancien.cleFiltre != widget.cleFiltre) {
+      _page = 1;
+      _selection.clear();
+    }
+  }
+
+  void _dire(String texte, {required Key cle, bool erreur = false}) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          backgroundColor: erreur ? AppColors.erreur : null,
+          content: Text(texte, key: cle),
+        ),
+      );
+  }
+
+  /// `Stocks::confirmerArchivageArticle` puis `archiverArticles` : une ligne
+  /// (son identifiant) ou la sélection AFFICHÉE.
+  ///
+  /// Le droit d'archiver est exigé DÈS l'ouverture, puis le lot est composé par
+  /// le DAO (verrous rejoués sur les données locales) : BLOQUÉ (le bouton
+  /// disparaît), PARTIEL (le décompte de ce qui restera) ou NOMINAL. Une
+  /// sélection qui ne porte que des articles déjà archivés ouvre la modale
+  /// BLOQUÉE, sans motif — la vue ne retourne que si la sélection est vide.
+  Future<void> _confirmerArchivage(List<String> ids) async {
+    if (ids.isEmpty) return;
+
+    final ouverture = await ref.read(preparerArchivageArticlesProvider)(ids);
+    if (!mounted) return;
+
+    final LotArchivage lot;
+    switch (ouverture) {
+      case StocksOk(:final valeur):
+        lot = valeur;
+      case StocksRefuse(:final motif):
+        _dire(motif, cle: const Key('stocks-archivage-refus'), erreur: true);
+        return;
+    }
+
+    final confirme = await ouvrirArchivageAchats(
+      context,
+      // Une ligne : son nom, en gras. Plusieurs : le nombre qui PART.
+      element: lot.element,
+      nombre: lot.nombre,
+      messagesVerrou: lot.motifs,
+      bloque: lot.bloque,
+      conserves: lot.conserves,
+    );
+    if (confirme != true || !mounted) return;
+
+    final resultat = await ref.read(archiverArticlesProvider)(lot.ids);
+    if (!mounted) return;
+
+    switch (resultat) {
+      case StocksOk(:final valeur):
+        setState(_selection.clear);
+        ref.invalidate(etatStockProvider);
+        // Le succès ET le refus coexistent : un article devenu engagé entre
+        // l'ouverture et le clic n'empêche pas les autres archivages du lot.
+        // La vue les pose ensemble (bandeau vert, toast rouge) ; deux SnackBar se
+        // mettraient en file et le refus resterait caché — ils partent donc dans
+        // UNE seule, qui garde les deux messages.
+        final succes = valeur.archives > 0
+            ? MessagesStock.archivesSucces(valeur.archives)
+            : null;
+        if (valeur.refus != null) {
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(
+              SnackBar(
+                key: const Key('stocks-archivage-refus'),
+                backgroundColor: AppColors.erreur,
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (succes != null)
+                      Text(succes, key: const Key('stocks-archivage-succes')),
+                    Text(valeur.refus!),
+                  ],
+                ),
+              ),
+            );
+        } else if (succes != null) {
+          _dire(succes, cle: const Key('stocks-archivage-succes'));
+        }
+      case StocksRefuse(:final motif):
+        _dire(motif, cle: const Key('stocks-archivage-refus'), erreur: true);
+    }
+  }
+
+  /// « Restaurer » : remet `actif = true`. Seul le droit d'écriture est exigé.
+  Future<void> _restaurer(LigneStock ligne) async {
+    final resultat = await ref.read(restaurerArticleProvider)(ligne.id);
+    if (!mounted) return;
+    switch (resultat) {
+      case StocksOk(:final valeur):
+        ref.invalidate(etatStockProvider);
+        _dire(
+          MessagesStock.restaure(valeur),
+          cle: const Key('stocks-restaure'),
+        );
+      case StocksRefuse(:final motif):
+        _dire(motif, cle: const Key('stocks-archivage-refus'), erreur: true);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
+    final lignes = widget.lignes;
+    final pages = lignes.isEmpty
+        ? 1
+        : (lignes.length + articlesParPage - 1) ~/ articlesParPage;
+    final page = _page < 1 ? 1 : (_page > pages ? pages : _page);
+    final premier = (page - 1) * articlesParPage;
+    final dernier = premier + articlesParPage > lignes.length
+        ? lignes.length
+        : premier + articlesParPage;
+
+    final peutArchiver = ref.watch(
+      peutArchiverProvider(ModuleTatacora.m6Stocks),
+    );
+    final affiches = [for (final l in lignes.sublist(premier, dernier)) l.id];
+    final selection = _selection.intersection(affiches.toSet());
+
+    final carte = Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.neutre0,
@@ -871,6 +1051,7 @@ class _CarteTableau extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
+                  // `nombre_articles` : le TOTAL filtré, pas la page.
                   '${lignes.length} article(s)',
                   style: _t(TaillesContenu.t12, couleur: AppColors.neutre500),
                 ),
@@ -910,20 +1091,211 @@ class _CarteTableau extends StatelessWidget {
                 ],
               ),
             )
-          else
-            // Dix articles par page (PO, 14/10/2026) ; l'export reçoit la
-            // liste filtrée ENTIÈRE (`_exporter`).
-            ListePaginee<LigneStock>(
-              elements: lignes,
-              prefixeCle: 'stocks-pagination',
-              cleRemiseAZero: cleFiltre,
-              constructeur: (_, page) => TableStocks(
-                lignes: page,
-                onFiche: onFiche,
-                onMouvement: onMouvement,
-                onModifier: onModifier,
+          else ...[
+            // L'export reçoit la liste filtrée ENTIÈRE (`_exporter`), jamais la
+            // page affichée.
+            Consumer(
+              builder: (context, ref, _) => TableStocks(
+                lignes: lignes.sublist(premier, dernier),
+                // RG-05 : ce que les ventes encore en file sortiront — dit,
+                // jamais soustrait (`stock_en_attente.dart`).
+                enAttente:
+                    ref.watch(stockEnAttenteProvider).value ??
+                    StockEnAttente.vide,
+                onFiche: widget.onFiche,
+                onMouvement: widget.onMouvement,
+                onModifier: widget.onModifier,
+                peutArchiver: peutArchiver,
+                selection: selection,
+                onBasculerTout: (coche) => setState(() {
+                  _selection
+                    ..clear()
+                    ..addAll(coche ? affiches : const <String>[]);
+                }),
+                onBasculer: (id, coche) => setState(() {
+                  coche ? _selection.add(id) : _selection.remove(id);
+                }),
+                onSupprimer: (l) => _confirmerArchivage([l.id]),
+                onRestaurer: _restaurer,
               ),
             ),
+            // `@if ($lignes->hasPages())` : le pied n'existe que s'il y a
+            // plusieurs pages.
+            if (pages > 1)
+              _PiedPagination(
+                premier: premier + 1,
+                dernier: dernier,
+                total: lignes.length,
+                precedent: page <= 1
+                    ? null
+                    : () => setState(() => _page = page - 1),
+                suivant: page >= pages
+                    ? null
+                    : () => setState(() => _page = page + 1),
+              ),
+          ],
+        ],
+      ),
+    );
+
+    // La barre de sélection groupée précède le cadre (vue l.274-283) : elle
+    // n'existe que pour qui peut archiver ET quand une ligne est cochée.
+    if (!peutArchiver || selection.isEmpty) return carte;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _BarreSelection(
+          nombre: selection.length,
+          onSupprimer: () => _confirmerArchivage([
+            for (final id in affiches)
+              if (selection.contains(id)) id,
+          ]),
+          onEffacer: () => setState(_selection.clear),
+        ),
+        carte,
+      ],
+    );
+  }
+}
+
+/// La barre de sélection groupée (vue l.274-283) : `flex items-center gap-3
+/// bg-[var(--navy)] text-white rounded-lg px-4 py-2.5 mb-3 text-xs` — le décompte
+/// (« sélectionné(s) », son nombre en gras), un espace élastique, « Supprimer »
+/// souligné et la croix qui efface la sélection.
+class _BarreSelection extends StatelessWidget {
+  const _BarreSelection({
+    required this.nombre,
+    required this.onSupprimer,
+    required this.onEffacer,
+  });
+
+  final int nombre;
+  final VoidCallback onSupprimer;
+  final VoidCallback onEffacer;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = _t(
+      TaillesContenu.xs,
+      couleur: AppColors.neutre0,
+      interligne: TaillesContenu.interligneXs,
+    );
+
+    return Container(
+      key: const Key('stocks-selection'),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm), // mb-3
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md, // px-4
+        vertical: AppSpacing.xsPlus, // py-2.5
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.navy,
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+      ),
+      child: Row(
+        children: [
+          Text.rich(
+            TextSpan(
+              style: base,
+              children: [
+                TextSpan(
+                  text: '$nombre',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const TextSpan(text: ' sélectionné(s)'),
+              ],
+            ),
+            key: const Key('stocks-selection-compte'),
+          ),
+          const Spacer(),
+          InkWell(
+            key: const Key('stocks-selection-supprimer'),
+            onTap: onSupprimer,
+            child: Text(
+              'Supprimer',
+              style: base.copyWith(
+                decoration: TextDecoration.underline,
+                decorationColor: AppColors.neutre0.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          InkWell(
+            key: const Key('stocks-selection-effacer'),
+            onTap: onEffacer,
+            child: Text(
+              '✕',
+              semanticsLabel: 'Annuler',
+              style: base.copyWith(
+                color: AppColors.neutre0.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Le pied de la vue (l.433-443) : `px-4 py-3 border-t border-slate-200 flex
+/// items-center justify-between`, le décompte « 1 – 25 / 60 » à gauche, les
+/// deux boutons à droite — « « Précédent » et « Suivant » » (`pagination.*`,
+/// `&laquo;` et `&raquo;`), `text-[12px] px-3 py-1.5 rounded-lg border`,
+/// grisés aux bornes.
+class _PiedPagination extends StatelessWidget {
+  const _PiedPagination({
+    required this.premier,
+    required this.dernier,
+    required this.total,
+    required this.precedent,
+    required this.suivant,
+  });
+
+  final int premier;
+  final int dernier;
+  final int total;
+  final VoidCallback? precedent;
+  final VoidCallback? suivant;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('stocks-pagination'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md, // px-4
+        vertical: AppSpacing.sm, // py-3
+      ),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.neutre200)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '$premier – $dernier / $total',
+            key: const Key('stocks-pagination-decompte'),
+            style: _t(TaillesContenu.t12, couleur: AppColors.neutre500),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              BoutonStandard(
+                key: const Key('stocks-pagination-precedent'),
+                libelle: '« Précédent',
+                compact: true,
+                margeVerticale: AppSpacing.xxs, // py-1.5
+                onPressed: precedent,
+              ),
+              const SizedBox(width: AppSpacing.xs), // gap-2
+              BoutonStandard(
+                key: const Key('stocks-pagination-suivant'),
+                libelle: 'Suivant »',
+                compact: true,
+                margeVerticale: AppSpacing.xxs,
+                onPressed: suivant,
+              ),
+            ],
+          ),
         ],
       ),
     );

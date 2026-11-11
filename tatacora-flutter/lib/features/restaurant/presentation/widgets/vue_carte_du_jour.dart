@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/donnees_absentes.dart';
 import '../../../../core/format/formats.dart';
+import '../../../../core/rbac/garde_acces.dart';
+import '../../../../core/di/providers.dart';
+import '../../../bar/presentation/widgets/modale_historique_prix.dart';
+import '../../../bar/presentation/widgets/modale_prix_boisson.dart'
+    show TextesPrixBoisson;
+import '../../../bar/presentation/widgets/modale_retrait_carte.dart';
+import '../providers_restaurant.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/liste_paginee.dart';
+import '../../domain/calcul_restaurant.dart'
+    show lireDixMilliemes, lisibleDixMilliemes;
 import '../../domain/entities/carte_restaurant.dart';
 import '../../domain/messages_restaurant.dart';
 import '../../impression/etat_carte_restaurant.dart';
 import 'coquille_restaurant.dart';
+import 'modale_lien_stock_plat.dart';
+import 'modale_prix_plat.dart';
 import 'tableau_restaurant.dart';
 
 /// Le suffixe monétaire de cet écran, exposé pour les vues d'onglet.
@@ -55,16 +67,17 @@ const List<ColonneRestaurant> colonnesCarteDuJour = [
 /// l'arbitrage du serveur (`LignePlatCarteResource` : « `portions_vendables`
 /// peut valoir `null`, et ce n'est pas `0` »).
 ///
-/// ## Deux colonnes de la vue n'ont AUCUNE source sur ce poste (09/10/2026)
+/// ## « Disponible » est servie ; « Réserve » ne l'est pas (relu le 27/10/2026)
 ///
-/// « Disponible » (la disponibilité du jour vient d'`indisponibilites_carte`,
-/// l.321) et « Réserve » (le stock détenu hors du point de vente, dérivé de
-/// `mouvements_stock` et du lien direct à un article, l.390-393) : aucune table
-/// locale ne les porte (D15 pour la première ; la seconde exige le lien direct,
-/// que ce poste ne pose pas). Elles restent EN PLACE et rendent « — » avec leur
-/// raison en infobulle — la vue fait de même pour « Réserve » quand la donnée
-/// n'a pas pu être lue (l.398) ; un zéro se lirait « rien en réserve » ou
-/// « tout est indisponible ».
+/// « Disponible » (`l.321`) lit `indisponibilites_carte_local` depuis la v31
+/// (`LigneCarteRestaurant.estRetire`) : « oui » / « non », avec « Rendre indispo. »
+/// et « Remettre ». Le texte du 09/10/2026 (« aucune table ne la porte, D15 »)
+/// était périmé. « Réserve » (le stock détenu hors du point de vente, dérivé de
+/// `mouvements_stock` et du lien direct à un article, l.390-393) reste EN PLACE
+/// et rend « — » avec sa raison en infobulle : aucun calcul de réserve n'est
+/// écrit sur ce poste (le lien direct existe pourtant depuis la v36 : une
+/// réserve calculable est un lot à part, non fait ici). Un zéro se lirait
+/// « rien en réserve ».
 ///
 /// ## Ce qui a une source depuis la v14 (09/10/2026)
 ///
@@ -97,8 +110,6 @@ class VueCarteDuJour extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avecChiffre = lignes.any((l) => l.portionsVendables != null);
-
     return Padding(
       // `mb-3` — 12 px (l.304).
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -132,10 +143,7 @@ class VueCarteDuJour extends StatelessWidget {
                         style: TextesRestaurant.secondaire,
                       ),
                       _Prix(ligne: l),
-                      const _SansSource(
-                        cle: Key('carte-restaurant-disponible-inconnu'),
-                        quoi: 'Les disponibilités du jour',
-                      ),
+                      _Disponible(ligne: l),
                       _ArticleDeStock(ligne: l),
                       _StockVendable(ligne: l),
                       const _SansSource(
@@ -148,15 +156,6 @@ class VueCarteDuJour extends StatelessWidget {
               ),
             ),
           ),
-          if (avecChiffre)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Text(
-                MessagesRestaurant.stockSansLesVentes,
-                key: const Key('carte-restaurant-stock-sans-ventes'),
-                style: TextesRestaurant.mention,
-              ),
-            ),
         ],
       ),
     );
@@ -191,7 +190,8 @@ class EtatVideCarteRestaurant extends StatelessWidget {
 
 /// La première cellule — `corps.blade.php` l.338-345.
 ///
-/// La vue y empile le nom, puis le motif d'indisponibilité en ambre. Le second
+/// La vue y empile le nom, la description du plat quand elle existe, puis le motif
+/// d'indisponibilité en ambre. Le second
 /// n'existe pas ici (aucune disponibilité n'est lue, voir l'en-tête).
 class _Article extends StatelessWidget {
   const _Article({required this.ligne});
@@ -200,7 +200,67 @@ class _Article extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(ligne.libelle, style: TextesRestaurant.corpsFort);
+    final retrait = ligne.indisponibilite;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(ligne.libelle, style: TextesRestaurant.corpsFort),
+        // La description FACULTATIVE du plat (30/10/2026, décision du PO), en ligne
+        // secondaire discrète sous le nom, seulement quand elle existe.
+        if (ligne.description != null)
+          Text(
+            ligne.description!,
+            key: Key('carte-restaurant-description-${ligne.id}'),
+            style: TextesRestaurant.mention.copyWith(
+              color: AppColors.neutre400,
+            ),
+          ),
+        if (retrait != null)
+          // `{{ libelleMotif() }} — {{ commentaire }}` (l.341-343), ambre.
+          Text(
+            retrait.commentaire == null
+                ? retrait.libelle
+                : '${retrait.libelle} — ${retrait.commentaire}',
+            key: Key('carte-restaurant-retrait-${ligne.id}'),
+            style: TextesRestaurant.mention.copyWith(
+              color: PaletteMaitre.ambre700,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// « Disponible » — `corps.blade.php` l.363-370 : « oui » (émeraude) ou « non »
+/// (ambre), lu de `indisponibilites_carte_local`.
+class _Disponible extends StatelessWidget {
+  const _Disponible({required this.ligne});
+
+  final LigneCarteRestaurant ligne;
+
+  @override
+  Widget build(BuildContext context) {
+    final oui = !ligne.estRetire;
+    return Container(
+      key: Key('carte-restaurant-disponible-${ligne.id}'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xxs,
+        vertical: AppSpacing.demi,
+      ),
+      decoration: BoxDecoration(
+        color: oui ? PaletteMaitre.emeraude50 : PaletteMaitre.ambre50,
+        borderRadius: BorderRadius.circular(AppSpacing.unit),
+      ),
+      child: Text(
+        // `carte_pwa.commun.export_oui` / `export_non`.
+        oui ? 'oui' : 'non',
+        style: TextesRestaurant.mention.copyWith(
+          fontWeight: FontWeight.w600,
+          color: oui ? PaletteMaitre.emeraude700 : PaletteMaitre.ambre700,
+        ),
+      ),
+    );
   }
 }
 
@@ -295,12 +355,36 @@ class _ArticleDeStock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Le lien DIRECT d'abord (`lienDirectAffiche`, sans accent) : l'article de
+    // stock et son conditionnement lisible (« 24 par casier »).
+    if (ligne.aLienDirect) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            ligne.articleStockLibelle!,
+            key: Key('carte-restaurant-fiche-${ligne.id}'),
+            style: TextesRestaurant.secondaire,
+          ),
+          Text(
+            conversionLisible(
+              ligne.unitesVendables!,
+              ligne.articleStockUnite ?? 'unité',
+            ),
+            key: Key('carte-restaurant-conversion-${ligne.id}'),
+            style: TextesRestaurant.mentionFine,
+          ),
+        ],
+      );
+    }
+
     final fiche = ligne.recetteLibelle;
     if (fiche == null) {
       return Tooltip(
         // `sans_lien_restaurant`, la phrase de la vue (l.378).
         message:
-            'Fiche technique absente (EF-M4-02) : une recette ne se décrémente '
+            'Fiche technique absente : une recette ne se décrémente '
             'pas comme un article.',
         child: const Text(
           CarteIndicateurRestaurant.absent,
@@ -358,6 +442,15 @@ class _StockVendable extends StatelessWidget {
       );
     }
 
+    // 09/11/2026 (PO) : un plat n'est jamais en rupture ; zéro portion comptée = illimité.
+    if (portions == 0) {
+      return Text(
+        'illimité',
+        key: Key('carte-restaurant-illimite-${ligne.id}'),
+        style: TextesRestaurant.mention,
+      );
+    }
+
     if (ligne.rupture) {
       return PastilleRestaurant(
         cle: Key('carte-restaurant-rupture-${ligne.id}'),
@@ -409,41 +502,112 @@ class _StockVendable extends StatelessWidget {
 /// « Modifier le lien » et « Délier » que pour un plat à lien direct
 /// (l.403-419) — trois états que ce poste ne peut pas lire. Deviner lequel
 /// afficher serait affirmer un état qu'on n'a pas vérifié.
-class _Actions extends StatelessWidget {
+class _Actions extends ConsumerWidget {
   const _Actions({required this.ligne});
 
   final LigneCarteRestaurant ligne;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final id = ligne.id;
+    final peutEcrire = ref
+        .watch(droitsProvider)
+        .peutEcrire(ModuleTatacora.m4Restaurant);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _BoutonLigne(
-          cle: Key('carte-restaurant-rendre-indispo-$id'),
-          libelle: 'Rendre indispo.',
-          message: ecritureNonDisponible('Le retrait de la carte du jour'),
-        ),
+        if (peutEcrire && ligne.estRetire)
+          _BoutonLigne(
+            cle: Key('carte-restaurant-remettre-$id'),
+            libelle: 'Remettre',
+            onTap: () async {
+              await remettreArticle(
+                context,
+                () => ref.read(retraitsPlatsProvider).remettre(id),
+              );
+              invaliderRestaurant(ref);
+            },
+          )
+        else if (peutEcrire)
+          _BoutonLigne(
+            cle: Key('carte-restaurant-rendre-indispo-$id'),
+            libelle: 'Rendre indispo.',
+            onTap: () async {
+              final fait = await ouvrirModaleRetraitArticle(
+                context,
+                libelle: ligne.libelle,
+                soumettre: (motif, commentaire) => ref
+                    .read(retraitsPlatsProvider)
+                    .retirer(
+                      platId: id,
+                      motif: motif,
+                      commentaire: commentaire,
+                    ),
+              );
+              if (fait ?? false) invaliderRestaurant(ref);
+            },
+          ),
         // `ml-1` — 4 px entre deux boutons.
         const SizedBox(width: AppSpacing.unit),
-        _BoutonLigne(
-          cle: Key('carte-restaurant-lier-$id'),
-          libelle: 'Lier au stock',
-          message: ecritureNonDisponible('Le lien au stock'),
-        ),
-        const SizedBox(width: AppSpacing.unit),
-        _BoutonLigne(
-          cle: Key('carte-restaurant-prix-$id'),
-          libelle: 'Prix',
-          message: ecritureNonDisponible('Le nouveau prix'),
-        ),
+        // `corps.blade.php` l.411-414 : « Modifier le lien » quand un article
+        // est lié, « Lier au stock » sinon ; « Délier » (l.416-419) seulement
+        // avec un lien. Le droit d'écriture M4 est exigé (une modale qu'on ne
+        // pourrait pas soumettre ferait perdre la saisie).
+        if (peutEcrire) ...[
+          _BoutonLigne(
+            cle: Key('carte-restaurant-lier-$id'),
+            libelle: ligne.aLienDirect
+                ? TextesLienPlat.boutonModifier
+                : TextesLienPlat.boutonLier,
+            onTap: () async {
+              final fait = await ouvrirModaleLienStockPlat(
+                context,
+                ligne: ligne,
+              );
+              if (fait ?? false) invaliderRestaurant(ref);
+            },
+          ),
+          if (ligne.aLienDirect) ...[
+            const SizedBox(width: AppSpacing.unit),
+            _BoutonLigne(
+              cle: Key('carte-restaurant-delier-$id'),
+              libelle: TextesLienPlat.boutonDelier,
+              onTap: () async {
+                final fait = await ouvrirDialogueDelierPlat(
+                  context,
+                  ligne: ligne,
+                );
+                if (fait ?? false) invaliderRestaurant(ref);
+              },
+            ),
+          ],
+        ],
+        // `ouvrirModificationPrix` (l.434-435) : le prix SEUL, tracé. Le droit
+        // d'écriture M4 est exigé (une modale qu'on ne pourrait pas soumettre
+        // ferait perdre la saisie).
+        if (peutEcrire) ...[
+          const SizedBox(width: AppSpacing.unit),
+          _BoutonLigne(
+            cle: Key('carte-restaurant-prix-$id'),
+            libelle: TextesPrixBoisson.bouton,
+            onTap: () async {
+              final fait = await ouvrirModalePrixPlat(context, ligne: ligne);
+              if (fait ?? false) invaliderRestaurant(ref);
+            },
+          ),
+        ],
+        // `ouvrirHistoriquePrix` (l.436-437) : une LECTURE, sans droit
+        // d'écriture.
         const SizedBox(width: AppSpacing.unit),
         _BoutonLigne(
           cle: Key('carte-restaurant-historique-prix-$id'),
-          libelle: 'Historique des prix',
-          message: donneeNonDisponible('Les changements de prix'),
+          libelle: TextesHistoriquePrix.bouton,
+          onTap: () => ouvrirModaleHistoriquePrix(
+            context,
+            libelle: ligne.libelle,
+            lecture: (ref) => ref.watch(historiquePrixPlatProvider(ligne.id)),
+          ),
         ),
       ],
     );
@@ -455,21 +619,22 @@ class _BoutonLigne extends StatelessWidget {
   const _BoutonLigne({
     required this.cle,
     required this.libelle,
-    required this.message,
+    required this.onTap,
   });
 
   final Key cle;
   final String libelle;
-  final String message;
+
+  /// Le geste porté (tous le sont depuis la v38 : plus aucun bouton de ligne
+  /// ne se contente de DIRE qu'il est refusé).
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       key: cle,
       borderRadius: BorderRadius.circular(AppRadius.rounded),
-      onTap: () => ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message))),
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs,
@@ -486,4 +651,14 @@ class _BoutonLigne extends StatelessWidget {
       ),
     );
   }
+}
+
+/// `StockDeCarteService::conversionLisible` : « 24 par casier » se lit bien ;
+/// moins d'une unité vendable par unité de stock, c'est « N unités par vente ».
+String conversionLisible(String conversion, String unite) {
+  final v = lireDixMilliemes(conversion);
+  if (v == null || v <= 0) return conversion;
+  if (v > 10000) return '${lisibleDixMilliemes(v)} par $unite';
+  if (v == 10000) return '1 $unite par vente';
+  return '${lisibleDixMilliemes(100000000 ~/ v)} $unite par vente';
 }

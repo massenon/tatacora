@@ -1,3 +1,6 @@
+// Vue Blade maîtresse (PA-183) : pwa/restaurant/restauration.blade.php
+// (ces phrases sont celles de ses modales : un fichier de messages qui porte les
+// mots d'une modale doit citer la vue, et chaque phrase tient en UN littéral).
 /// Les phrases de refus de M4 qui sont CELLES DU SERVEUR, mot pour mot.
 ///
 /// `lang/fr/restaurant.php` (clés `validation.*`) dit déjà pourquoi chaque
@@ -23,6 +26,14 @@ abstract final class MessagesRestaurant {
       'Catégorie inconnue. Le registre est fermé : local, europeen, special. '
       "Un filtre incompris serait ignoré, et la carte entière s'afficherait "
       'sous un intitulé qui promet le contraire.';
+  // La catégorie d'un plat (v41, 27/10/2026) : les phrases du serveur quand il
+  // valide `categorie` en synchronisation (`GestionnairePlats`, `validation.required`
+  // et `validation.in` avec le libellé « Catégorie » de la vue), relues par
+  // `tool/vehicules/rejouer_champs_location.php`.
+  static const categorieDuPlatObligatoire =
+      'Le champ Catégorie est obligatoire.';
+  static const categorieDuPlatInvalide =
+      'La valeur sélectionnée pour Catégorie est invalide.';
   static const menuObligatoire =
       "Un plat appartient obligatoirement à un menu : c'est le menu qui porte "
       'sa catégorie et sa période de validité.';
@@ -34,6 +45,13 @@ abstract final class MessagesRestaurant {
       'ne décrémenterait aucun stock.';
   static const recetteInexistante = 'Fiche technique inconnue du référentiel.';
   static const prixObligatoire = 'Le prix de vente est obligatoire.';
+
+  /// `gt:0` de la modale « Prix » de la vue : la règle du GESTE, pas celle de la
+  /// colonne. Suspendre la vente est le rôle de « Retirer de la carte », qui
+  /// porte son motif (`carte_pwa.commun.prix_trace`).
+  static const prixNul =
+      'Un prix à zéro est refusé : pour suspendre la vente, retirez l’article '
+      'de la carte.';
   static const prixNegatif = 'Le prix de vente ne peut pas être négatif.';
   static const saisonInversee =
       'La fin de validité précède son début : ce menu ne rendrait jamais aucun '
@@ -62,30 +80,11 @@ abstract final class MessagesRestaurant {
   /// AUCUNE colonne sur ce poste : le geste est refusé avec sa raison (D15).
   /// « — » veut dire « on ne sait pas », jamais « tout est disponible ».
   static const disponibiliteAbsente =
-      "La disponibilité du jour n'est portée par aucune table de ce poste : "
-      'ni un plat retiré de la carte, ni son motif ne peuvent y être '
-      "enregistrés. Aucun chiffre n'est produit d'ici là.";
+      "La disponibilité du jour n'est pas enregistrable : ni un plat retiré "
+      'de la carte, ni son motif ne peuvent être enregistrés.';
 
   static const platIntrouvable =
-      'Ce plat ne figure pas au catalogue de ce poste. Il a peut-être été '
-      'enregistré sur un autre poste : les catalogues ne se synchronisent '
-      'plus, chacun tient le sien.';
-
-  /// Ce que la phrase de la vue sur les fiches vides promet (« le point de vente
-  /// REFUSE la vente du plat ») n'est PAS vrai sur ce poste : le point de vente
-  /// ne retire encore rien du stock, et la vente d'un plat à fiche vide n'est
-  /// pas refusée. Le dire, plutôt que laisser croire à un refus qui n'a pas lieu.
-  static const venteSansSortieDeStock =
-      'Sur ce poste, le point de vente ne retire encore rien du stock : la vente '
-      "d'un plat à fiche vide n'y est pas refusée, et celle d'un plat à fiche "
-      'composée ne décrémente rien non plus.';
-
-  /// Aucune marque « composition provisoire » n'existe sur ce poste : aucun
-  /// référentiel de démonstration n'y pose de grammage. « — » veut dire « on ne
-  /// le tient pas », jamais « toutes les compositions ont été pesées ».
-  static const compositionProvisoireAbsente =
-      'Ce poste ne marque aucune composition comme provisoire : aucun référentiel '
-      "de démonstration n'y pose de grammage. Aucun chiffre n'est produit.";
+      'Ce plat ne figure pas au catalogue. Il a peut-être été retiré.';
 
   static const droitLectureRefuse =
       "Vous n'avez pas le droit de consulter le restaurant.";
@@ -100,6 +99,11 @@ abstract final class MessagesRestaurant {
 
   static const libelleTropLong =
       'Le libellé ne peut pas dépasser 255 caractères.';
+
+  /// `restaurant.validation.description_trop_longue` (500 au plus), rendue avec
+  /// `:max` = 500.
+  static const descriptionTropLongue =
+      'La description ne peut pas dépasser 500 caractères.';
 
   /// Le serveur accepte `numeric` à deux décimales ; ce poste vend en francs
   /// entiers (le franc CFA n'a pas de sous-unité en circulation, et le point de
@@ -132,33 +136,19 @@ abstract final class MessagesRestaurant {
       'se compose d\'articles du référentiel du stock (jamais de texte libre). '
       "Créez d'abord les articles dans l'écran des stocks.";
 
-  /// Ce que la carte dit du stock vendable : le calcul lit des mouvements qui
-  /// ne tiennent pas compte des ventes de ce poste.
-  static const stockSansLesVentes =
-      'Le stock vendable est celui des mouvements enregistrés : les ventes de '
-      "ce poste n'en retirent encore rien. Il peut dépasser le stock réel "
-      "d'autant.";
-
   // ----------------------------------------------------------------------
   // Les phrases de la VUE (`carte_pwa.restauration.*`), reprises au mot.
   // Un test les relit en exécutant PHP.
   // ----------------------------------------------------------------------
 
   static const aucunMenu =
-      "Aucun menu n'existe encore : un plat ne peut pas être créé sans lui. "
-      "Créez d'abord un menu — vous reviendrez ici avec votre saisie.";
+      "Aucun menu n'existe encore : un plat ne peut pas être créé sans lui. Créez d'abord un menu — vous reviendrez ici avec votre saisie.";
   static const aucuneFiche =
-      "Aucune fiche technique n'existe encore : un plat ne peut pas être créé "
-      "sans elle. Créez d'abord la fiche — vous reviendrez ici avec votre "
-      'saisie.';
+      "Aucune fiche technique n'existe encore : un plat ne peut pas être créé sans elle. Créez d'abord la fiche — vous reviendrez ici avec votre saisie.";
   static const recetteSansIngredient =
-      'Sans ingrédient, cette fiche ne décrémente aucun stock : le point de '
-      "vente REFUSERA la vente du plat qui l'utilise. Ajoutez au moins un "
-      "article de stock, ou revenez la composer depuis l'onglet « Fiches "
-      'techniques ».';
+      "Sans ingrédient, cette fiche ne décrémente aucun stock : le plat qui l'utilise se vend quand même, sans sortie de stock. Ajoutez au moins un article de stock, ou revenez la composer depuis l'onglet « Fiches techniques ».";
   static const recetteAucunArticle =
-      'Aucun article de stock ne correspond. Élargissez la recherche, ou créez '
-      "l'article depuis l'écran Stocks (M6).";
+      "Aucun article de stock ne correspond. Élargissez la recherche, ou créez l'article depuis l'écran Stocks.";
 
   /// `restauration.cree` / `restauration.modifie`.
   static String platEnregistre(String libelle, {required bool creation}) =>
@@ -187,21 +177,53 @@ abstract final class MessagesRestaurant {
           ? 'La fiche « $libelle » est créée, sans ingrédient : elle ne '
                 'décrémentera aucun stock tant que sa composition est vide.'
           : 'La fiche « $libelle » est enregistrée SANS ingrédient : elle ne '
-                "décrémente aucun stock, et toute vente du plat qui l'utilise "
-                'sera refusée au comptoir.';
+                "décrémente aucun stock, et le plat qui l'utilise se vend sans "
+                'sortie de stock.';
     }
     if (incomplet) {
       final articles = articlesSansCout.join(', ');
       return creation
           ? 'La fiche « $libelle » est créée. Son coût matière reste INCONNU '
                 ": $articles n'ont pas de coût moyen pondéré (jamais "
-                'réceptionnés en M6).'
+                'réceptionnés).'
           : 'La fiche « $libelle » est à jour. Son coût matière reste '
                 "INCONNU : $articles n'ont pas de coût moyen pondéré (jamais "
-                'réceptionnés en M6).';
+                'réceptionnés).';
     }
     return creation
         ? 'La fiche « $libelle » est créée. Coût matière calculé : $cout.'
         : 'La fiche « $libelle » est à jour. Coût matière calculé : $cout.';
   }
+
+  // ----------------------------------------------------------------------
+  // « Lier au stock » (v36) — les phrases du SERVEUR (`lang/fr/carte.php`,
+  // `carte_pwa.commun`), reprises au mot ; les apostrophes sont droites.
+  // ----------------------------------------------------------------------
+
+  /// `carte.conversion_requise_avec_lien`.
+  static String conversionRequise(String plat) =>
+      '« $plat » est rattaché à un article de stock : le nombre d\'unités vendables par unité de stock devient obligatoire. Sans lui, la vente ne saurait pas quelle fraction d\'unité de stock sortir.';
+
+  /// `carte.conversion_invalide`.
+  static String conversionInvalide(String plat) =>
+      'La conversion vers le stock de « $plat » est invalide : le nombre d\'unités vendables par unité de stock doit être strictement positif. Corrigez la fiche article avant toute vente — un mouvement de stock calculé sur cette valeur serait faux sans que rien ne le signale.';
+
+  /// Le champ « Article de stock » laissé vide (`required` côté vue).
+  static const articleLienObligatoire =
+      'Choisissez l\'article de stock auquel rattacher ce plat.';
+
+  /// Le conditionnement n'est pas un nombre.
+  static const conversionIllisible =
+      'Le nombre d\'unités vendables par unité de stock doit être un nombre, par exemple 24 ou 0,5.';
+
+  /// L'article cité n'existe plus sur ce poste.
+  static const articleLienInconnu =
+      'Cet article de stock est introuvable sur ce poste : le lien est refusé ici plutôt que rejeté plus tard par une contrainte.';
+
+  /// `carte_pwa.commun.toast_lien_enregistre`.
+  static String lienEnregistre(String plat) =>
+      '« $plat » est rattaché au stock.';
+
+  /// `carte_pwa.commun.toast_lien_retire`.
+  static const lienRetire = 'Lien retiré.';
 }

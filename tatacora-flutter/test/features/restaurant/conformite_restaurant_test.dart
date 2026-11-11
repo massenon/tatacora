@@ -526,9 +526,8 @@ void main() {
   /* ================================================================== */
   group('Les raisons de refus sont VÉRIFIÉES, pas recopiées', () {
     test('la fiche technique EXISTE bien côté serveur', () {
-      // Le bandeau de la carte (texte de la VUE : « Décrémenter un « Poulet
-      // DG » suppose une fiche technique ») et la colonne « Article de stock »
-      // (« Fiche technique (N ingrédient(s)) ») reposent sur l'existence de la
+      // La colonne « Article de stock » (« Fiche technique (N ingrédient(s)) »)
+      // repose sur l'existence de la
       // fiche au serveur ; encore faut-il que ce soit vrai. Si ces routes
       // disparaissaient, ce que l'écran affiche deviendrait faux à son tour.
       final source = routes();

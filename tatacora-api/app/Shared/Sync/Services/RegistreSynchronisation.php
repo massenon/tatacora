@@ -8,27 +8,39 @@ use App\Shared\Sync\Contracts\GestionnaireSynchronisation;
 use App\Shared\Sync\Gestionnaires\GestionnaireArticles;
 use App\Shared\Sync\Gestionnaires\GestionnaireBonsReception;
 use App\Shared\Sync\Gestionnaires\GestionnaireBulletinsPaie;
+use App\Shared\Sync\Gestionnaires\GestionnaireCanauxReservation;
 use App\Shared\Sync\Gestionnaires\GestionnaireCartesBoisson;
 use App\Shared\Sync\Gestionnaires\GestionnaireCategoriesHebergement;
 use App\Shared\Sync\Gestionnaires\GestionnaireCircuits;
 use App\Shared\Sync\Gestionnaires\GestionnaireClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireCommandesAchat;
+use App\Shared\Sync\Gestionnaires\GestionnaireConges;
 use App\Shared\Sync\Gestionnaires\GestionnaireContratsLocation;
+use App\Shared\Sync\Gestionnaires\GestionnaireDemandesCloture;
 use App\Shared\Sync\Gestionnaires\GestionnaireDepenses;
 use App\Shared\Sync\Gestionnaires\GestionnaireEmployes;
+use App\Shared\Sync\Gestionnaires\GestionnaireEntretiensVehicule;
 use App\Shared\Sync\Gestionnaires\GestionnaireFactures;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
+use App\Shared\Sync\Gestionnaires\GestionnaireImmobilisations;
+use App\Shared\Sync\Gestionnaires\GestionnaireIndisponibilitesCarte;
+use App\Shared\Sync\Gestionnaires\GestionnaireInventaires;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
 use App\Shared\Sync\Gestionnaires\GestionnaireModelesNotification;
 use App\Shared\Sync\Gestionnaires\GestionnaireMouvementsStock;
 use App\Shared\Sync\Gestionnaires\GestionnairePaiements;
 use App\Shared\Sync\Gestionnaires\GestionnairePaniersTable;
 use App\Shared\Sync\Gestionnaires\GestionnaireParametres;
+use App\Shared\Sync\Gestionnaires\GestionnairePiecesSaisie;
+use App\Shared\Sync\Gestionnaires\GestionnairePlanComptable;
+use App\Shared\Sync\Gestionnaires\GestionnairePlannings;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
+use App\Shared\Sync\Gestionnaires\GestionnaireProformas;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
 use App\Shared\Sync\Gestionnaires\GestionnaireReglementsFournisseur;
+use App\Shared\Sync\Gestionnaires\GestionnaireRelancesClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservations;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservationsTour;
 use App\Shared\Sync\Gestionnaires\GestionnaireRoles;
@@ -36,6 +48,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireSejours;
 use App\Shared\Sync\Gestionnaires\GestionnaireSessionsCaisse;
 use App\Shared\Sync\Gestionnaires\GestionnaireTablesSalle;
 use App\Shared\Sync\Gestionnaires\GestionnaireUnitesHebergement;
+use App\Shared\Sync\Gestionnaires\GestionnaireUtilisateurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireVehicules;
 use App\Shared\Sync\Gestionnaires\GestionnaireVentes;
 use LogicException;
@@ -99,6 +112,8 @@ class RegistreSynchronisation
         // réservation qu'ils réalisent.
         'sejours' => GestionnaireSejours::class,
         'clients' => GestionnaireClients::class,
+        // 21/10/2026 : les relances d'un client (création seule), APRÈS le client.
+        'relances_clients' => GestionnaireRelancesClients::class,
         'fournisseurs' => GestionnaireFournisseurs::class,
         // Catalogue (S2) — dans l'ordre où un poste doit les pousser : un
         // élément cité passe avant celui qui le cite.
@@ -108,6 +123,9 @@ class RegistreSynchronisation
         'menus' => GestionnaireMenus::class,
         'recettes' => GestionnaireRecettes::class,
         'plats' => GestionnairePlats::class,
+        // Lot « indisponibilités de la carte » (21/10/2026) : APRÈS les boissons
+        // et les plats qu'elles citent.
+        'indisponibilites_carte' => GestionnaireIndisponibilitesCarte::class,
         'categories_hebergement' => GestionnaireCategoriesHebergement::class,
         'unites_hebergement' => GestionnaireUnitesHebergement::class,
         // Documents (S3) — même règle d'ordre. Achats : la commande avant son
@@ -126,6 +144,8 @@ class RegistreSynchronisation
         'depenses' => GestionnaireDepenses::class,
         // Lot F5c : la facture APRÈS la vente qu'elle porte.
         'factures' => GestionnaireFactures::class,
+        // Facture PROFORMA (07/11/2026) : APRÈS la facture qu'elle peut avoir produite (conversion au poste).
+        'proformas' => GestionnaireProformas::class,
         // Lot F5d : l'encaissement APRÈS sa facture (et après la caisse).
         'paiements' => GestionnairePaiements::class,
         // Tourisme (lot F4, 17/10/2026) : les définitions avant la
@@ -137,9 +157,13 @@ class RegistreSynchronisation
         // (après le client et le guide qu'ils citent).
         'vehicules' => GestionnaireVehicules::class,
         'contrats_location' => GestionnaireContratsLocation::class,
+        'entretiens_vehicule' => GestionnaireEntretiensVehicule::class,
         // Audit de couverture (18/10/2026) : le dossier RH, puis la paie.
         'employes' => GestionnaireEmployes::class,
         'bulletins_paie' => GestionnaireBulletinsPaie::class,
+        // 21/10/2026 : les plannings (RG-13) puis les congés (RG-14).
+        'plannings' => GestionnairePlannings::class,
+        'conges' => GestionnaireConges::class,
         // Lot 10e : le paramétrage (un enregistrement de l'écran = une
         // opération) et le référentiel des rôles. Jamais les comptes.
         'parametres_systeme' => GestionnaireParametres::class,
@@ -149,6 +173,28 @@ class RegistreSynchronisation
         'mouvements_stock' => GestionnaireMouvementsStock::class,
         // Lot 10f : la configuration M12 (jamais les messages tracés).
         'modeles_notification' => GestionnaireModelesNotification::class,
+        // 28/10/2026 (D246 rouvert par le PO) : un COMPTE du plan créé sur un poste
+        // (création seule, `PlanComptableService`), AVANT les pièces manuelles et
+        // les immobilisations qui le citent par son numéro.
+        'plan_comptable' => GestionnairePlanComptable::class,
+        // 28/10/2026 : une PIÈCE saisie à la main sur un poste (brouillon ou
+        // validée), rejouée par `PasserEcritureService` — le serveur passe SA pièce.
+        'pieces_saisie' => GestionnairePiecesSaisie::class,
+        // 21/10/2026 : les immobilisations (M10), création seule — le plan
+        // d'amortissement est calculé, jamais stocké.
+        'immobilisations' => GestionnaireImmobilisations::class,
+        // 21/10/2026 : les canaux de réservation (Paramètres), par le nom —
+        // la descente les sert AVANT les réservations qui les citent.
+        'canaux_reservation' => GestionnaireCanauxReservation::class,
+        // 21/10/2026 : l'inventaire physique CLÔTURÉ d'un poste, document
+        // complet (en-tête + lignes) ; sa régularisation arrive en mouvements.
+        'inventaires' => GestionnaireInventaires::class,
+        // 26/10/2026 : la DEMANDE de clôture ou de réouverture d'un exercice
+        // (M10), document source : le serveur rejoue ses règles de clôture.
+        'demandes_cloture_exercice' => GestionnaireDemandesCloture::class,
+        // 03/11/2026 : les comptes — la SUPPRESSION seule (par le login), jamais une
+        // création ni un mot de passe. L'autorité est vérifiée par le moteur.
+        'utilisateurs' => GestionnaireUtilisateurs::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

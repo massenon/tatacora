@@ -1,3 +1,5 @@
+import '../../comptabilite/domain/correspondance_comptes.dart';
+import '../../comptabilite/domain/forme_juridique.dart';
 import 'entities/parametre.dart';
 import 'regles_parametres.dart';
 import 'registre_parametres_local.dart';
@@ -32,14 +34,19 @@ String refusCleInconnue(String cle) =>
     'cet écran : une clé que rien ne lit donnerait l’illusion d’un réglage '
     'sans effet.';
 
-/// La phrase qui dit qu'une valeur n'est lue par PERSONNE sur ce poste.
-///
-/// Une clé sans lecteur reste saisissable — un module à venir la lira, et la
-/// saisir d'avance n'est pas fautif —, mais l'exploitant doit le savoir : ne
-/// pas le dire serait lui laisser croire à un réglage en vigueur (piège 9).
-/// Rendue À PART de l'aide du serveur, qui reste identique à la vue Blade.
-const String phraseSansLecteur =
-    'Aucun module de ce poste ne lit encore cette valeur.';
+/// Juge le compte choisi pour un rôle de la correspondance : la phrase du
+/// refus, ou `null`. Le cas d'usage ne lit pas le plan comptable : l'appelant
+/// (le fournisseur de l'écran) lui prête cette lecture — voir
+/// `verifierCompteDuRoleSurPlan` pour la règle, pure.
+typedef VerificateurCompteDuRole =
+    Future<String?> Function(RoleCompte role, String numero);
+
+/// Une clé `compte_<rôle>` soumise sans verificateur : refusée. Fermer par
+/// défaut (un compte jamais confronté au plan serait imputé sur des pièces
+/// validées, donc immuables), ouvrir par câblage.
+const String refusVerificateurComptesAbsent =
+    'La correspondance des comptes ne peut pas être enregistrée : le plan '
+    'comptable de ce poste n’est pas disponible pour la vérifier.';
 
 const String messageEnregistre = 'Paramètres enregistrés.';
 const String messageAucunChangement = 'Aucune valeur modifiée.';
@@ -65,14 +72,34 @@ const String messageAucunChangement = 'Aucune valeur modifiée.';
 /// @see RG-10 paramétrage sans déploiement
 /// @see PA-62 / PA-124 cohérence de l'état résultant
 class EnregistrerParametres {
-  const EnregistrerParametres(this._stockage);
+  const EnregistrerParametres(
+    this._stockage, {
+    this.verifierCompte,
+    this.affectationActive,
+  });
 
   final StockageParametres _stockage;
 
+  /// Existe-t-il une affectation du résultat ACTIVE (tous exercices) ? Exigée
+  /// pour juger un changement de forme juridique, que le serveur refuse tant
+  /// qu'une affectation est active. Sans ce jugement (non câblé), le
+  /// changement de forme est REFUSÉ : fermer par défaut, ouvrir par câblage.
+  final Future<bool> Function()? affectationActive;
+
+  /// La vérification des clés `compte_<rôle>` contre le plan comptable
+  /// (existence, classe du rôle, compte imputable) — celle du serveur
+  /// (`EnregistrerParametreService::verifierComptes`).
+  final VerificateurCompteDuRole? verifierCompte;
+
+  /// [estAdministrateur] : l'auteur est un administrateur (`peutAdministrerComptes`
+  /// de son rôle). Seul à pouvoir écrire les clés `reserveAdministrateur` — le mode
+  /// de facturation, l'adresse de l'API, l'opérateur, la forme juridique —, comme
+  /// au web ; le serveur rejoue la règle sur le compte du jeton d'appairage.
   Future<ResultatEcriture> executer(
     Map<String, Object?> soumis, {
     required bool peutEcrire,
     required String? auteurId,
+    bool estAdministrateur = false,
   }) async {
     if (!peutEcrire) {
       return const EcritureRefusee(motif: refusDroitParametres);
@@ -81,6 +108,8 @@ class EnregistrerParametres {
     if (soumis.isEmpty) {
       return const EcritureRefusee(motif: 'Aucun paramètre à enregistrer.');
     }
+
+    final stocke = await _stockage.lireTout();
 
     // 2 et 3 : TOUTES les erreurs de forme sont rendues ensemble, rattachées à
     // leur champ — l'exploitant ne corrige pas un champ par aller-retour.
@@ -94,18 +123,84 @@ class EnregistrerParametres {
       }
       switch (normaliser(spec, e.value)) {
         case ValeurNormalisee(:final valeur):
+          // Les réglages RÉSERVÉS : réservés aux Administrateurs, comme au web. La
+          // forme juridique rendue à sa valeur actuelle n'est pas un changement
+          // (le serveur la laisse passer avant de juger le droit).
+          final inchangee =
+              spec.cle == ClesFacturation.formeJuridique &&
+              valeur != null &&
+              valeur ==
+                  (stocke[spec.cle] ??
+                      FormeJuridique.entrepriseIndividuelle.code);
+          if (spec.reserveAdministrateur && !estAdministrateur) {
+            // Rien à écrire, rien à refuser : la valeur actuelle n'est pas un changement.
+            if (inchangee) continue;
+            erreurs[e.key] = spec.cle == ClesFacturation.formeJuridique
+                ? MessagesReglagesAdministrateur.formeReservee
+                : MessagesReglagesAdministrateur.mecefReserve;
+            continue;
+          }
           normalisees[e.key] = valeur;
         case ValeurRefusee(:final motif):
           erreurs[e.key] = motif;
       }
     }
+    // La correspondance des comptes : chaque clé `compte_<rôle>` non vidée est
+    // jugée contre le plan (le serveur le fait pour toute écriture, la
+    // synchronisation comprise ; ce poste le fait avant d'écrire).
+    for (final e in normalisees.entries) {
+      final role = RolesCorrespondance.parCle(e.key);
+      final numero = e.value;
+      if (role == null || numero == null || erreurs.containsKey(e.key)) {
+        continue;
+      }
+      final verificateur = verifierCompte;
+      final refus = verificateur == null
+          ? refusVerificateurComptesAbsent
+          : await verificateur(role, numero);
+      if (refus != null) erreurs[e.key] = refus;
+    }
     if (erreurs.isNotEmpty) {
       return EcritureRefusee(motif: erreurs.values.first, parCle: erreurs);
     }
 
+    // 3 bis : la forme juridique (09/11/2026) — l'une des trois valeurs (vider
+    // n'en est pas une), et refusée TANT QU'UNE AFFECTATION DU RÉSULTAT EST ACTIVE :
+    // la pièce passée l'a été sous les règles de l'ancienne forme.
+    if (normalisees.containsKey(ClesFacturation.formeJuridique)) {
+      final refus = await _jugerFormeJuridique(
+        normalisees[ClesFacturation.formeJuridique],
+        stocke[ClesFacturation.formeJuridique],
+      );
+      if (refus != null) {
+        return EcritureRefusee(
+          motif: refus,
+          parCle: {ClesFacturation.formeJuridique: refus},
+        );
+      }
+    }
+
     // 4 : l'état RÉSULTANT, jamais le stocké seul.
-    final stocke = await _stockage.lireTout();
-    final incoherence = verifierCoherence(etatResultant(stocke, normalisees));
+    final resultant = etatResultant(stocke, normalisees);
+
+    // 4 bis : le mode de la facturation normalisée (IFU, opérateur) — ce qu'exige
+    // un mode réel doit être là, sinon la première facture échouerait devant le
+    // client. Le jeton, jamais reçu ici, est jugé par le serveur.
+    final refusMode = verifierFacturationNormalisee(
+      resultant,
+      normalisees.keys,
+    );
+    if (refusMode != null) {
+      return EcritureRefusee(
+        motif: refusMode,
+        parCle: {
+          for (final c in ClesFacturation.concernees)
+            if (normalisees.containsKey(c)) c: refusMode,
+        },
+      );
+    }
+
+    final incoherence = verifierCoherence(resultant);
     if (incoherence != null) {
       return EcritureRefusee(motif: incoherence);
     }
@@ -129,6 +224,27 @@ class EnregistrerParametres {
     );
   }
 
+  /// Le refus du changement de forme juridique, ou `null`. Même ordre que le
+  /// serveur (`verifierFormeJuridique`) : valeur connue, inchangée = rien à juger,
+  /// puis affectation active.
+  Future<String?> _jugerFormeJuridique(String? valeur, String? stockee) async {
+    final admises = [for (final f in FormeJuridique.values) f.code];
+    if (valeur == null || !admises.contains(valeur)) {
+      return MessagesReglagesAdministrateur.formeInconnue(
+        valeur ?? '',
+        admises,
+      );
+    }
+    if (valeur == (stockee ?? FormeJuridique.entrepriseIndividuelle.code)) {
+      return null;
+    }
+    final jugement = affectationActive;
+    if (jugement == null || await jugement()) {
+      return MessagesReglagesAdministrateur.formeAffectationActive;
+    }
+    return null;
+  }
+
   /// Les paramètres tels que l'écran les affiche : le registre FERMÉ, chaque
   /// valeur lue du stockage (`null` = non renseignée), et les deux états
   /// DÉRIVÉS des valeurs lues.
@@ -144,9 +260,9 @@ class EnregistrerParametres {
             typeBrut: s.type.code,
             choix: s.choix,
             aide: s.aide,
+            choixLibelles: s.choixLibelles,
+            reserveAdministrateur: s.reserveAdministrateur,
             valeur: valeurs[s.cle],
-            correction: s.correction,
-            notes: [?s.note, if (s.lecteur == null) phraseSansLecteur],
           ),
       ],
       etats: {'tva': etatTva(valeurs), 'mecef': etatMecef(valeurs)},

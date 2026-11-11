@@ -6,7 +6,10 @@ import 'package:tatacora_flutter/features/bar/domain/entities/boisson.dart';
 import 'package:tatacora_flutter/features/bar/domain/entities/carte_bar.dart';
 import 'package:tatacora_flutter/features/bar/domain/entities/trace_prix.dart';
 import 'package:tatacora_flutter/features/bar/domain/motif_indisponibilite.dart';
+import 'package:tatacora_flutter/features/pos/data/indisponibilites_carte_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
+import 'package:tatacora_flutter/features/pos/data/dto/catalogue_dto.dart'
+    show BoissonDistante;
 import 'package:tatacora_flutter/features/pos/data/panier_dao.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
@@ -30,10 +33,10 @@ import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogu
 ///  3. **Aucun stock n'est inventé.** Il se calcule des mouvements, et ce
 ///     poste n'en a aucun. « 0 » se lirait « rupture » sur l'écran qui sert à
 ///     commander — l'absence doit rester une absence (PA-129, PA-134).
-///  4. **Ce que le schéma ne porte pas est REFUSÉ, pas simulé.** Retrait de la
-///     carte, lien au stock et historique des prix n'ont ni colonne ni table
-///     ici. Les tenir en session les ferait revenir seuls au redémarrage —
-///     la famille PA-59/60/61, sur l'écran du barman.
+///  4. **L'historique des prix est TENU** (v38, 26/10/2026) : une table locale
+///     (`historique_prix_carte_local`), écrite dans la transaction du prix.
+///     (Retrait de la carte : v31, lien au stock : v30 et
+///     `lien_stock_poste_test.dart`.)
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
@@ -84,6 +87,7 @@ void main() {
     final dao = CatalogueDao(base);
     final rayons = await dao.rayons();
     final liens = await dao.liensDeStockDesBoissons();
+    final retraits = await IndisponibilitesCarteDao(base).boissonsRetirees();
 
     return composerCarte(
       local: rayons
@@ -97,6 +101,8 @@ void main() {
               prix: a.prix ?? 0,
               articleId: liens[a.reference.code],
               stock: null,
+              indisponibilite: retraits[a.reference.code],
+              disponibiliteConnue: true,
             ),
           )
           .toList(growable: false),
@@ -279,82 +285,181 @@ void main() {
   });
 
   /* ================================================================== */
-  group('Retrait et remise à la carte — REFUSÉS, jamais simulés', () {
-    test('« Rendre indispo. » est refusé, et rien n’est écrit', () async {
+  group('Retrait et remise à la carte — ÉCRITS en base (v31)', () {
+    test('« Rendre indispo. » est écrit, relu par une instance neuve, et la '
+        'boisson est INTACTE', () async {
       final creee = await creer(libelle: 'Béninoise 33 cl', prix: '500');
 
       final r = await source.retirer(
         id: creee.id,
         motif: MotifIndisponibilite.rupture.code,
-        commentaire: 'livraison attendue jeudi',
+        commentaire: '  livraison attendue jeudi ',
       );
+      expect(r, isA<BarRecu<Boisson>>());
 
-      expect(r, isA<BarRefuse<Boisson>>());
-      // Le refus DIT pourquoi : la colonne n'existe pas. Un message vague
-      // laisserait chercher un droit manquant ou une panne.
-      expect((r as BarRefuse<Boisson>).motif, contains('ce poste'));
-      // Et la boisson est INTACTE : aucun état de retrait n'a été bricolé
-      // ailleurs — dans le libellé, la catégorie ou un prix à zéro.
+      // Une carte composée depuis la base : l'état est SU, donc les gestes
+      // sont offerts, et le retrait porte son motif et son commentaire.
+      final ligne = (await carteLocale()).single;
+      expect(ligne.disponibiliteConnue, isTrue);
+      expect(ligne.estRetiree, isTrue);
+      expect(ligne.indisponibilite?.motif, 'rupture');
+      expect(ligne.indisponibilite?.libelle, 'Rupture du jour');
+      expect(ligne.indisponibilite?.commentaire, 'livraison attendue jeudi');
+
+      // Aucun état de retrait n'a été bricolé dans le catalogue.
       final relue = (await catalogueRelu()).single;
       expect(relue.libelle, 'Béninoise 33 cl');
       expect(relue.prixVente, '500');
       expect(relue.categorie, CategorieBoisson.locale);
     });
 
-    test('« Remettre » est refusé aussi — il n’y a rien à lever', () async {
+    test('un motif hors registre et une boisson inconnue sont refusés SANS '
+        'écrire', () async {
       final creee = await creer();
 
-      expect(await source.remettre(creee.id), isA<BarRefuse<Boisson>>());
-      expect(await catalogueRelu(), hasLength(1));
+      final motif = await source.retirer(id: creee.id, motif: 'hors_saison');
+      expect(motif, isA<BarRefuse<Boisson>>());
+      expect((motif as BarRefuse<Boisson>).erreurs, contains('motif'));
+      expect(
+        await source.retirer(id: 'bsn-fantome', motif: 'rupture'),
+        isA<BarRefuse<Boisson>>(),
+      );
+      expect((await carteLocale()).single.estRetiree, isFalse);
     });
 
-    test('la carte n’AFFIRME aucun état de disponibilité', () async {
-      // Sans source qui dise si un article est retiré, l'écran n'offre ni
-      // « Rendre indispo. » ni « Remettre » : le mauvais des deux serait
-      // proposé une fois sur deux.
-      await creer();
-      final locale = await carteLocale();
+    test('retirer deux fois ne double rien, et le refus le DIT', () async {
+      final creee = await creer();
+      await source.retirer(id: creee.id, motif: 'rupture');
 
-      expect(locale.single.disponibiliteConnue, isFalse);
-      expect(locale.single.estRetiree, isFalse);
+      final encore = await source.retirer(id: creee.id, motif: 'saison');
+      expect(encore, isA<BarRefuse<Boisson>>());
+      expect((encore as BarRefuse<Boisson>).motif, contains('déjà retirée'));
+      expect(
+        (await carteLocale()).single.indisponibilite?.motif,
+        'rupture',
+        reason: 'le retrait en cours est celui du premier geste',
+      );
+    });
+
+    test('« Remettre » ferme le retrait ; sur une boisson à la carte, il est '
+        'refusé en le disant', () async {
+      final creee = await creer();
+
+      final rien = await source.remettre(creee.id);
+      expect(rien, isA<BarRefuse<Boisson>>());
+      expect((rien as BarRefuse<Boisson>).motif, contains('n’est pas retirée'));
+
+      await source.retirer(id: creee.id, motif: 'retire');
+      expect(await source.remettre(creee.id), isA<BarRecu<Boisson>>());
+      final ligne = (await carteLocale()).single;
+      expect(ligne.estRetiree, isFalse);
+      expect(ligne.disponibiliteConnue, isTrue);
+
+      // Et la boisson peut être retirée de nouveau : un nouveau retrait.
+      expect(
+        await source.retirer(id: creee.id, motif: 'rupture'),
+        isA<BarRecu<Boisson>>(),
+      );
     });
   });
 
   /* ================================================================== */
-  group('Lien au stock et historique — REFUSÉS avec leur raison', () {
-    test(
-      '« Lier au stock » est refusé, et la boisson reste sans lien',
-      () async {
-        final creee = await creer();
+  group('Lien au stock (refus d’un article absent) et historique — REFUSÉ '
+      'avec sa raison', () {
+    // Le lien lui-même s’écrit depuis le 26/10/2026 : voir
+    // `lien_stock_poste_test.dart`. Ici, l’article « art-1 » n’existe pas sur
+    // ce poste — le refus est celui de l’article, pas d’une colonne absente.
+    test('« Lier au stock » sur un article ABSENT du poste est refusé, et la '
+        'boisson reste sans lien', () async {
+      final creee = await creer();
 
-        final r = await source.lierAuStock(
-          id: creee.id,
-          articleId: 'art-1',
-          unitesVendablesParUniteStock: '24',
-        );
+      final r = await source.lierAuStock(
+        id: creee.id,
+        articleId: 'art-1',
+        unitesVendablesParUniteStock: '24',
+      );
 
-        expect(r, isA<BarRefuse<Boisson>>());
-        // Un lien écrit à moitié — l'article sans son conditionnement — ferait
-        // croire à un rattachement qui ne décrémente rien de juste.
-        expect((await catalogueRelu()).single.articleId, isEmpty);
-      },
-    );
+      expect(r, isA<BarRefuse<Boisson>>());
+      // Un lien écrit à moitié — l'article sans son conditionnement — ferait
+      // croire à un rattachement qui ne décrémente rien de juste.
+      expect((await catalogueRelu()).single.articleId, isEmpty);
+    });
 
-    test(
-      'l’historique dit que la TRACE n’existe pas, pas qu’elle est vide',
-      () async {
-        final creee = await creer(prix: '500');
-        await source.modifierPrix(creee.id, '1000');
+    test('l’historique des prix est TENU depuis la v38 : chaque changement de '
+        'prix laisse sa trace, la création et un enregistrement sans '
+        'changement n’en laissent aucune', () async {
+      base.auteurEcriture = () => (login: 'barman1', poste: 'CAISSE-1');
+      final creee = await creer(prix: '500');
 
-        final r = await source.historiquePrix(creee.id);
+      // Aucune trace à la CRÉATION (l'observateur du serveur ne naît qu'à la
+      // modification) : une liste VIDE est alors la vérité, pas un manque.
+      final vide = await source.historiquePrix(creee.id);
+      expect((vide as BarRecu<List<TracePrix>>).donnees, isEmpty);
 
-        final refus = r as BarRefuse<List<TracePrix>>;
-        // « Aucun changement de prix » serait un FAIT, et il serait faux : le
-        // prix vient précisément d'être modifié ci-dessus.
-        expect(refus.motif, isNot(contains('Aucun changement')));
-        expect(refus.motif, contains('n’existe pas'));
-      },
-    );
+      await source.modifierPrix(creee.id, '1000');
+      // Même prix : rien n'est tracé.
+      await source.modifierPrix(creee.id, '1000');
+      // Renommer ne change pas le prix.
+      await source.modifier(
+        creee.id,
+        libelle: 'Béninoise 33 cl (verre)',
+        categorie: CategorieBoisson.locale,
+      );
+
+      final r = await source.historiquePrix(creee.id);
+      final traces = (r as BarRecu<List<TracePrix>>).donnees;
+      expect(traces, hasLength(1));
+      expect(traces.single.champ, 'prix_vente');
+      expect(
+        (traces.single.ancien, traces.single.nouveau),
+        ('500.00', '1000.00'),
+      );
+      expect(traces.single.par, 'barman1');
+      expect(traces.single.date, isNotNull);
+
+      await source.modifierPrix(creee.id, '1200');
+      final deux =
+          (await source.historiquePrix(creee.id) as BarRecu<List<TracePrix>>)
+              .donnees;
+      // Du plus récent au plus ancien.
+      expect(deux.map((t) => t.nouveau), ['1200.00', '1000.00']);
+
+      // L'historique est PROPRE à l'article.
+      final autre = await creer(libelle: 'Soda', prix: '300');
+      expect(
+        (await source.historiquePrix(autre.id) as BarRecu<List<TracePrix>>)
+            .donnees,
+        isEmpty,
+      );
+    });
+
+    test('la trace est écrite dans la transaction du prix : un enfilement qui '
+        'échoue annule le prix ET la trace', () async {
+      final creee = await creer(prix: '500');
+      // Sans la file, l'enfilement lève : rien ne doit rester du changement.
+      await base.customStatement(
+        'ALTER TABLE operations_sync_local RENAME TO x',
+      );
+      await expectLater(
+        catalogue.enregistrerBoisson(
+          BoissonDistante(
+            id: creee.id,
+            articleId: null,
+            libelle: creee.libelle,
+            categorie: 'locale',
+            prixVente: 900,
+            stockDisponible: null,
+          ),
+        ),
+        throwsA(anything),
+      );
+      await base.customStatement(
+        'ALTER TABLE x RENAME TO operations_sync_local',
+      );
+
+      expect((await catalogue.boissonDuCatalogue(creee.id))!.prixVente, 500);
+      expect(await base.select(base.historiquePrixCarteLocal).get(), isEmpty);
+    });
   });
 
   /* ================================================================== */

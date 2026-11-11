@@ -123,6 +123,10 @@ class LecteurConfigurationPoste {
 
   final Future<String> Function() _chemin;
 
+  /// Le chemin de `poste.json` que ce lecteur lit — les captures d'écran des
+  /// signalements se rangent à côté.
+  Future<String> Function() get chemin => _chemin;
+
   Future<LectureMotDePasse> motDePasseSmtp() async {
     final chemin = await _chemin();
     final fichier = File(chemin);
@@ -167,7 +171,100 @@ class LecteurConfigurationPoste {
     final contenu = await _lireObjet(await _chemin());
     return contenu == null ? null : AppairagePoste.depuisJson(contenu);
   }
+
+  /// L'INTERRUPTEUR « Synchronisation activée » du poste, relu à CHAQUE appel
+  /// (aucun cache : une bascule vaut pour la requête qui suit). Absent ou
+  /// illisible : ACTIVÉE — un poste qui n'a jamais été touché garde le
+  /// comportement d'avant. Seul `false` écrit la désactive.
+  Future<bool> synchronisationActivee() async {
+    final contenu = await _lireObjet(await _chemin());
+    return contenu?[cleSynchronisationActivee] != false;
+  }
+
+  /// L'adresse de l'API enregistrée (`serveur`), MÊME sans jeton : l'adresse
+  /// choisie à l'écran vaut aussi pour un poste pas encore appairé. `null` :
+  /// aucune (fichier absent, illisible ou clé vide) — le poste prend alors
+  /// l'adresse du build.
+  Future<String?> adresseServeur() async {
+    final contenu = await _lireObjet(await _chemin());
+    final v = contenu?[ClesAppairage.serveur];
+    return v is String && v.trim().isNotEmpty ? v.trim() : null;
+  }
+
+  /// L'adresse a-t-elle été CHOISIE à l'écran (Paramètres → Synchronisation) ?
+  /// Alors l'appairage ne se compare plus à l'adresse du build : c'est
+  /// l'opérateur qui a décidé du serveur.
+  Future<bool> adresseServeurChoisie() async {
+    final contenu = await _lireObjet(await _chemin());
+    final v = contenu?[cleServeurModifieLe];
+    return v is String && v.trim().isNotEmpty;
+  }
+
+  /// La fréquence du réveil périodique, en minutes (`0` : manuelle), ou `null`
+  /// quand le fichier n'en dit rien (le défaut s'applique).
+  Future<int?> frequenceSynchronisationMinutes() async {
+    final contenu = await _lireObjet(await _chemin());
+    final v = contenu?[cleFrequenceSynchronisation];
+    return v is int ? v : null;
+  }
+
+  /// L'adresse du pilote du boîtier choisie sur ce poste, ou `null` (le défaut
+  /// `http://localhost:38917` s'applique).
+  Future<String?> adresseBoitier() async {
+    final contenu = await _lireObjet(await _chemin());
+    final v = contenu?[cleFacturationBoitierAdresse];
+    return v is String && v.trim().isNotEmpty ? v.trim() : null;
+  }
+
+  /// La surcharge locale du mode de facturation : `serveur`, `boitier`, `rien`,
+  /// ou `null` (suivre le serveur). Une valeur inconnue se lit `null`.
+  Future<String?> surchargeFacturation() async {
+    final contenu = await _lireObjet(await _chemin());
+    final v = contenu?[cleFacturationSurcharge];
+    return v is String && const ['serveur', 'boitier', 'rien'].contains(v)
+        ? v
+        : null;
+  }
+
+  /// Qui a désactivé la synchronisation, et quand (`null` : activée, ou
+  /// désactivée avant que l'on consigne qui).
+  Future<({String? par, DateTime? le})> desactivation() async {
+    final contenu = await _lireObjet(await _chemin());
+    final par = contenu?[cleSynchronisationDesactiveePar];
+    return (
+      par: par is String && par.isNotEmpty ? par : null,
+      le: DateTime.tryParse('${contenu?[cleSynchronisationDesactiveeLe]}'),
+    );
+  }
 }
+
+/// Les clés de l'interrupteur de synchronisation dans `poste.json`. Le choix
+/// est PAR POSTE (comme l'appairage) : il ne voyage pas par la synchronisation
+/// (il n'aurait aucun sens qu'un autre poste éteigne celui-ci), il survit à
+/// la réinitialisation de la base (`etat_synchronisation_local` est vidé),
+/// et il se lit sans ouvrir la base — le moteur le relit avant chaque requête.
+const String cleSynchronisationActivee = 'synchronisation_activee';
+const String cleSynchronisationDesactiveeLe = 'synchronisation_desactivee_le';
+const String cleSynchronisationDesactiveePar = 'synchronisation_desactivee_par';
+
+/// L'adresse du serveur CHOISIE à l'écran (29/10/2026) : quand et par qui. La
+/// clé de l'adresse elle-même est `serveur` ([ClesAppairage.serveur]) ; ces
+/// deux clés disent seulement qu'elle est un CHOIX de l'opérateur, pas celle
+/// qu'un appairage a recopiée du build. Jamais le jeton.
+const String cleServeurModifieLe = 'serveur_modifie_le';
+const String cleServeurModifiePar = 'serveur_modifie_par';
+
+/// La fréquence du réveil périodique, en minutes (`0` : manuelle seulement).
+/// Absente : 5 minutes. Par poste, comme l'interrupteur.
+const String cleFrequenceSynchronisation = 'synchronisation_frequence_minutes';
+
+/// Facturation normalisée (07/11/2026) : l'adresse du PILOTE du boîtier CC300
+/// (`http://localhost:38917` quand la clé est absente), modifiable sans
+/// recompiler comme l'adresse du serveur ; et la SURCHARGE LOCALE « ce poste
+/// certifie par » (`serveur` / `boitier` / `rien`, absente : le mode du
+/// serveur). Par poste : le boîtier n'existe que sur ce poste. Jamais de secret.
+const String cleFacturationBoitierAdresse = 'facturation_boitier_adresse';
+const String cleFacturationSurcharge = 'facturation_surcharge';
 
 /// Le contenu de `poste.json`, ou `null` s'il est absent ou n'est pas un objet
 /// JSON.
@@ -185,7 +282,10 @@ Future<Map<String, Object?>?> _lireObjet(String chemin) async {
   final fichier = File(chemin);
   if (!fichier.existsSync()) return null;
   try {
-    final contenu = jsonDecode(await fichier.readAsString());
+    // Lecture SYNCHRONE : le fichier fait quelques centaines d'octets, et
+    // une lecture asynchrone ne se termine pas sous l'horloge simulée d'un
+    // banc de widget (l'interrupteur de synchronisation est lu partout).
+    final contenu = jsonDecode(fichier.readAsStringSync());
     return contenu is Map<String, Object?> ? contenu : null;
   } on Object {
     return null;
@@ -323,12 +423,76 @@ class EcrivainConfigurationPoste {
           ..addAll(appairage.versJson());
       });
 
-  /// Retire l'appairage (« Dissocier ») ; le reste du fichier demeure.
-  Future<void> retirerAppairage() => _modifier((contenu) {
+  /// Retire l'appairage (« Dissocier ») ; le reste du fichier demeure. Une
+  /// adresse CHOISIE à l'écran demeure aussi : dissocier le poste ne change
+  /// pas de serveur.
+  Future<void> retirerAppairage() => _modifier(
+    (contenu) => _viderAppairage(
+      contenu,
+      garderServeur: contenu[cleServeurModifieLe] != null,
+    ),
+  );
+
+  static void _viderAppairage(
+    Map<String, Object?> contenu, {
+    required bool garderServeur,
+  }) {
     for (final cle in ClesAppairage.toutes) {
+      if (cle == ClesAppairage.serveur && garderServeur) continue;
       contenu.remove(cle);
     }
+  }
+
+  /// Enregistre l'adresse du serveur choisie à l'écran ([urlApi] : déjà
+  /// validée, `…/api/v1`), avec quand et par qui. [effacerJeton] : le jeton
+  /// et le reste de l'appairage partent dans la MÊME écriture atomique.
+  /// Jamais le jeton ailleurs que dans ce fichier ; la file d'envoi n'est pas
+  /// concernée.
+  Future<void> enregistrerAdresseServeur(
+    String urlApi, {
+    required String par,
+    required DateTime le,
+    bool effacerJeton = false,
+  }) => _modifier((contenu) {
+    if (effacerJeton) _viderAppairage(contenu, garderServeur: true);
+    contenu
+      ..[ClesAppairage.serveur] = urlApi
+      ..[cleServeurModifieLe] = le.toUtc().toIso8601String()
+      ..[cleServeurModifiePar] = par;
   });
+
+  /// Enregistre la fréquence du réveil périodique ([minutes] : 0 = manuelle).
+  /// Le défaut (5) retire la clé : un fichier jamais touché reste inchangé.
+  Future<void> enregistrerFrequenceSynchronisation(int minutes) =>
+      _modifier((contenu) {
+        if (minutes == 5) {
+          contenu.remove(cleFrequenceSynchronisation);
+        } else {
+          contenu[cleFrequenceSynchronisation] = minutes;
+        }
+      });
+
+  /// Enregistre l'adresse du pilote du boîtier (déjà validée) ; `null` retire
+  /// la clé : le défaut s'applique.
+  Future<void> enregistrerAdresseBoitier(String? adresse) =>
+      _modifier((contenu) {
+        if (adresse == null) {
+          contenu.remove(cleFacturationBoitierAdresse);
+        } else {
+          contenu[cleFacturationBoitierAdresse] = adresse;
+        }
+      });
+
+  /// Enregistre la surcharge locale du mode (`serveur`, `boitier`, `rien`) ;
+  /// `null` retire la clé : le poste suit le serveur.
+  Future<void> enregistrerSurchargeFacturation(String? surcharge) =>
+      _modifier((contenu) {
+        if (surcharge == null) {
+          contenu.remove(cleFacturationSurcharge);
+        } else {
+          contenu[cleFacturationSurcharge] = surcharge;
+        }
+      });
 
   /// Consigne le refus du jeton (401) ou du poste (403) par le serveur.
   Future<void> consignerRefus(int codeHttp, DateTime le) =>
@@ -367,6 +531,28 @@ class EcrivainConfigurationPoste {
       ..remove(cleMotDePasseSmtpPar);
   });
 
+  /// Bascule l'interrupteur « Synchronisation activée ». Désactivée : la
+  /// file continue de se remplir, rien ne part ni ne descend. Le reste du
+  /// fichier (appairage compris) demeure : réactiver ne demande aucun
+  /// nouvel appairage.
+  Future<void> enregistrerSynchronisationActivee(
+    bool activee, {
+    required String par,
+    required DateTime le,
+  }) => _modifier((contenu) {
+    if (activee) {
+      contenu
+        ..remove(cleSynchronisationActivee)
+        ..remove(cleSynchronisationDesactiveeLe)
+        ..remove(cleSynchronisationDesactiveePar);
+    } else {
+      contenu
+        ..[cleSynchronisationActivee] = false
+        ..[cleSynchronisationDesactiveeLe] = le.toUtc().toIso8601String()
+        ..[cleSynchronisationDesactiveePar] = par;
+    }
+  });
+
   /// Efface le refus consigné (le serveur a de nouveau accepté le jeton).
   Future<void> effacerRefus() =>
       _modifier((contenu) => contenu.remove(ClesAppairage.refus));
@@ -398,6 +584,14 @@ class EcrivainConfigurationPoste {
 
 /// Le chemin de `poste.json` sur CE poste — voir l'en-tête.
 Future<String> cheminConfigurationPoste() async {
+  // Sous `flutter test` il n'y a pas de dossier d'application (le greffon
+  // `path_provider` n'existe pas) : la demande ne se termine JAMAIS sous
+  // l'horloge simulée d'un banc de widget, et tout écran qui lit
+  // l'interrupteur de synchronisation resterait en « chargement ». Un fichier
+  // qui n'existe pas lit « synchronisation activée, poste non appairé ».
+  if (Platform.environment['FLUTTER_TEST'] == 'true') {
+    return p.join(Directory.systemTemp.path, 'tatacora-banc-sans-poste.json');
+  }
   final appData = Platform.environment['APPDATA'];
   if (Platform.isWindows && appData != null && appData.isNotEmpty) {
     return p.join(appData, 'TATACORA', 'poste.json');

@@ -12,6 +12,8 @@ import '../../../core/database/tables/hebergement_tables.dart';
 import '../../../core/database/tables/panier_tables.dart';
 import '../../../core/database/tables/tourisme_tables.dart';
 import '../../../core/database/tables/vehicules_tables.dart';
+import '../../facturation/domain/regles_encaissement.dart'
+    show estVideAuSensDePhp;
 import '../../caisse/data/sessions_caisse_dao.dart';
 import '../../caisse/domain/entities/session_caisse.dart';
 import '../../caisse/domain/messages_caisse.dart';
@@ -19,12 +21,16 @@ import '../../caisse/domain/regles_caisse.dart';
 import '../../comptabilite/data/comptabilite_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/calcul_tva.dart';
+import '../../hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
 import '../../parametres/data/parametres_dao.dart';
 import '../domain/entities/article_vendable.dart';
 import '../domain/entities/mode_reglement.dart';
 import '../domain/entities/panier.dart';
 import '../domain/entities/reference_catalogue.dart';
+import '../domain/mention_client.dart';
 import '../domain/messages_ventes.dart';
+import '../domain/remise_panier.dart';
 import '../domain/repositories/panier_repository.dart';
 import '../domain/unicite_panier_ouvert.dart';
 import 'piece_de_la_vente.dart';
@@ -432,6 +438,20 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
     return (await parId(panierId))!;
   }
 
+  /// Le NUMÉRO `V-AAAA-NNNNN` attribué par le serveur à la vente de ce panier
+  /// (v38, 26/10/2026) — pose `paniers_local.numero_vente`. Le SEUL écrivain de
+  /// cette colonne (avec l'insertion d'une vente descendue d'un autre poste,
+  /// `AligneurDocuments._vente`). Appelé à l'accusé de l'envoi (`SyncManager`) et
+  /// à la descente de la vente (réponse perdue) : idempotent. Le poste n'invente
+  /// jamais ce numéro — c'est une séquence continue du serveur.
+  Future<void> regulariserNumeroVente(String panierId, String numero) async {
+    final propre = numero.trim();
+    if (propre.isEmpty) return;
+    await (update(paniersLocal)..where((p) => p.id.equals(panierId))).write(
+      PaniersLocalCompanion(numeroVente: Value(propre)),
+    );
+  }
+
   /// Clôture le panier, **fige** son montant et **passe la pièce comptable de
   /// la vente** — dans la MÊME transaction (règle du PO du 31/08/2026 : tout
   /// mouvement d'argent produit son écriture, et une pièce refusée n'écrit
@@ -465,8 +485,15 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
   ///   inventer ce facteur. Le refus de rupture du serveur n'existe donc pas
   ///   ici. Lot à ordonner.
   /// * **Aucun numéro `V-AAAA-NNNNN`** : voir [libelleDeLaPiece].
-  /// * **Aucune remise** : le panier du poste n'en porte pas, le net est le
-  ///   total.
+  /// * **La remise** (21/10/2026, v35) : le TYPE et la VALEUR posés sur le
+  ///   panier par [appliquerRemise] ; le montant est DÉRIVÉ par la réplique de
+  ///   `Panier::remiseSur()` (`remise_panier.dart`), de nouveau JUGÉ ici — hors
+  ///   bornes (une ligne retirée après coup), l'encaissement est refusé. La pièce
+  ///   porte le NET : la ventilation par module est ramenée au net comme
+  ///   `VenteService::ventilerAuNet` (le dernier module prend l'écart
+  ///   d'arrondi). `montantCloture` est le net arrondi AU FRANC (le poste compte
+  ///   en francs entiers ; un pourcentage peut donner des centimes que seule la
+  ///   pièce garde), et la vente part avec le type et la valeur.
   /// * **Le prix est celui de l'AJOUT** (règle 3), là où le serveur relit le
   ///   catalogue à l'encaissement : la pièce suit l'argent réellement annoncé au
   ///   client et figé dans `montantCloture`.
@@ -560,7 +587,10 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
       final parModule = <String, int>{};
       for (final ligne in panier.lignes) {
         final code = ligne.reference.module.code;
-        if (!modulesEncaissables.contains(code)) {
+        // Le séjour (note de chambre) ne porte que le bar et le restaurant :
+        // tourisme et location s'encaissent au comptoir seulement.
+        if (!modulesEncaissables.contains(code) ||
+            (estSejour && !modulesEncaissablesAuSejour.contains(code))) {
           throw RefusVente(
             MessagesVentes.moduleNonEncaissable(
               MessagesVentes.modulesDuServeur[code] ?? code,
@@ -575,6 +605,25 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
         parModule[code] =
             (parModule[code] ?? 0) + centimesDeFrancs(ligne.montant);
       }
+
+      // La remise, jugée comme `VenteService::enregistrer` (après les lignes,
+      // avant la pièce) : hors bornes, elle REFUSE avant toute écriture. La
+      // ventilation brute est d'abord mise dans l'ordre du serveur (les
+      // modules encaissables, dans leur ordre) : c'est lui qui désigne le
+      // dernier module, celui qui prend l'écart d'arrondi.
+      final remiseCentimes = montantRemiseCentimes(
+        totalFrancs: panier.total,
+        type: panier.remiseType,
+        valeurCentiemes: panier.remiseValeurCentiemes,
+      );
+      final netCentimes = panier.total * 100 - remiseCentimes;
+      final netFrancs = (netCentimes + 50) ~/ 100;
+      final parModuleNet = ventilerAuNet({
+        for (final m in modulesEncaissables)
+          if (parModule.containsKey(m)) m: parModule[m]!,
+        for (final e in parModule.entries)
+          if (!modulesEncaissables.contains(e.key)) e.key: e.value,
+      }, netCentimes);
 
       final comptabilite = ComptabiliteDao(attachedDatabase);
       final centres = <String, String?>{
@@ -593,7 +642,7 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
           libelle: libelleDeLaPiece(entete.id),
           dateIso: formaterDateIso(maintenant),
           mode: mode,
-          montantsParModule: parModule,
+          montantsParModule: parModuleNet,
           tva: tva,
           centreDuModule: (module) => centres[module],
         ),
@@ -605,9 +654,13 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
           statut: Value(StatutPanier.cloture.code),
           clotureLe: Value(maintenant),
           modePaiement: Value(mode.code),
-          // Figé : le total d'un panier clôturé ne se recalcule plus.
-          montantCloture: Value(panier.total),
+          // Figé : le total d'un panier clôturé ne se recalcule plus. C'est le
+          // NET encaissé (remise déduite), arrondi au franc.
+          montantCloture: Value(netFrancs),
           sessionEncaissementId: Value(sessionId),
+          // QUI a encaissé (v38) : le compte connecté, comme `ventes.utilisateur_id`
+          // du serveur. `null` sans session (banc, démonstration) : « — ».
+          auteurLogin: Value(attachedDatabase.auteurEcriture().login),
         ),
       );
 
@@ -629,7 +682,9 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
             pointVente: entete.pointVente,
             tableId: entete.tableId,
             clientNom: entete.clientNom,
-            montantCloture: panier.total,
+            montantCloture: netFrancs,
+            remiseType: panier.remiseType.name,
+            remiseValeurCentiemes: panier.remiseValeurCentiemes,
             lignes: [
               for (final l in panier.lignes)
                 (
@@ -650,6 +705,81 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
       await _libererLaTable(entete.id, entete.tableId);
     });
 
+    return (await parId(panierId))!;
+  }
+
+  /// Pose la REMISE du panier ouvert — « Remise » de la vue du comptoir
+  /// (`appliquerRemise`, directive du PO du 02/09/2026).
+  ///
+  /// Le TYPE et la VALEUR sont stockés, jamais le montant. La validation EST la
+  /// formule ([montantRemiseCentimes], réplique de `Panier::remiseSur`) : valeur
+  /// non numérique ou négative, pourcentage au-delà de 100, montant au-delà du
+  /// total — [RefusVente] avec la phrase du serveur, rien d'écrit. Un panier
+  /// clôturé est refusé ([PanierNonModifiable]) : la remise se fige à la
+  /// clôture comme les prix. Sans type (« Aucune »), la valeur retombe à zéro.
+  ///
+  /// [valeurSaisie] est le texte du champ (« 10 », « 12,5 », « 500 »).
+  /// Rien n'est mis en file : la remise part avec la vente, à la clôture.
+  Future<Panier> appliquerRemise(
+    String panierId,
+    TypeRemise type,
+    String valeurSaisie,
+  ) async {
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      final panier = await _avecLignes(entete);
+      var valeur = 0;
+      if (type != TypeRemise.aucune) {
+        final lue = centiemesDepuisSaisie(valeurSaisie);
+        if (lue == null || lue < 0) {
+          throw const RefusVente(MessagesVentes.remiseValeurInvalide);
+        }
+        valeur = lue;
+      }
+      // La dérivation VALIDE : hors bornes, elle lève ici, avant l'écriture.
+      montantRemiseCentimes(
+        totalFrancs: panier.total,
+        type: type,
+        valeurCentiemes: valeur,
+      );
+      await (update(paniersLocal)..where((p) => p.id.equals(entete.id))).write(
+        PaniersLocalCompanion(
+          remiseType: Value(type.name),
+          remiseValeurCentiemes: Value(valeur),
+        ),
+      );
+    });
+    return (await parId(panierId))!;
+  }
+
+  /// Pose la MENTION client du panier AU COMPTANT ouvert — « Client
+  /// (facultatif) » de la vue du comptoir (`PosComptant::$clientMention`).
+  ///
+  /// Un texte libre, jamais une fiche : [saisie] est normalisée comme le fait
+  /// le serveur ([MentionClient.normaliser] : contrôles en espaces, bords
+  /// rognés, 255 caractères au plus, vide = aucune mention). Elle vit dans
+  /// `paniers_local.client_nom` ; à la clôture elle est recopiée sur la vente
+  /// (ticket « Client : … ») et part dans la charge de la vente — ici, rien
+  /// n'est mis en file. Un panier abandonné ou annulé l'emporte avec lui. Un
+  /// panier de SÉJOUR est refusé : son `client_nom` est le client de la
+  /// réservation, jamais une mention saisie. Un panier fermé : [PanierNonModifiable].
+  Future<Panier> definirMentionClient(String panierId, String? saisie) async {
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      if (TypeVente.depuisCode(entete.typeVente) != TypeVente.comptant) {
+        throw ArgumentError.value(
+          panierId,
+          'panierId',
+          'La mention client ne se pose que sur un panier au comptant : '
+              'celui d’un séjour porte le client de la réservation.',
+        );
+      }
+      await (update(paniersLocal)..where((p) => p.id.equals(entete.id))).write(
+        PaniersLocalCompanion(
+          clientNom: Value(MentionClient.normaliser(saisie)),
+        ),
+      );
+    });
     return (await parId(panierId))!;
   }
 
@@ -682,6 +812,129 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
     });
 
     return (await parId(panierId))!;
+  }
+
+  /// « Abandonner » du comptoir — `PanierService::abandonner`, appelé par
+  /// `PosComptant::abandonnerPanier` (`wire:click="abandonnerPanier"`).
+  ///
+  /// Le serveur clôt le panier SANS vente et SANS rien demander : le registre
+  /// garde la trace qu'il a été ouvert puis quitté, lignes comprises. Ici le
+  /// panier passe à `annule` avec le motif fixe [MessagesVentes.motifAbandon]
+  /// (le poste n'a pas d'état « clôturé sans vente » : `cloture` veut dire
+  /// vendu, et le journal le lirait comme tel) et sa table est libérée, la
+  /// fermeture partant en file si le serveur détient le panier
+  /// ([_libererLaTable]). Un panier déjà fermé est refusé
+  /// ([PanierNonModifiable], phrase du serveur) sans rien écrire.
+  Future<Panier> abandonner(String panierId) async {
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      await (update(paniersLocal)..where((p) => p.id.equals(entete.id))).write(
+        PaniersLocalCompanion(
+          statut: Value(StatutPanier.annule.code),
+          clotureLe: Value(_maintenant()),
+          motifAnnulation: const Value(MessagesVentes.motifAbandon),
+        ),
+      );
+      await _libererLaTable(entete.id, entete.tableId);
+    });
+
+    return (await parId(panierId))!;
+  }
+
+  /// Annule une VENTE encaissée — `VenteService::annuler`, RG-02 : la vente
+  /// reste au journal, marquée annulée, rien n'est effacé.
+  ///
+  /// ## Dans l'ordre du serveur
+  ///
+  /// Le motif d'abord (`PosComptant::annulerVente` : « le journal doit dire
+  /// pourquoi »), puis la vente (absente : un panier ouvert n'est pas une vente),
+  /// puis « déjà annulée ». La règle Q3 (la vente d'un AUTRE poste ne
+  /// s'annule que par l'administration ou le comptable) est RETIRÉE depuis le 09/11/2026 : le
+  /// droit ANNULATIONS se juge à l'écran.
+  ///
+  /// ## Ce que l'annulation écrit, dans UNE transaction
+  ///
+  /// 1. la pièce `VTE` de la vente est CONTRE-PASSÉE en entier (RG-11 : jamais
+  ///    supprimée) — une vente d'avant la pièce (31/08/2026) n'en a pas, et il
+  ///    n'y a alors rien à inverser ;
+  /// 2. le panier passe à `annule`, son motif écrit ; son montant figé, son mode
+  ///    et sa session restent : ils disent ce qui a été encaissé avant
+  ///    l'annulation ;
+  /// 3. l'opération `ventes` / modification (`statut: annulee`, `motif`) part en
+  ///    file si le serveur détient la vente. C'est LE SERVEUR qui compense les
+  ///    sorties de stock (retour des boissons) et passe sa propre contre-pièce :
+  ///    le poste n'écrit aucun mouvement de stock (RG-05, D240), il n'a donc
+  ///    rien à compenser.
+  ///
+  /// Une facture émise pour la vente n'est PAS annulée : le serveur ne le fait
+  /// pas non plus (une facture s'annule par avoir, autre geste).
+  Future<Panier> annulerVente(
+    String panierId,
+    String motif, {
+    required String auteurId,
+  }) async {
+    // Avant toute lecture : un câblage manquant est une erreur de programme.
+    final moteurComptable = await _moteurObligatoire();
+
+    if (estVideAuSensDePhp(motif)) {
+      throw const RefusVente(MessagesVentes.motifAnnulationObligatoire);
+    }
+    final motifNet = motif.trim();
+
+    await transaction(() async {
+      final entete = await (select(
+        paniersLocal,
+      )..where((p) => p.id.equals(panierId))).getSingleOrNull();
+      final statut = entete == null
+          ? null
+          : StatutPanier.depuisCode(entete.statut);
+      if (entete == null || statut == StatutPanier.ouvert) {
+        throw const RefusVente(MessagesVentes.venteAbsente);
+      }
+      if (statut == StatutPanier.annule) {
+        throw RefusVente(MessagesVentes.dejaAnnulee(_numero(panierId)));
+      }
+      // 09/11/2026 (décision du PO) : plus de règle « vente d'un autre poste » ici ni au serveur ;
+      // qui peut annuler est jugé par l'ÉCRAN (droit ANNULATIONS + M5 en écriture de l'utilisateur
+      // connecté). Ce geste exécute, et garde la cohérence : motif, vente absente, déjà annulée.
+
+      final lignes = await ComptabiliteDao(
+        attachedDatabase,
+      ).lignesParLibelle(libelleDeLaPiece(panierId));
+      if (lignes.isNotEmpty) {
+        await moteurComptable.contrepasserPiece(
+          lignes,
+          auteurId: auteurId,
+          motif: MessagesVentes.libelleContrepassation(_numero(panierId)),
+        );
+      }
+
+      await (update(paniersLocal)..where((p) => p.id.equals(panierId))).write(
+        PaniersLocalCompanion(
+          statut: Value(StatutPanier.annule.code),
+          motifAnnulation: Value(motifNet),
+        ),
+      );
+
+      if (await DocumentsAutresPostes(
+        attachedDatabase,
+      ).connuDuServeur(TableSynchronisee.ventes, panierId)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.ventes,
+          entiteId: panierId,
+          type: TypeOperationSync.modification,
+          payload: chargeAnnulationVente(motif: motifNet),
+        );
+      }
+    });
+
+    return (await parId(panierId))!;
+  }
+
+  /// La référence lue à l'écran (`Vente.referenceLocale`) : huit caractères.
+  static String _numero(String panierId) {
+    final brut = panierId.replaceAll('-', '').toUpperCase();
+    return brut.length <= 8 ? brut : brut.substring(0, 8);
   }
 
   /* ================================================================== */
@@ -832,9 +1085,17 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
       montantCloture: entete.montantCloture,
       motifAnnulation: entete.motifAnnulation,
       sessionEncaissementId: entete.sessionEncaissementId,
+      numeroVente: entete.numeroVente,
+      auteurLogin: entete.auteurLogin,
       statutTransmission: StatutTransmissionPanier.depuisCode(
         entete.statutTransmission,
       ),
+      remiseType:
+          TypeRemise.values
+              .where((t) => t.name == entete.remiseType)
+              .firstOrNull ??
+          TypeRemise.aucune,
+      remiseValeurCentiemes: entete.remiseValeurCentiemes,
     );
   }
 

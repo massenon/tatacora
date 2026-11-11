@@ -114,8 +114,9 @@ final class Rg03ImmutabiliteFactureTest extends TestCase
             $this->emission->emettrePourReservation($this->reservation, '25000.00'),
         );
 
+        // Facture SIMPLE (mode désactivé, 07/11/2026) : émise = figée, sans numéro MECeF.
         $this->assertSame('certifiee', $facture->statut);
-        $this->assertNotNull($facture->numero_mecef);
+        $this->assertNull($facture->numero_mecef);
 
         $this->expectException(FactureImmuableException::class);
         $facture->update(['montant_ttc' => '1.00']);
@@ -214,16 +215,18 @@ final class Rg03ImmutabiliteFactureTest extends TestCase
      * PA-17 non résolue : la certification doit être explicitement factice.
      */
     #[Test]
-    public function la_certification_de_demonstration_est_impossible_a_confondre_avec_une_vraie(): void
+    public function la_facture_simple_ne_porte_ni_numero_fictif_ni_demonstration(): void
     {
         $facture = $this->emission->certifier(
             $this->emission->emettrePourReservation($this->reservation, '25000.00'),
         );
 
-        $this->assertStringStartsWith('MECEF-DEMO-', (string) $facture->numero_mecef);
-        $this->assertSame('DONNEES-NON-CERTIFIEES-DEMO', $facture->qr_code_fiscal);
-        $this->assertTrue($facture->estCertificationDemonstration());
-        $this->assertTrue($this->emission->modeDemonstration());
+        // Décision du PO du 07/11/2026 : plus AUCUN numéro fictif ni « DEMO » — une facture simple.
+        $this->assertNull($facture->numero_mecef);
+        $this->assertNull($facture->qr_code_fiscal);
+        $this->assertFalse($facture->estCertificationDemonstration());
+        $this->assertTrue($facture->estSimple());
+        $this->assertFalse($facture->estCertifiee());
     }
 
     /**
@@ -237,7 +240,7 @@ final class Rg03ImmutabiliteFactureTest extends TestCase
      * C'est PA-61 déplacé du badge Paramètres vers le document lui-même.
      */
     #[Test]
-    public function une_facture_de_demonstration_est_figee_mais_PAS_certifiee(): void
+    public function une_facture_simple_est_figee_mais_PAS_certifiee(): void
     {
         $facture = $this->emission->certifier(
             $this->emission->emettrePourReservation($this->reservation, '25000.00'),

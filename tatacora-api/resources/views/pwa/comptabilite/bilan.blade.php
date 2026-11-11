@@ -28,6 +28,8 @@
         'tresorerie_actif' => 'Banques, Mobile Money, Caisses',
         'capitaux_propres' => "Capital + Résultat net de l'exercice",
         'passif_circulant' => 'Fournisseurs, avances clients, dettes sociales/fiscales',
+        // Le poste « Dettes financières et ressources assimilées » (16 à 19,
+        // 10/11/2026) n'a PAS de libellé descriptif : il garde celui du poste.
         // ⚠ AUCUN équivalent au maître : ce poste n'y figure pas. Voir l'écart
         // nommé dans le composant — le total du passif l'inclut, l'omettre
         // rendrait « TOTAL PASSIF » supérieur à la somme des lignes affichées.
@@ -42,7 +44,7 @@
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1200px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         @include('pwa.comptabilite.partials.en-tete', [
             'tailleRetour' => 'text-[15px]',
@@ -109,6 +111,14 @@
                     <span class="text-slate-600">{{ $libelleLigne[$poste->code] ?? $poste->libelle }}</span>
                     <span class="font-mono-tatacora text-slate-600">{{ MontantFcfa::format($poste->net) }}</span>
                   </div>
+                  @if ($poste->code === 'passif_circulant')
+                    {{-- 465 (dividendes à payer) : dans le passif circulant, déjà
+                         compté dans la ligne ci-dessus. --}}
+                    <div class="flex justify-between text-[13px]">
+                      <span class="text-slate-500">{{ __('comptabilite_pwa.bilan_dont_dividendes_a_payer') }}</span>
+                      <span class="font-mono-tatacora text-slate-500">{{ MontantFcfa::format($bilan->dividendesAPayer) }}</span>
+                    </div>
+                  @endif
                 @endforeach
                 <div class="flex justify-between font-bold pt-2 border-t border-slate-100">
                   <span class="text-slate-800">TOTAL PASSIF</span>

@@ -25,6 +25,7 @@ declare(strict_types=1);
 | Entree (stdin, JSON) :
 |   { "aujourdhui": "2026-10-12",
 |     "poste_id": "poste-essai",
+|     "role": "administrateur" | "super_admin"   (facultatif ; la purge exige super_admin),
 |     "operations": [ { "uuid_operation", "table", "type", "entite_id",
 |                       "payload": {...}, "horodatage_client" }, ... ] }
 | Sortie (stdout, JSON) :
@@ -35,6 +36,18 @@ declare(strict_types=1);
 */
 
 const BASE_AUTORISEE = 'tatacora_test';
+
+// Une base d'ESSAI privee (`TATACORA_BASE_ESSAI=tatacora_<nom>_test`) peut
+// remplacer `tatacora_test` quand plusieurs essais tournent en meme temps : la
+// base partagee est alors migree sous les pieds de l'un ou de l'autre. Le nom
+// doit finir par `test` — la base de developpement reste refusee.
+$baseEssai = (static function (): string {
+    $voulue = getenv('TATACORA_BASE_ESSAI');
+
+    return is_string($voulue) && preg_match('/^tatacora_[a-z0-9_]*test$/', $voulue) === 1
+        ? $voulue
+        : BASE_AUTORISEE;
+})();
 
 $api = realpath(__DIR__ . '/../../../tatacora-api');
 
@@ -52,9 +65,9 @@ if (! is_array($lot) || ! isset($lot['operations'], $lot['aujourdhui'], $lot['po
 
 // La base est choisie AVANT l'amorcage : le fichier `.env` ne l'emporte pas sur
 // une variable deja posee.
-putenv('DB_DATABASE=' . BASE_AUTORISEE);
-$_ENV['DB_DATABASE'] = BASE_AUTORISEE;
-$_SERVER['DB_DATABASE'] = BASE_AUTORISEE;
+putenv('DB_DATABASE=' . $baseEssai);
+$_ENV['DB_DATABASE'] = $baseEssai;
+$_SERVER['DB_DATABASE'] = $baseEssai;
 
 chdir($api);
 require $api . '/vendor/autoload.php';
@@ -79,8 +92,8 @@ use Illuminate\Support\Str;
 
 $base = (string) config('database.connections.' . config('database.default') . '.database');
 
-if ($base !== BASE_AUTORISEE) {
-    fwrite(STDERR, "Refus : la base active est \u{ab} {$base} \u{bb}, pas \u{ab} " . BASE_AUTORISEE . " \u{bb}.\n");
+if ($base !== $baseEssai) {
+    fwrite(STDERR, "Refus : la base active est \u{ab} {$base} \u{bb}, pas \u{ab} {$baseEssai} \u{bb}.\n");
     exit(1);
 }
 
@@ -103,11 +116,20 @@ try {
     // du poste — ce n'est pas le contrat qu'on mesure ici.
     SessionCaisse::query()->whereNull('date_cloture')->update(['date_cloture' => now()]);
 
-    // L'administrateur : C sur tous les modules, et le droit d'archiver.
+    // L'administrateur : C sur tous les modules, et le droit d'archiver. `role`
+    // (facultatif, 28/10/2026) : « super_admin » pour la PURGE (A5), que seul lui
+    // rejoue ; tout autre rôle que ces deux-là est refusé.
+    $role = (string) ($lot['role'] ?? 'administrateur');
+
+    if (! in_array($role, ['administrateur', 'super_admin'], true)) {
+        fwrite(STDERR, "Role inconnu : {$role}\n");
+        exit(4);
+    }
+
     $admin = User::create([
         'login' => 'sync.' . Str::random(6),
         'mot_de_passe_hash' => Hash::make('mot-de-passe-de-test'),
-        'role_id' => Role::where('libelle', 'administrateur')->firstOrFail()->id,
+        'role_id' => Role::where('libelle', $role)->firstOrFail()->id,
         'statut' => 'actif',
     ]);
     Auth::login($admin);
@@ -152,7 +174,20 @@ try {
             $ligne = DB::table($table)->where('id', $id)->first();
 
             if ($ligne !== null) {
-                $etats[$table . ':' . (string) $lot['operations'][$rang]['entite_id']] = (array) $ligne;
+                $etat = (array) $ligne;
+
+                // Un inventaire se lit AVEC ses lignes comptees (21/10/2026) :
+                // le document est atomique, et ses valeurs doivent se verifier.
+                if ($table === 'inventaires') {
+                    $etat['lignes'] = DB::table('lignes_inventaire')
+                        ->where('inventaire_id', $id)
+                        ->orderBy('article_id')
+                        ->get(['article_id', 'quantite_theorique', 'quantite_constatee', 'ecart'])
+                        ->map(static fn (object $l): array => (array) $l)
+                        ->all();
+                }
+
+                $etats[$table . ':' . (string) $lot['operations'][$rang]['entite_id']] = $etat;
             }
         }
 

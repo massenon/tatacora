@@ -152,14 +152,18 @@ void main() {
       expect(destinationsEpinglees.where(estAjout), isEmpty);
     });
 
-    test('vingt-quatre destinations de la PWA, plus les ajouts déclarés', () {
+    test('vingt-huit destinations de la PWA, plus les ajouts déclarés', () {
       final pwa =
           registre.epinglees.length +
           registre.groupes.fold<int>(0, (s, g) => s + g.items.length);
       expect(destinationsDeLaVue(), hasLength(pwa));
-      expect(destinationsDeLaVue(), hasLength(24));
+      // 26 → 27 le 29/10/2026 : « Comptes utilisateurs », portée par la PWA
+      // (mot de passe perdu SANS e-mail) — ce n'est plus un ajout du poste.
+      // 27 → 28 le 09/11/2026 : « Synchronisation » (page des journaux, décision du PO :
+      // au menu de tous les rôles) — portée par la PWA ET par le poste.
+      expect(destinationsDeLaVue(), hasLength(28));
       // Le total Flutter : la vue, plus chaque ajout déclaré — et aucun autre.
-      expect(toutesLesDestinations, hasLength(24 + ajoutsMenuPoste.length));
+      expect(toutesLesDestinations, hasLength(28 + ajoutsMenuPoste.length));
     });
 
     test('chaque ajout du poste est daté, motivé, et ABSENT de la PWA', () {
@@ -167,7 +171,8 @@ void main() {
         ...registre.epinglees.map((e) => e.nom),
         for (final g in registre.groupes) ...g.items.map((e) => e.nom),
       };
-      expect(ajoutsMenuPoste, isNotEmpty, reason: 'plancher du registre');
+      // Le registre est VIDE depuis le 29/10/2026 (la PWA a porté le seul ajout du
+      // poste) : la boucle ci-dessous ne vaut que pour un ajout futur.
       for (final MapEntry(key: nom, value: ajout) in ajoutsMenuPoste.entries) {
         // Le jour où la PWA porte l'entrée, la déclaration est périmée.
         expect(pwa, isNot(contains(nom)), reason: '« $nom » : ajout périmé');
@@ -285,6 +290,21 @@ void main() {
         }
       },
     );
+
+    test('« Import & Export », « Synchronisation » et « Appairage Postes » '
+        'ont trois icônes DISTINCTES (PO 10/11/2026)', () {
+      final noms = ['Import & Export', 'Synchronisation', 'Appairage Postes'];
+      final traces = <String>{};
+      for (final nom in noms) {
+        final d = destinationsDeLaVue().firstWhere((d) => d.nom == nom);
+        expect(
+          traces.add(d.icone.trace),
+          isTrue,
+          reason: '$nom partage une icône',
+        );
+      }
+      expect(traces, hasLength(3));
+    });
 
     test('chaque tracé du registre est lisible par le dessinateur', () {
       for (final i in IconeModule.values) {
@@ -407,6 +427,11 @@ void main() {
         '/demarrage',
         '/connexion',
         '/synchronisation',
+        // Les deux écrans « invité » du mot de passe perdu SANS e-mail
+        // (29/10/2026) : le premier s'atteint par la garde du routeur (compte
+        // réinitialisé), le second par le lien de la connexion.
+        '/changement-mot-de-passe',
+        '/mot-de-passe-administrateur-perdu',
       };
 
       // Le MENU DE COMPTE de la barre supérieure est aussi un menu (D424) :
@@ -443,7 +468,7 @@ void main() {
       }
     });
 
-    test('les vingt-quatre destinations ont un écran (D424)', () {
+    test('les vingt-huit destinations ont un écran (D424)', () {
       final avec = destinationsDeLaVue().where((d) => d.aUnEcran).toList();
       // Les ajouts du poste ont le leur (le routeur le sert : voir « toute
       // route annoncée au menu EXISTE au routeur »).
@@ -460,11 +485,19 @@ void main() {
       // Notifications) avaient un écran livré et AUCUN chemin pour y arriver.
       // 21 → 24 le 14/10/2026 (D417–D419, D424) : Comptabilité, Import &
       // Export et Rôles & Permissions sont portés et branchés.
+      // 24 → 25 le 21/10/2026 : « Congés & Plannings », créé à la PWA et repris
+      // par le poste le même jour.
+      // 25 → 26 le 21/10/2026 : « Appairage Postes » (ex-« Synchronisation », renommée le 09/11/2026), créée à
+      // la PWA et reprise par le poste le même jour.
+      // 26 → 27 le 29/10/2026 : « Comptes utilisateurs », créée à la PWA (mot de
+      // passe perdu SANS e-mail) — le poste l'avait déjà (Lot J2).
+      // 27 → 28 le 09/11/2026 : « Synchronisation », créée à la PWA (page des journaux) et
+      // portée par l'écran de synchronisation du poste, désormais au menu.
       expect(
         avec,
-        hasLength(24),
+        hasLength(28),
         reason:
-            'couverture du MENU : ${avec.length}/24 — mettre à jour '
+            'couverture du MENU : ${avec.length}/28 — mettre à jour '
             'AUDIT_CONFORMITE_ECRANS_FLUTTER.md §3 en même temps que ce chiffre',
       );
 

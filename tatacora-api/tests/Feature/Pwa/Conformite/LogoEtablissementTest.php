@@ -47,7 +47,10 @@ final class LogoEtablissementTest extends TestCase
 
     /**
      * Images du logo dans les vues, mesuré le 14/10/2026 : barre supérieure,
-     * connexion ×2, démarrage, hors connexion, 404, aide, Paramètres ×2.
+     * connexion ×2, démarrage, hors connexion, 404, aide, Paramètres ×2 (9).
+     * Refonte du 29/10/2026 puis décision du PO du même jour (deux panneaux) :
+     * la connexion rend de nouveau DEUX images — le logo du panneau gauche (dès
+     * `lg`) et celui du haut de la carte (sous `lg`) : 9.
      */
     private const PLANCHER_IMAGES_LOGO = 9;
 

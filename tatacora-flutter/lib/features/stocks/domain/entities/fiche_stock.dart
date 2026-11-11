@@ -130,6 +130,64 @@ final class FicheStock {
   bool get estVide => lignes.isEmpty;
 }
 
+/// Une ligne de la fiche CONSOLIDÉE : celle de la fiche d'UN article, plus
+/// l'article et son unité — le solde reste celui de SON article.
+final class LigneFicheConsolidee {
+  const LigneFicheConsolidee({
+    required this.article,
+    required this.unite,
+    required this.ligne,
+  });
+
+  final String article;
+  final String unite;
+  final LigneFiche ligne;
+}
+
+/// La fiche de TOUS les articles sur une période
+/// (`FicheStockService::pourTousLesArticles`, demande du PO du 06/09/2026).
+///
+/// ## Ce qui est totalisé, et ce qui ne l'est pas
+///
+/// Seule la VALEUR (en francs, unité commune) se totalise. Additionner 3 kg de
+/// riz, 2 casiers de bière et 12 portions donnerait « 17 » de rien du tout : un
+/// chiffre faux mais plausible. Chaque ligne garde donc SON article, SON unité
+/// et le solde de SA fiche.
+final class FicheConsolidee {
+  const FicheConsolidee({
+    required this.debut,
+    required this.fin,
+    required this.pointId,
+    required this.articles,
+    required this.articlesAvecMouvement,
+    required this.valeurStockTheorique,
+    required this.incoherents,
+    required this.lignes,
+  });
+
+  final String debut;
+  final String fin;
+  final String? pointId;
+
+  /// Les articles du référentiel, mouvementés ou non : un article dormant a
+  /// bien une valeur en magasin.
+  final int articles;
+  final int articlesAvecMouvement;
+
+  /// Francs entiers, en chaîne (comme `FicheStock.valeurStockTheorique`).
+  final String valeurStockTheorique;
+
+  /// Les libellés des articles dont la fiche est INCOHÉRENTE (un mouvement
+  /// écrit hors de `StocksDao`) : nommés, pas noyés dans un compteur.
+  final List<String> incoherents;
+
+  /// Triées chronologiquement, tous articles confondus : la question que pose
+  /// « tous les articles » est « que s'est-il passé ce jour-là ? ».
+  final List<LigneFicheConsolidee> lignes;
+
+  int get mouvements => lignes.length;
+}
+
 /// Les quatre raccourcis de période du maître (`m6-inventaires.html` l.73-76).
 ///
 /// Ils **calculent** des bornes, ils n'en stockent pas : une période figée
@@ -163,6 +221,17 @@ enum RaccourciPeriode {
     // couvrirait huit et le cumul ne correspondrait pas au libellé.
     return (fin.subtract(Duration(days: jours! - 1)), fin);
   }
+}
+
+/// « 2026-10-09 14:03:22 » -> « 09/10/2026 14:03 » : la date d'une ligne de
+/// fiche telle que la vue l'écrit (`format('d/m/Y H:i')`). Une chaîne qui n'a
+/// pas la forme attendue est rendue telle quelle : jamais une date inventée.
+String dateHeureDeLaVue(String iso) {
+  final m = RegExp(
+    r'^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})',
+  ).firstMatch(iso);
+  if (m == null) return iso;
+  return '${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}';
 }
 
 /// Format des dates d'une fiche : `AAAA-MM-JJ` (celui du serveur, `date_format:Y-m-d`).

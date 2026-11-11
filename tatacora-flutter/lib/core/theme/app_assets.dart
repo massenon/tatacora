@@ -18,4 +18,24 @@ abstract final class AppAssets {
   /// Dans les cadres CARRÉS de la vue, il s'affiche en `BoxFit.contain` (la
   /// vue écrit `object-contain`) : jamais rogné, jamais étiré.
   static const String logo = 'assets/img/logo.png';
+
+  /// Largeur du logo sur une facture / un avoir / une proforma A4, en POINTS
+  /// (PDF). Demande PO 09/11/2026 : 144 px CSS côté serveur
+  /// (`ReportHeaderService::LOGO_FACTURE_A4_LARGEUR_PX`) x 0,75 = 108 pt ; la
+  /// hauteur suit les proportions du PNG (735 x 403), jamais étirée.
+  static const double logoFactureA4LargeurPt = 108;
+
+  /// Hauteur correspondante (735 x 403) : un `pw.Image` sans hauteur borne
+  /// prend toute la place verticale disponible, d'ou une hauteur explicite.
+  static const double logoFactureA4HauteurPt =
+      logoFactureA4LargeurPt * 403 / 735;
+
+  /// La photo du gîte du panneau gauche de la connexion (119 Ko, déjà sous le
+  /// seuil des 400 Ko : livrée telle quelle, copie octet pour octet de celle de
+  /// la PWA). EMBARQUÉE : le poste est hors ligne.
+  static const String couvertureConnexion = 'assets/img/gite-cover.jpg';
+
+  /// L'aperçu social (1280 × 640), même fichier que la PWA
+  /// (`tatacora-api/public/assets/img/social-preview.png`). Embarqué, jamais téléchargé.
+  static const String apercuSocial = 'assets/img/social-preview.png';
 }

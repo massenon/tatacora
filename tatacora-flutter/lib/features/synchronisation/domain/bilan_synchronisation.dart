@@ -15,6 +15,12 @@ enum EtatSynchronisation {
   /// Démonstration : jamais de synchronisation.
   demonstration,
 
+  /// L'interrupteur « Synchronisation activée » du poste est éteint : AUCUNE
+  /// requête réseau (envoi, descente, suivi de la demande du serveur,
+  /// contrôle de cohérence). La file se remplit toujours ; elle partira à la
+  /// réactivation, dans l'ordre.
+  desactivee,
+
   /// L'appairage a été fait vers un autre serveur que celui de ce build.
   autreServeur,
 
@@ -30,7 +36,7 @@ enum EtatSynchronisation {
   /// 409 `generation_perimee` (19/10/2026) : le serveur a été réinitialisé
   /// depuis la dernière synchronisation de ce poste. Le lot est rendu
   /// INTACT ; plus rien ne part ni n'arrive avant la réinitialisation de CE
-  /// poste (Import & Export → Réinitialiser comme neuf).
+  /// poste (Paramètres › Activation & Sécurité → Réinitialiser les données de test).
   serveurReinitialise,
 
   /// Un refus que le moteur ne sait pas rejouer (4xx inattendu, réponse
@@ -43,6 +49,9 @@ enum EtatSynchronisation {
     termine => 'Synchronisation à jour.',
     nonAppaire => 'Poste non appairé : aucune synchronisation.',
     demonstration => 'Démonstration : aucune synchronisation.',
+    desactivee =>
+      'Synchronisation désactivée : ce poste travaille seul, les opérations '
+          'restent en attente.',
     autreServeur =>
       'Poste appairé à un autre serveur que celui de ce logiciel — '
           'réappairer le poste.',
@@ -68,6 +77,7 @@ final class BilanSynchronisation {
     this.synchronisees = 0,
     this.rejetees = 0,
     this.conflits = 0,
+    this.differees = 0,
     this.codeHttp,
     this.detail,
     this.prochaineTentative,
@@ -84,6 +94,11 @@ final class BilanSynchronisation {
   final int synchronisees;
   final int rejetees;
   final int conflits;
+
+  /// Les opérations que le serveur a DIFFÉRÉES (09/11/2026) : l'élément qu'elles citent
+  /// n'est pas encore connu, ou une erreur imprévue les a touchées elles seules. Elles
+  /// repartent seules, avec un repli, sans rien bloquer — ce ne sont pas des rejets.
+  final int differees;
 
   /// Le code HTTP de l'arrêt, s'il y en a un.
   final int? codeHttp;
@@ -112,6 +127,7 @@ final class BilanSynchronisation {
     synchronisees: synchronisees,
     rejetees: rejetees,
     conflits: conflits,
+    differees: differees,
     codeHttp: codeHttp ?? this.codeHttp,
     detail: detail ?? this.detail,
     prochaineTentative: prochaineTentative ?? this.prochaineTentative,
@@ -122,6 +138,7 @@ final class BilanSynchronisation {
   String toString() =>
       'BilanSynchronisation(${etat.name}, lots $lots, envoyées $envoyees, '
       'synchronisées $synchronisees, rejetées $rejetees, conflits $conflits'
+      '${differees == 0 ? '' : ', différées $differees'}'
       '${codeHttp == null ? '' : ', HTTP $codeHttp'}'
       '${descente == null ? '' : ', $descente'})';
 }
@@ -137,6 +154,32 @@ Duration delaiDeRepli(int tentatives) => switch (tentatives) {
   4 => const Duration(minutes: 15),
   _ => const Duration(hours: 1),
 };
+
+/// Les codes de rejet que le serveur rend pour une opération DIFFÉRÉE, jamais
+/// définitive (09/11/2026, « aucune opération ne doit bloquer la synchronisation ») :
+/// `dependance_manquante` (l'élément cité n'est pas encore connu : réservation, table,
+/// client, commande… « pas encore reçue, ou refusée ») et `erreur_serveur` (erreur
+/// imprévue sur CETTE opération). Le serveur ne les mémorise pas : rejouées sous le même
+/// identifiant, elles sont jugées pour de bon.
+const Set<String> codesRejetDiffere = {
+  'dependance_manquante',
+  'erreur_serveur',
+};
+
+/// Combien de fois une opération différée est retentée avant d'être rejetée lisiblement
+/// (« À traiter », « Renvoyer » ouvert à tous) : avec le repli 30 s → 2 min → 5 min →
+/// 15 min → 1 h → 1 h…, huit essais couvrent environ cinq heures — le temps qu'un autre
+/// poste ou un lot suivant apporte l'élément cité. Passé ce délai, la phrase du serveur est
+/// montrée : l'opération ne tourne jamais en boucle sans fin.
+const int maxTentativesDifferees = 8;
+
+/// Ce résultat rejeté est-il un REPORT (à remettre en file avec un repli) plutôt qu'un
+/// refus ? Vrai pour un code différé tant que [tentatives] n'a pas atteint
+/// [maxTentativesDifferees].
+bool estRejetDiffere(Map<String, Object?> resultat, int tentatives) =>
+    resultat['statut'] == 'rejete' &&
+    codesRejetDiffere.contains(resultat['code_motif']) &&
+    tentatives < maxTentativesDifferees;
 
 /// Le plafond d'un `Retry-After` honoré : au-delà, c'est une valeur aberrante
 /// (un serveur ne demande pas d'attendre une semaine), et un poste qui

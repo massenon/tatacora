@@ -1,7 +1,7 @@
+// Vue Blade maîtresse (PA-183) : pwa/transverse/synchronisation.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/di/providers.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/navigation/navigation_tatacora.dart';
 import '../../../core/theme/app_colors.dart';
@@ -10,20 +10,29 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/liste_paginee.dart';
-import '../../transverse/domain/comptes_utilisateurs.dart';
 import '../../transverse/presentation/widgets/briques_transverses.dart';
 import '../domain/reinitialisation_serveur.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
 import '../domain/operation_sync.dart';
 import '../domain/suivi_synchronisation.dart';
+import '../data/coherence_persistee.dart';
 import '../data/controle_coherence.dart';
+import '../domain/cause_envoi.dart';
+import 'modales_reception.dart';
+import 'partie_reception.dart';
+import 'providers_reception.dart';
 import 'providers_synchronisation.dart';
 
 /// Les mots de l'écran de synchronisation (lot F2b, 15/10/2026). Honnêtes
 /// (piège 1) : « synchronisé » ne se dit que de ce que le serveur a
 /// confirmé.
 abstract final class TextesEcranSynchronisation {
+  static const desactivee =
+      'Synchronisation désactivée : ce poste travaille seul, sans aucune '
+      'connexion au serveur. Les opérations restent en attente et partiront, '
+      'dans l’ordre, à la réactivation (menu Appairage Postes).';
+
   /// Le contrôle de cohérence (P1-1, 18/10/2026).
   static const String sectionCoherence = 'Contrôle de cohérence';
   static const String coherenceExplication =
@@ -62,6 +71,22 @@ abstract final class TextesEcranSynchronisation {
   static String _centiemes(int c) =>
       c % 100 == 0 ? '${c ~/ 100}' : (c / 100).toStringAsFixed(2);
 
+  /// Les deux parties de l'écran (26/10/2026).
+  static const ongletEnvoi = 'Envoi';
+  static const ongletReception = TextesReception.onglet;
+  static const dernierControle = 'Dernier contrôle';
+  static String dernierControleLe(DateTime le) =>
+      'Dernier contrôle de cohérence : le ${date(le)}.';
+  static const aucunControle = 'Aucun contrôle de cohérence encore lancé.';
+  static const corriger = 'Corriger';
+  static const detail = 'Détail';
+  static const renvoyeeCorrigee =
+      'Charge corrigée : l’opération repart sous un nouvel identifiant à la '
+      'prochaine synchronisation. L’opération rejetée reste dans '
+      'l’historique.';
+  static String tentatives(int n, int? codeHttp) =>
+      '$n tentative(s)${codeHttp == null ? '' : ' — dernier code $codeHttp'}';
+
   static const titre = 'Synchronisation';
   static const sousTitre =
       'Ce que le poste envoie au serveur, ce qu\'il en reçoit, et ce qui reste '
@@ -77,7 +102,7 @@ abstract final class TextesEcranSynchronisation {
       'Synchronisation en cours… Vous pouvez quitter cet écran : elle continue.';
   static const nonAppaire =
       'Ce poste n\'est pas appairé au serveur : rien ne part, rien ne descend. '
-      'L\'appairage se fait dans Paramètres → Synchronisation (Administrateurs).';
+      'L\'appairage se fait dans le menu Appairage Postes (Administrateurs).';
   static const demonstration =
       'La démonstration ne se synchronise jamais : rien ne part, rien ne '
       'descend.';
@@ -103,8 +128,7 @@ abstract final class TextesEcranSynchronisation {
   }
 
   static String archivesNonPortees(int n) =>
-      '$n article(s) ou client(s) archivé(s) au serveur restent proposés sur '
-      'ce poste : ces fiches n\'ont pas d\'archive locale.';
+      '$n article(s) ou client(s) archivé(s) au serveur restent proposés ici.';
   static const conservesExplication =
       '« Conservé localement » : une modification faite sur ce poste attend '
       'encore de partir ; le serveur tranchera (dernière saisie gagnante) et '
@@ -114,8 +138,6 @@ abstract final class TextesEcranSynchronisation {
   static const aTraiterVide =
       'Aucune opération rejetée, en conflit ou bloquée.';
   static const anomaliesVide = 'Aucun signalement du serveur.';
-  static const reserveAdministrateurs =
-      '« Renvoyer » et « Débloquer » sont réservés aux Administrateurs.';
   static const renvoyer = 'Renvoyer';
   static const debloquer = 'Débloquer';
   static const renvoyee =
@@ -148,17 +170,28 @@ abstract final class TextesEcranSynchronisation {
 /// (décision du PO du 15/10/2026, `classification-exemptions.json`). On y
 /// arrive par le lien de Paramètres → Synchronisation ; la route est gardée
 /// par le module Paramètres (`modulesDesRoutesHorsMenu`). Les gestes qui
-/// changent la file (« Renvoyer », « Débloquer ») sont réservés aux
-/// Administrateurs, comme l'appairage. « Synchroniser maintenant » est
+/// changent la file (« Renvoyer », « Corriger », « Débloquer ») sont ouverts
+/// à TOUS les rôles (décision du PO du 10/11/2026) ; seul l'appairage reste
+/// aux Administrateurs. « Synchroniser maintenant » est
 /// ouvert à qui voit l'écran : il ne fait que hâter ce que le réveil
 /// automatique fera dans cinq minutes.
-class EcranSynchronisation extends ConsumerWidget {
+class EcranSynchronisation extends ConsumerStatefulWidget {
   const EcranSynchronisation({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final admin = peutAdministrerComptes(ref.watch(sessionProvider)?.role);
+  ConsumerState<EcranSynchronisation> createState() =>
+      _EtatEcranSynchronisation();
+}
+
+class _EtatEcranSynchronisation extends ConsumerState<EcranSynchronisation> {
+  /// La partie affichée : l'envoi (par défaut) ou la réception.
+  bool _reception = false;
+
+  @override
+  Widget build(BuildContext context) {
     final lus = ref.watch(etatFileSynchronisationProvider);
+    final aTraiterReception =
+        ref.watch(compteursReceptionProvider).value?.aTraiter ?? 0;
 
     return PageTransverse(
       largeurMax: MesuresTransverses.pageLarge,
@@ -170,17 +203,42 @@ class EcranSynchronisation extends ConsumerWidget {
         ),
         const _CarteEtat(),
         const SizedBox(height: AppSpacing.md),
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            OngletTransverse(
+              cle: const Key('sync-onglet-envoi'),
+              libelle: TextesEcranSynchronisation.ongletEnvoi,
+              actif: !_reception,
+              onChoix: () => setState(() => _reception = false),
+            ),
+            OngletTransverse(
+              cle: const Key('sync-onglet-reception'),
+              libelle: aTraiterReception > 0
+                  ? '${TextesEcranSynchronisation.ongletReception} '
+                        '($aTraiterReception)'
+                  : TextesEcranSynchronisation.ongletReception,
+              actif: _reception,
+              onChoix: () => setState(() => _reception = true),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
         switch (lus) {
+          AsyncData(:final value) when _reception => PartieReception(
+            surVoirEnvoi: () => setState(() => _reception = false),
+            apres: [
+              _CarteDescente(bilan: value.derniereDescente),
+              const _CarteCoherence(),
+            ],
+          ),
           AsyncData(:final value) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _Compteurs(etat: value),
               const SizedBox(height: AppSpacing.md),
-              _CarteDescente(bilan: value.derniereDescente),
-              const SizedBox(height: AppSpacing.md),
-              const _CarteCoherence(),
-              const SizedBox(height: AppSpacing.md),
-              _ATraiter(lignes: value.aTraiter, admin: admin),
+              _ATraiter(lignes: value.aTraiter),
               const SizedBox(height: AppSpacing.md),
               _Anomalies(operations: value.anomalies),
             ],
@@ -239,12 +297,23 @@ class _CarteEtat extends ConsumerWidget {
     final bilan = ref.watch(dernierBilanSynchronisationProvider);
     final enCours = ref.watch(synchronisationEnCoursProvider);
     final appaire = appairage.value != null;
+    // L'interrupteur « Synchronisation activée » (Paramètres) est éteint ?
+    final desactivee = ref.watch(synchronisationActiveeProvider).value == false;
 
     return CarteTransverse(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _titreSection(TextesEcranSynchronisation.sectionEtat),
+          if (desactivee) ...[
+            _ligneTexte(
+              TextesEcranSynchronisation.desactivee,
+              cle: const Key('sync-ecran-desactivee'),
+              couleur: AppColors.erreur,
+              poids: FontWeight.w600,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+          ],
           if (interdite)
             _ligneTexte(
               TextesEcranSynchronisation.demonstration,
@@ -301,7 +370,7 @@ class _CarteEtat extends ConsumerWidget {
                 key: const Key('sync-ecran-maintenant'),
                 libelle: TextesEcranSynchronisation.synchroniser,
                 variante: VarianteBouton.primaire,
-                onPressed: interdite || !appaire || enCours
+                onPressed: interdite || !appaire || enCours || desactivee
                     ? null
                     : ref.read(synchroniserDepuisEcranProvider),
               ),
@@ -439,6 +508,14 @@ class _EtatCarteCoherence extends ConsumerState<_CarteCoherence> {
     final issue = await ref
         .read(controleCoherenceProvider)
         .controler(aujourdHui: DateTime.now());
+    // Le dernier contrôle MESURÉ est rangé : la partie Réception le relit
+    // après un redémarrage, avec ses écarts.
+    if (issue is CoherenceMesuree) {
+      await ref
+          .read(descenteCatalogueDaoProvider)
+          .consignerCoherence(coherenceVersJson(issue, DateTime.now()));
+      ref.invalidate(derniereCoherenceProvider);
+    }
     if (mounted) {
       setState(() {
         _issue = issue;
@@ -449,7 +526,9 @@ class _EtatCarteCoherence extends ConsumerState<_CarteCoherence> {
 
   @override
   Widget build(BuildContext context) {
-    final issue = _issue;
+    // Le contrôle lancé dans cette session, à défaut le dernier rangé.
+    final rangee = ref.watch(derniereCoherenceProvider).value;
+    final IssueCoherence? issue = _issue ?? rangee?.mesure;
     return CarteTransverse(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -465,6 +544,14 @@ class _EtatCarteCoherence extends ConsumerState<_CarteCoherence> {
               variante: VarianteBouton.secondaire,
               onPressed: _enCours ? null : _controler,
             ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          _ligneTexte(
+            rangee == null
+                ? TextesEcranSynchronisation.aucunControle
+                : TextesEcranSynchronisation.dernierControleLe(rangee.le),
+            cle: const Key('sync-ecran-coherence-dernier'),
+            couleur: AppColors.neutre500,
           ),
           if (issue != null) ...[
             const SizedBox(height: AppSpacing.xs),
@@ -508,10 +595,9 @@ class _EtatCarteCoherence extends ConsumerState<_CarteCoherence> {
 /* ==================================================================== */
 
 class _ATraiter extends ConsumerWidget {
-  const _ATraiter({required this.lignes, required this.admin});
+  const _ATraiter({required this.lignes});
 
   final List<OperationATraiter> lignes;
-  final bool admin;
 
   Future<void> _geste(
     BuildContext context,
@@ -539,14 +625,6 @@ class _ATraiter extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _titreSection(TextesEcranSynchronisation.sectionATraiter),
-          if (!admin && lignes.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              child: _ligneTexte(
-                TextesEcranSynchronisation.reserveAdministrateurs,
-                cle: const Key('sync-ecran-reserve'),
-              ),
-            ),
           ListePaginee<OperationATraiter>(
             elements: lignes,
             prefixeCle: 'sync-a-traiter-pagination',
@@ -578,6 +656,7 @@ class _ATraiter extends ConsumerWidget {
                   alignement: TextAlign.right,
                 ),
               ],
+              largeurs: MesuresTransverses.colonnesATraiter,
               vide: TextesEcranSynchronisation.aTraiterVide,
               cleVide: const Key('sync-a-traiter-vide'),
               lignes: [
@@ -598,6 +677,8 @@ class _ATraiter extends ConsumerWidget {
                       () => dao.debloquer(l.operation.uuidOperation),
                       TextesEcranSynchronisation.debloquee,
                     ),
+                    detail: () => _detail(context, ref, l.operation),
+                    corriger: () => _corriger(context, ref, l.operation),
                   ),
               ],
             ),
@@ -607,30 +688,101 @@ class _ATraiter extends ConsumerWidget {
     );
   }
 
+  /// Le détail d'une opération : sa cause et l'historique de son élément.
+  Future<void> _detail(
+    BuildContext context,
+    WidgetRef ref,
+    OperationSync o,
+  ) async {
+    final historique = await ref
+        .read(operationsSyncDaoProvider)
+        .operations(table: o.table, entiteId: o.entiteId);
+    if (!context.mounted) return;
+    await ouvrirDetailOperation(
+      context,
+      operation: o,
+      cause: causeDe(o, motif: motifOperation(o)),
+      historique: historique,
+    );
+  }
+
+  /// « Corriger » une opération rejetée : le formulaire de sa charge ; une
+  /// fois validé, l'opération repart sous un NOUVEL uuid (l'ancienne reste
+  /// l'historique, marquée remplacée).
+  Future<void> _corriger(
+    BuildContext context,
+    WidgetRef ref,
+    OperationSync o,
+  ) async {
+    final dao = ref.read(operationsSyncDaoProvider);
+    final fait = await ouvrirCorrectionOperation(
+      context,
+      operation: o,
+      cause: causeDe(o, motif: motifOperation(o)),
+      enregistrer: (charge) async {
+        await dao.renvoyer(o.uuidOperation, chargeCorrigee: charge);
+      },
+    );
+    if (!context.mounted || fait != true) return;
+    ref.invalidate(etatFileSynchronisationProvider);
+    direTransverse(context, TextesEcranSynchronisation.renvoyeeCorrigee);
+  }
+
   List<Widget> _ligne(
     BuildContext context,
     WidgetRef ref,
     OperationATraiter l, {
     required VoidCallback renvoyer,
     required VoidCallback debloquer,
+    required VoidCallback detail,
+    required VoidCallback corriger,
   }) {
     final o = l.operation;
     final uuid = o.uuidOperation;
-    final Widget action = switch (o.statut) {
-      StatutOperationSync.rejete when admin => BoutonStandard(
-        key: Key('sync-renvoyer-$uuid'),
-        libelle: TextesEcranSynchronisation.renvoyer,
-        compact: true,
-        onPressed: renvoyer,
-      ),
-      StatutOperationSync.bloque when admin && l.debloquable => BoutonStandard(
-        key: Key('sync-debloquer-$uuid'),
-        libelle: TextesEcranSynchronisation.debloquer,
-        compact: true,
-        onPressed: debloquer,
-      ),
-      _ => const SizedBox.shrink(),
-    };
+    final cause = causeDe(o, motif: motifOperation(o));
+    // Décision du PO du 10/11/2026 : « Renvoyer », « Corriger » et « Débloquer » sont ouverts à
+    // TOUS les rôles — c'est la même écriture, sous un nouvel uuid d'opération, que le serveur
+    // rejuge (il ne juge plus les modules) ; rien ne s'obtient par ces gestes que le serveur
+    // n'accorde déjà. Seuls révoquer, appairer, dissocier et l'adresse du serveur restent
+    // réservés aux administrateurs (écran « Appairage Postes »).
+    final Widget action = Wrap(
+      alignment: WrapAlignment.end,
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      children: [
+        BoutonStandard(
+          key: Key('sync-detail-$uuid'),
+          libelle: TextesEcranSynchronisation.detail,
+          compact: true,
+          onPressed: detail,
+        ),
+        switch (o.statut) {
+          StatutOperationSync.rejete => BoutonStandard(
+            key: Key('sync-corriger-$uuid'),
+            libelle: TextesEcranSynchronisation.corriger,
+            compact: true,
+            variante: VarianteBouton.primaire,
+            onPressed: corriger,
+          ),
+          _ => const SizedBox.shrink(),
+        },
+        switch (o.statut) {
+          StatutOperationSync.rejete => BoutonStandard(
+            key: Key('sync-renvoyer-$uuid'),
+            libelle: TextesEcranSynchronisation.renvoyer,
+            compact: true,
+            onPressed: renvoyer,
+          ),
+          StatutOperationSync.bloque when l.debloquable => BoutonStandard(
+            key: Key('sync-debloquer-$uuid'),
+            libelle: TextesEcranSynchronisation.debloquer,
+            compact: true,
+            onPressed: debloquer,
+          ),
+          _ => const SizedBox.shrink(),
+        },
+      ],
+    );
     return [
       _ligneTexte(libelleTableOperation(o), cle: Key('sync-table-$uuid')),
       _ligneTexte(libelleDocument(o) ?? '—', cle: Key('sync-document-$uuid')),
@@ -639,7 +791,31 @@ class _ATraiter extends ConsumerWidget {
         libelleStatutOperation(o.statut),
         cle: Key('sync-statut-$uuid'),
       ),
-      _ligneTexte(motifOperation(o), cle: Key('sync-motif-$uuid')),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ligneTexte(
+            cause.titre,
+            cle: Key('sync-cause-$uuid'),
+            poids: FontWeight.w600,
+            couleur: AppColors.erreur,
+          ),
+          _ligneTexte(motifOperation(o), cle: Key('sync-motif-$uuid')),
+          if (notePieceSaisieRefusee(o) case final note?)
+            _ligneTexte(note, cle: Key('sync-note-$uuid')),
+          for (final (i, e) in cause.erreurs.indexed)
+            _ligneTexte(
+              '${e.libelle} : ${e.messages.join(' ')}',
+              cle: Key('sync-erreur-champ-$uuid-$i'),
+            ),
+          _ligneTexte(
+            TextesEcranSynchronisation.tentatives(o.tentatives, o.codeHttp),
+            cle: Key('sync-tentatives-$uuid'),
+            couleur: AppColors.neutre500,
+          ),
+        ],
+      ),
       Align(alignment: Alignment.centerRight, child: action),
     ];
   }

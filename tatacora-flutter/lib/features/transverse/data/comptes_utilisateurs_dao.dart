@@ -1,10 +1,19 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/format/adresse_email_facultative.dart';
 import '../../../core/rbac/regle_archivage.dart';
 import '../../auth/data/verificateur_hors_ligne.dart';
+import '../../auth/domain/mot_de_passe_perdu.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/operation_sync.dart';
+import '../domain/champs_profil.dart';
 import '../domain/comptes_utilisateurs.dart';
+import '../domain/journal_poste.dart';
+import 'journal_securite_dao.dart';
 
 /// Les gestes d'administration des comptes du poste — Lot J2 (14/10/2026).
 ///
@@ -15,7 +24,10 @@ import '../domain/comptes_utilisateurs.dart';
 /// | `SessionRepositoryLocal.creerCompte` | le PREMIER compte (poste vierge) |
 /// | `SessionRepositoryLocal.changerMotDePasse` | le mot de passe de la session (« Mon profil ») |
 /// | `RolesDao` | `droitsJson` des comptes d'un rôle modifié |
-/// | **ce DAO** | création d'un compte, `actif`, mot de passe réinitialisé |
+/// | **ce DAO** | création d'un compte, `actif`, mot de passe TEMPORAIRE posé par un administrateur (v46), `email` (v45 : à la création, et par son titulaire depuis « Mon profil »), SUPPRESSION logique `supprime_le` (v48) |
+/// | `AligneurCatalogue` | `supprime_le` ET `actif` d'un compte supprimé AU SERVEUR (apparié par le login, jamais créé) |
+/// | `SessionRepositoryLocal.definirNouveauMotDePasse` | le mot de passe choisi après une réinitialisation (v46), qui lève « changement obligatoire » |
+/// | `CodeSecoursLocal` | le code de secours de l'administrateur et son compteur d'essais (v46) |
 ///
 /// ## Le même dérivé que partout
 ///
@@ -30,34 +42,58 @@ import '../domain/comptes_utilisateurs.dart';
 /// d'un des deux rôles d'administration (par leur CODE). Une session ouverte
 /// avant qu'on lui retire ce rôle n'administre plus rien.
 ///
-/// Aucune suppression n'est exposée (RG-15), et rien ne part nulle part : le
-/// poste est zéro réseau.
+/// ## Supprimer un compte (03/11/2026, décision du PO)
 ///
-/// @see RG-15 Traçabilité — un compte désactivé reste en base
+/// [supprimerCompte] lève pour la seule suppression la règle « un compte ne se
+/// supprime jamais » : suppression LOGIQUE (`supprime_le`, plus `actif` faux — le
+/// compte ne se connecte plus par les mêmes gardes que s'il était désactivé),
+/// jamais une suppression physique. Auteur : un SUPER ADMINISTRATEUR ([peutSupprimerDesComptes]) ;
+/// cible : un compte non administrateur ([compteSupprimable]) ; jamais soi-même.
+/// Le geste, sa trace au journal de sécurité et son opération de file
+/// (`suppression` de la table `utilisateurs`, clé = le LOGIN, jamais un mot de passe
+/// ni un dérivé) partagent UNE transaction.
+///
+/// @see RG-15 Traçabilité — un compte désactivé ou supprimé reste en base
 /// @see RG-16 Contrôle d'accès basé sur les rôles
+/// Le résultat d'une réinitialisation : le mot de passe TEMPORAIRE, rendu une
+/// seule fois à l'administrateur, et son échéance.
+typedef MotDePasseTemporaire = ({
+  String login,
+  String motDePasse,
+  DateTime expireLe,
+});
+
 class ComptesUtilisateursDao {
   ComptesUtilisateursDao(this._base, {DateTime Function()? horloge})
-    : _horloge = horloge ?? DateTime.now;
+    : _horloge = horloge ?? DateTime.now,
+      _journal = JournalSecuriteDao(_base, horloge: horloge);
 
   final AppDatabase _base;
   final DateTime Function() _horloge;
+  final JournalSecuriteDao _journal;
 
   static const _uuid = Uuid();
 
-  /// Tous les comptes, désactivés compris, par nom puis identifiant. Ne lit
+  /// Tous les comptes, désactivés compris (les SUPPRIMÉS non), par nom puis identifiant. Ne lit
   /// JAMAIS le sel ni l'empreinte.
   Future<List<CompteUtilisateur>> comptes() async {
     final t = _base.utilisateursLocal;
+    // Un compte SUPPRIMÉ disparaît de la liste (la ligne reste en base).
     final lignes =
-        await (_base.selectOnly(t)..addColumns([
-              t.id,
-              t.login,
-              t.nom,
-              t.role,
-              t.actif,
-              t.dateCreation,
-              t.dateMotDePasse,
-            ]))
+        await (_base.selectOnly(t)
+              ..addColumns([
+                t.id,
+                t.login,
+                t.nom,
+                t.role,
+                t.actif,
+                t.dateCreation,
+                t.dateMotDePasse,
+                t.email,
+                t.changementObligatoire,
+                t.mdpTemporaireExpireLe,
+              ])
+              ..where(t.supprimeLe.isNull()))
             .get();
     final comptes = [
       for (final l in lignes)
@@ -69,6 +105,9 @@ class ComptesUtilisateursDao {
           actif: l.read(t.actif) ?? false,
           dateCreation: l.read(t.dateCreation)!,
           dateMotDePasse: l.read(t.dateMotDePasse)!,
+          email: l.read(t.email),
+          changementObligatoire: l.read(t.changementObligatoire) ?? false,
+          temporaireExpireLe: l.read(t.mdpTemporaireExpireLe),
         ),
     ];
     comptes.sort((a, b) {
@@ -90,6 +129,7 @@ class ComptesUtilisateursDao {
     required String? role,
     required String motDePasse,
     required String confirmation,
+    String? email,
   }) async {
     await _exigerAdministration(auteurId);
 
@@ -105,6 +145,10 @@ class ComptesUtilisateursDao {
     if (erreurIdentifiant != null) erreurs['identifiant'] = erreurIdentifiant;
     if (role == null || role.trim().isEmpty) {
       erreurs['role'] = MessagesComptes.roleObligatoire;
+    }
+    // E-mail FACULTATIF (v45) : normalisé, validé comme le serveur ; vide : rien.
+    if (AdresseEmailFacultative.erreur(email) != null) {
+      erreurs['email'] = MessagesComptes.emailInvalide;
     }
     erreurs.addAll(_validerMotDePasse(motDePasse, confirmation));
     if (erreurs.isNotEmpty) throw RefusComptes(erreurs);
@@ -142,6 +186,7 @@ class ComptesUtilisateursDao {
               id: id,
               login: login,
               nom: nomPropre,
+              email: Value(AdresseEmailFacultative.normaliser(email)),
               role: ligneRole.libelle,
               droitsJson: ligneRole.droitsJson,
               sel: v.sel,
@@ -197,54 +242,335 @@ class ComptesUtilisateursDao {
     });
   }
 
-  /// « Réinitialiser le mot de passe » — l'administrateur pose le nouveau.
-  /// Règles de `changerMotDePasse` : 8 caractères au moins, différent de
-  /// l'actuel (vérifié contre le dérivé stocké, l'ancien n'étant pas saisi).
-  /// La confirmation est rejouée ici aussi.
-  Future<void> reinitialiserMotDePasse({
+  /// « Réinitialiser le mot de passe » (29/10/2026, option A du PO : pas d'e-mail
+  /// automatique). L'administrateur ne CHOISIT plus le mot de passe : le poste
+  /// génère un mot de passe TEMPORAIRE (14 caractères, sans caractère ambigu) et le
+  /// RENDU une seule fois, que l'écran montre à l'administrateur. Seul son dérivé
+  /// est écrit ; le compte est marqué « changement obligatoire » et le temporaire
+  /// expire après 24 h.
+  ///
+  /// Refus, dans cet ordre : droit (relu en base), SOI-MÊME (un administrateur
+  /// change le sien par « Mon profil », avec l'ancien mot de passe), compte
+  /// inconnu, super administrateur visé par un simple administrateur (il lirait le
+  /// temporaire et se connecterait avant son titulaire).
+  ///
+  /// Le geste et sa trace au journal de sécurité (qui, quel compte, quand, quelle
+  /// machine — JAMAIS le mot de passe ni son dérivé) partagent UNE transaction.
+  /// Le dérivé de l'ancien mot de passe est gardé jusqu'au changement forcé, pour
+  /// refuser sa réutilisation. La session du compte visé, si elle est restaurée,
+  /// retombe sur l'écran de changement (la garde du routeur relit la ligne).
+  Future<MotDePasseTemporaire> reinitialiserParAdministrateur({
     required String auteurId,
     required String compteId,
-    required String nouveau,
-    required String confirmation,
   }) async {
-    await _exigerAdministration(auteurId);
-    final erreurs = _validerMotDePasse(nouveau, confirmation);
-    if (erreurs.isNotEmpty) throw RefusComptes(erreurs);
-
-    final compte = await _compte(compteId);
-    final actuel = VerificateurHorsLigne(
-      login: compte.login,
-      sel: compte.sel,
-      empreinte: compte.empreinte,
-      iterations: compte.iterations,
-      derniereConnexionEnLigne: compte.dateMotDePasse,
-    );
-    if (actuel.correspond(nouveau)) {
+    final auteur = await _exigerAdministration(auteurId);
+    if (auteur.id == compteId) {
       throw RefusComptes.message(
-        'motDePasse',
-        MessagesComptes.motDePasseIdentique,
+        'compte',
+        MessagesComptes.reinitialiserSoiMeme,
       );
     }
-    final date = _horloge();
+    final compte = await _compte(compteId);
+    if (estSuperAdmin(compte.role) && !estSuperAdmin(auteur.role)) {
+      throw RefusComptes.message(
+        'compte',
+        MessagesComptes.reinitialiserSuperAdmin,
+      );
+    }
+
+    final temporaire = GenerateurDeSecret.motDePasseTemporaire();
+    final maintenant = _horloge();
+    final expireLe = maintenant.add(ReglesMotDePassePerdu.validiteTemporaire);
+    // Le dérivé est calculé HORS de la transaction (PBKDF2, 120 000 tours).
     final v = VerificateurHorsLigne.creer(
       login: compte.login,
-      motDePasse: nouveau,
-      maintenant: date,
+      motDePasse: temporaire,
+      maintenant: maintenant,
     );
+
+    await _base.transaction(() async {
+      // L'« ancien » à ne pas réutiliser est le dernier mot de passe CHOISI par
+      // son titulaire : si un temporaire est déjà en cours, on garde celui qu'il
+      // avait mémorisé, pas le temporaire précédent.
+      final garder =
+          compte.changementObligatoire && compte.selPrecedent != null;
+      await (_base.update(
+        _base.utilisateursLocal,
+      )..where((u) => u.id.equals(compte.id))).write(
+        UtilisateursLocalCompanion(
+          sel: Value(v.sel),
+          empreinte: Value(v.empreinte),
+          iterations: Value(v.iterations),
+          dateMotDePasse: Value(maintenant),
+          selPrecedent: Value(garder ? compte.selPrecedent : compte.sel),
+          empreintePrecedente: Value(
+            garder ? compte.empreintePrecedente : compte.empreinte,
+          ),
+          iterationsPrecedentes: Value(
+            garder ? compte.iterationsPrecedentes : compte.iterations,
+          ),
+          changementObligatoire: const Value(true),
+          mdpTemporaireExpireLe: Value(expireLe),
+        ),
+      );
+      await _journal.tracer(
+        action: ActionJournalPoste.reinitialisationMotDePasse,
+        auteurLogin: auteur.login,
+        cibleId: compte.id,
+        cibleLogin: compte.login,
+      );
+    });
+
+    return (login: compte.login, motDePasse: temporaire, expireLe: expireLe);
+  }
+
+  /// « Supprimer » (03/11/2026, décision du PO) : suppression LOGIQUE d'un compte.
+  ///
+  /// Refus, dans cet ordre : droit (l'auteur, relu en base, doit être un SUPER
+  /// ADMINISTRATEUR actif), SOI-MÊME, compte inconnu ou déjà supprimé, cible
+  /// ADMINISTRATRICE (un administrateur ou un super administrateur se désactive, il
+  /// ne se supprime pas — ce qui exclut aussi le « dernier administrateur »). Les
+  /// phrases sont celles de `pwa.comptes.*` du serveur.
+  ///
+  /// Le compte reçoit `supprime_le` ET `actif` faux : il ne se connecte plus (les
+  /// gardes de connexion lisent `actif`), sa session restaurée est refusée, il
+  /// disparaît des listes. Sa ligne reste, avec son `login` — l'identifiant n'est
+  /// PAS réutilisable. Dans la même transaction : la trace « Compte supprimé » (qui,
+  /// quel login, quand, depuis quel poste — jamais un secret) et l'opération de file
+  /// `suppression` de la table `utilisateurs`, dont la charge ne porte QUE le login
+  /// du compte et celui de l'auteur. Le serveur vérifie l'autorité du jeton
+  /// d'appairage ; un refus s'affiche dans « À traiter », le compte reste supprimé
+  /// ici.
+  Future<void> supprimerCompte({
+    required String auteurId,
+    required String compteId,
+  }) async {
+    final auteur = await (_base.select(
+      _base.utilisateursLocal,
+    )..where((u) => u.id.equals(auteurId))).getSingleOrNull();
+    if (auteur == null || !auteur.actif || auteur.supprimeLe != null) {
+      throw RefusComptes.message('droit', MessagesComptes.refusDroit);
+    }
+    if (!peutSupprimerDesComptes(auteur.role)) {
+      throw RefusComptes.message(
+        'droit',
+        MessagesComptes.refusSuppressionDroit,
+      );
+    }
+    if (auteur.id == compteId) {
+      throw RefusComptes.message(
+        'compte',
+        MessagesComptes.refusSuppressionSoiMeme,
+      );
+    }
+    await _base.transaction(() async {
+      final compte = await _compte(compteId);
+      if (!compteSupprimable(compte.role)) {
+        throw RefusComptes.message(
+          'compte',
+          MessagesComptes.refusSuppressionAdministrateur,
+        );
+      }
+      final maintenant = _horloge();
+      await (_base.update(
+        _base.utilisateursLocal,
+      )..where((u) => u.id.equals(compte.id))).write(
+        UtilisateursLocalCompanion(
+          supprimeLe: Value(maintenant),
+          actif: const Value(false),
+        ),
+      );
+      await _journal.tracer(
+        action: ActionJournalPoste.compteSupprime,
+        auteurLogin: auteur.login,
+        cibleId: compte.id,
+        cibleLogin: compte.login,
+      );
+      // La charge : le LOGIN (clé d'appariement, les identifiants diffèrent entre
+      // le web et les postes) et l'auteur local. JAMAIS un mot de passe, un dérivé,
+      // un rôle ni un e-mail.
+      await OperationsSyncDao(_base).enfiler(
+        table: TableSynchronisee.utilisateurs,
+        entiteId: compte.id,
+        type: TypeOperationSync.suppression,
+        payload: {'login': compte.login, 'supprime_par': auteur.login},
+        horodatage: maintenant,
+      );
+    });
+  }
+
+  /// « Enregistrer les informations » de « Mon profil » : l'e-mail FACULTATIF du
+  /// compte [utilisateurId] — celui de la SESSION, jamais celui d'un tiers (le
+  /// geste ne prend pas d'auteur distinct : un compte n'écrit que le sien, sans
+  /// droit d'administration, comme le changement de mot de passe). Vide efface ;
+  /// normalisé (trim, minuscules) ; mal formé : [RefusComptes] sur `email`, rien
+  /// n'est écrit. Aucune unicité. Rend l'adresse enregistrée (`null` : effacée).
+  Future<String?> enregistrerEmail({
+    required String utilisateurId,
+    required String? email,
+  }) async {
+    if (AdresseEmailFacultative.erreur(email) != null) {
+      throw RefusComptes.message('email', MessagesComptes.emailInvalide);
+    }
+    final adresse = AdresseEmailFacultative.normaliser(email);
+    final compte = await _compte(utilisateurId);
+    await (_base.update(_base.utilisateursLocal)
+          ..where((u) => u.id.equals(compte.id)))
+        .write(UtilisateursLocalCompanion(email: Value(adresse)));
+    return adresse;
+  }
+
+  /// Ce que « Mon profil » relit du compte [utilisateurId] : ses trois champs et SES
+  /// droits de profil, LUS EN BASE (jamais ceux, périmés, de la session). Le nom
+  /// complet est `nom`.
+  Future<ProfilDuCompte> profil(String utilisateurId) async {
+    final compte = await _compte(utilisateurId);
+    return ProfilDuCompte(
+      nomComplet: ReglesProfil.normaliser(compte.nom),
+      telephone: ReglesProfil.normaliser(compte.telephone),
+      intitule: ReglesProfil.normaliser(compte.intituleDePoste),
+      droits: _droitsProfil(compte),
+    );
+  }
+
+  /// Les champs de profil que [compte] peut modifier : actif ET `C` sur le droit
+  /// (binaire — `-`, `L` ou absent refusent, un droit ne s'obtient pas par omission).
+  static Set<ChampProfil> _droitsProfil(UtilisateurLocal compte) {
+    if (!compte.actif || compte.supprimeLe != null) return const {};
+    Object? lu;
+    try {
+      lu = jsonDecode(compte.droitsJson);
+    } on FormatException {
+      return const {};
+    }
+    if (lu is! Map) return const {};
+    return {
+      for (final c in ChampProfil.values)
+        if (lu[c.droit] == 'C') c,
+    };
+  }
+
+  /// « Enregistrer les informations » de « Mon profil » — `MonProfil::
+  /// enregistrerInformations()` du serveur : le nom complet, le téléphone, l'intitulé
+  /// de poste et l'e-mail du compte [utilisateurId] (celui de la SESSION, jamais d'un
+  /// tiers). Rend les clés des champs réellement changés (vide : rien à enregistrer).
+  ///
+  /// ## Le droit est appliqué ICI, jamais seulement dans l'écran
+  ///
+  /// Chaque champ DONT LA VALEUR CHANGE est confronté à son droit `PROFIL_*`, relu
+  /// en base, AVANT toute écriture : sans le droit, [RefusProfil] sur `droit` et
+  /// RIEN n'est écrit (pas même l'e-mail). Un champ inchangé ne déclenche rien.
+  ///
+  /// Normalisation : trim, espaces internes réduits ; vide efface (pour le nom
+  /// complet — colonne non nulle —, l'effacement rend le login, nom de repli du
+  /// compte). Validation : nom et intitulé 120 caractères, sans caractère de
+  /// contrôle ; téléphone 30, chiffres, +, espaces, tirets ; l'e-mail comme
+  /// [enregistrerEmail].
+  ///
+  /// Journal « Profil modifié » (journal de sécurité du poste), dans la MÊME
+  /// transaction : les champs changés, « ancien → nouveau ». Le profil ne porte aucun
+  /// secret. LOCAL : les comptes ne se synchronisent pas, rien n'est enfilé.
+  Future<List<String>> enregistrerProfil({
+    required String utilisateurId,
+    required String? nomComplet,
+    required String? telephone,
+    required String? intitule,
+    required String? email,
+  }) => _base.transaction(() async {
+    final compte = await _compte(utilisateurId);
+    final droits = _droitsProfil(compte);
+
+    final nouveaux = <ChampProfil, String?>{
+      ChampProfil.nomComplet: ReglesProfil.normaliser(nomComplet),
+      ChampProfil.telephone: ReglesProfil.normaliser(telephone),
+      ChampProfil.intitule: ReglesProfil.normaliser(intitule),
+    };
+    final courants = <ChampProfil, String?>{
+      ChampProfil.nomComplet: ReglesProfil.normaliser(compte.nom),
+      ChampProfil.telephone: ReglesProfil.normaliser(compte.telephone),
+      ChampProfil.intitule: ReglesProfil.normaliser(compte.intituleDePoste),
+    };
+
+    // 1. Le droit, champ par champ, sur ce qui CHANGE réellement. Le nom effacé
+    // devient le login : comparé à ce qu'il deviendrait.
+    final changes = <ChampProfil, String?>{};
+    for (final c in ChampProfil.values) {
+      final futur = c == ChampProfil.nomComplet
+          ? (nouveaux[c] ?? compte.login)
+          : nouveaux[c];
+      if (futur == courants[c]) continue;
+      if (!droits.contains(c)) {
+        throw RefusProfil.message('droit', MessagesProfil.champRefuse);
+      }
+      changes[c] = nouveaux[c];
+    }
+
+    // 2. La forme.
+    final erreurs = <String, String>{};
+    for (final c in changes.keys) {
+      final phrase = ReglesProfil.erreur(c, changes[c]);
+      if (phrase != null) erreurs[c.cle] = phrase;
+    }
+    if (AdresseEmailFacultative.erreur(email) != null) {
+      erreurs['email'] = MessagesComptes.emailInvalide;
+    }
+    if (erreurs.isNotEmpty) throw RefusProfil(erreurs);
+
+    final adresse = AdresseEmailFacultative.normaliser(email);
+    final emailChange = adresse != compte.email;
+    if (changes.isEmpty && !emailChange) return const <String>[];
+
+    String montrer(String? v) => v == null ? '—' : '« $v »';
+    final details = <String>[
+      for (final e in changes.entries)
+        '${_libelleChamp(e.key)} : ${montrer(courants[e.key])} → ${montrer(e.value)}',
+      if (emailChange) 'Email : ${montrer(compte.email)} → ${montrer(adresse)}',
+    ];
+
     await (_base.update(
       _base.utilisateursLocal,
     )..where((u) => u.id.equals(compte.id))).write(
       UtilisateursLocalCompanion(
-        sel: Value(v.sel),
-        empreinte: Value(v.empreinte),
-        iterations: Value(v.iterations),
-        dateMotDePasse: Value(date),
+        nom: changes.containsKey(ChampProfil.nomComplet)
+            ? Value(changes[ChampProfil.nomComplet] ?? compte.login)
+            : const Value.absent(),
+        telephone: changes.containsKey(ChampProfil.telephone)
+            ? Value(changes[ChampProfil.telephone])
+            : const Value.absent(),
+        intituleDePoste: changes.containsKey(ChampProfil.intitule)
+            ? Value(changes[ChampProfil.intitule])
+            : const Value.absent(),
+        email: emailChange ? Value(adresse) : const Value.absent(),
       ),
     );
+    await _journal.tracer(
+      action: ActionJournalPoste.profilModifie,
+      auteurLogin: compte.login,
+      cibleId: compte.id,
+      cibleLogin: '${compte.login} — ${details.join(' ; ')}',
+    );
+    return [for (final c in changes.keys) c.cle, if (emailChange) 'email'];
+  });
+
+  static String _libelleChamp(ChampProfil c) => switch (c) {
+    ChampProfil.nomComplet => 'Nom complet',
+    ChampProfil.telephone => 'Téléphone',
+    ChampProfil.intitule => 'Intitulé de poste',
+  };
+
+  /// L'e-mail du compte [utilisateurId] (`null` : non renseigné ou compte inconnu).
+  Future<String?> emailDuCompte(String utilisateurId) async {
+    final t = _base.utilisateursLocal;
+    final ligne =
+        await (_base.selectOnly(t)
+              ..addColumns([t.email])
+              ..where(t.id.equals(utilisateurId)))
+            .getSingleOrNull();
+    return ligne?.read(t.email);
   }
 
   /// L'auteur, relu en base : actif ET d'un rôle d'administration.
-  Future<void> _exigerAdministration(String auteurId) async {
+  Future<UtilisateurLocal> _exigerAdministration(String auteurId) async {
     final auteur = await (_base.select(
       _base.utilisateursLocal,
     )..where((u) => u.id.equals(auteurId))).getSingleOrNull();
@@ -253,13 +579,15 @@ class ComptesUtilisateursDao {
         !peutAdministrerComptes(auteur.role)) {
       throw RefusComptes.message('droit', MessagesComptes.refusDroit);
     }
+    return auteur;
   }
 
   Future<UtilisateurLocal> _compte(String compteId) async {
     final compte = await (_base.select(
       _base.utilisateursLocal,
     )..where((u) => u.id.equals(compteId))).getSingleOrNull();
-    if (compte == null) {
+    // Un compte SUPPRIMÉ est introuvable pour tout geste (désactiver, réinitialiser…).
+    if (compte == null || compte.supprimeLe != null) {
       throw RefusComptes.message('compte', MessagesComptes.compteIntrouvable);
     }
     return compte;

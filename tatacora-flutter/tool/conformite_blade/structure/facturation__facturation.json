@@ -49,6 +49,10 @@
                 "texte": "Tourisme"
             },
             {
+                "type": "a",
+                "texte": "Proformas"
+            },
+            {
                 "type": "button",
                 "texte": "Exporter"
             },
@@ -63,10 +67,6 @@
             {
                 "type": "span",
                 "texte": "Montant"
-            },
-            {
-                "type": "span",
-                "texte": "MECeF —"
             },
             {
                 "type": "th",
@@ -103,6 +103,10 @@
             {
                 "type": "span",
                 "texte": "Aucun résultat"
+            },
+            {
+                "type": "a",
+                "texte": "Voir les proformas"
             },
             {
                 "type": "p",

@@ -187,10 +187,6 @@
                 "texte": "+ Nouveau client"
             },
             {
-                "type": "button",
-                "texte": "Exporter"
-            },
-            {
                 "type": "div",
                 "texte": "Créances totales"
             },
@@ -307,10 +303,6 @@
             {
                 "type": "button",
                 "texte": "+ Nouveau client"
-            },
-            {
-                "type": "button",
-                "texte": "Exporter"
             },
             {
                 "type": "div",
@@ -457,10 +449,6 @@
             {
                 "type": "button",
                 "texte": "+ Nouveau client"
-            },
-            {
-                "type": "button",
-                "texte": "Exporter"
             },
             {
                 "type": "div",

@@ -10,7 +10,8 @@ import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/entities/disponibilite.dart';
-import '../fiche_reservation.dart';
+import '../../domain/entities/unite_hebergement.dart';
+import 'modale_reservation_rapide.dart';
 import '../providers_hebergement.dart';
 
 /// L'onglet **« Disponibilités »** — `hebergement.blade.php` l.478-550.
@@ -399,7 +400,7 @@ class _Tableau extends StatelessWidget {
               Text(formaterFcfa(d.montantSejour), style: base),
               _Etat(disponibilite: d),
               d.disponible && peutReserver
-                  ? _BoutonReserver(unite: d.unite.id)
+                  ? _BoutonReserver(unite: d.unite)
                   : const SizedBox.shrink(),
             ],
         ],
@@ -454,21 +455,30 @@ class _Etat extends StatelessWidget {
 }
 
 /// `text-[12px] px-3 py-1 rounded-lg bg-[var(--navy)] text-white
-/// font-semibold` (l.538-539). Il ouvre la fiche de réservation avec l'unité
-/// retenue ; la période est celle de la recherche.
-class _BoutonReserver extends StatelessWidget {
+/// font-semibold` (l.538-539). Il ouvre la modale « Réservation rapide » avec
+/// l'unité retenue ; la période est celle de la recherche
+/// (`ouvrirReservationRapide(id, arrivée, départ)`).
+class _BoutonReserver extends ConsumerWidget {
   const _BoutonReserver({required this.unite});
 
-  final String unite;
+  final UniteHebergement unite;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return InkWell(
-      key: Key('dispo-reserver-$unite'),
+      key: Key('dispo-reserver-${unite.id}'),
       borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-      // La fiche s'ouvre EN MODALE, par-dessus les disponibilités : on revient
-      // exactement sur la liste qu'on regardait, avec sa période intacte.
-      onTap: () => ouvrirFicheReservation(context, uniteId: unite),
+      // La modale s'ouvre PAR-DESSUS les disponibilités : on revient exactement
+      // sur la liste qu'on regardait, avec sa période intacte.
+      onTap: () {
+        final periode = ref.read(periodeConsulteeProvider);
+        ouvrirReservationRapideParc(
+          context,
+          unite: unite,
+          arrivee: periode.arrivee,
+          depart: periode.depart,
+        );
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,

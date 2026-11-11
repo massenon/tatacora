@@ -35,12 +35,21 @@ class TafireResource extends JsonResource
             'ressources' => [
                 'resultat_exercice' => $this->resource->resultatExercice,
                 'dotations_amortissements' => $this->resource->dotationsAmortissements,
+                'reprises_amortissements' => $this->resource->reprisesAmortissements,
+                'valeur_comptable_cessions' => $this->resource->valeurComptableCessions,
+                'quote_part_subventions' => $this->resource->quotePartSubventions,
                 'capacite_autofinancement_globale' => $this->resource->capaciteAutofinancementGlobale,
+                'produits_cessions' => $this->resource->produitsCessions,
                 'augmentation_capital' => $this->resource->augmentationCapital,
+                'variation_emprunts' => $this->resource->variationEmprunts,
+                'variation_dettes_participations' => $this->resource->variationDettesParticipations,
                 'total' => $this->resource->totalRessources,
             ],
             'emplois' => [
                 'acquisitions_immobilisations' => $this->resource->acquisitionsImmobilisations,
+                'dividendes_verses' => $this->resource->dividendesVerses,
+                'variation_autres_capitaux_propres' => $this->resource->variationAutresCapitauxPropres,
+                'variation_dividendes_a_payer' => $this->resource->variationDividendesAPayer,
                 'total' => $this->resource->totalEmplois,
             ],
             'besoin_fonds_roulement' => [
@@ -48,6 +57,11 @@ class TafireResource extends JsonResource
                 'variation_creances' => $this->resource->variationCreances,
                 'variation_dettes' => $this->resource->variationDettes,
                 'total' => $this->resource->variationBesoinFondsRoulement,
+            ],
+            'flux' => [
+                'exploitation' => $this->resource->fluxExploitation,
+                'investissement' => $this->resource->fluxInvestissement,
+                'financement' => $this->resource->fluxFinancement,
             ],
             'tresorerie' => [
                 'variation_calculee' => $this->resource->variationTresorerieCalculee,

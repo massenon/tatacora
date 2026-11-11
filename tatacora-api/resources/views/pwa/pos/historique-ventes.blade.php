@@ -59,7 +59,7 @@
     @include('pwa.partials.menu-lateral')
 
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1600px] mx-auto p-5 lg:p-8 zone-impression">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8 zone-impression">
 
         {{-- EN-TETE D'IMPRESSION — <h2>, jamais un second <h1>. --}}
         <div class="hidden print:block mb-6 border-b-2 border-[var(--navy)] pb-4">
@@ -69,7 +69,7 @@
             </div>
             <div class="text-right text-xs text-slate-600">
               <p><strong>{{ __('pos_pwa.document.journal_titre') }}</strong></p>
-              <p>{{ __('pos_pwa.document.edite_le') }} : {{ now()->format('d/m/Y H:i') }}</p>
+              <p>{{ __('pos_pwa.document.edite_le') }} : {{ \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i') }}</p>
               <p>{{ __('pos_pwa.document.filtre') }} : {{ $descriptionDuFiltre }}</p>
             </div>
           </div>
@@ -77,7 +77,10 @@
 
         {{-- HERO — maitre, historique-ventes.html l.22-31 --}}
         <div class="mb-5 no-print">
-          <h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">{{ __('pos_pwa.journal.titre') }}</h1>
+          <div class="flex items-center gap-2.5">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2"/></svg>
+            <h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">{{ __('pos_pwa.journal.titre') }}</h1>
+          </div>
           <p class="text-[12px] text-slate-500 mt-1 max-w-3xl">
             {{ __('pos_pwa.journal.sous_titre_avant') }}
             <strong>{{ __('pos_pwa.journal.sous_titre_gras') }}</strong>{{ __('pos_pwa.journal.sous_titre_apres') }}
@@ -226,7 +229,7 @@
                   <tr wire:key="vente-{{ $vente->id }}"
                       class="border-t border-slate-100 hover:bg-slate-50 {{ $vente->estAnnulee() ? 'opacity-60' : '' }}">
                     <td class="px-4 py-2.5 font-mono-tatacora text-[12px] font-bold text-slate-700">{{ $vente->numero }}</td>
-                    <td class="px-4 py-2.5 text-slate-500 whitespace-nowrap">{{ $vente->created_at?->format('d/m/Y H:i') }}</td>
+                    <td class="px-4 py-2.5 text-slate-500 whitespace-nowrap">{{ \App\Shared\Support\HeureLocale::formater($vente->created_at, 'd/m/Y H:i') }}</td>
                     <td class="px-4 py-2.5 font-medium text-slate-800">
                       {{ $vente->point_vente }}
                       @if ($vente->table)
@@ -327,7 +330,7 @@
               @forelse ($ventes as $vente)
                 <tr class="border-b border-slate-200" wire:key="doc-vente-{{ $vente->id }}">
                   <td class="px-2 py-1.5 font-bold">{{ $vente->numero }}</td>
-                  <td class="px-2 py-1.5">{{ $vente->created_at?->format('d/m/Y H:i') }}</td>
+                  <td class="px-2 py-1.5">{{ \App\Shared\Support\HeureLocale::formater($vente->created_at, 'd/m/Y H:i') }}</td>
                   <td class="px-2 py-1.5">{{ $vente->point_vente }}</td>
                   <td class="px-2 py-1.5">{{ $vente->table ?? '' }}</td>
                   <td class="px-2 py-1.5">{{ $modesPaiement[$vente->mode_paiement] ?? $vente->mode_paiement }}</td>
@@ -410,7 +413,7 @@
   {{-- ================= MODALE DE DETAIL — maitre, `ov-vente` ================= --}}
   @if ($venteDetail)
     <x-pwa.modale :titre="$venteDetail->numero"
-                  :sousTitre="$venteDetail->created_at?->format('d/m/Y H:i') . ' · ' . $venteDetail->point_vente . ($venteDetail->table ? ' · ' . $venteDetail->table : '')"
+                  :sousTitre="\App\Shared\Support\HeureLocale::formater($venteDetail->created_at, 'd/m/Y H:i') . ' · ' . $venteDetail->point_vente . ($venteDetail->table ? ' · ' . $venteDetail->table : '')"
                   largeur="520px"
                   fermer="$set('venteDetailId', null)">
       {{--

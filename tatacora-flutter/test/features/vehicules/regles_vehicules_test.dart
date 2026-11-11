@@ -243,7 +243,8 @@ void main() {
         MessagesVehicules.finApresDebut,
         MessagesVehicules.immatriculationRequise,
         MessagesVehicules.tarifInvalide,
-        refusAnnulationContrat,
+        MessagesVehicules.contratDejaAnnule,
+        MessagesVehicules.contratInexistant,
       ];
 
       for (final m in messages) {

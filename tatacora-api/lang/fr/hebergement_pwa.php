@@ -151,14 +151,14 @@ return [
         'bouton_ajouter_client' => 'Ajouter client',
 
         // ---- Modale « Nouvelle réservation » (maquette l.107-190)
-        'modale_sous_titre' => 'Les cinq champs que le schéma serveur porte pour une réservation.',
+        'modale_sous_titre' => 'Renseignez les informations de la réservation.',
         'champ_unite' => 'Unité d\'hébergement',
         'champ_unite_invite' => 'Choisir une unité…',
         'bouton_enregistrer' => 'Enregistrer la réservation',
 
         // ---- Modale « Ajouter un client » (maquette l.245-268), portée au mot près
         'modale_client_titre' => 'Ajouter un client',
-        'modale_client_sous_titre' => 'Fiche client unique du référentiel — RG-18.',
+        'modale_client_sous_titre' => 'Fiche client unique du référentiel.',
         'champ_nom' => 'Nom complet',
         'champ_nom_invite' => 'Ex. Jean KORA',
         'champ_telephone' => 'Téléphone',
@@ -171,9 +171,9 @@ return [
         // Le droit M3 est exigé EN PLUS du droit M1 : créer un client est une
         // écriture M3, et la synchronisation vérifie les droits par opération
         // (PA-65, PA-116).
-        'client_droit_m3' => 'Créer une fiche client est une écriture M3 : le droit M3 est exigé en plus '
+        'client_droit_m3' => 'Créer une fiche client demande le droit d\'écriture sur les clients, en plus '
             // Article 8 (02/09/2026) : la reference PA-116 vit ici, jamais a l'ecran.
-            .'du droit M1, comme à la synchronisation.',
+            .'de celui sur l\'hébergement.',
         // Les quatre options du maitre (l.259). ⚠ Le schema stocke
         // `particulier|groupe|agence|structure` : les confondre casse la
         // synchronisation.
@@ -228,6 +228,9 @@ return [
         'annulation_mode_montant' => 'FCFA',
         'annulation_remboursement_aide' => 'Ne peut jamais dépasser l\'acompte réellement encaissé. Saisissez l\'une des deux façons — l\'autre se déduit à l\'enregistrement.',
         'annulation_aucun_acompte' => 'Aucun acompte n\'a été encaissé sur cette réservation : rien à rembourser.',
+        // La règle du REMBOURSÉ, dite à l'écran (09/11/2026, constat du PO : « le remboursé n'est pas
+        // calculé »). Le remboursé n'est PAS « total − commission » : c'est ce que l'opérateur rend au
+        // client sur son acompte, plafonné à l'acompte ; la commission se retient sur le total.
         'annulation_col_total' => 'Total',
         'annulation_col_taux' => 'Taux',
         'annulation_col_commission' => 'Commission retenue',

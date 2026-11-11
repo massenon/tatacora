@@ -77,7 +77,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see LARAVEL_PWA.md §3, §5
  * @see DIRECTIVE_CONFORMITE_100.md Articles 4, 6, 7, 8
  */
-#[Title('Fournisseurs & Achats — TATACORA AFRIQUE')]
+#[Title('Fournisseurs & Achats — LogiReStock — TATACORA AFRIQUE')]
 class Achats extends PageMetier
 {
     use AutoriseArchivage;

@@ -17,12 +17,15 @@ class LecteurComptesPoste {
   final AppDatabase _base;
 
   /// Tous les comptes du poste, désactivés compris (RG-15 : un compte
-  /// désactivé reste en base).
+  /// désactivé reste en base), les SUPPRIMÉS non.
   Future<List<CompteDuPoste>> comptes() async {
     final t = _base.utilisateursLocal;
-    final lignes = await (_base.selectOnly(
-      t,
-    )..addColumns([t.role, t.droitsJson, t.actif])).get();
+    // Les comptes SUPPRIMÉS n'en sont plus (03/11/2026) : ils ne comptent pas.
+    final lignes =
+        await (_base.selectOnly(t)
+              ..addColumns([t.role, t.droitsJson, t.actif])
+              ..where(t.supprimeLe.isNull()))
+            .get();
     return [
       for (final l in lignes)
         CompteDuPoste(

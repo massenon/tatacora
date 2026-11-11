@@ -223,20 +223,29 @@ void main() {
       expect(await dao.reclamerLot(), isEmpty);
     });
 
-    test('un repli NON ÉCHU arrête la réclamation : un document ne double '
-        'jamais ce qu’il cite', () async {
+    test('un repli NON ÉCHU écarte l’opération et les suivantes de SON élément, '
+        'mais ne retient PLUS la file entière (09/11/2026 : aucune opération ne '
+        'doit bloquer la synchronisation)', () async {
       final article = await enfiler('a-1');
       await enfiler('cmd-1', table: TableSynchronisee.commandesAchat);
+      // Une seconde opération du MÊME élément que celle en repli : elle l'attend.
+      await enfiler(
+        'a-1',
+        type: TypeOperationSync.modification,
+        payload: {'libelle': 'corrigé'},
+      );
       await dao.marquerEchecTransitoire(
         article!,
         erreur: 'réseau',
         delai: const Duration(minutes: 5),
       );
-      expect(await dao.reclamerLot(), isEmpty);
+      // Avant : un `break` rendait ici une liste vide, et tout ce qui suivait attendait
+      // une heure derrière une seule opération en erreur.
+      expect((await dao.reclamerLot()).map((o) => o.entiteId), ['cmd-1']);
       maintenant = maintenant.add(const Duration(minutes: 6));
-      expect((await dao.reclamerLot()).map((o) => o.entiteId), [
-        'a-1',
-        'cmd-1',
+      expect((await dao.reclamerLot()).map((o) => (o.entiteId, o.type.code)), [
+        ('a-1', 'creation'),
+        ('a-1', 'modification'),
       ]);
     });
 

@@ -11,6 +11,13 @@ use App\Domain\Comptabilite\Models\CompteComptable;
  *
  * @see EF-M10-06 Edition des etats reglementaires SYSCOHADA
  *
+ * ## ⚠ HISTORIQUE — levé le 20/10/2026 (lot 2 : le report a nouveau existe)
+ *
+ * `GrandLivreService` rend desormais `soldeOuverture`, `soldeCloture` et
+ * `motifSoldesIndisponibles = null`. Le texte ci-dessous dit pourquoi
+ * l'ouverture n'a longtemps pas ete rendue ; la valeur par defaut du motif
+ * reste `report_a_nouveau_absent` pour qui construit un `GrandLivre` a la main.
+ *
  * ## Le solde d'OUVERTURE est INCONNU, et il ne vaut pas zero
  *
  * `MODULE_COMPTABILITE_COMPLET.md` §3 place `solde_ouverture` dans la reponse
@@ -57,6 +64,10 @@ final readonly class GrandLivre
         public ?string $soldeOuverture = null,
         public ?string $soldeCloture = null,
         public ?string $motifSoldesIndisponibles = self::MOTIF_REPORT_ABSENT,
+        /** L'ouverture est un à-nouveau PROVISOIRE (précédent non clôturé). */
+        public bool $ouvertureProvisoire = false,
+        /** L'exercice dont l'à-nouveau est provisoire. */
+        public ?int $anneeOuverture = null,
     ) {
     }
 

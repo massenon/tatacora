@@ -48,6 +48,7 @@ library;
 import '../../../core/format/cle_comparaison.dart';
 import '../../stocks/domain/calcul_stock.dart' show ecrireCentiemes, ecrireCout;
 import '../../stocks/domain/entities/etat_stock.dart' show SuiviArticle;
+import '../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
 import 'entities/carte_restaurant.dart';
 import 'entities/plat.dart';
 import 'messages_restaurant.dart';
@@ -306,11 +307,17 @@ final class SaisiePlatLue {
   const SaisiePlatLue({
     this.libelle = '',
     this.prixFrancs = 0,
+    this.description,
     this.erreurs = const {},
   });
 
   final String libelle;
   final int prixFrancs;
+
+  /// La description NORMALISÉE (trim, vide = `null`). Quand la saisie n'en porte
+  /// pas ([SaisiePlat.description] `null`), elle vaut `null` aussi : le DAO
+  /// distingue les deux par la saisie.
+  final String? description;
   final Map<String, String> erreurs;
 }
 
@@ -337,8 +344,42 @@ SaisiePlatLue verifierPlat(SaisiePlat s) {
     erreurs['recette_id'] = MessagesRestaurant.recetteObligatoire;
   }
 
+  // La catégorie (v41) : `null` = non soumise (importation, plat d'avant) ; une
+  // clé soumise doit être l'une des dix de la carte, comme le serveur la juge.
+  // La description (v47, 30/10/2026) : facultative, 500 caractères au plus, mesurés
+  // sur le texte NORMALISÉ comme `DescriptionPlat` du serveur (`max:500` porte sur la
+  // valeur déjà rognée par la couche HTTP ; `rejouer_description_plat.php` le prouve).
+  final description = normaliserDescriptionPlat(s.description);
+  if (description != null && description.length > descriptionPlatMax) {
+    erreurs['description'] = MessagesRestaurant.descriptionTropLongue;
+  }
+
+  final categorie = s.categorie;
+  if (categorie != null) {
+    if (categorie.trim().isEmpty) {
+      erreurs['categorie'] = MessagesRestaurant.categorieDuPlatObligatoire;
+    } else if (CategorieCarte.depuisCode(categorie) == null) {
+      erreurs['categorie'] = MessagesRestaurant.categorieDuPlatInvalide;
+    }
+  }
+
   if (erreurs.isNotEmpty) return SaisiePlatLue(erreurs: erreurs);
-  return SaisiePlatLue(libelle: libelle, prixFrancs: prix.francs!);
+  return SaisiePlatLue(
+    libelle: libelle,
+    prixFrancs: prix.francs!,
+    description: description,
+  );
+}
+
+/// Longueur maximale de `plats.description` — `DescriptionPlat::MAX` du serveur.
+const descriptionPlatMax = 500;
+
+/// La description facultative d'un plat, normalisée comme `DescriptionPlat::
+/// normaliser` : espaces de bord retirés, chaîne vide = `null`.
+String? normaliserDescriptionPlat(String? valeur) {
+  if (valeur == null) return null;
+  final nette = valeur.trim();
+  return nette.isEmpty ? null : nette;
 }
 
 /* ====================================================================== */
@@ -402,21 +443,35 @@ final class PlatCalcule {
     required this.id,
     required this.libelle,
     required this.menuId,
-    required this.menuType,
+    required this.categorie,
     required this.recetteId,
     required this.prixFrancs,
     required this.composition,
     this.recetteLibelle,
+    this.description,
     this.prixProvisoire = false,
     this.prixCorrigeMain = false,
+    this.indisponibilite,
+    this.lien,
   });
+
+  /// `plats.description` (v47), déjà normalisée.
+  final String? description;
+
+  /// Le lien direct au stock (v36), ou `null` : le plat se décrémente par sa
+  /// fiche. Quand il existe, il l'emporte (`DeductionStockCuisineService`).
+  final LienDirectCalcule? lien;
 
   final String id;
   final String libelle;
   final String menuId;
 
-  /// `menus.type` : la catégorie du plat (comme l'API).
-  final String menuType;
+  /// Le retrait de la carte du jour en cours (v31), ou `null`.
+  final IndisponibiliteDistante? indisponibilite;
+
+  /// `plats.categorie` : la catégorie du PLAT (C1 — comme la vue web), `null`
+  /// pour un plat d'avant la v41. Ce n'est PAS le type du menu porteur.
+  final String? categorie;
   final String recetteId;
 
   /// Le libellé de la fiche, tel que la colonne « Article de stock » le nomme.
@@ -427,6 +482,66 @@ final class PlatCalcule {
 
   /// Triée par identifiant d'article, comme le serveur (`orderBy('article_id')`).
   final List<IngredientCalcule> composition;
+}
+
+/// Le lien direct d'un plat à un article de stock, valorisé au point cuisine.
+final class LienDirectCalcule {
+  const LienDirectCalcule({
+    required this.articleId,
+    required this.libelle,
+    required this.uniteMesure,
+    required this.suivi,
+    required this.unitesVendables,
+    required this.unitesDixMilliemes,
+    required this.stockCentiemes,
+    required this.seuilCentiemes,
+  });
+
+  final String articleId;
+  final String libelle;
+  final String uniteMesure;
+  final SuiviArticle suivi;
+
+  /// Le texte décimal enregistré (« 24.0000 »).
+  final String unitesVendables;
+
+  /// Le même nombre en dix-millièmes (240000), pour le calcul en entiers.
+  final int unitesDixMilliemes;
+
+  /// Le solde de l'article au point cuisine, en centièmes.
+  final int stockCentiemes;
+  final int seuilCentiemes;
+
+  /// `bcmul(solde, conversion, 0)` : « il reste 120 bouteilles », tronqué.
+  /// Jamais négatif (une rupture forcée se lit zéro).
+  int get portions => stockCentiemes <= 0
+      ? 0
+      : (stockCentiemes * unitesDixMilliemes) ~/ 1000000;
+}
+
+/// « 24 », « 0,5 » ou « 12.25 » -> des dix-millièmes (`DECIMAL(…,4)`), tronqués
+/// au quatrième décimal comme `bcmath` ; `null` si la forme n'est pas un nombre
+/// positif ou nul.
+int? lireDixMilliemes(String saisie) {
+  final m = RegExp(r'^(\d+)(?:[.,](\d*))?$').firstMatch(saisie.trim());
+  if (m == null) return null;
+  final entiere = m.group(1)!;
+  if (entiere.length > 9) return null;
+  var fraction = m.group(2) ?? '';
+  if (fraction.length > 4) fraction = fraction.substring(0, 4);
+  return int.parse(entiere) * 10000 + int.parse(fraction.padRight(4, '0'));
+}
+
+/// 240000 -> « 24.0000 » : la forme du serveur.
+String ecrireDixMilliemes(int v) =>
+    '${v ~/ 10000}.${(v % 10000).toString().padLeft(4, '0')}';
+
+/// 240000 -> « 24 », 4167 -> « 0.4167 » : sans zéros de fin, pour l'écran.
+String lisibleDixMilliemes(int v) {
+  final texte = ecrireDixMilliemes(v);
+  return texte
+      .replaceFirst(RegExp(r'0+$'), '')
+      .replaceFirst(RegExp(r'\.$'), '');
 }
 
 /// Ce que le calcul des portions conclut.
@@ -661,18 +776,47 @@ CarteRestaurant calculerCarte({
 }
 
 LigneCarteRestaurant _ligne(PlatCalcule p, {required bool pointCuisine}) {
-  final portions = calculerPortions(p.composition, pointCuisine: pointCuisine);
+  final lien = p.lien;
+  // Le lien direct l'emporte sur la fiche : un article unique n'a pas de
+  // nomenclature à traverser (`DeductionStockCuisineService`).
+  final portions = lien == null
+      ? calculerPortions(p.composition, pointCuisine: pointCuisine)
+      : !pointCuisine
+      ? const PortionsCalculees(motif: MotifSansStock.pointCuisineAbsent)
+      : lien.suivi != SuiviArticle.permanent
+      ? const PortionsCalculees(motif: MotifSansStock.compositionSansSuivi)
+      : PortionsCalculees(
+          portions: lien.portions,
+          sousSeuil: lien.stockCentiemes <= lien.seuilCentiemes,
+          limitant: IngredientCalcule(
+            articleId: lien.articleId,
+            libelle: lien.libelle,
+            uniteMesure: lien.uniteMesure,
+            quantiteMilliemes: 0,
+            suivi: lien.suivi,
+            seuilCentiemes: lien.seuilCentiemes,
+            stockCentiemes: lien.stockCentiemes,
+            cmpDixMilliemes: 0,
+          ),
+        );
   final cout = calculerCoutMatiere(p.composition);
 
   return LigneCarteRestaurant(
     id: p.id,
     libelle: p.libelle,
-    categorieBrute: p.menuType,
+    description: p.description,
+    categorieBrute: p.categorie ?? '',
     menuId: p.menuId,
     recetteId: p.recetteId,
     recetteLibelle: p.recetteLibelle,
     prixVente: ecrirePrix(p.prixFrancs),
-    lieAuStock: p.composition.isNotEmpty,
+    lieAuStock: lien != null || p.composition.isNotEmpty,
+    articleStockId: lien?.articleId,
+    articleStockLibelle: lien?.libelle,
+    articleStockUnite: lien?.uniteMesure,
+    unitesVendables: lien == null
+        ? null
+        : lisibleDixMilliemes(lien.unitesDixMilliemes),
     nbIngredients: p.composition.length,
     motifSansStock: portions.motif,
     portionsVendables: portions.portions,
@@ -686,7 +830,8 @@ LigneCarteRestaurant _ligne(PlatCalcule p, {required bool pointCuisine}) {
     // Une rupture ne se déclare que si le chiffre existe : sans point cuisine,
     // « 0 » se lirait « plus rien en réserve » alors que personne n'a rien
     // consulté.
-    rupture: portions.portions != null && portions.portions == 0,
+    // 09/11/2026 (PO) : un plat n'est JAMAIS en rupture — vendable, stock illimité par défaut.
+    rupture: false,
     sousSeuil: portions.sousSeuil,
     coutMatiere: cout.montant,
     coutMatiereIncomplet: cout.incomplet,
@@ -694,6 +839,7 @@ LigneCarteRestaurant _ligne(PlatCalcule p, {required bool pointCuisine}) {
     marge: cout.marge(p.prixFrancs),
     prixProvisoire: p.prixProvisoire,
     prixCorrigeMain: p.prixCorrigeMain,
+    indisponibilite: p.indisponibilite,
   );
 }
 
@@ -703,8 +849,10 @@ IndicateursCarte _indicateurs(List<LigneCarteRestaurant> lignes) {
   var sousSeuil = 0;
   var coutInconnu = 0;
   var provisoires = 0;
+  var retires = 0;
 
   for (final l in lignes) {
+    if (l.estRetire) retires++;
     if (l.lieAuStock) lies++;
     if (l.rupture) rupture++;
     if (l.sousSeuil) sousSeuil++;
@@ -721,12 +869,12 @@ IndicateursCarte _indicateurs(List<LigneCarteRestaurant> lignes) {
     sousSeuil: sousSeuil,
     coutMatiereInconnu: coutInconnu,
     prixProvisoires: provisoires,
-    // Il n'y a aucune colonne de disponibilité sur ce poste : ces deux-là
-    // restent « — » avec leur raison. `prix_provisoires`, lui, est COMPTÉ.
-    absents: const {
-      'disponibles': MessagesRestaurant.disponibiliteAbsente,
-      'indisponibles': MessagesRestaurant.disponibiliteAbsente,
-    },
+    // Depuis la v31 (21/10/2026) la disponibilité du jour a sa table : les
+    // deux sont COMPTÉS, donc plus rien n'est « absent ». Le serveur, lui, les
+    // déclare encore absents de son API (`CarteRestaurantService`) : les
+    // cartes continuent d'interroger `raisonAbsence`.
+    disponibles: lignes.length - retires,
+    indisponibles: retires,
   );
 }
 
@@ -740,17 +888,24 @@ List<CouvertureCategorie> _couverture(List<LigneCarteRestaurant> lignes) {
         (lies[l.categorieBrute] ?? 0) + (l.lieAuStock ? 1 : 0);
   }
 
-  // `ksort` : l'ordre des clés (octets), pas celui des libellés.
-  final cles = plats.keys.toList()..sort();
+  // L'ordre de la vue (`EcranDeCarte::couverture`) : TOUTES les catégories du
+  // registre, dans son ordre, même vides ; puis les clés hors registre (dont
+  // le groupe « Autres » des plats sans catégorie), rendues et non jetées —
+  // la somme des lignes doit retomber sur le total.
+  final cles = [
+    for (final c in CategorieCarte.values) c.code,
+    ...(plats.keys.where((k) => CategorieCarte.depuisCode(k) == null).toList()
+      ..sort()),
+  ];
 
   return [
     for (final c in cles)
       CouvertureCategorie(
         categorieBrute: c,
-        plats: plats[c]!,
-        lies: lies[c]!,
-        sansLien: plats[c]! - lies[c]!,
-        taux: tauxCouverture(lies[c]!, plats[c]!),
+        plats: plats[c] ?? 0,
+        lies: lies[c] ?? 0,
+        sansLien: (plats[c] ?? 0) - (lies[c] ?? 0),
+        taux: tauxCouverture(lies[c] ?? 0, plats[c] ?? 0),
       ),
   ];
 }
@@ -766,12 +921,17 @@ final class FicheCalculee {
     required this.libelle,
     required this.composition,
     required this.platsServis,
+    this.compositionProvisoire = false,
   });
 
   final String id;
   final String libelle;
   final List<IngredientCalcule> composition;
   final List<String> platsServis;
+
+  /// La marque « composition provisoire » (`recettes.composition_provisoire`) :
+  /// les quantités ont été posées, jamais pesées.
+  final bool compositionProvisoire;
 }
 
 /// La fiche technique et son coût, dans ses trois états.
@@ -788,6 +948,7 @@ Recette versRecette(FicheCalculee f) {
     platsServis: f.platsServis,
     // `Recette::decrementeUnStockSuivi` : au moins un ingrédient suivi.
     decrementeUnStockSuivi: f.composition.any((i) => i.estSuivi),
+    compositionProvisoire: f.compositionProvisoire,
   );
 }
 

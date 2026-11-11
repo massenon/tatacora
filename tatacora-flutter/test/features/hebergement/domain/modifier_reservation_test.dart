@@ -271,12 +271,13 @@ void main() {
       );
     });
 
-    test('deux chambres sur une fiche restent refusées', () async {
-      final r = existante();
-      await depot.enregistrer(r);
+    test(
+      'deux chambres sur une fiche sont ACCEPTÉES (décision du PO du 10/11/2026)',
+      () async {
+        final r = existante();
+        await depot.enregistrer(r);
 
-      await expectLater(
-        modifier(
+        final modifiee = await modifier(
           existante: r,
           unite: unite,
           clientNom: 'KORA Jean',
@@ -292,8 +293,33 @@ void main() {
               quantite: 2,
             ),
           ],
+        );
+
+        expect(modifiee.uniteIds, [unite.id, 'u-2']);
+        expect(modifiee.tarifNuitTotal, modifiee.tarifNuit + 30000);
+        expect(depot.appelsModifier, 1);
+      },
+    );
+
+    test('la même chambre deux fois est refusée, et nommée', () async {
+      final r = existante();
+      await depot.enregistrer(r);
+
+      await expectLater(
+        modifier(
+          existante: r,
+          unite: unite,
+          clientNom: 'KORA Jean',
+          periode: r.periode,
+          lignes: [chambre(), chambre()],
         ),
-        throwsA(isA<ArgumentError>()),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message.toString(),
+            'message',
+            contains('deux fois'),
+          ),
+        ),
       );
       expect(depot.appelsModifier, 0);
     });

@@ -94,7 +94,14 @@ void main() {
         .getSingle();
     expect(
       (u.data['login'], u.data['role'], u.data['droits_json']),
-      ('admin', 'administrateur', '{"PARAM":"C"}'),
+      // v49 (03/11/2026) : la migration accorde AUSSI les trois droits du
+      // profil à l'administrateur, sans toucher à son réglage existant.
+      (
+        'admin',
+        'administrateur',
+        // v54 (09/11/2026) : puis les trois droits ouverts à tous (`C` : administration).
+        '{"PARAM":"C","PROFIL_NOM":"C","PROFIL_TELEPHONE":"C","PROFIL_INTITULE":"C","SYNCHRO":"C","APPAIRAGE":"C","IMPORT_EXPORT":"C"}',
+      ),
     );
     final c = await db
         .customSelect('SELECT nom, telephone FROM clients_local')
@@ -127,6 +134,19 @@ void main() {
       ...tablesAjouteesEnV27,
       ...tablesAjouteesEnV28,
       ...tablesAjouteesEnV29,
+      ...tablesAjouteesEnV31,
+      ...tablesAjouteesEnV32,
+      ...tablesAjouteesEnV33,
+      ...tablesAjouteesEnV34,
+      ...tablesAjouteesEnV35,
+      ...tablesAjouteesEnV37,
+      ...tablesAjouteesEnV38,
+      ...tablesAjouteesEnV39,
+      ...tablesAjouteesEnV40,
+      ...tablesAjouteesEnV44,
+      ...tablesAjouteesEnV46,
+      ...tablesAjouteesEnV52,
+      ...tablesAjouteesEnV53,
     });
     expect(
       await compte(apres, 'messages_editeur_local'),

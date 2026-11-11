@@ -6,6 +6,8 @@ namespace Tests\Feature\Sync;
 
 use App\Pwa\Livewire\Transverse\SynchronisationPostes;
 use App\Shared\Sync\Models\DemandeSynchronisation;
+use App\Shared\Sync\Services\SuiviPostesService;
+use App\Shared\Sync\Models\EtatPosteSynchronisation;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -45,7 +47,7 @@ final class BoutonSynchroniserServeurTest extends TestCase
         $this->actingAs($pwa);
         Livewire::test(SynchronisationPostes::class)
             ->call('synchroniser')
-            ->assertSee('Demande envoyée le 18/10/2026 10:00:00')
+            ->assertSee('Demande envoyée le 18/10/2026 11:00:00') // heure locale du Bénin (UTC+1), 10 h UTC
             ->call('synchroniser');
         $this->assertSame(1, DemandeSynchronisation::count());
 
@@ -66,6 +68,66 @@ final class BoutonSynchroniserServeurTest extends TestCase
     }
 
     #[Test]
+    public function postes_et_appairage_dit_les_neuf_colonnes_et_l_etat_de_chaque_poste(): void
+    {
+        $compte = $this->creerUtilisateur('receptionniste');
+        $admin = $this->creerUtilisateur('administrateur');
+        $compte->createToken('poste-actif');
+        $compte->createToken('poste-expire', ['*'], now()->subDay());
+        $compte->createToken('poste-valide', ['*'], now()->addDays(30))->accessToken->forceFill(['last_used_at' => now()->subDays(3)])->save();
+        // Un poste connu seulement par son état : plus de jeton (révoqué).
+        $this->actingAs($compte);
+        EtatPosteSynchronisation::create(['poste_id' => 'poste-revoque', 'utilisateur_id' => $compte->id]);
+
+        $etats = collect(app(SuiviPostesService::class)->etats())->keyBy('poste_id');
+
+        $this->assertSame('actif', $etats['poste-actif']['etat']);
+        $this->assertNull($etats['poste-actif']['expire_le'], 'sans expiration');
+        $this->assertSame('expire', $etats['poste-expire']['etat']);
+        $this->assertSame('silencieux', $etats['poste-valide']['etat']);
+        $this->assertNotNull($etats['poste-valide']['expire_le']);
+        $this->assertSame('non_appaire', $etats['poste-revoque']['etat']);
+        $this->assertNull($etats['poste-revoque']['appaire_le']);
+        $this->assertNotNull($etats['poste-actif']['appaire_le']);
+
+        $page = Livewire::actingAs($admin)->test(SynchronisationPostes::class);
+        foreach (['Poste', 'Utilisateur', 'Appairé le', 'Dernier contact', 'Expiration', 'Dernier envoi', 'Dernier contrôle', 'État', 'Actions'] as $colonne) {
+            $page->assertSee($colonne);
+        }
+        $page->assertSee('Sans expiration')->assertSee('Expiré')->assertSee('Sans nouvelles')->assertSee('Non appairé')
+            ->call('actualiser')->assertSee('poste-actif');
+    }
+
+    #[Test]
+    public function le_dernier_controle_est_note_au_passage_du_poste_sur_la_coherence(): void
+    {
+        $compte = $this->creerUtilisateur('receptionniste');
+        $jeton = $compte->createToken('poste-a')->plainTextToken;
+
+        $this->assertNull(EtatPosteSynchronisation::query()->where('poste_id', 'poste-a')->value('dernier_controle_le'));
+
+        $this->withToken($jeton)->getJson('/api/v1/sync/coherence?du=2026-10-01&au=2026-10-18')->assertOk();
+
+        $this->assertNotNull(EtatPosteSynchronisation::query()->where('poste_id', 'poste-a')->value('dernier_controle_le'));
+        $this->withToken($jeton)->getJson('/api/v1/sync/postes')->assertOk()
+            ->assertJsonPath('data.postes.0.poste_id', 'poste-a')
+            ->assertJsonPath('data.postes.0.dernier_controle', now()->toIso8601String())
+            ->assertJsonPath('data.postes.0.etat', 'actif');
+    }
+
+    #[Test]
+    public function l_entree_de_menu_appairage_postes_suit_le_droit_appairage_et_est_ouverte_a_tous_les_roles_par_defaut(): void
+    {
+        // 09/11/2026 (PO) : « Appairage Postes » est au menu de TOUS les rôles par
+        // défaut (droit transverse `APPAIRAGE`, lecture). Elle suivait Paramètres.
+        foreach (['administrateur', 'gerant', 'receptionniste', 'guide'] as $role) {
+            $this->actingAs($this->creerUtilisateur($role))->get('/pwa')->assertOk()
+                ->assertSee('Appairage Postes')
+                ->assertSee('href="'.route('pwa.synchronisation-postes').'"', false);
+        }
+    }
+
+    #[Test]
     public function la_demande_refuse_un_poste_qui_n_est_pas_celui_du_jeton(): void
     {
         $compte = $this->creerUtilisateur('receptionniste');
@@ -81,7 +143,9 @@ final class BoutonSynchroniserServeurTest extends TestCase
         $guide = $this->creerUtilisateur('guide');
 
         $this->actingAs($guide)->get(route('pwa.synchronisation-postes'))->assertOk()
-            ->assertSee('Synchroniser maintenant')
+            ->assertSee('Demander la synchronisation des postes')
+            ->assertSee('Appairage Postes', false)
+            ->assertSee('Actualiser')
             ->assertSee('Aucun poste ne s');
         $this->actingAs($guide)->get('/pwa')->assertOk()
             ->assertSee('href="'.route('pwa.synchronisation-postes').'"', false);

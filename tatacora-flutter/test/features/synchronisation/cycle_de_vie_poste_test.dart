@@ -6,9 +6,7 @@ import 'package:tatacora_flutter/features/achats/data/achats_dao.dart';
 import 'package:tatacora_flutter/features/facturation/data/facture_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/reservation.dart';
-import 'package:tatacora_flutter/features/hebergement/domain/messages_annulation.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
-import 'package:tatacora_flutter/features/synchronisation/data/documents_autres_postes.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 
@@ -17,9 +15,10 @@ import '../pos/support/outils_ventes.dart' show jourDeVente;
 
 /// Lot F6 (17/10/2026) : les gestes du cycle de vie partent au serveur —
 /// annulation d'une réservation avec ses conditions, déplacement, statut
-/// d'une commande — seulement pour un document que le serveur détient ; et
-/// le document d'un autre poste ne s'annule que par l'administration ou le
-/// comptable (Q3).
+/// d'une commande — seulement pour un document que le serveur détient. (La règle
+/// Q3, « le document d'un autre poste ne s'annule que par l'administration ou le
+/// comptable », est retirée pour les RÉSERVATIONS le 09/11/2026 ; les factures
+/// la gardent ci-dessous.)
 void main() {
   late AppDatabase db;
   late ReservationDao dao;
@@ -111,6 +110,9 @@ void main() {
         'taux': '50.00',
         'mode_remboursement': 'montant',
         'valeur_remboursement': '5000.00',
+        // Le login du compte de CE poste qui annule : le serveur ne juge plus ce compte, il le
+        // garde pour l'onglet « Annulations » et pour l'audit.
+        'auteur': 'compta-$auteurEssai',
       });
     });
 
@@ -122,25 +124,17 @@ void main() {
       },
     );
 
-    test('Q3 : la réservation d’un autre poste, refusée au réceptionniste, '
-        'admise au comptable — et elle part', () async {
+    test('09/11/2026 : la réservation d’un autre poste s’annule SANS règle '
+        'd’administration ici (le droit ANNULATIONS est jugé par l’écran) — '
+        'et l’annulation part', () async {
       await descendu('reservations', 'res-1');
 
-      await expectLater(
-        annuler('u-recep'),
-        throwsA(
-          isA<RefusAnnulation>().having(
-            (e) => e.message,
-            'message',
-            DocumentsAutresPostes.refus,
-          ),
-        ),
-      );
-      expect((await dao.parId('res-1'))!.statut, StatutReservation.confirmee);
-
-      await annuler(auteurEssai);
+      // Un réceptionniste (ni administrateur ni comptable) : plus de refus
+      // « Annulation refusée : ce document a été saisi sur un autre poste ».
+      await annuler('u-recep');
       expect((await dao.parId('res-1'))!.statut, StatutReservation.annulee);
-      expect(await modifications(TableSynchronisee.reservations), hasLength(1));
+      final op = (await modifications(TableSynchronisee.reservations)).single;
+      expect(jsonDecode(op.payload)['auteur'], 'u-recep');
     });
 
     test('le déplacement part, champs changés seulement ; une retouche '
@@ -199,8 +193,8 @@ void main() {
     expect(jsonDecode(ops.single.payload), {'statut': 'envoyee'});
   });
 
-  test('Facture : celle d’un autre poste ne s’annule pas sans auteur '
-      'd’administration ou comptable', () async {
+  test('Facture : celle d’un autre poste s’annule comme les autres — le droit '
+      'se juge à l’écran, plus dans l’écrivain (PO, 09/11/2026)', () async {
     await db.customStatement(
       'INSERT INTO pieces_facturation_local (id, numero, origine, '
       'date_emission, client_nom, statut, statut_transmission) VALUES '
@@ -215,11 +209,7 @@ void main() {
     await descendu('factures', 'f-srv');
     final factures = FactureDao(db);
 
-    await expectLater(
-      factures.annuler('f-srv', 'Erreur', auteurId: 'u-recep'),
-      throwsA(isA<AnnulationAutrePosteRefusee>()),
-    );
-    await factures.annuler('f-srv', 'Erreur', auteurId: auteurEssai);
+    await factures.annuler('f-srv', 'Erreur', auteurId: 'u-recep');
     expect((await factures.parId('f-srv'))!.estAnnulee, isTrue);
   });
 }

@@ -1,5 +1,6 @@
 import '../../../core/rbac/garde_acces.dart';
 import '../../achats/domain/entities/commande_achat.dart';
+import '../../comptabilite/domain/etats_financiers.dart' show DonneesEtats;
 import '../../crm/domain/entities/client.dart';
 import '../../crm/domain/entities/registre_clients.dart';
 import '../../depenses/domain/entities/depense.dart';
@@ -46,7 +47,13 @@ final class SourcesEtats {
     required this.clients,
     required this.creances,
     required this.maintenant,
+    this.donneesComptables,
   });
+
+  /// Les écritures validées d'où se calcule la balance générale (pièces de ce
+  /// poste ou écritures reçues du serveur, selon la synchronisation). `null` :
+  /// l'état se refuse, sans source.
+  final Future<DonneesEtats> Function()? donneesComptables;
 
   /// Passe par `StocksApi.etat()` : le droit de lecture de M6 y est respecté.
   final Future<ResultatStock> Function() stock;
@@ -137,7 +144,13 @@ final class EtatsApi {
         ),
   ];
 
-  Future<ResultatApercu> apercu(String code) async {
+  /// [inclureAnnules] : la case « Inclure les contrats annulés » de l'état
+  /// « Locations » (`inclure_annules` du serveur). Les autres états l'ignorent,
+  /// comme le serveur : la vue ne l'offre que sur celui-là.
+  Future<ResultatApercu> apercu(
+    String code, {
+    bool inclureAnnules = false,
+  }) async {
     final etat = EtatLocal.depuisCode(code);
     if (etat == null) return const ApercuRefuse(motif: refusCodeInconnu);
 
@@ -184,7 +197,9 @@ final class EtatsApi {
           sources.contrats(),
           sources.parcVehicules(),
         ).wait;
-        return ApercuRecu(apercuLocations(contrats, parc));
+        return ApercuRecu(
+          apercuLocations(contrats, parc, inclureAnnules: inclureAnnules),
+        );
       case EtatLocal.reservations:
         final (reservations, unites) = await (
           sources.reservations(),
@@ -228,10 +243,17 @@ final class EtatsApi {
           ),
         );
       case EtatLocal.balance:
-        // Inatteignable : son [EtatLocal.raisonRefus] a déjà rendu la main. Le
-        // refus explicite vaut mieux qu'un `default` qui composerait un état
-        // vide pour un cas ajouté demain.
-        throw StateError('${etat.code} est refusé par son registre.');
+        final lecteur = sources.donneesComptables;
+        if (lecteur == null) {
+          return refus(
+            'La balance générale n\'est pas disponible dans cet état.',
+          );
+        }
+        final donnees = await lecteur();
+        if (exerciceDeLaBalance(donnees) == null) {
+          return refus(balanceSansExercice);
+        }
+        return ApercuRecu(apercuBalance(donnees));
     }
   }
 }

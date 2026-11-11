@@ -81,7 +81,7 @@ final class BarPwaTest extends TestCase
 
         $html = (string) $this->get('/pwa/bar/carte')->assertOk()->getContent();
 
-        $this->assertStringContainsString('<title>Carte du bar — TATACORA AFRIQUE</title>', $html);
+        $this->assertStringContainsString('<title>Carte du bar — LogiReStock — TATACORA AFRIQUE</title>', $html);
         $this->assertSame(1, substr_count($html, '<h1 '), 'Un seul <h1> par page.');
         $this->assertStringContainsString(
             '<h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">Carte du bar</h1>',
@@ -302,7 +302,7 @@ final class BarPwaTest extends TestCase
     public function un_role_en_lecture_seule_ne_peut_pas_lier_une_boisson_au_stock(): void
     {
         $this->jeuDeDonnees();
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M5'));
 
         $boisson = CarteBoisson::where('libelle', 'Béninoise 66 cl')->firstOrFail();
@@ -337,7 +337,7 @@ final class BarPwaTest extends TestCase
         $boisson = CarteBoisson::where('libelle', 'Béninoise 66 cl')->firstOrFail();
         $avant = $boisson->article_id;
 
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         Livewire::test(CarteBar::class)
             ->set('articleCibleId', $boisson->id)
@@ -433,7 +433,7 @@ final class BarPwaTest extends TestCase
     public function un_role_en_lecture_seule_exporte_et_imprime_la_fiche_des_prix(): void
     {
         $this->jeuDeDonnees();
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M5'));
 
         $this->actingAs($comptable);
@@ -938,7 +938,7 @@ final class BarPwaTest extends TestCase
         $this->jeuDeDonnees();
         $boisson = CarteBoisson::where('libelle', 'Béninoise 66 cl')->firstOrFail();
 
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         Livewire::test(CarteBar::class)
             ->set('articleCibleId', $boisson->id)
@@ -1543,7 +1543,7 @@ final class BarPwaTest extends TestCase
     public function un_role_en_lecture_seule_ne_cree_pas_de_boisson(): void
     {
         $this->jeuDeDonnees();
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         Livewire::test(CarteBar::class)
             ->set('libelleSaisi', 'Tentative')
@@ -1613,7 +1613,7 @@ final class BarPwaTest extends TestCase
     public function un_role_en_lecture_seule_ne_modifie_pas_une_boisson(): void
     {
         $this->jeuDeDonnees();
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         $boisson = CarteBoisson::query()->firstOrFail();
         $libelle = $boisson->libelle;

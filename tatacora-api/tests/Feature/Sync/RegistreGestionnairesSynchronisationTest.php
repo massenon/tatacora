@@ -80,19 +80,37 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
         $gestionnaires = app(RegistreSynchronisation::class)->tous();
 
         $this->assertSame([
-            'reservations', 'sejours', 'clients', 'fournisseurs',
+            'reservations', 'sejours', 'clients',
+            // 21/10/2026 : les relances, APRÈS le client qu'elles citent.
+            'relances_clients',
+            'fournisseurs',
             // Catalogue (S2, 15/10/2026) — création seule, fusion sur clé naturelle.
             'points_stockage', 'articles', 'cartes_boisson', 'menus', 'recettes', 'plats',
+            // Lot « indisponibilités de la carte » (21/10/2026) : après les boissons et les plats.
+            'indisponibilites_carte',
             'categories_hebergement', 'unites_hebergement',
             // Documents (S3, 15/10/2026) — dans l'ordre de poussée : la
             // commande avant son bon, l'ouverture de caisse avant ses ventes.
-            'commandes_achat', 'bons_reception', 'reglements_fournisseur', 'sessions_caisse', 'tables_salle', 'paniers', 'ventes', 'depenses', 'factures', 'paiements',
+            'commandes_achat', 'bons_reception', 'reglements_fournisseur', 'sessions_caisse', 'tables_salle', 'paniers', 'ventes', 'depenses', 'factures', 'proformas', 'paiements',
             // Tourisme (F4, 17/10/2026) — les définitions avant la réservation.
-            'circuits', 'guides', 'reservations_tour', 'vehicules', 'contrats_location', 'employes', 'bulletins_paie',
+            'circuits', 'guides', 'reservations_tour', 'vehicules', 'contrats_location', 'entretiens_vehicule', 'employes', 'bulletins_paie', 'plannings', 'conges',
             // Lot 10e (18/10/2026) : le paramétrage et les rôles.
             'parametres_systeme', 'roles',
             // Lot 10f : les mouvements de stock saisis sur un poste.
             'mouvements_stock', 'modeles_notification',
+            // 28/10/2026 : un compte du plan et une pièce saisie à la main (M10),
+            // AVANT les immobilisations qui citent un compte.
+            'plan_comptable', 'pieces_saisie',
+            // 21/10/2026 : les immobilisations (M10), création seule.
+            'immobilisations',
+            // 21/10/2026 : les canaux de réservation (Paramètres).
+            'canaux_reservation',
+            // 21/10/2026 : l'inventaire physique clôturé (document complet).
+            'inventaires',
+            // 26/10/2026 : la demande de clôture d'exercice d'un poste (M10).
+            'demandes_cloture_exercice',
+            // 03/11/2026 : les comptes — la SUPPRESSION seule (par le login).
+            'utilisateurs',
         ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {
@@ -165,13 +183,15 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
     }
 
     /**
-     * `clients` ACCEPTE la modification, par `EnregistrementClientService` :
-     * l'audit RG-15 est tenu, et `actif` — que seul le service d'archivage
-     * bascule, sous son verrou d'engagement — n'est plus jamais écrit par ce
-     * chemin (l'UPDATE brut l'écrivait).
+     * `clients` ACCEPTE la modification, par `EnregistrementClientService`:
+     * l'audit RG-15 est tenu. `actif` n'est plus écrit EN BRUT : depuis le
+     * 21/10/2026 il archive par `ReferentielClientService` (les quatre verrous
+     * d'engagement). Depuis le 09/11/2026 (décision du PO) le serveur ne juge
+     * plus la règle d'archivage sur le compte du jeton : elle reste celle du
+     * web et du poste.
      */
     #[Test]
-    public function une_modification_client_passe_par_le_service_et_n_archive_rien(): void
+    public function une_modification_client_passe_par_le_service_et_archive_par_ses_verrous_pas_par_le_compte_d_appairage(): void
     {
         $this->synchroniser([$this->operation('clients', 'modification', $this->client->id, [
             'nom' => 'HOUNKPATIN-AGBO', 'actif' => false,
@@ -179,7 +199,19 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
 
         $fiche = $this->client->fresh();
         $this->assertSame('HOUNKPATIN-AGBO', $fiche->nom);
-        $this->assertTrue($fiche->actif, 'Le payload ne doit pas pouvoir archiver une fiche client.');
+        $this->assertFalse($fiche->actif, 'Archivé par le service : le compte d\'appairage n\'est pas jugé.');
+
+        $this->synchroniser([$this->operation('clients', 'modification', $this->client->id, ['actif' => true])])
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertTrue($this->client->fresh()->actif);
+
+        $this->synchroniser([$this->operation('clients', 'modification', $this->client->id, [
+            'nom' => 'HOUNKPATIN-AGBO',
+        ])])->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $fiche = $this->client->fresh();
+        $this->assertSame('HOUNKPATIN-AGBO', $fiche->nom);
+        $this->assertTrue($fiche->actif);
         $this->assertSame($this->utilisateur->id, $fiche->utilisateur_modification_id);
         $this->assertDatabaseHas('journal_audit', [
             'entite_concernee' => 'clients', 'entite_id' => $this->client->id, 'action' => 'modification',

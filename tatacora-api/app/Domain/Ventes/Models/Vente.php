@@ -107,7 +107,7 @@ class Vente extends Model
      */
     public function utilisateur(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'utilisateur_id');
+        return $this->belongsTo(User::class, 'utilisateur_id')->withTrashed();
     }
 
     /**

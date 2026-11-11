@@ -15,7 +15,7 @@
     exactement d'un copier-coller de vue.
 
     Ce qui change entre les deux tient dans `$page` : titre, sous-titre,
-    icône, bandeau, refus, et le seul geste qui n'existe pas des deux côtés
+    icône, refus, et le seul geste qui n'existe pas des deux côtés
     (« Délier », impossible au bar — `cartes_boisson.article_id` est NOT NULL).
 
     ## La casse des entêtes est celle du MAÎTRE
@@ -70,7 +70,7 @@
     @include('pwa.partials.menu-lateral')
 
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1500px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         {{-- EN-TÊTE — maître l.26-49 --}}
         <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -139,6 +139,19 @@
             @if ($page['lien_catalogue'] ?? false)
               <a href="{{ route('pwa.restaurant.plats') }}"
                  class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold hover:opacity-90">{{ __('carte_pwa.restaurant.bouton_catalogue') }}</a>
+            @endif
+
+            {{-- « Rapprocher les plats du stock » — AJOUT (PO 09/11/2026) : le
+                 RATTRAPAGE des plats importés sans lien (« Stock vendable : non
+                 suivi »). Relie chaque plat à l'article de stock de même nom au
+                 point Cuisine, crée les articles manquants, n'écrit ni prix ni
+                 quantité, n'écrase aucun lien. Propre au restaurant : au bar,
+                 `article_id` est NOT NULL, rien n'est jamais sans lien.
+                 structure-ajout:m4-restaurant-carte.html#bouton-rapprocher --}}
+            @if ($page['rapprocher'] ?? false)
+              <button type="button" wire:click="rapprocherLesPlatsDuStock" wire:loading.attr="disabled"
+                      title="{{ $page['rapprocher_aide'] }}"
+                      class="text-[13px] px-4 py-2 rounded-lg border border-[var(--gold)] text-[var(--gold)] hover:bg-amber-50 font-semibold">{{ $page['rapprocher_libelle'] }}</button>
             @endif
           </div>
         </div>
@@ -255,14 +268,10 @@
           </div>
         </div>
 
-        {{-- BANDEAU DU MODULE — maître, carte-module.js l.63-86. Il n'est pas
-             la même dette des deux côtés. --}}
-        <div class="rounded-xl p-3.5 mb-4"
-             style="background:{{ $page['bandeau']['fond'] }};border:1px solid {{ $page['bandeau']['bord'] }}">
-          <p class="text-[13px]" style="color:{{ $page['bandeau']['texte'] }}">
-            <strong>{{ $page['bandeau']['titre'] }}</strong> {!! $page['bandeau']['corps'] !!}
-          </p>
-        </div>
+        {{-- Le bandeau d'information du module (maître, carte-module.js l.63-86 :
+             « Un plat n'est pas un article de stock… » au restaurant, « Au bar,
+             vendre et sortir du stock désignent la même chose… » au bar) a été
+             RETIRÉ sur demande du Product Owner (30/10/2026), web et poste. --}}
 
         @if ($pointDeStockageAbsent)
           {{-- Le stock vendable est celui du POINT de vente, jamais tous
@@ -337,6 +346,9 @@
 
                         <td class="px-3 py-2.5 text-left">
                           <div class="font-semibold text-slate-800">{{ $ligne['nom'] }}</div>
+                          @if (! empty($ligne['description']))
+                            <div class="text-[11px] text-slate-400 whitespace-pre-line">{{ $ligne['description'] }}</div>
+                          @endif
                           @if (! $ligne['disponible'])
                             <div class="text-[11px] text-amber-700">
                               {{ $ligne['indisponibilite']->libelleMotif() }}@if ($ligne['indisponibilite']->commentaire) — {{ $ligne['indisponibilite']->commentaire }}@endif
@@ -719,6 +731,8 @@
     <x-pwa.modal-lieraustock :nom="$articleCible->libelle"
                              :prix="MontantFcfa::format((string) $articleCible->prix_vente)"
                              :articles="$articlesDeStock"
+                             :messageVide="$page['aucun_article'] ?? null"
+                             :recherche="$rechercheArticleStock"
                              :apercu="$apercuDuLien" />
   @endif
 
@@ -899,11 +913,11 @@
             <tbody>
               @foreach ($historiquePrix as $trace)
                 <tr class="border-t border-slate-100" wire:key="hist-prix-{{ $trace->id }}">
-                  <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ $trace->created_at?->format('d/m/Y H:i') }}</td>
+                  <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ \App\Shared\Support\HeureLocale::formater($trace->created_at, 'd/m/Y H:i') }}</td>
                   <td class="px-3 py-2 text-slate-700">{{ $libelleChampPrix($trace->champ) }}</td>
                   <td class="px-3 py-2 text-right text-slate-500">{{ $valeurAffichee($trace->ancien_prix, $trace->champ) }}</td>
                   <td class="px-3 py-2 text-right font-semibold" style="color:var(--navy)">{{ $valeurAffichee($trace->nouveau_prix, $trace->champ) }}</td>
-                  <td class="px-3 py-2 text-slate-500 text-[12px]">{{ $trace->utilisateurCreation?->login ?? MontantFcfa::TIRET }}</td>
+                  <td class="px-3 py-2 text-slate-500 text-[12px]">{{ $trace->utilisateurCreation?->libelleAuteur() ?? MontantFcfa::TIRET }}</td>
                 </tr>
               @endforeach
             </tbody>

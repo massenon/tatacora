@@ -761,7 +761,7 @@ for (const nom of PAGES) {
   }
   if (!titres.length) {
     const t = sourceClasse.match(/#\[Title\('([^']+)'\)\]/);
-    if (t) titres.push(t[1].replace(/\s*—\s*TATACORA AFRIQUE\s*$/, ''));
+    if (t) titres.push(t[1].replace(/\s*—\s*(LogiReStock\s*—\s*)?TATACORA AFRIQUE\s*$/, ''));
   }
   titres = titres.filter((t) => t.length >= 3);
 

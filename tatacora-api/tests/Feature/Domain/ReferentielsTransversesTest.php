@@ -99,7 +99,7 @@ final class ReferentielsTransversesTest extends TestCase
         $this->assertTrue($policy->create($this->utilisateur('receptionniste')));
 
         // Comptable : M3 = 'L' — consultation oui, création non
-        $comptable = $this->utilisateur('comptable', 'comptable.test');
+        $comptable = $this->utilisateur('lecteur', 'comptable.test');
         $this->assertTrue($policy->viewAny($comptable));
         $this->assertFalse($policy->create($comptable));
 
@@ -118,7 +118,7 @@ final class ReferentielsTransversesTest extends TestCase
         // RH : M13 = 'C' pour rh, 'L' pour comptable
         $this->assertTrue((new EmployePolicy())->create($this->utilisateur('rh', 'rh.test')));
 
-        $comptable = $this->utilisateur('comptable', 'comptable2.test');
+        $comptable = $this->utilisateur('lecteur', 'comptable2.test');
         $this->assertTrue((new EmployePolicy())->viewAny($comptable));
         $this->assertFalse((new EmployePolicy())->update($comptable));
     }

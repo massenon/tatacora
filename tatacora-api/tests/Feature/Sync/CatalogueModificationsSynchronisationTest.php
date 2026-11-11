@@ -212,12 +212,17 @@ final class CatalogueModificationsSynchronisationTest extends TestCase
     // ---------------------------------------------------------- Archivage
 
     #[Test]
-    public function l_archivage_par_la_synchronisation_suit_la_regle_de_droits_de_l_ecran(): void
+    public function l_archivage_par_la_synchronisation_ne_juge_pas_le_compte_d_appairage(): void
     {
-        // Hors administration, bascule fermée : refusé, l'article reste actif.
+        // Décision du PO du 09/11/2026 : la règle d'archivage de l'écran (administration, ou
+        // bascule `activation_suppression`) reste celle du WEB et du poste ; le serveur ne la
+        // juge plus sur le compte du jeton. Un magasinier, bascule fermée : l'archivage passe
+        // (les verrous d'engagement du service, eux, restent).
         $this->pousser([$this->a('articles', 'modification', $this->huile->id, '10:00', ['actif' => false])], $this->magasinier)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('pwa.archivage.refus_bascule'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertFalse((bool) $this->huile->fresh()->actif);
+        $this->pousser([$this->a('articles', 'modification', $this->huile->id, '10:02', ['actif' => true])], $this->magasinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
         $this->assertTrue((bool) $this->huile->fresh()->actif);
 
         // L'administrateur archive puis restaure, par le service.
@@ -258,6 +263,29 @@ final class CatalogueModificationsSynchronisationTest extends TestCase
      * Stock, CMP, prix d'achat, coût matière : refusés par la synchronisation
      * EXACTEMENT comme par la route de modification — mêmes phrases.
      */
+    /**
+     * 09/11/2026 (PO) : la valeur d'achat de référence saisie au poste REMONTE
+     * (`valeur_achat_reference`), est posée si l'article n'en porte pas, jamais écrasée, et
+     * redescend aux postes sous `prix_achat`. Le champ `prix_achat` direct reste refusé.
+     */
+    #[Test]
+    public function la_valeur_d_achat_de_reference_du_poste_remonte_sans_ecraser(): void
+    {
+        $this->pousser([$this->a('articles', 'modification', $this->huile->id, '10:00', ['valeur_achat_reference' => '850.0000'])], $this->magasinier)
+            ->assertOk();
+        $this->assertSame('850.00', (string) $this->huile->refresh()->prix_achat);
+
+        $this->pousser([$this->a('articles', 'modification', $this->huile->id, '10:05', ['valeur_achat_reference' => '999.0000'])], $this->magasinier)
+            ->assertOk();
+        $this->assertSame('850.00', (string) $this->huile->refresh()->prix_achat);
+
+        $idPoste = $this->uuid();
+        $this->pousser([$this->a('articles', 'creation', $idPoste, '10:10', [
+            'libelle' => 'Sel', 'categorie' => 'Épicerie', 'unite_mesure' => 'kg', 'seuil_alerte' => '1', 'valeur_achat_reference' => '400.0000',
+        ])], $this->magasinier)->assertOk();
+        $this->assertSame('400.00', (string) Article::query()->findOrFail($idPoste)->prix_achat);
+    }
+
     #[Test]
     public function les_valeurs_calculees_restent_refusees_comme_a_l_api(): void
     {

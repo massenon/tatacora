@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/impression/texte_ticket.dart';
-import 'package:tatacora_flutter/features/facturation/domain/certification_mecef.dart';
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
+import 'package:tatacora_flutter/features/facturation/domain/statut_normalisation.dart';
 import 'package:tatacora_flutter/features/facturation/impression/etat_registre_factures.dart';
 
 /// L'état « Registre des factures » — `m2-facturation.html`.
@@ -23,6 +23,7 @@ void main() {
     StatutPiece statut = StatutPiece.emise,
     String? avoirDe,
     String? numeroMecef,
+    bool normalisee = false,
   }) => PieceFacturation(
     id: id,
     numero: numero,
@@ -32,6 +33,10 @@ void main() {
     statut: statut,
     avoirDe: avoirDe,
     numeroMecef: numeroMecef,
+    normalisationStatut: normalisee ? StatutNormalisation.normalisee : null,
+    qrCodeFiscal: normalisee
+        ? 'F;ED04000623;NW34NID6ZHANFNMZ2IU7LL3H;3201910768821;20261107100000'
+        : null,
     lignes: [
       LigneFacture(
         id: 'l-$id',
@@ -47,17 +52,37 @@ void main() {
   EtatRegistreFactures etat(
     List<PieceFacturation> pieces, {
     String filtre = 'Toutes origines',
-  }) => EtatRegistreFactures(pieces: pieces, filtre: filtre);
+    bool normalisable = true,
+  }) => EtatRegistreFactures(
+    pieces: pieces,
+    filtre: filtre,
+    normalisable: normalisable,
+  );
 
   /* ================================================================== */
   group('La ligne de certification ne ment pas', () {
-    test('aucune pièce certifiée : la phrase du maître, mot pour mot', () {
-      final e = etat([piece(numeroMecef: 'MECEF-DEMO-AB12CD34')]);
-      expect(e.mentionCertification, CertificationMecef.libelleDemonstration);
-      expect(e.mentionCertification.toLowerCase(), contains('démonstration'));
-      // Jamais « certifiées : 1 » sur un numéro de démonstration.
-      expect(e.nombreCertifiees, 0);
-    });
+    test(
+      'aucune pièce normalisée : la phrase le dit, jamais « démonstration »',
+      () {
+        final e = etat([piece(numeroMecef: 'MECEF-DEMO-AB12CD34')]);
+        expect(e.mentionCertification, 'Aucune pièce normalisée');
+        expect(
+          e.mentionCertification.toLowerCase(),
+          isNot(contains('démonstration')),
+        );
+        // Jamais « certifiées : 1 » sur un numéro de démonstration.
+        expect(e.nombreCertifiees, 0);
+      },
+    );
+
+    test(
+      'mode désactivé (facture simple) : AUCUNE mention de certification',
+      () {
+        final e = etat([piece()], normalisable: false);
+        expect(e.mentionCertification, isEmpty);
+        expect(e.indicateurs.containsKey('Certification MECeF'), isFalse);
+      },
+    );
 
     test('une pièce sans numéro MECeF n’est pas certifiée non plus', () {
       expect(etat([piece()]).nombreCertifiees, 0);
@@ -68,11 +93,13 @@ void main() {
       // « non certifiées » deviendrait fausse le jour de l'inscription DGI,
       // et personne ne penserait à rouvrir ce fichier.
       final e = etat([
-        piece(numeroMecef: 'ABC123XYZ'),
+        piece(numeroMecef: 'ED04000623-41', normalisee: true),
         piece(id: 'p-2', numero: 'FAC-2026-0002'),
+        // Un numéro réel SEUL ne compte pas : il faut le statut et le QR.
+        piece(id: 'p-3', numero: 'FAC-2026-0003', numeroMecef: 'ABC123XYZ'),
       ]);
       expect(e.nombreCertifiees, 1);
-      expect(e.mentionCertification, '1 certifiée(s) sur 2');
+      expect(e.mentionCertification, '1 certifiée(s) sur 3');
     });
   });
 

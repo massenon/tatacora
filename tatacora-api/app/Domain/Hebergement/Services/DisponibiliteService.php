@@ -46,7 +46,7 @@ class DisponibiliteService
             return false;
         }
 
-        return $this->verification->plagesEnConflit(
+        $enConflit = $this->verification->plagesEnConflit(
             tablePlages: 'reservations',
             colonneRessource: 'unite_id',
             ressourceId: $uniteId,
@@ -55,7 +55,23 @@ class DisponibiliteService
             debut: $dateArrivee,
             fin: $dateDepart,
             exclureId: $exclureReservationId,
-        ) === [];
+        ) !== [];
+
+        if ($enConflit) {
+            return false;
+        }
+
+        // Multi-chambres (10/11/2026) : l'unité peut aussi être une chambre SUPPLÉMENTAIRE
+        // d'une réservation (ligne de service `hebergement`).
+        return ! Reservation::query()
+            ->whereNot('statut', 'annulee')
+            ->when($exclureReservationId !== null, fn ($q) => $q->where('id', '!=', $exclureReservationId))
+            ->where('date_arrivee', '<', $dateDepart)
+            ->where('date_depart', '>', $dateArrivee)
+            ->whereHas('lignes', fn ($q) => $q
+                ->where('service', \App\Domain\Hebergement\Models\LigneReservation::CHAMBRE)
+                ->where('source_id', $uniteId))
+            ->exists();
     }
 
     /**
@@ -77,6 +93,7 @@ class DisponibiliteService
             ->where('date_arrivee', '<', $dateDepart)
             ->where('date_depart', '>', $dateArrivee)
             ->pluck('unite_id')
+            ->merge($this->chambresSupplementairesOccupees($dateArrivee, $dateDepart))
             ->unique()
             ->all();
 
@@ -96,15 +113,41 @@ class DisponibiliteService
      */
     public function planningOccupation(string $dateDebut, string $dateFin): Collection
     {
-        $parUnite = Reservation::query()
-            ->with('client')
+        $reservations = Reservation::query()
+            ->with(['client', 'lignes' => fn ($q) => $q->where('service', \App\Domain\Hebergement\Models\LigneReservation::CHAMBRE)])
             ->whereNot('statut', 'annulee')
             ->where('date_arrivee', '<', $dateFin)
             ->where('date_depart', '>', $dateDebut)
-            ->get()
-            ->groupBy('unite_id')
-            ->all();
+            ->get();
 
-        return collect($parUnite);
+        // Une réservation multi-chambres apparaît sur CHACUNE de ses chambres.
+        $parUnite = [];
+
+        foreach ($reservations as $reservation) {
+            $parUnite[(string) $reservation->unite_id][] = $reservation;
+
+            foreach ($reservation->lignes as $ligne) {
+                $parUnite[(string) $ligne->source_id][] = $reservation;
+            }
+        }
+
+        return collect($parUnite)->map(fn (array $liste) => new EloquentCollection($liste));
+    }
+
+    /**
+     * Les unités occupées en tant que chambre SUPPLÉMENTAIRE sur la période.
+     *
+     * @return Collection<int, string>
+     */
+    private function chambresSupplementairesOccupees(string $dateArrivee, string $dateDepart): Collection
+    {
+        return \Illuminate\Support\Facades\DB::table('lignes_reservation')
+            ->join('reservations', 'reservations.id', '=', 'lignes_reservation.reservation_id')
+            ->where('lignes_reservation.service', \App\Domain\Hebergement\Models\LigneReservation::CHAMBRE)
+            ->whereNot('reservations.statut', 'annulee')
+            ->where('reservations.date_arrivee', '<', $dateDepart)
+            ->where('reservations.date_depart', '>', $dateArrivee)
+            ->pluck('lignes_reservation.source_id')
+            ->map(static fn ($id): string => (string) $id);
     }
 }

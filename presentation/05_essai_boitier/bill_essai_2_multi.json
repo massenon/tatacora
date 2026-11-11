@@ -1,0 +1,44 @@
+{
+  "seller_id": "ESSAI01",
+  "seller_name": "RECEPTION ESSAI",
+  "buyer_ifu": "1234567890123",
+  "buyer_name": "Client Exemple",
+  "aib": "N/A",
+  "payments": [
+    {
+      "mode": "E",
+      "amount": 1000
+    },
+    {
+      "mode": "M",
+      "amount": 700
+    }
+  ],
+  "products": [
+    {
+      "label": "Essai chambre ventilee nuitee",
+      "tax": "B",
+      "price": 500,
+      "items": 2
+    },
+    {
+      "label": "Essai repas du soir : poulet braise",
+      "tax": "B",
+      "price": 300,
+      "items": 1
+    },
+    {
+      "label": "Essai jus de bissap",
+      "tax": "B",
+      "price": 100,
+      "items": 3
+    },
+    {
+      "label": "TAXE DE SEJOUR",
+      "tax": "F",
+      "price": 50,
+      "items": 2
+    }
+  ],
+  "vt": "FV"
+}

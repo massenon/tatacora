@@ -14,6 +14,7 @@ use DOMDocument;
 use DOMElement;
 use DOMNode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -88,6 +89,15 @@ final class ExtraireStructureBladeTest extends TestCase
                 'immo' => '?onglet=immo',
             ],
             'jeu' => 'parc',
+        ],
+        // 21/10/2026 : l'écran créé à la PWA, repris par le poste.
+        'rh/conges-plannings' => [
+            'url' => '/pwa/rh/conges-plannings',
+            'variantes' => [
+                'plannings' => '?onglet=plannings',
+                'conges' => '?onglet=conges',
+            ],
+            'jeu' => 'vide',
         ],
         'tourisme/departs' => [
             'url' => '/pwa/tourisme',
@@ -269,6 +279,13 @@ final class ExtraireStructureBladeTest extends TestCase
             ],
             'jeu' => 'parc',
         ],
+        // Correspondance des comptes (26/10/2026) : la vue ouverte depuis l'onglet
+        // Plan du hub, rôle -> compte comptable modifiable.
+        'comptabilite/correspondance-comptes' => [
+            'url' => '/pwa/comptabilite/correspondance-comptes',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'parc',
+        ],
         'transverse/aide-a-propos' => [
             'url' => '/pwa/aide-a-propos',
             'variantes' => ['principal' => ''],
@@ -285,7 +302,6 @@ final class ExtraireStructureBladeTest extends TestCase
                 'importer' => '?onglet=importer',
                 'sauvegardes' => '?onglet=sauvegardes',
                 'restaurer' => '?onglet=restaurer',
-                'seeders' => '?onglet=seeders',
             ],
             'jeu' => 'parc',
         ],
@@ -300,6 +316,12 @@ final class ExtraireStructureBladeTest extends TestCase
             'variantes' => ['principal' => ''],
             'jeu' => 'parc',
         ],
+        // Décision PO du 09/11/2026 : la page « Synchronisation » (journaux ex-onglets de la page des postes).
+        'transverse/synchronisation' => [
+            'url' => '/pwa/synchronisation',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'parc',
+        ],
         'transverse/mon-profil' => [
             'url' => '/pwa/mon-profil',
             'variantes' => ['principal' => ''],
@@ -309,6 +331,13 @@ final class ExtraireStructureBladeTest extends TestCase
             'url' => '/pwa/roles-permissions',
             'variantes' => ['principal' => ''],
             'jeu' => 'parc',
+        ],
+        // 29/10/2026 (PO, option A du « mot de passe perdu ») : la liste des comptes et
+        // « Réinitialiser le mot de passe ».
+        'transverse/comptes-utilisateurs' => [
+            'url' => '/pwa/comptes-utilisateurs',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'vide',
         ],
     ];
 
@@ -320,6 +349,11 @@ final class ExtraireStructureBladeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Horloge de REFERENCE (26/10/2026 12:00 UTC) : meme instant que
+        // `test/support/horloge_reference.dart` cote Flutter. Le releve porte
+        // « octobre 2026 », « lundi 26 octobre » : sans cet instant fige, le
+        // regenerer un autre mois decalerait la mesure d'emplacement.
+        Carbon::setTestNow(Carbon::create(2026, 10, 26, 12, 0, 0, 'UTC'));
         $this->seed(RolePermissionSeeder::class);
     }
 

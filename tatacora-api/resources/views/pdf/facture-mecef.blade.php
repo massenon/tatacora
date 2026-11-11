@@ -60,8 +60,8 @@
 
   {{-- En-tête établissement — markup partagé, `pdf.partials.entete-etablissement`. --}}
   .tc-entete { margin-bottom: 14px; border-bottom: 3px solid #14213D; padding-bottom: 10px; }
-  .tc-logo-cell { width: 70px; vertical-align: top; }
-  .tc-logo-cell img { width: 60px; height: auto; }
+  .tc-logo-cell { width: {{ \App\Shared\ReportEngine\Services\ReportHeaderService::LOGO_FACTURE_A4_LARGEUR_PX + 12 }}px; vertical-align: top; }
+  .tc-logo-cell img { width: {{ \App\Shared\ReportEngine\Services\ReportHeaderService::LOGO_FACTURE_A4_LARGEUR_PX }}px; height: auto; }
   .tc-identite-cell { vertical-align: top; font-size: 8pt; color: #475569; line-height: 1.35; }
   .tc-raison-sociale { font-size: 11pt; font-weight: bold; color: #14213D; }
   .tc-enseigne { color: #64748b; font-size: 8.5pt; }
@@ -178,10 +178,12 @@
   @include('pdf.partials.entete-etablissement', [
       'entete' => $entete,
       'titreDocument' => __('facturation_pwa.document_titre'),
-      'numeroLabel' => __('facturation_pwa.document_numero'),
-      'numero' => $facture->estCertifiee()
+      // Facture normalisée : son NIM-TC. Sinon (facture SIMPLE, ou en attente de normalisation) :
+      // le numéro continu de la facture — jamais un numéro MECeF, jamais une référence inventée.
+      'numeroLabel' => $facture->estNormalisee() ? __('facturation_pwa.document_numero') : __('facturation_pwa.document_numero_simple'),
+      'numero' => $facture->estNormalisee()
           ? $facture->numero_mecef
-          : 'FAC-'.$facture->date_emission->format('Y').'-'.strtoupper(substr((string) $facture->id, 0, 8)),
+          : (filled($facture->numero) ? $facture->numero : 'FAC-'.$facture->date_emission->format('Y').'-'.strtoupper(substr((string) $facture->id, 0, 8))),
       'dateLabel' => __('facturation_pwa.document_date'),
       'date' => $facture->date_emission->format('d/m/Y'),
       'auteurLabel' => __('facturation_pwa.document_etabli_par'),
@@ -190,9 +192,14 @@
 
   <div class="bloc-client">
     <strong>{{ __('facturation_pwa.document_client') }} :</strong>
-    {{ $client === null
-        ? \App\Pwa\Support\MontantFcfa::TIRET
-        : trim(($client->prenom ?? '').' '.($client->nom ?? '')) }}
+    {{ filled($facture->acheteur_nom)
+        ? $facture->acheteur_nom
+        : ($client === null
+            ? \App\Pwa\Support\MontantFcfa::TIRET
+            : trim(($client->prenom ?? '').' '.($client->nom ?? ''))) }}
+    @if (filled($facture->acheteur_ifu))
+      <br><strong>{{ __('facturation_pwa.document_acheteur_ifu') }} :</strong> {{ $facture->acheteur_ifu }}
+    @endif
   </div>
 
   <table class="data-table">
@@ -306,19 +313,48 @@
       client réellement lié (PA-61), jamais une constante. La mention
       d'attente ci-dessous, elle, RESTE : elle est honnête.
   --}}
-  @if (\App\Domain\Facturation\Providers\MecefServiceProvider::etatConfiguration() === 'active')
+  {{--
+      FACTURATION NORMALISÉE (07/11/2026) : les mentions fiscales ne s'impriment QUE pour
+      une facture RÉELLEMENT normalisée (`estNormalisee()` : statut ET numéro réel ET QR) —
+      jamais pour une démonstration. Le contenu du QR est celui que le boîtier ou la DGI a
+      RENDU, copié tel quel, jamais composé ici. Le QR est DESSINÉ (SVG, bacon/bacon-qr-code,
+      `DessinQrCode`) et son contenu reste imprimé en texte en dessous (secours de lecture).
+  --}}
+  @if ($facture->estNormalisee())
     <div class="cachet">
-      <strong>{{ __('facturation_pwa.document_cachet_reserve') }}</strong><br>
-      {{ __('facturation_pwa.document_cachet_absent') }}
+      <strong>{{ __('facturation_pwa.document_normalisee_titre') }}</strong><br>
+      {{ __('facturation_pwa.document_normalisee_nim') }} : {{ $facture->numero_mecef }}<br>
+      @if (filled($facture->code_mecef))
+        {{ __('facturation_pwa.document_normalisee_code') }} : {{ $facture->code_mecef }}<br>
+      @endif
+      @php($dessinQr = \App\Domain\Facturation\Support\DessinQrCode::enDataUri($facture->qr_code_fiscal))
+      @if ($dessinQr !== null)
+        <img src="{{ $dessinQr }}" width="110" height="110" alt="QR"><br>
+      @endif
+      {{ __('facturation_pwa.document_normalisee_qr') }} : {{ $facture->qr_code_fiscal }}
+      @if ($facture->normalisee_le !== null)
+        <br>{{ __('facturation_pwa.document_normalisee_le', ['date' => \App\Shared\Support\HeureLocale::formater($facture->normalisee_le, 'd/m/Y H:i')]) }}
+      @endif
     </div>
   @endif
 
-  @unless ($facture->estCertifiee())
-    {{-- Mention DÉRIVÉE, discrète — plus jamais le pavé « démonstration »
-         (passage au réel, 01/09/2026). Se taire tout à fait laisserait
-         croire à une certification qui n'a pas eu lieu (PA-61). --}}
-    <div class="mention">{{ __('facturation_pwa.document_mention_attente') }}</div>
-  @endunless
+  {{-- Décision du PO du 07/11/2026 : en mode DÉSACTIVÉ, la facture simple ne porte AUCUNE mention
+       (ni démonstration, ni « non normalisé », ni cachet réservé). Dans les modes e-MECeF et boîtier,
+       une facture pas encore normalisée dit seulement « en attente de normalisation ». --}}
+  @if (! $facture->estNormalisee() && \App\Domain\Facturation\Services\ModeFacturation::courant() !== \App\Domain\Facturation\Services\ModeFacturation::Desactive)
+    <div class="mention">{{ __('facturation_pwa.document_en_attente_normalisation') }}</div>
+  @endif
+
+  {{-- Une facture en attente, refusée ou à vérifier DIT son état et son motif. --}}
+  @if ($facture->normalisation_statut !== null && ! $facture->estNormalisee() && \App\Domain\Facturation\Services\ModeFacturation::courant() !== \App\Domain\Facturation\Services\ModeFacturation::Desactive)
+    <div class="mention">
+      {{ __('facturation_pwa.document_normalisation_etat', ['statut' => \App\Domain\Facturation\Services\StatutNormalisation::tryFrom((string) $facture->normalisation_statut)?->libelle() ?? $facture->normalisation_statut]) }}
+      @if (filled($facture->normalisation_motif)) — {{ $facture->normalisation_motif }} @endif
+    </div>
+  @endif
+
+  {{-- Signature et cachet (PO, 07/11/2026) : l'interrupteur des Paramètres, factures comme proformas. --}}
+  @include('pdf.partials.bloc-signature', ['entete' => $entete])
 
 </body>
 </html>

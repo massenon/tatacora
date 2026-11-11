@@ -63,17 +63,6 @@
     ];
     $parClasse = $plan->comptes->groupBy('classe');
 @endphp
-{{-- L'encadré ambre du maître (l.373), mot pour mot. --}}
-<div class="rounded-xl p-3.5 mb-4" style="background:#FFFBEB;border:1px solid #FDE68A">
-  <p class="text-[13px]" style="color:#78350F">
-    <strong>Socle d'exploitation, pas le plan officiel intégral.</strong>
-    Ce plan retient les comptes qu'une activité d'hôtellerie-restauration-tourisme mouvemente réellement.
-    Les numéros <strong>doivent être confrontés à l'AUDCIF officiel avant mise en production</strong> :
-    un numéro faux produit une liasse rejetée, et la balance s'équilibre quand même.
-    Les « charges immobilisées » (ex-classe 20) sont absentes : le SYSCOHADA révisé ne les active plus.
-  </p>
-</div>
-
 {{-- Recherche par table (décision du Product Owner, 01/09/2026) — numéro de
      compte ou libellé, filtrage SERVEUR réel. Sûre ici (voir le docblock de
      `App\Pwa\Livewire\Comptabilite\Hub::$planRecherche`), à la différence des
@@ -86,11 +75,20 @@
            class="champ w-full border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm bg-white">
   </div>
 
-  {{-- « + Créer un compte » (maître l.396) — porté le 01/09/2026. --}}
-  <button type="button" wire:click="ouvrirNouveauCompte"
-          class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold hover:opacity-90 shrink-0">
-    + {{ __('comptabilite_pwa.creer_compte') }}
-  </button>
+  <div class="flex items-center gap-2 shrink-0">
+    {{-- « Correspondance des comptes » — lien AJOUTÉ par le PO le 26/10/2026 (les
+         comptes de chaque rôle se modifient sur le web comme sur le poste). --}}
+    <a href="{{ route('pwa.comptabilite.correspondance-comptes') }}" wire:navigate
+       class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 font-semibold">
+      {{ __('comptes_correspondance.lien_hub') }}
+    </a>
+
+    {{-- « + Créer un compte » (maître l.396) — porté le 01/09/2026. --}}
+    <button type="button" wire:click="ouvrirNouveauCompte"
+            class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold hover:opacity-90 shrink-0">
+      + {{ __('comptabilite_pwa.creer_compte') }}
+    </button>
+  </div>
 </div>
 
 @forelse ($parClasse as $classe => $comptes)

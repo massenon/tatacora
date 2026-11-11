@@ -54,4 +54,11 @@ final class FactureRepositoryLocal implements FactureRepository {
     String motif, {
     String? auteurId,
   }) => _dao.annuler(pieceId, motif, auteurId: auteurId);
+
+  @override
+  Future<PieceFacturation> emettreAvoirPartiel(
+    String pieceId,
+    int montant,
+    String motif,
+  ) => _dao.emettreAvoirPartiel(pieceId, montant, motif);
 }

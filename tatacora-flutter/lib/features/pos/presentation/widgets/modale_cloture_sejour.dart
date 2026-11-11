@@ -9,12 +9,16 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../comptabilite/domain/calcul_tva.dart' show RefusTva;
 import '../../../comptabilite/domain/refus_comptable.dart' show RefusComptable;
+import '../../../facturation/domain/acheteur_facture.dart';
+import '../../../facturation/presentation/widgets/champs_acheteur_facture.dart';
 import '../../../hebergement/domain/entities/reservation.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
 import '../../domain/entities/panier.dart';
 import '../../domain/messages_ventes.dart' show RefusVente;
 import '../../domain/place_hebergement.dart';
 import '../../domain/repositories/panier_repository.dart';
+import '../../../facturation/presentation/providers_facturation.dart'
+    show ifuDeLaFiche;
 import '../providers_pos.dart';
 import 'vue_panier.dart' show facturerPanier;
 
@@ -34,30 +38,51 @@ import 'vue_panier.dart' show facturerPanier;
 /// bougé : sans cette confirmation explicite, la clôture anticipée reste
 /// refusée. La clôture n'est jamais silencieuse (règle 5).
 ///
-/// ## Ce que la modale ne rend pas (09/10/2026)
+/// ## La case « Payer séparément » EST rendue (21/10/2026)
 ///
-/// - **La case « Payer séparément (l'hébergement sera facturé plus tard) »**
-///   (l.309-315) et **son rappel** (l.316-325). Elle ferait émettre une facture
-///   qui ne porte que les consommations, l'hébergement restant dû sur la fiche
-///   du client : c'est un changement de la règle de facturation du séjour
-///   (`Facturer.emettrePourSejour` compose TOUJOURS nuitées + consommations,
-///   Q3 `PlaceHebergement.horsPanier`). La directive qui l'a introduite
-///   (02/09/2026) a amendé RG-04 côté serveur ; l'arbitrage côté poste n'est
-///   pas rendu, et une case sans effet sur la facture serait le défaut que ce
-///   dépôt a rencontré dix fois. À remonter au Product Owner.
-/// - **« une vente en note de chambre est enregistrée au journal »**
-///   (`cloture_detail`, `lang/fr/pos_pwa.php`). Ce poste n'écrit aucune vente
-///   en note de chambre au clôturer : il fige le panier et émet la pièce du
-///   registre de facturation. La phrase est donc rendue SANS cette proposition.
-class ModaleClotureSejour extends StatelessWidget {
+/// La case (l.309-315) et son rappel (l.316-325) : décochée, la facture porte
+/// les nuitées PUIS les consommations (un seul document, RG-04) ; cochée, elle
+/// ne porte QUE les consommations — `Facturer.emettreConsommationsDuSejour`,
+/// la reprise de `EmissionFactureService::emettrePourConsommations` (amendement
+/// de RG-04, directive du PO du 02/09/2026) — et l'hébergement reste dû sur la
+/// fiche du client. La modale affiche EXACTEMENT ce que la facture portera : le
+/// « Total facturé » suit la case. Jusqu'au 21/10/2026 elle était refusée ici,
+/// faute de ce chemin d'émission.
+///
+/// ## « une vente en note de chambre est enregistrée au journal » est VRAI ici
+///
+/// (`cloture_detail`, `lang/fr/pos_pwa.php`) Depuis le lot F5 (17/10/2026), la
+/// clôture d'un séjour enregistre la vente en note de chambre au journal (le
+/// panier clôturé EST la vente, lue par l'Historique des ventes) et la fait
+/// partir au serveur : la phrase de la vue est rendue entière.
+///
+/// ## La remise
+///
+/// La ligne « Remise » (`- montant`, l.341-346) n'est PAS rendue : le panier de
+/// ce poste ne porte aucune remise (`paniers_local` n'a ni type ni valeur de
+/// remise — schéma à étendre). Mention de MESURE : « Remise ».
+class ModaleClotureSejour extends StatefulWidget {
   const ModaleClotureSejour({
     required this.reservation,
     required this.panier,
+    this.payerSeparement,
+    this.acheteur,
+    this.ifuInitial,
     super.key,
   });
 
   final Reservation reservation;
   final Panier panier;
+
+  /// Lu par l'appelant après la confirmation : le choix de la case « Payer
+  /// séparément ». Absent, la case existe quand même (état de la modale).
+  final ValueNotifier<bool>? payerSeparement;
+
+  /// L'ACHETEUR saisi (décision du PO du 07/11/2026) : IFU du client facultatif, nom,
+  /// « Retenir pour ce client », « Normaliser maintenant » — lu par l'appelant après la
+  /// confirmation. [ifuInitial] : l'IFU retenu sur la fiche du client, qui préremplit.
+  final ValueNotifier<AcheteurFacture>? acheteur;
+  final String? ifuInitial;
 
   /// `pos_pwa.heberges.cloture_titre`.
   static const String titre = 'Clôturer avant le départ ?';
@@ -66,10 +91,19 @@ class ModaleClotureSejour extends StatelessWidget {
   static const String message =
       'Aucune consommation ne pourra plus être enregistrée pour ce séjour.';
 
-  /// `pos_pwa.heberges.cloture_detail`, sans la vente en note de chambre.
+  /// `pos_pwa.heberges.cloture_detail`, au mot.
   static const String detail =
-      'Le panier est clôturé et la facture du séjour est émise : nuitées '
-      'd’abord, consommations ensuite, un seul document.';
+      'Le panier est clôturé, une vente en note de chambre est enregistrée au journal, et la facture du séjour est émise : nuitées d’abord, consommations ensuite, un seul document.';
+
+  /// Le bloc « acheteur » de la modale (décision du PO du 07/11/2026) : les mots de
+  /// `facturation.ifu_client.*`, égaux à `TextesIfuClient` (parité rejouée contre le vrai PHP).
+  static const String acheteurNom = 'Nom du client';
+  static const String acheteurAide =
+      'Facultatif : 13 chiffres. Laissez vide pour un client sans IFU.';
+
+  /// `pos_pwa.heberges.cloture_payer_separement`.
+  static const String payerSeparementLibelle =
+      "Payer séparément (l'hébergement sera facturé plus tard)";
 
   /// `pos_pwa.heberges.cloture_bloc_hebergement`.
   static const String blocHebergement = 'Hébergement';
@@ -122,13 +156,38 @@ class ModaleClotureSejour extends StatelessWidget {
   );
 
   @override
+  State<ModaleClotureSejour> createState() => _EtatModaleClotureSejour();
+}
+
+class _EtatModaleClotureSejour extends State<ModaleClotureSejour> {
+  late final ValueNotifier<bool> _separement =
+      widget.payerSeparement ?? ValueNotifier<bool>(false);
+  late final ValueNotifier<AcheteurFacture> _acheteur =
+      widget.acheteur ?? ValueNotifier<AcheteurFacture>(AcheteurFacture.aucun);
+
+  Reservation get reservation => widget.reservation;
+  Panier get panier => widget.panier;
+
+  static const TextStyle _petit = ModaleClotureSejour._petit;
+  static const TextStyle _etiquette = ModaleClotureSejour._etiquette;
+  static const TextStyle _montant = ModaleClotureSejour._montant;
+  static const TextStyle _ligne = ModaleClotureSejour._ligne;
+  static const TextStyle _bouton = ModaleClotureSejour._bouton;
+
+  @override
   Widget build(BuildContext context) {
     // La MÊME composition que la facture de départ : ce que la modale affiche
     // est ce que `Facturer` portera, jamais une seconde arithmétique de vue.
     final composition = CompositionFactureSejour.composer(
-      montantHebergement: reservation.tarifNuit * reservation.nuits,
+      montantHebergement: reservation.tarifNuitTotal * reservation.nuits,
       totalPanier: panier.total,
     );
+    final separement = _separement.value;
+    // Le « Total facturé » DÉPEND de la case : la modale affiche exactement ce
+    // que la facture portera.
+    final totalFacture = separement
+        ? composition.consommations
+        : composition.total;
 
     Widget cadre(List<Widget> enfants) => Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
@@ -152,27 +211,75 @@ class ModaleClotureSejour extends StatelessWidget {
 
     return CoquilleModaleRestaurant(
       cle: const Key('modale-cloture-sejour'),
-      titre: titre,
-      sousTitre: message,
+      titre: ModaleClotureSejour.titre,
+      sousTitre: ModaleClotureSejour.message,
       largeur: LargeursPos.modaleCloture,
       corps: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(detail, style: _petit),
+          const Text(ModaleClotureSejour.detail, style: _petit),
           const SizedBox(height: AppSpacing.md),
           cadre([
-            enTete(blocHebergement, composition.hebergement),
+            enTete(
+              ModaleClotureSejour.blocHebergement,
+              composition.hebergement,
+            ),
             const SizedBox(height: AppSpacing.unit),
             Text(
               '${reservation.nuits} nuitée(s) × '
-              '${formaterFcfa(reservation.tarifNuit)}',
+              '${formaterFcfa(reservation.tarifNuitTotal)}',
               key: const Key('cloture-nuitees'),
               style: _petit,
             ),
+            // `cloture_payer_separement` : COCHÉE = payer séparément, la facture
+            // ne porte que les consommations (l.309-315).
+            InkWell(
+              key: const Key('cloture-payer-separement'),
+              onTap: () => setState(() => _separement.value = !separement),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: separement,
+                    onChanged: (v) =>
+                        setState(() => _separement.value = v ?? false),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      ModaleClotureSejour.payerSeparementLibelle,
+                      style: _petit,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Le RAPPEL exigé par la directive (l.316-325) : ce qui restera dû,
+            // en toutes lettres, avant que le doigt ne clique.
+            if (separement)
+              Container(
+                key: const Key('cloture-rappel-hebergement'),
+                margin: const EdgeInsets.only(top: AppSpacing.xxs),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: PaletteMaitre.ambre50,
+                  border: Border.all(color: PaletteMaitre.ambre200),
+                  borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+                ),
+                child: Text(
+                  // `cloture_rappel_hebergement`, au mot.
+                  "L'hébergement n'est pas réglé : ${reservation.nuits} nuitée(s) × ${formaterFcfa(reservation.tarifNuitTotal)} resteront dues sur la fiche du client.",
+                  style: _petit.copyWith(color: PaletteMaitre.ambre800),
+                ),
+              ),
           ]),
           const SizedBox(height: AppSpacing.md),
           cadre([
-            enTete(blocConsommations, composition.consommations),
+            enTete(
+              ModaleClotureSejour.blocConsommations,
+              composition.consommations,
+            ),
             const SizedBox(height: AppSpacing.xxs),
             for (final ligne in panier.lignes)
               Row(
@@ -191,6 +298,13 @@ class ModaleClotureSejour extends StatelessWidget {
               ),
           ]),
           const SizedBox(height: AppSpacing.md),
+          // L'ACHETEUR (décision du PO du 07/11/2026) : le même bloc que `heberges.blade.php`.
+          ChampsAcheteurFacture(
+            saisie: _acheteur,
+            ifuInitial: widget.ifuInitial,
+            nomInitial: reservation.clientNom,
+          ),
+          const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             decoration: const BoxDecoration(
@@ -202,7 +316,7 @@ class ModaleClotureSejour extends StatelessWidget {
               textBaseline: TextBaseline.alphabetic,
               children: [
                 const Text(
-                  totalFacture,
+                  ModaleClotureSejour.totalFacture,
                   style: TextStyle(
                     fontFamily: AppTextStyles.police,
                     fontSize: Tailles.t13,
@@ -212,7 +326,7 @@ class ModaleClotureSejour extends StatelessWidget {
                 ),
                 Text(
                   key: const Key('cloture-total-facture'),
-                  formaterFcfa(composition.total),
+                  formaterFcfa(totalFacture),
                   style: const TextStyle(
                     fontFamily: AppTextStyles.police,
                     fontSize: Tailles.t17,
@@ -241,25 +355,31 @@ class ModaleClotureSejour extends StatelessWidget {
             ),
             textStyle: _bouton,
           ),
-          child: const Text(annuler),
+          child: const Text(ModaleClotureSejour.annuler),
         ),
         // « Facture » — le bouton qui exécute (l.365).
-        FilledButton(
-          key: const Key('pos-confirmer-cloture-anticipee'),
-          onPressed: () => Navigator.of(context).pop(true),
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.navy,
-            foregroundColor: AppColors.neutre0,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
+        ValueListenableBuilder<AcheteurFacture>(
+          valueListenable: _acheteur,
+          builder: (context, acheteur, _) => FilledButton(
+            key: const Key('pos-confirmer-cloture-anticipee'),
+            // Un IFU mal formé se CORRIGE (message sous le champ) : rien n'est clôturé.
+            onPressed: acheteur.ifuValide
+                ? () => Navigator.of(context).pop(true)
+                : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.navy,
+              foregroundColor: AppColors.neutre0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+              ),
+              textStyle: _bouton,
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-            ),
-            textStyle: _bouton,
+            child: const Text(ModaleClotureSejour.facture),
           ),
-          child: const Text(facture),
         ),
       ],
     );
@@ -288,11 +408,21 @@ Future<void> ouvrirModaleClotureSejour(
   required Reservation reservation,
   required Panier panier,
 }) async {
+  final payerSeparement = ValueNotifier<bool>(false);
+  final acheteur = ValueNotifier<AcheteurFacture>(AcheteurFacture.aucun);
+  // L'IFU retenu sur la fiche du client préremplit la saisie.
+  final ifuFiche = await ifuDeLaFiche(ref, reservation.clientId);
+  if (!context.mounted) return;
   final confirme = await showDialog<bool>(
     context: context,
     barrierColor: AppColors.voileModale,
-    builder: (_) =>
-        ModaleClotureSejour(reservation: reservation, panier: panier),
+    builder: (_) => ModaleClotureSejour(
+      reservation: reservation,
+      panier: panier,
+      payerSeparement: payerSeparement,
+      acheteur: acheteur,
+      ifuInitial: ifuFiche,
+    ),
   );
   if (confirme != true || !context.mounted) return;
 
@@ -310,7 +440,15 @@ Future<void> ouvrirModaleClotureSejour(
         );
     ref.read(modeReglementProvider.notifier).reinitialiser();
     rafraichirPaniers(ref);
-    if (context.mounted) await facturerPanier(context, ref, cloture);
+    if (context.mounted) {
+      await facturerPanier(
+        context,
+        ref,
+        cloture,
+        payerSeparement: payerSeparement.value,
+        acheteur: acheteur.value,
+      );
+    }
   } on PanierVide catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));

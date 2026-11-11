@@ -23,4 +23,14 @@ class ClientsLocal extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  /// v35 (21/10/2026) : `false` = archivé ; `null` ou `true` = actif (nullable
+  /// à dessein, comme `articles_local.actif`).
+  BoolColumn get actif =>
+      boolean().nullable().withDefault(const Constant(true))();
+
+  /// v51 (07/11/2026) : l'IFU de la fiche (13 chiffres, facultatif), DESCENDU du serveur
+  /// (« Retenir pour ce client » l'y range) — lecture seule ici, jamais renvoyé : il
+  /// préremplit l'IFU du client à la facturation.
+  TextColumn get ifu => text().nullable()();
 }

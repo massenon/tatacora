@@ -49,7 +49,7 @@ class EtatCreancesClients implements EtatInterface
      */
     public function periode(array $filtres): string
     {
-        return __('etats_m14.arrete_au', ['date' => now()->format('d/m/Y à H:i')]);
+        return __('etats_m14.arrete_au', ['date' => \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y à H:i')]);
     }
 
     /**

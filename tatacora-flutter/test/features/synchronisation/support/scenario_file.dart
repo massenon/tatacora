@@ -17,6 +17,7 @@ import 'package:tatacora_flutter/features/facturation/data/paiements_facture_dao
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/domain/repositories/facture_repository.dart';
 import 'package:tatacora_flutter/features/depenses/domain/entities/depense.dart';
+import 'package:tatacora_flutter/features/hebergement/data/canaux_reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/parc_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_repository_local.dart';
@@ -36,13 +37,16 @@ import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.d
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogue.dart';
 import 'package:tatacora_flutter/features/restaurant/data/restaurant_dao.dart';
+import 'package:tatacora_flutter/features/rh/data/conges_plannings_dao.dart';
 import 'package:tatacora_flutter/features/rh/data/employe_dao.dart';
+import 'package:tatacora_flutter/features/rh/domain/entities/conge_planning.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/entities/plat.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/mouvement_stock.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/tourisme/data/tourisme_dao.dart';
+import 'package:tatacora_flutter/features/comptabilite/data/immobilisations_dao.dart';
 import 'package:tatacora_flutter/features/transverse/data/roles_dao.dart';
 import 'package:tatacora_flutter/features/vehicules/data/vehicule_dao.dart';
 import 'package:tatacora_flutter/features/vehicules/domain/entities/contrat_location.dart';
@@ -87,6 +91,8 @@ final class ScenarioFile {
   late String reglement;
   late String vehicule;
   late String employe;
+  late String planning;
+  late String conge;
   late String contrat;
   late String venteSejour;
   late String facture;
@@ -95,7 +101,14 @@ final class ScenarioFile {
   late String role;
   late String perte;
   late String modele;
+  late String immobilisation;
+  late String canal;
+  late String venteRemise;
 }
+
+/// La mention client de la vente au comptoir avec remise (apostrophe, accents,
+/// tiret long : ce que le papier et la colonne du serveur doivent garder).
+const String mentionDuComptoir = "Mme Aïssatou N'DOUR — Société Sahel";
 
 /// Une journée complète du poste, PAR SES VRAIS ÉCRIVAINS — chacun dépose son
 /// document dans la file d'envoi. Rien n'est écrit à la main dans la file.
@@ -490,7 +503,31 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     serviceId: hebergement.id,
     dateEmbauche: DateTime(2023, 2, 1),
     salaireBase: 150000,
+    // E-mail facultatif (v45) : saisi avec des majuscules et des blancs, le poste
+    // le normalise et le serveur doit l'écrire tel quel.
+    email: '  Marceline.Hounsou@Exemple.BJ ',
   )).id;
+
+  // M13 (21/10/2026) : un créneau de planning, puis une demande de congé que
+  // le gérant REFUSE (le refus ne dépend d'aucun paramètre du serveur).
+  final rhJour = CongesPlanningsDao(
+    db,
+    maintenant: () => DateTime(2026, 10, 21),
+  );
+  s.planning = (await rhJour.planifier(
+    employeId: s.employe,
+    serviceId: hebergement.id,
+    date: DateTime(2026, 10, 23),
+    heureDebut: '08:00',
+    heureFin: '12:00',
+  )).id;
+  s.conge = (await rhJour.demander(
+    employeId: s.employe,
+    type: TypeConge.annuel,
+    dateDebut: DateTime(2026, 11, 2),
+    dateFin: DateTime(2026, 11, 4),
+  )).id;
+  await rhJour.refuser(s.conge, validateur: 'gerant');
 
   // M1 + POS hébergés (lot F5) : le client arrive, dîne sur la note de
   // chambre, et part.
@@ -610,6 +647,57 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     roleId: s.role,
     niveaux: {ModuleTatacora.m6Stocks: NiveauAcces.complet},
   );
+
+  // 21/10/2026 : une immobilisation du hub comptable (231, 5 ans, mise en
+  // service en cours de mois).
+  s.immobilisation = (await ImmobilisationsDao(db, auteur: auteurEssai).creer(
+    libelle: 'Toyota Land Cruiser Prado',
+    valeurOrigineCentimes: 1200000000,
+    dureeAnnees: 5,
+    dateMiseService: '2026-03-20',
+    compteImmobilisation: '231',
+  )).id;
+
+  // 21/10/2026 : un canal de réservation AJOUTÉ, RENOMMÉ puis DÉSACTIVÉ
+  // (Paramètres › Canaux de réservation) — trois gestes, trois opérations.
+  final canaux = CanauxReservationDao(db);
+  s.canal = (await canaux.ajouter('Agence du Sahel')).code;
+  await canaux.renommer(s.canal, 'Agence Sahel');
+  await canaux.basculer(s.canal);
+
+  // 21/10/2026 : une vente au comptoir AVEC remise (10 % de 3 300 F) dans la
+  // caisse rouverte le matin du départ — le net (2 970 F) est ce qui s'encaisse,
+  // la pièce passe sur lui, et la vente part avec le type et la valeur.
+  final paniersRemise = panierDaoSur(
+    db,
+    horloge: matin.add(const Duration(minutes: 30)),
+  );
+  var remise = await paniersRemise.ouvrir(
+    typeVente: TypeVente.comptant,
+    pointVente: 'Bar',
+  );
+  remise = await paniersRemise.ajouterLigne(
+    remise.id,
+    ArticleVendable(
+      reference: ReferenceCatalogue(
+        module: ModuleVendable.m5Bar,
+        code: s.boisson,
+      ),
+      libelle: 'Bière F1 65cl',
+      prix: 1100,
+    ),
+    quantite: 3,
+  );
+  await paniersRemise.appliquerRemise(remise.id, TypeRemise.pourcentage, '10');
+  // La MENTION client du comptoir (« Client (facultatif) ») : posée sur le
+  // panier, elle part avec la vente (`client_nom`) et se range en
+  // `ventes.client_mention`.
+  await paniersRemise.definirMentionClient(remise.id, mentionDuComptoir);
+  s.venteRemise = (await paniersRemise.cloturer(
+    remise.id,
+    modePaiement: 'especes',
+    auteurId: auteurEssai,
+  )).id;
 
   return s;
 }

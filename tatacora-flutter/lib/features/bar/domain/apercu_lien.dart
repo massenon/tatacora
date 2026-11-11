@@ -82,3 +82,22 @@ BigInt? unitesVendables({
   // (s × 10⁴)(c × 10⁴) / 10⁸ — `~/` tronque vers zéro, comme bcmath.
   return (s * c) ~/ (_unite * _unite);
 }
+
+/// Le conditionnement d'un lien, en clair — « 24 par casier » se lit bien,
+/// « 1/24 de casier » se lit mal. Transcription de
+/// `StockDeCarteService::conversionLisible()` (`carte_pwa.commun.
+/// conversion_par_unite` / `conversion_par_vente`), en dix-millièmes comme le
+/// reste de ce fichier : aucun flottant.
+///
+/// `null` quand [conversion] n'est pas un nombre strictement positif : une
+/// phrase bâtie sur un conditionnement illisible serait un conditionnement
+/// inventé.
+String? conversionLisible(String conversion, String unite) {
+  final c = lireDecimal(conversion);
+  if (c == null || c <= BigInt.zero) return null;
+  if (c > _unite) return '${ecrireDecimal(c)} par $unite';
+  if (c == _unite) return '1 $unite par vente';
+  // Moins d'une unité vendable par unité de stock : une vente en consomme
+  // plusieurs — le maître rend alors `1 / quantité`.
+  return '${ecrireDecimal(decrementParVente(conversion)!)} $unite par vente';
+}

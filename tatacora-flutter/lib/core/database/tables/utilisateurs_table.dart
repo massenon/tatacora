@@ -45,6 +45,13 @@ class UtilisateursLocal extends Table {
 
   TextColumn get nom => text()();
 
+  /// L'adresse e-mail FACULTATIVE du compte (v45, 28/10/2026) : saisie à la
+  /// création du compte (« Comptes utilisateurs ») et modifiable par son titulaire
+  /// (« Mon profil »). Nulle = non renseignée. Normalisée (trim, minuscules),
+  /// validée comme le serveur (`utilisateurs.email`), sans unicité. LOCALE : les
+  /// comptes ne se synchronisent pas (l'authentification reste sur le poste).
+  TextColumn get email => text().nullable()();
+
   /// Le rôle, tel que la matrice RBAC le nomme — `administrateur`,
   /// `receptionniste`, `barman`…
   TextColumn get role => text()();
@@ -69,6 +76,76 @@ class UtilisateursLocal extends Table {
   /// Dernière modification du mot de passe — pour qu'un changement soit
   /// traçable sans révéler quoi que ce soit du secret lui-même.
   DateTimeColumn get dateMotDePasse => dateTime()();
+
+  // --------------------------------------------------------------------------
+  // v46 (29/10/2026) — MOT DE PASSE PERDU, SANS E-MAIL (décision du PO, option
+  // A). Toutes ces colonnes sont LOCALES (les comptes ne se synchronisent pas,
+  // aucun hash de mot de passe ne quitte le poste) et ADDITIVES : un compte
+  // d'avant la v46 fonctionne sans changement et n'a pas de code de secours.
+  // Jamais un secret en clair : seuls des dérivés PBKDF2 (sel + empreinte).
+  // --------------------------------------------------------------------------
+
+  /// Le compte doit définir un nouveau mot de passe avant tout accès aux
+  /// modules (vrai après une réinitialisation par un administrateur). La garde
+  /// du routeur le relit à chaque navigation.
+  BoolColumn get changementObligatoire =>
+      boolean().withDefault(const Constant(false))();
+
+  /// L'instant où le mot de passe TEMPORAIRE cesse d'ouvrir quoi que ce soit
+  /// (24 h après sa génération). Nul : pas de temporaire en cours.
+  DateTimeColumn get mdpTemporaireExpireLe => dateTime().nullable()();
+
+  /// Le dérivé de l'ANCIEN mot de passe, gardé le temps du changement forcé
+  /// pour refuser sa réutilisation (« différent de l'ancien »), puis effacé.
+  TextColumn get selPrecedent => text().nullable()();
+  TextColumn get empreintePrecedente => text().nullable()();
+  IntColumn get iterationsPrecedentes => integer().nullable()();
+
+  /// Le dérivé du CODE DE SECOURS de l'administrateur (jamais le code). Nul :
+  /// pas de code (comptes d'avant la v46, comptes non administrateurs).
+  TextColumn get codeSecoursSel => text().nullable()();
+  TextColumn get codeSecoursEmpreinte => text().nullable()();
+  IntColumn get codeSecoursIterations => integer().nullable()();
+  DateTimeColumn get codeSecoursGenereLe => dateTime().nullable()();
+
+  /// Les essais ratés du code de secours sur CE compte, et l'instant du
+  /// dernier : cinq échecs bloquent le compte pendant quinze minutes.
+  IntColumn get codeSecoursEchecs => integer().withDefault(const Constant(0))();
+  DateTimeColumn get codeSecoursDernierEchecLe => dateTime().nullable()();
+
+  // --------------------------------------------------------------------------
+  // v48 (03/11/2026) — SUPPRIMER UN COMPTE (décision du PO, qui lève pour la seule
+  // suppression la règle « un compte ne se supprime jamais, il se désactive »).
+  // UNE colonne NULLABLE, additive : aucun compte existant n'est supprimé.
+  // --------------------------------------------------------------------------
+
+  /// L'instant où le compte a été SUPPRIMÉ (suppression LOGIQUE : la ligne reste,
+  /// jamais un DELETE — les ventes, dépenses et écritures gardent leur auteur,
+  /// affiché « nom (compte supprimé) »). Nul : compte vivant. Un compte supprimé
+  /// est AUSSI désactivé ([actif] faux) : il ne se connecte plus, par les mêmes
+  /// gardes que les comptes désactivés. Son identifiant n'est pas réutilisable
+  /// (la ligne garde son `login` sous l'index unique).
+  ///
+  /// Posée par DEUX auteurs seulement : `ComptesUtilisateursDao.supprimerCompte`
+  /// (le geste, super administrateur) et `AligneurCatalogue` (le compte supprimé
+  /// au serveur, apparié par le LOGIN). Elle voyage dans les deux sens, SANS jamais
+  /// un mot de passe ni un dérivé.
+  DateTimeColumn get supprimeLe => dateTime().nullable()();
+
+  // --------------------------------------------------------------------------
+  // v49 (03/11/2026) — « MON PROFIL » MODIFIABLE SOUS DROIT (décision du PO). Deux
+  // colonnes NULLABLES, LOCALES (les comptes ne se synchronisent pas) : le nom
+  // complet reste `nom` (déjà affiché par l'écran), le téléphone et l'intitulé de
+  // poste sont neufs. Ecrites par UN seul auteur, `ComptesUtilisateursDao
+  // .enregistrerProfil`, sous les droits `PROFIL_*` du compte relus en base.
+  // --------------------------------------------------------------------------
+
+  /// Le téléphone FACULTATIF du compte : chiffres, +, espaces, tirets, 30 au plus.
+  TextColumn get telephone => text().nullable()();
+
+  /// L'« intitulé de poste » : texte LIBRE et informatif, 120 caractères au plus,
+  /// SANS effet sur les droits (la fonction est le rôle). Nul = non renseigné.
+  TextColumn get intituleDePoste => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

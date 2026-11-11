@@ -74,6 +74,13 @@ void main() {
           gabarit: 'stocks-etat',
           date: '14/10/2026',
         ),
+        // Le rapport d'inventaire physique (21/10/2026) : son gabarit serveur
+        // nomme ses propres visas (« Agent Recenseur », « Responsable Magasin »).
+        'stocks/impression/etat_inventaire.dart': (
+          visas: 'inventaire',
+          gabarit: 'inventaire-rapport',
+          date: '21/10/2026',
+        ),
         'vehicules/impression/etat_vehicules.dart': (
           visas: 'directive',
           gabarit: 'locations',
@@ -94,12 +101,22 @@ void main() {
           gabarit: 'comptabilite-journal-rapport',
           date: '14/10/2026',
         ),
+        // L'archive légale d'une clôture d'exercice (26/10/2026) — ses visas
+        // sont ceux du gabarit `pdf/comptabilite-etats-cloture` (le visa du
+        // comptable, puis celui de la direction).
+        'comptabilite/impression/etat_cloture_archive.dart': (
+          visas: 'etatsCloture',
+          gabarit: 'comptabilite-etats-cloture',
+          date: '26/10/2026',
+        ),
       };
   // Les listes de [Visas], par NOM — celui qu'un fichier écrit.
   const visasParNom = <String, List<String>>{
     'directive': Visas.directive,
     'depenses': Visas.depenses,
     'etatStocks': Visas.etatStocks,
+    'inventaire': Visas.inventaire,
+    'etatsCloture': Visas.etatsCloture,
   };
   /* ================================================================== */
   group('Le registre des documents — chaque fichier est classé', () {
@@ -123,10 +140,30 @@ void main() {
     };
     // Remis au client (ou pièce fiscale) : ni visa, ni pied de rapport.
     const documentsClient = {
+      // Le relevé de compte client (`pdf/releve-client.blade.php`, PA-194) :
+      // pied NEUTRE, ni visa ni pied de rapport (21/10/2026).
+      'crm/impression/releve_client.dart',
       'facturation/impression/essai_qr_thermique.dart',
       'facturation/impression/facture_a4.dart',
+      // La facture PROFORMA A4 (`pdf/proforma.blade.php`, 07/11/2026) : remise au client, NON fiscale, ni
+      // visa ni pied de rapport.
+      'facturation/impression/proforma_a4.dart',
       'facturation/impression/ticket_facture.dart',
       'hebergement/impression/confirmation_reservation.dart',
+      // Le bulletin de paie A4 (`pdf/paie-bulletin.blade.php`, lot A3 du
+      // 27/10/2026) : remis au salarié, le gabarit serveur n'a ni visa ni pied
+      // de rapport.
+      'rh/impression/bulletin_paie_a4.dart',
+      // Le ticket de la vente encaissée (80 mm, remis au client), 26/10/2026.
+      'ventes/impression/ticket_vente.dart',
+      // Le reçu de location (`pdf/location-recu.blade.php`, 28/10/2026) : remis
+      // au client, ni visa ni pied de rapport.
+      'vehicules/impression/recu_location.dart',
+      // La feuille du code de secours (29/10/2026, option A du PO) : un document
+      // INTERNE, à ranger au coffre — ni visa ni pied de rapport, ni en-tête
+      // d'établissement. Le code n'est écrit nulle part : il n'existe que dans les
+      // octets remis au dialogue d'impression.
+      'auth/impression/feuille_code_secours.dart',
     };
     // Tableur seulement : aucun PDF composé. Vide depuis le Lot J1 ; le
     // registre reste, pour qu'un futur export CSV seul s'y classe.
@@ -280,12 +317,36 @@ void main() {
       ]);
     });
 
-    test('la mention du pied est celle du serveur', () {
-      expect(
-        const EnteteEtablissement().mentionInstitutionnelle,
-        VueBlade.libelle('rapports.entete.mention_institutionnelle'),
-      );
-    });
+    test(
+      'l’en-tête s’imprime UNE fois, en cinq lignes, sans PAEB (PO 10/11/2026)',
+      () {
+        expect(const EnteteEtablissement().lignesA4, [
+          'TATACORA AFRIQUE Gîte Chez Noël',
+          'Quartier Sountichirantikou, Natitingou, Bénin',
+          'Tél. +229 01 97 35 59 74 - nabogounoel@yahoo.fr',
+          'https://tatacora.com',
+        ]);
+        final tout = const EnteteEtablissement(
+          ifu: '0202011344660',
+          rccm: 'RB/NAT/2020-A-137',
+          promoteur: 'NABOGOU Noel',
+          whatsapp: '0197355974',
+        ).lignesA4.join('\n');
+        expect(
+          tout,
+          contains('IFU : 0202011344660 - RCCM : RB/NAT/2020-A-137'),
+        );
+        for (final interdit in [
+          'PAEB',
+          'FAGUEZ',
+          'Promoteur',
+          'WhatsApp',
+          'Système de gestion',
+        ]) {
+          expect(tout, isNot(contains(interdit)));
+        }
+      },
+    );
 
     // Chaque liste de [Visas] contre le gabarit serveur du même document.
     final correspondances = <String, List<String>>{
@@ -361,7 +422,6 @@ void main() {
         for (final attendu in [
           'Visa Ordonnateur / Caissier :',
           'Visa Direction / Contr',
-          'Projet PAEB',
           '11/09/2026 16:05',
           '1 / 1',
         ]) {

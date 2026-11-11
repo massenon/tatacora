@@ -16,13 +16,14 @@ import 'dialogue_detail_vente.dart';
 /// Ils étaient dans un panneau affiché sous le tableau ; il est retiré de
 /// l'affichage (Phase 2, 08/10/2026) et les refus restent écrits ici.
 ///
-///  - **Le numéro « V-2026-00016 »** : aucune séquence de numéros de vente
-///    n'existe sur ce poste. La colonne N° porte la référence réelle de la
-///    vente, abrégée ; en fabriquer un serait pire que de ne pas en avoir
-///    (deux postes hors ligne attribueraient les mêmes numéros).
-///  - **Le badge « stock ✕ »** : ce poste n'écrit aucun mouvement de stock
-///    (PA-134) ; un badge qui ne s'affiche jamais est indistinguable d'un
-///    écran cassé.
+///  - **Le numéro « V-2026-00016 »** est celui du SERVEUR (séquence continue) :
+///    le poste ne l'invente pas (deux postes hors ligne attribueraient les mêmes
+///    numéros). Depuis la v38 (26/10/2026) il est posé à l'accusé de l'envoi ou à
+///    la descente de la vente, et la colonne N° le montre ; tant qu'il manque,
+///    elle porte la référence réelle de la vente, abrégée.
+///  - Le badge « stock ✕ » EST rendu depuis le 21/10/2026 : il lit le
+///    catalogue d'AUJOURD'HUI (`CatalogueDao.referencesSansLienDeStock`), là où
+///    le serveur l'écrit à la vente (`stock_non_impacte`) — écart nommé.
 ///  - **La recherche par chambre ou par numéro de facture** : un panier de
 ///    séjour porte la réservation, pas l'unité ; c'est le registre des
 ///    factures qui répond à la seconde question.
@@ -66,7 +67,7 @@ class TableauVentes extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     height: 1.5,
                     letterSpacing: 0.5,
-                    color: CouleursTableau.enteteTexte,
+                    color: AppColors.neutre0,
                   ),
                 ),
             ],
@@ -146,7 +147,7 @@ List<Widget> _cellules(BuildContext context, Vente v) {
   final activites = v.activites.map((m) => m.libelle).join(', ');
 
   return [
-    CelluleTableau(v.referenceLocale, monospace: true),
+    CelluleTableau(v.numero ?? v.referenceLocale, monospace: true),
     CelluleTableau(formaterDate(v.date), secondaire: true),
     _Poste(vente: v),
     // Un tiret quand il n'y a rien, jamais une case vide : « — » dit que la
@@ -206,16 +207,31 @@ class _Statut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (vente.estAnnulee) {
-      return const PastilleStatut.refus('annulée');
-    }
-    return switch (vente.encaisse) {
-      true => const PastilleStatut.succes('encaissée'),
-      false => const PastilleStatut.alerte('en note'),
-      // Le quatrième cas, que la vue n'a pas : ni encaissée ni en note. Le
-      // ranger dans l'une des deux affirmerait un état non vérifié.
-      null => const PastilleStatut.alerte('règlement inconnu'),
-    };
+    final principal = vente.estAnnulee
+        ? const PastilleStatut.refus('annulée')
+        : switch (vente.encaisse) {
+            true => const PastilleStatut.succes('encaissée'),
+            false => const PastilleStatut.alerte('en note'),
+            // Le quatrième cas, que la vue n'a pas : ni encaissée ni en note.
+            // Le ranger dans l'une des deux affirmerait un état non vérifié.
+            null => const PastilleStatut.alerte('règlement inconnu'),
+          };
+
+    // `ml-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-red-50
+    // text-red-700` : le badge « stock ✕ » — `badge_stock`, son infobulle
+    // `badge_stock_infobulle`.
+    if (!vente.aDesLignesSansImpactStock) return principal;
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppSpacing.unit,
+      children: [
+        principal,
+        const Tooltip(
+          message: 'Articles sans lien au stock : la vente n’a rien décrémenté',
+          child: PastilleStatut.refus('stock ✕', key: Key('vente-badge-stock')),
+        ),
+      ],
+    );
   }
 }
 

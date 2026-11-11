@@ -1,19 +1,26 @@
 /// Les COMPTES UTILISATEURS du poste — Lot J2, directive du Product Owner du
 /// 14/10/2026 : un administrateur crée les comptes de ses employés, les
-/// désactive ou les réactive, et réinitialise leur mot de passe. Jamais de
-/// suppression (RG-15 : un compte désactivé reste en base, ses saisies gardent
-/// leur auteur).
+/// désactive ou les réactive, et réinitialise leur mot de passe. Depuis le
+/// 03/11/2026, un SUPER ADMINISTRATEUR peut aussi SUPPRIMER un compte non
+/// administrateur — suppression LOGIQUE, jamais un DELETE (RG-15 : la ligne reste,
+/// ses saisies gardent leur auteur, « nom (compte supprimé) »).
 ///
-/// ## Un AJOUT du poste, sans modèle dans la vue
+/// ## Un AJOUT du poste — et, depuis le 29/10/2026, un écran jumeau au web
 ///
-/// La PWA n'a aucun écran de gestion des comptes (relu le 14/10/2026 : ni
-/// composant sous `app/Pwa`, ni vue, ni route `pwa.*` ; les comptes y naissent
-/// par l'opérateur). Les mots ci-dessous sont donc ceux du poste ; ils
-/// reprennent ceux de « Rôles & Permissions » et de « Mon profil » partout où
-/// ces écrans en ont (libellé des rôles, règle des 8 caractères).
+/// La PWA n'avait aucun écran de gestion des comptes (relu le 14/10/2026). Le
+/// 29/10/2026 (option A du PO, mot de passe perdu SANS e-mail) elle reçoit
+/// `pwa/transverse/comptes-utilisateurs.blade.php` : la liste des comptes et
+/// « Réinitialiser le mot de passe ». Les mots de la RÉINITIALISATION sont ceux
+/// de cette vue (`lang/fr/pwa.php`, groupe `comptes`) ; le reste (création,
+/// désactivation) est propre au poste. Les comptes du web et du poste sont
+/// DISTINCTS : seules les SUPPRESSIONS de comptes se synchronisent (par le login),
+/// jamais un mot de passe ni un dérivé.
 library;
 
+import '../../../core/format/adresse_email_facultative.dart';
+import '../../../core/format/auteur_compte.dart';
 import '../../../core/rbac/regle_archivage.dart';
+import '../../auth/domain/mot_de_passe_perdu.dart';
 
 /// Un compte tel que l'écran le liste — JAMAIS le sel ni l'empreinte.
 final class CompteUtilisateur {
@@ -25,6 +32,9 @@ final class CompteUtilisateur {
     required this.actif,
     required this.dateCreation,
     required this.dateMotDePasse,
+    this.email,
+    this.changementObligatoire = false,
+    this.temporaireExpireLe,
   });
 
   final String id;
@@ -39,6 +49,22 @@ final class CompteUtilisateur {
   final DateTime dateCreation;
   final DateTime dateMotDePasse;
 
+  /// L'e-mail FACULTATIF (v45), normalisé ; `null` : non renseigné.
+  final String? email;
+
+  /// Le compte doit définir un nouveau mot de passe (v46, 29/10/2026) : un
+  /// administrateur l'a réinitialisé et le temporaire n'a pas encore été remplacé.
+  final bool changementObligatoire;
+
+  /// L'échéance du mot de passe temporaire (v46) ; `null` : aucun.
+  final DateTime? temporaireExpireLe;
+
+  /// Le temporaire est-il expiré à [maintenant] ? Faux hors changement exigé.
+  bool temporaireExpire(DateTime maintenant) =>
+      changementObligatoire &&
+      temporaireExpireLe != null &&
+      !maintenant.isBefore(temporaireExpireLe!);
+
   /// L'un des deux rôles d'administration (`User::ROLES_ADMINISTRATION`).
   bool get estAdministration =>
       rolesAdministration.contains(roleNormalise(role));
@@ -49,6 +75,19 @@ final class CompteUtilisateur {
 /// (`utilisateurs_local.role`), jamais par leur libellé affiché.
 bool peutAdministrerComptes(String? role) =>
     rolesAdministration.contains(roleNormalise(role));
+
+/// QUI peut SUPPRIMER un compte (décision du PO du 03/11/2026) : le super
+/// administrateur, par son CODE de rôle, et lui seul. Réplique de
+/// `User::peutSupprimerDesComptes()` du serveur (qui exige en plus l'écriture sur
+/// ROLES, que le rôle porte). Auteur unique côté poste : l'écran et le DAO la
+/// demandent ici.
+bool peutSupprimerDesComptes(String? role) => estSuperAdmin(role);
+
+/// QUI peut être supprimé : un compte dont le rôle n'administre pas. Un
+/// administrateur ou un super administrateur se désactive, il ne se supprime pas
+/// (réplique de `User::estSupprimable()`).
+bool compteSupprimable(String? role) =>
+    !rolesAdministration.contains(roleNormalise(role));
 
 /// Les règles de saisie, écrites une fois — l'écran les affiche, le DAO les
 /// rejoue au geste.
@@ -99,14 +138,39 @@ abstract final class MessagesComptes {
       'Ce compte est le dernier administrateur actif du poste : le désactiver '
       "fermerait l'administration à tout le monde.";
 
+  /// SUPPRIMER un compte (03/11/2026) — les phrases de `pwa.comptes.*` du serveur,
+  /// reprises à l'identique (un test relit `lang/fr/pwa.php`).
+  static const String refusSuppressionDroit =
+      'Seul un super administrateur peut supprimer un compte.';
+  static const String refusSuppressionSoiMeme =
+      'Vous ne pouvez pas supprimer votre propre compte.';
+  static const String refusSuppressionAdministrateur =
+      'Un compte administrateur ne se supprime pas : désactivez-le.';
+
+  /// Une fois supprimé, l'auteur d'une saisie s'affiche ainsi (`pwa.comptes.auteur_supprime`).
+  static String auteurSupprime(String login) =>
+      libelleAuteurCompte(login, supprimeLe: DateTime.utc(1970));
+
+  /// L'e-mail facultatif mal formé : la phrase du serveur (`rh_pwa.email_invalide`).
+  static const String emailInvalide = AdresseEmailFacultative.messageInvalide;
+
   static String compteCree(String identifiant) =>
       'Compte « $identifiant » créé.';
   static String compteDesactive(String identifiant) =>
       'Compte « $identifiant » désactivé.';
   static String compteReactive(String identifiant) =>
       'Compte « $identifiant » réactivé.';
+  static String compteSupprime(String identifiant) =>
+      'Le compte « $identifiant » est supprimé.';
   static String motDePasseReinitialise(String identifiant) =>
       'Mot de passe de « $identifiant » réinitialisé.';
+
+  /// Les refus de la réinitialisation par un administrateur (v46, 29/10/2026) —
+  /// les phrases de `pwa.comptes.*`.
+  static const String reinitialiserSoiMeme =
+      MessagesMotDePassePerdu.refusSoiMeme;
+  static const String reinitialiserSuperAdmin =
+      MessagesMotDePassePerdu.refusSuperAdmin;
 }
 
 /// Un refus d'un geste sur les comptes — par CHAMP, pour que la modale

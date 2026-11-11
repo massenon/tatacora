@@ -8,6 +8,7 @@ use App\Domain\Comptabilite\Models\CompteComptable;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Domain\Comptabilite\Models\JournalComptable;
+use App\Domain\Comptabilite\Support\RolesCorrespondance;
 use App\Domain\Numerotation\Services\SequenceDocumentService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -181,7 +182,7 @@ class PasserEcritureService
      *
      * @throws \App\Domain\Comptabilite\Exceptions\EcritureImmuableException piece en brouillon, ou deja contre-passee
      */
-    public function contrepasserPiece(Collection $piece, ?string $motif = null): Collection
+    public function contrepasserPiece(Collection $piece, ?string $motif = null, ?string $date = null): Collection
     {
         if ($piece->isEmpty()) {
             // Une contre-passation qui ne trouve rien a inverser ne doit pas
@@ -190,11 +191,11 @@ class PasserEcritureService
             throw new RuntimeException(__('comptabilite.piece_vide'));
         }
 
-        return DB::transaction(function () use ($piece, $motif): Collection {
+        return DB::transaction(function () use ($piece, $motif, $date): Collection {
             $inverses = new Collection();
 
             foreach ($piece as $ecriture) {
-                $inverses->push($this->ecritures->contrepasser($ecriture, $motif));
+                $inverses->push($this->ecritures->contrepasser($ecriture, $motif, $date));
             }
 
             return $inverses;
@@ -283,6 +284,16 @@ class PasserEcritureService
     private function centre(array $ligne, CompteComptable $compte): string
     {
         $centre = $ligne['centre_id'] ?? $compte->centre_cout_defaut_id;
+
+        // Correspondance des comptes (26/10/2026) : un compte choisi pour un
+        // rôle n'a pas forcément de centre par défaut au plan. La ligne qui
+        // nomme son RÔLE retombe alors sur le centre du compte PAR DÉFAUT de ce
+        // rôle — jamais un centre inventé, et le poste fait de même.
+        if (($centre === null || $centre === '') && isset($ligne['role']) && RolesCorrespondance::existe((string) $ligne['role'])) {
+            $centre = CompteComptable::query()
+                ->where('numero_compte', RolesCorrespondance::defaut((string) $ligne['role']))
+                ->value('centre_cout_defaut_id');
+        }
 
         if ($centre === null || $centre === '') {
             throw new RuntimeException(__('depenses.centre_absent', [

@@ -6,16 +6,19 @@ namespace App\Pwa\Livewire\Transverse;
 
 use App\Domain\Comptabilite\Services\CalculTvaService;
 use App\Domain\Facturation\Providers\MecefServiceProvider;
+use App\Domain\Facturation\Services\TesteurConnexionEmecef;
 use App\Domain\Hebergement\Models\CanalReservation;
 use App\Domain\Hebergement\Services\CanalReservationService;
 use App\Domain\Ventes\Models\TableSalle;
 use App\Domain\Ventes\Services\TableSalleService;
 use App\Models\User;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
+use App\Shared\Backup\Services\ReinitialisationDonneesTestService;
 use App\Shared\Mail\Services\ConfigurationMailService;
 use App\Shared\Parametres\Data\DefinitionParametre;
 use App\Shared\Parametres\Data\RegistreParametres;
 use App\Shared\Parametres\Services\ApparenceEtablissementService;
+use App\Shared\Parametres\Services\AideEchecEmail;
 use App\Shared\Parametres\Services\EnregistrerParametreService;
 use App\Shared\Parametres\Services\OptionsSystemeService;
 use App\Shared\Parametres\Services\ParametreSystemeService;
@@ -140,7 +143,7 @@ use Throwable;
  * @see RG-16 RBAC à 3 niveaux
  * @see DIRECTIVE_CONFORMITE_100.md Articles 4.5, 6, 7, 8
  */
-#[Title('Paramètres — TATACORA AFRIQUE')]
+#[Title('Paramètres — LogiReStock — TATACORA AFRIQUE')]
 class Parametres extends PageTransverse
 {
     use FormulaireModal;
@@ -180,6 +183,8 @@ class Parametres extends PageTransverse
      */
     public const GROUPES_IDENTITE = [
         RegistreParametres::GROUPE_ENTREPRISE,
+        // Facturation normalisée (07/11/2026) : déclaré après l'identité, avant la fiscalité.
+        RegistreParametres::GROUPE_MECEF,
         RegistreParametres::GROUPE_FISCALITE,
         RegistreParametres::GROUPE_SOCIAL,
         RegistreParametres::GROUPE_EXPLOITATION,
@@ -216,6 +221,14 @@ class Parametres extends PageTransverse
     /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
     public $faviconTeleverse = null;
 
+    // ---- Signature et cachet des documents commerciaux (PO, 07/11/2026) --
+
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    public $signatureTeleversee = null;
+
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    public $cachetTeleverse = null;
+
     // ---- Espaces & tables (02/09/2026) ----------------------------------
 
     /** Vide : la modale ouvre en création ; renseigné : en renumérotation. */
@@ -237,7 +250,7 @@ class Parametres extends PageTransverse
      * l'ancienne version répondait « envoyé avec succès » sans rien envoyer
      * (PA-59/60/61 sur le geste dont le seul but est de vérifier).
      *
-     * @var array{succes: bool, detail: string}|null
+     * @var array{succes: bool, detail: string, aide?: string|null}|null
      */
     public ?array $resultatTestEmail = null;
 
@@ -249,6 +262,25 @@ class Parametres extends PageTransverse
     public string $motDePasseSmtp = '';
 
     /**
+     * Le jeton JWT e-MECeF en cours de SAISIE (07/11/2026) : vidé dès
+     * l'enregistrement, jamais rechargé ni rendu — l'écran ne connaît que
+     * l'état du secret (renseigné, quand), jamais sa valeur.
+     */
+    public string $jetonMecef = '';
+
+    /** La phrase retapée pour confirmer « Réinitialiser les données de test » (09/11/2026). */
+    public string $phraseConfirmationReset = '';
+
+    /** La modale de saisie du jeton (aucun champ au premier GET). */
+    public bool $saisieJetonMecef = false;
+
+    /** « Effacer le jeton ? » attend une confirmation — modale du dépôt. */
+    public bool $confirmationEffacerJetonMecef = false;
+
+    /** Résultat RÉEL du dernier « Tester la connexion » (jamais le jeton). @var array{succes: bool, detail: string}|null */
+    public ?array $resultatTestMecef = null;
+
+    /**
      * @return array<string, list<string>>
      */
     protected function formulaires(): array
@@ -258,8 +290,84 @@ class Parametres extends PageTransverse
             'canal' => ['canalCleEditee', 'canalNom'],
             'logo' => ['logoTeleverse'],
             'favicon' => ['faviconTeleverse'],
+            'signature' => ['signatureTeleversee'],
+            'cachet' => ['cachetTeleverse'],
             'table' => ['tableIdEditee', 'tableEspace', 'tableNumero', 'tablePlaces'],
+            'reinitialisation' => ['phraseConfirmationReset'],
         ];
+    }
+
+    /**
+     * « Réinitialiser les données de test » — revenue dans Paramètres, onglet
+     * « Activation & Sécurité » (PO, 09/11/2026 ; elle vivait dans Import &
+     * Export depuis le 14/10/2026). LOGIQUE INCHANGÉE : réservée aux rôles
+     * d'administration, revérifiée à l'ouverture ET à l'exécution ; deux
+     * verrous (environnement jamais en Production sauf phase d'essais, bascule
+     * `reinitialisation_seeders`) ; phrase à retaper ; sauvegarde automatique
+     * AVANT ; journal d'audit ; chaque poste se réinitialise ensuite à son tour.
+     */
+    public function ouvrirReinitialisation(ReinitialisationDonneesTestService $service): void
+    {
+        $this->exigerAdministrationReinitialisation($service);
+        $this->ouvrirFormulaire('reinitialisation');
+    }
+
+    public function reinitialiserDonneesTest(ReinitialisationDonneesTestService $service): void
+    {
+        $this->exigerAdministrationReinitialisation($service);
+
+        $donnees = $this->validerEcriture([
+            'phraseConfirmationReset' => ['required', 'string'],
+        ]);
+
+        $attendue = __('pwa.import_export.seeders_phrase_confirmation');
+
+        // La casse est tolérée (le maître compare en majuscules, l.865) — le
+        // MOT, jamais : une saisie plutôt qu'un simple clic est « la seule
+        // barrière qui résiste à un double-clic distrait ».
+        if (mb_strtoupper(trim((string) $donnees['phraseConfirmationReset'])) !== $attendue) {
+            $this->addError('phraseConfirmationReset', __('pwa.import_export.seeders_phrase_invalide', [
+                'phrase' => $attendue,
+            ]));
+
+            return;
+        }
+
+        try {
+            /** @var \App\Models\User|null $auteur */
+            $auteur = auth()->user();
+            // La session de l'administrateur qui agit est épargnée : il reste
+            // connecté (pilote de session `database` ; sans effet sinon).
+            $resultat = $service->executer($auteur, session()->getId());
+        } catch (RuntimeException $refus) {
+            $this->addError('phraseConfirmationReset', $refus->getMessage());
+
+            return;
+        }
+
+        // Le compte et la session SURVIVENT : les tables préservées portent
+        // l'identité. Rien n'est semé à nouveau : le système est neuf.
+        $this->terminerFormulaire(__('pwa.import_export.seeders_fait', [
+            'nombre' => (string) $resultat['videes'],
+            'lignes' => (string) $resultat['lignes'],
+            'sauvegarde' => $resultat['sauvegarde'],
+        ]));
+    }
+
+    private function exigerAdministrationReinitialisation(ReinitialisationDonneesTestService $service): void
+    {
+        /** @var \App\Models\User|null $utilisateur */
+        $utilisateur = auth()->user();
+
+        if (! $service->estPermisA($utilisateur)) {
+            abort(403, __('pwa.import_export.reset_refuse_role'));
+        }
+    }
+
+    public function fermerReinitialisation(): void
+    {
+        $this->etatFormulaire = null;
+        $this->resetValidation();
     }
 
     /**
@@ -319,6 +427,9 @@ class Parametres extends PageTransverse
     {
         $this->etatFormulaire = null;
         $this->confirmationRetablirTables = false;
+        $this->confirmationEffacerJetonMecef = false;
+        $this->saisieJetonMecef = false;
+        $this->jetonMecef = '';
         $this->resetValidation();
     }
 
@@ -502,9 +613,19 @@ class Parametres extends PageTransverse
                 $courriel->to($adresse)->subject(__('pwa.parametres.email_test_objet'));
             });
         } catch (Throwable $erreur) {
+            // Le message du transport reste affiché TEL QUEL (il est fidèle), débarrassé du mot
+            // de passe s'il l'avait cité ; l'AIDE dessous est une phrase fixe (09/11/2026).
+            $message = $erreur->getMessage();
+            $motDePasse = app(SecretsConfigurationService::class)->lire(SecretsConfigurationService::SMTP_MOT_DE_PASSE);
+
+            if (is_string($motDePasse) && $motDePasse !== '') {
+                $message = str_replace($motDePasse, '***', $message);
+            }
+
             $this->resultatTestEmail = [
                 'succes' => false,
-                'detail' => __('pwa.parametres.email_test_echec', ['erreur' => $erreur->getMessage()]),
+                'detail' => __('pwa.parametres.email_test_echec', ['erreur' => $message]),
+                'aide' => AideEchecEmail::pour($message),
             ];
 
             return;
@@ -551,6 +672,77 @@ class Parametres extends PageTransverse
         session()->flash('pwa-succes', __('pwa.parametres.email_motdepasse_efface'));
     }
 
+    // =====================================================================
+    // Facturation normalisée (MECeF) — le jeton e-MECeF, chiffré, jamais rendu
+    // =====================================================================
+
+    public function ouvrirSaisieJetonMecef(): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        $this->jetonMecef = '';
+        $this->resetErrorBag('jetonMecef');
+        $this->saisieJetonMecef = true;
+    }
+
+    public function enregistrerJetonMecef(SecretsConfigurationService $secrets): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        try {
+            $secrets->enregistrer(SecretsConfigurationService::MECEF_JETON, trim($this->jetonMecef), $this->utilisateur());
+        } catch (RuntimeException $refus) {
+            $this->addError('jetonMecef', $refus->getMessage());
+
+            return;
+        }
+
+        $this->jetonMecef = '';
+        $this->saisieJetonMecef = false;
+        $this->resultatTestMecef = null;
+        $this->resetErrorBag('jetonMecef');
+        session()->flash('pwa-succes', __('pwa.parametres.mecef_jeton_enregistre'));
+    }
+
+    public function demanderEffacementJetonMecef(): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        $this->confirmationEffacerJetonMecef = true;
+    }
+
+    public function effacerJetonMecef(SecretsConfigurationService $secrets): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        $this->confirmationEffacerJetonMecef = false;
+
+        try {
+            $secrets->effacer(SecretsConfigurationService::MECEF_JETON, $this->utilisateur());
+        } catch (RuntimeException $refus) {
+            $this->addError('jetonMecef', $refus->getMessage());
+
+            return;
+        }
+
+        $this->jetonMecef = '';
+        $this->resultatTestMecef = null;
+        session()->flash('pwa-succes', __('pwa.parametres.mecef_jeton_efface'));
+    }
+
+    /** GET /info/status avec le jeton : le résultat est une phrase, jamais le jeton. */
+    public function testerConnexionMecef(TesteurConnexionEmecef $testeur): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        $this->resultatTestMecef = $testeur->tester();
+    }
+
     private function exigerAdministration(): void
     {
         abort_unless($this->utilisateur()->estAdministrateur(), 403);
@@ -593,6 +785,63 @@ class Parametres extends PageTransverse
         $apparence->enregistrerLogo($this->logoTeleverse);
 
         $this->terminerFormulaire(__('pwa.parametres.apparence_logo_enregistre'));
+    }
+
+    public function ouvrirChangementSignature(): void
+    {
+        $this->ouvrirFormulaire('signature');
+    }
+
+    public function ouvrirChangementCachet(): void
+    {
+        $this->ouvrirFormulaire('cachet');
+    }
+
+    /**
+     * Signature : une image, jamais refusée pour son poids — réduite à 400 Ko par la règle des
+     * reçus de dépense. Seul un fichier qui n'est pas une image est refusé (mêmes phrases).
+     */
+    public function enregistrerSignature(ApparenceEtablissementService $apparence): void
+    {
+        $this->validerEcriture(['signatureTeleversee' => ['required', 'file']]);
+        $this->deposerImageDocument('signature', 'signatureTeleversee', $apparence);
+    }
+
+    public function enregistrerCachet(ApparenceEtablissementService $apparence): void
+    {
+        $this->validerEcriture(['cachetTeleverse' => ['required', 'file']]);
+        $this->deposerImageDocument('cachet', 'cachetTeleverse', $apparence);
+    }
+
+    public function retirerSignature(ApparenceEtablissementService $apparence): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->retirerImageDocument('signature', $apparence);
+    }
+
+    public function retirerCachet(ApparenceEtablissementService $apparence): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->retirerImageDocument('cachet', $apparence);
+    }
+
+    private function retirerImageDocument(string $type, ApparenceEtablissementService $apparence): void
+    {
+        $apparence->retirerImageDocument($type);
+        session()->flash('pwa-succes', __('pwa.parametres.apparence_'.$type.'_retire'));
+    }
+
+    private function deposerImageDocument(string $type, string $champ, ApparenceEtablissementService $apparence): void
+    {
+        try {
+            $apparence->enregistrerImageDocument($type, (string) file_get_contents($this->{$champ}->getRealPath()));
+        } catch (\App\Domain\Depenses\Exceptions\RefusRecuDepense $refus) {
+            $this->addError($champ, $refus->getMessage());
+
+            return;
+        }
+
+        $this->terminerFormulaire(__('pwa.parametres.apparence_'.$type.'_enregistre'));
     }
 
     /** « .ico ou .png 32×32px » au maître — 512 Ko suffisent largement. */
@@ -729,11 +978,20 @@ class Parametres extends PageTransverse
         OptionsSystemeService $options,
         ApparenceEtablissementService $apparence,
         SecretsConfigurationService $secrets,
+        ReinitialisationDonneesTestService $reinitialisation,
     ): View {
         $groupes = [];
         $groupesParOnglet = [];
 
         foreach (RegistreParametres::definitions() as $definition) {
+            // La correspondance rôle -> compte (26/10/2026) a son PROPRE écran
+            // (« Correspondance des comptes », hub de la comptabilité) : ses
+            // quinze clés ne se montrent pas ici, où elles noieraient l'onglet
+            // Identité & Légal.
+            if ($definition->groupe === RegistreParametres::GROUPE_COMPTES) {
+                continue;
+            }
+
             $ligne = [
                 'definition' => $definition,
                 // ⚠ ARTICLE 7 — « — » quand la clé n'est PAS renseignée, « 0 »
@@ -779,10 +1037,22 @@ class Parametres extends PageTransverse
             // téléversé s'il existe, l'actif livré sinon (même service).
             'urlLogo' => $apparence->urlLogo(),
             'urlFavicon' => $apparence->urlFavicon(),
+            'apercuSignature' => $apparence->dataUriImageDocument('signature'),
+            'apercuCachet' => $apparence->dataUriImageDocument('cachet'),
             // Email (SMTP) : l'ÉTAT du mot de passe (renseigné, quand, par
             // qui), jamais sa valeur ; la saisie n'est offerte qu'aux deux
             // rôles d'administration.
             'etatMotDePasseSmtp' => $secrets->etat(SecretsConfigurationService::SMTP_MOT_DE_PASSE),
+            // Facturation normalisée : l'ÉTAT du jeton (renseigné, quand, par qui), jamais sa valeur.
+            'etatJetonMecef' => $secrets->etat(SecretsConfigurationService::MECEF_JETON),
+            // Réinitialiser les données de test (09/11/2026) : l'état des verrous, lu à
+            // l'ouverture de l'onglet « Activation & Sécurité » seulement.
+            'reinitialisationAutorisee' => $this->onglet === 'activation' ? $reinitialisation->estAutorisee() : false,
+            'reinitialisationPhaseEssais' => $this->onglet === 'activation' ? $reinitialisation->enPhaseEssais() : false,
+            'reinitialisationOuverte' => $this->onglet === 'activation' ? $reinitialisation->estOuverte() : false,
+            'reinitialisationPermise' => $reinitialisation->estPermisA(auth()->user()),
+            'tablesEffacables' => $this->onglet === 'activation' ? $reinitialisation->tablesEffacables() : [],
+            'tablesPreservees' => $this->onglet === 'activation' ? $reinitialisation->tablesPreservees() : [],
             'peutSaisirSecret' => $this->peutEcrire() && (auth()->user()?->estAdministrateur() ?? false),
         ]))->layout('layouts.pwa', ['title' => __('pwa.parametres.titre_page')]);
     }

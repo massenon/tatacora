@@ -65,6 +65,8 @@ enum IconeModule {
   etats,
   notifications,
   importExport,
+  synchronisation,
+  appairage,
   roles,
   parametres;
 
@@ -119,6 +121,10 @@ enum IconeModule {
       r'<path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
     IconeModule.importExport =>
       r'<path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+    IconeModule.synchronisation =>
+      r'<path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>',
+    IconeModule.appairage =>
+      r'<path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>',
     IconeModule.parametres =>
       r'<circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c.14.31.22.65.22 1V10c.66 0 1 .34 1 1v2c0 .66-.34 1-1 1z"/>',
   };
@@ -395,6 +401,15 @@ const List<GroupeMenu> groupesMenu = [
         page: 'm13-paie.html',
         route: '/paie',
       ),
+      // 21/10/2026 : l'écran existe d'abord à la PWA (« Congés & Plannings »),
+      // le poste le reprend (RG-13, RG-14) et le synchronise.
+      DestinationMenu(
+        nom: 'Congés & Plannings',
+        icone: IconeModule.rh,
+        module: ModuleTatacora.m13Rh,
+        page: 'm13-conges-plannings.html',
+        route: '/conges-plannings',
+      ),
     ],
   ),
   GroupeMenu(
@@ -417,7 +432,7 @@ const List<GroupeMenu> groupesMenu = [
       DestinationMenu(
         nom: 'Import & Export',
         icone: IconeModule.importExport,
-        module: ModuleTatacora.parametres,
+        module: ModuleTatacora.importExport,
         page: 'import-export.html',
         route: '/import-export',
       ),
@@ -428,19 +443,19 @@ const List<GroupeMenu> groupesMenu = [
         page: 'roles-permissions.html',
         route: '/roles-permissions',
       ),
-      // AJOUT DU POSTE (Lot J2, directive du PO du 14/10/2026) — la PWA n'a
-      // AUCUN écran de gestion des comptes (relu : ni composant `app/Pwa`, ni
-      // vue, ni route `pwa.*`) ; sur ce poste sans serveur, c'est le seul
-      // endroit où un administrateur crée un compte. Réservé aux deux rôles
-      // d'administration ([rolesAdministration]), en plus du droit sur ROLES.
-      // L'icône est celle des personnes (`crm`) : aucune clé de
-      // `MenuLateral::ICONES` ne nomme les comptes, et en inventer une
-      // romprait la confrontation des tracés au registre PHP.
+      // « Comptes utilisateurs » : AJOUT DU POSTE au Lot J2 (directive du PO du
+      // 14/10/2026), PORTÉ PAR LA PWA depuis le 29/10/2026 (option A du PO, mot de
+      // passe perdu SANS e-mail : `pwa.comptes-utilisateurs`, juste après « Rôles &
+      // Permissions », module ROLES) — ce n'est plus un ajout. Sur ce poste sans
+      // serveur c'est aussi l'endroit où un administrateur crée, désactive ou
+      // réinitialise un compte. Réservé aux deux rôles d'administration
+      // ([rolesExiges]), en plus du droit sur ROLES. L'icône est celle des
+      // personnes (`crm`), comme la PWA.
       DestinationMenu(
         nom: 'Comptes utilisateurs',
         icone: IconeModule.crm,
         module: ModuleTatacora.roles,
-        page: '(ajout du poste, sans page de la vue)',
+        page: 'comptes-utilisateurs.html',
         // Littéral, comme toutes les entrées (= [routeComptesUtilisateurs]).
         route: '/comptes-utilisateurs',
         rolesExiges: rolesAdministration,
@@ -451,6 +466,30 @@ const List<GroupeMenu> groupesMenu = [
         module: ModuleTatacora.parametres,
         page: 'parametres.html',
         route: '/parametres',
+      ),
+      // 21/10/2026 (demande du PO) : « Postes & Appairage », comme la PWA
+      // (`MenuLateral::NAVIGATION`, entrée « Synchronisation »). La route reste
+      // ouverte à tout compte ; l'entrée suit le droit sur Paramètres. L'écran
+      // de la FILE locale reste atteint par Paramètres → Synchronisation et par
+      // « Voir le détail » du bouton de la barre supérieure.
+      // 09/11/2026 (PO) : « Synchronisation » (l'état : file, envoi, réception,
+      // échecs — au web, la page des journaux), « Import & Export » et
+      // « Appairage Postes » sont au menu de TOUS les rôles par défaut. Trois droits
+      // transverses (`synchro`, `importExport`, `appairage`), `L` pour tous : ils ne
+      // commandent que la VISIBILITÉ ; les gestes sensibles gardent leurs gardes.
+      DestinationMenu(
+        nom: 'Synchronisation',
+        icone: IconeModule.synchronisation,
+        module: ModuleTatacora.synchro,
+        page: 'synchronisation.html',
+        route: '/synchronisation',
+      ),
+      DestinationMenu(
+        nom: 'Appairage Postes',
+        icone: IconeModule.appairage,
+        module: ModuleTatacora.appairage,
+        page: 'synchronisation-postes.html',
+        route: '/synchronisation-postes',
       ),
     ],
   ),
@@ -471,12 +510,16 @@ List<DestinationMenu> get toutesLesDestinations => [
 ///
 /// ## Pourquoi (Phase 1B, 08/10/2026)
 ///
-/// Le Flutter ne filtrait que par module : un `gerant` voyait onze entrées
+/// Le Flutter ne filtrait que par module : un `gerant` voyait onze entrées (douze depuis « Synchronisation », 21/10/2026)
 /// que la vue lui cache. C'est le premier des trois niveaux du RBAC
 /// (masquage d'interface) ; une entrée qui mène à un refus est de plus une
 /// entrée inerte aux yeux de l'utilisateur (Article 3.3). La liste est celle
 /// du serveur, vérifiée par `barre_laterale_blade_test.dart` contre la barre
 /// que la vue rend à chaque rôle : si le serveur change, ce test rougit.
+///
+/// 09/11/2026 (PO) : « Import & Export », « Appairage Postes » et « Synchronisation »
+/// n'y figurent PLUS — visibles de TOUS les rôles par défaut (le gérant les voit),
+/// comme au serveur (`ROUTES_MASQUEES_PAR_ROLE` ne les porte plus).
 const Map<String, Set<String>> nomsMasquesParRole = {
   'gerant': {
     'Tourisme',
@@ -485,7 +528,6 @@ const Map<String, Set<String>> nomsMasquesParRole = {
     'Personnel & Paie',
     'États & Rapports',
     'Notifications',
-    'Import & Export',
     'Rôles & Permissions',
     'Paramètres',
     'Clients & Créances',
@@ -542,7 +584,6 @@ const Set<String> routesOuvertesATousLesComptes = {
   '/mon-profil',
   '/aide-a-propos',
   '/contact-editeur',
-  '/synchronisation-postes',
 };
 
 /// Les routes servies HORS de la barre latérale, et leur module — le
@@ -553,12 +594,6 @@ const Set<String> routesOuvertesATousLesComptes = {
 const Map<String, ModuleTatacora> modulesDesRoutesHorsMenu = {
   // `pwa.journal-audit` : `module:M14,L`.
   '/journal-audit': ModuleTatacora.m14Etats,
-  // L'écran de synchronisation (lot F2b, 15/10/2026) : un AJOUT du poste,
-  // atteint par le lien de Paramètres → Synchronisation — gardé par le
-  // module de l'écran qui y mène (il était gardé par M1 quand la route
-  // servait les réservations « en suspens »). Les gestes qui changent la file
-  // restent réservés aux Administrateurs, à l'écran.
-  '/synchronisation': ModuleTatacora.parametres,
 };
 
 /// Le verdict de la garde du routeur sur un chemin.

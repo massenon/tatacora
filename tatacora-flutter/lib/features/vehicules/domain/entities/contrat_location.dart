@@ -2,31 +2,24 @@
 /// Les contrats de location — onglet « Contrats ».
 library;
 
+/// Le statut d'un contrat ANNULÉ — `ContratLocationService::STATUT_ANNULE`.
+const String statutContratAnnule = 'annule';
+
+/// Le statut d'un contrat en cours — celui que le serveur pose à la création.
+const String statutContratActif = 'actif';
+
 /// Un contrat, tel que `contrats_location_local` le porte.
 ///
-/// ## Ce que la table LOCALE ne porte pas, et qui reste affiché « — »
+/// ## Les dix colonnes de la vue (v41, 27/10/2026)
 ///
-/// La vue pose les colonnes `N°`, `Véhicule`, `Client`, `Période`, `Jours`,
-/// `Montant`, `Acompte`, `Reste dû`, `État`, actions. Confrontées à
-/// `contrats_location_local` (`core/database/tables/vehicules_tables.dart`) :
-///
-/// | Colonne | Source locale |
-/// |---|---|
-/// | N° | **aucune colonne** — le contrat n'a qu'un UUID |
-/// | Véhicule | résolu sur `vehicules_local` (l'immatriculation) |
-/// | Client | résolu sur `clients_local` |
-/// | Période | `dateDebut` / `dateFin` |
-/// | Jours | calculé, bornes demi-ouvertes |
-/// | Montant | **calculé** au tarif COURANT — voir [montant] |
-/// | Acompte | **aucune colonne** |
-/// | Reste dû | **aucune colonne** — il se déduirait de l'acompte |
-/// | État | **aucune colonne de statut** (PA-50) |
-///
-/// ⚠ La vue Blade, elle, rend `$c->numero`, `$c->acompte`, `$c->reste_a_payer`
-/// et `$c->statut === 'annule'` : le schéma **serveur** a gagné ces colonnes,
-/// la table **locale** ne les a pas. C'est un écart de schéma, pas un choix de
-/// portage, et il est consigné tel quel — l'inventer localement produirait des
-/// montants qu'aucune saisie n'a posés.
+/// `N°`, `Véhicule`, `Client`, `Période`, `Jours`, `Montant`, `Acompte`,
+/// `Reste dû`, `État`, actions. Depuis la v41 le contrat porte son [numero]
+/// (`LOC-…`, rendu par le serveur), sa [remise], son [acompte] et son [montant]
+/// NET FIGÉ à la signature (tarif du jour × jours − remise) ; le [resteDu] en est
+/// la différence avec l'acompte, jamais une colonne. Chacun est `null` pour un
+/// contrat d'avant la v41 (ou pas encore envoyé, pour le N°) : la migration n'en
+/// déduit AUCUN, et l'écran rend « — » — jamais le tarif courant, jamais « Soldé »
+/// sur un reste inconnu.
 final class ContratLocation {
   const ContratLocation({
     required this.id,
@@ -35,9 +28,13 @@ final class ContratLocation {
     required this.debut,
     required this.fin,
     required this.nombreJours,
-    required this.montant,
     required this.packageAvecGuide,
+    this.montant,
+    this.numero,
+    this.remise,
+    this.acompte,
     this.clientNom,
+    this.statut,
   });
 
   final String id;
@@ -57,14 +54,52 @@ final class ContratLocation {
 
   final int nombreJours;
 
-  /// Montant décimal en chaîne (« 75000.00 »).
+  /// Le montant NET, FIGÉ à la signature (« 70000.00 »), ou `null`.
   ///
-  /// ⚠ **Il est RECALCULÉ au tarif courant du véhicule, jamais figé.**
-  /// `contrats_location_local` n'a aucune colonne de montant ni de tarif : il
-  /// n'y a rien à figer à la signature. Un changement de grille réécrit donc le
-  /// montant d'un contrat déjà signé — c'est le défaut exact que PA-55 a
-  /// corrigé sur `tarifNuit`, et il ne peut pas l'être ici sans colonne.
-  final String montant;
+  /// Avant la v41 il était RECALCULÉ au tarif courant du véhicule : modifier la
+  /// grille réécrivait un contrat déjà signé. Il est désormais une colonne
+  /// (`contrats_location_local.montant`), écrite une fois par
+  /// `VehiculeDao.creerContrat` (ou reçue du serveur), jamais recalculée. `null` :
+  /// contrat d'avant, non encore rempli par la descente — « — ».
+  final String? montant;
+
+  /// Le N° `LOC-…` du serveur, ou `null` (contrat d'avant, ou pas encore
+  /// envoyé : le poste n'invente aucun numéro).
+  final String? numero;
+
+  /// La remise accordée à la signature (« 5000.00 »), ou `null`. Le serveur ne la
+  /// garde pas : un contrat reçu d'ailleurs n'en a pas.
+  final String? remise;
+
+  /// L'acompte reçu (« 20000.00 »), ou `null` (contrat d'avant).
+  final String? acompte;
+
+  /// Le reste dû : [montant] − [acompte], en chaîne décimale, ou `null` quand l'un
+  /// des deux est inconnu. `contrats_location.reste_a_payer` du serveur vaut
+  /// toujours cette différence (aucun geste ne la modifie).
+  String? get resteDu {
+    final m = montant;
+    final a = acompte;
+    if (m == null || a == null) return null;
+    final montantCentimes = _centimes(m);
+    final acompteCentimes = _centimes(a);
+    if (montantCentimes == null || acompteCentimes == null) return null;
+    final reste = montantCentimes - acompteCentimes;
+    final negatif = reste < 0;
+    final absolu = reste.abs();
+    return '${negatif ? '-' : ''}${absolu ~/ 100}.'
+        '${(absolu % 100).toString().padLeft(2, '0')}';
+  }
+
+  static int? _centimes(String brut) {
+    final point = brut.indexOf('.');
+    final entier = int.tryParse(point < 0 ? brut : brut.substring(0, point));
+    final decimale = point < 0
+        ? 0
+        : int.tryParse(brut.substring(point + 1).padRight(2, '0'));
+    if (entier == null || decimale == null) return null;
+    return entier * 100 + decimale;
+  }
 
   /// EF-M8-04 — package véhicule + guide. `guideId != null`.
   final bool packageAvecGuide;
@@ -72,6 +107,15 @@ final class ContratLocation {
   /// Résolu sur `clients_local`. `null` = ce poste ne connaît pas ce client :
   /// l'écran rend « — », il n'affiche pas l'UUID, qui ne dit rien au comptoir.
   final String? clientNom;
+
+  /// `actif` ou `annule` (`contrats_location.statut`). `null` : un contrat
+  /// d'avant la v38, qui n'a jamais pu être annulé — donc actif.
+  final String? statut;
+
+  /// Annulé : `$c->statut === 'annule'` de la vue. Un contrat annulé reste
+  /// LISIBLE (rien n'est supprimé), ne compte plus dans les chiffres et ne
+  /// bloque plus son véhicule (RG-08).
+  bool get annule => statut == statutContratAnnule;
 
   ContratLocation avecClient(String? nom) => ContratLocation(
     id: id,
@@ -81,8 +125,12 @@ final class ContratLocation {
     fin: fin,
     nombreJours: nombreJours,
     montant: montant,
+    numero: numero,
+    remise: remise,
+    acompte: acompte,
     packageAvecGuide: packageAvecGuide,
     clientNom: nom,
+    statut: statut,
   );
 
   /// Le contrat est-il RETENU sur la fenêtre [d]..[f] ? **Bornes incluses**,
@@ -106,14 +154,13 @@ final class ContratLocation {
 
 /// Ce qu'il faut pour établir un contrat — **et rien d'autre**.
 ///
-/// ## Trois champs de la vue ne sont ni acceptés ni refusés : ils n'existent pas
+/// ## Remise et acompte : portés depuis la v41 (27/10/2026)
 ///
-/// La modale demande « Remise (FCFA) », « Acompte reçu (FCFA) » et
-/// « Téléphone ». Aucun des trois n'a de colonne dans
-/// `contrats_location_local`. Ils ne figurent donc pas ici : un champ qu'on
-/// collecte pour le jeter produit « Contrat établi » sur un contrat au montant
-/// plein, et l'utilisateur serait relancé pour une somme qu'il a versée. Un
-/// refus se voit ; un silence non.
+/// La modale demande « Remise (FCFA) » et « Acompte reçu (FCFA) » comme la vue :
+/// [remiseFrancs] et [acompteFrancs] (zéro par défaut, comme la vue) servent à
+/// figer le montant NET à la signature (`VehiculeDao.creerContrat`). Une remise
+/// supérieure au brut, puis un acompte supérieur au net, sont refusés avec les
+/// phrases du serveur.
 ///
 /// ## « Client » est une clé étrangère, jamais du texte libre
 ///
@@ -127,8 +174,8 @@ final class ContratLocation {
 /// sans eux, le contrat est refusé — mais `contrats_location_local` ne porte
 /// que des chemins de fichier (`cheminPieceIdentiteLocal`), pas des numéros.
 /// Ils ne sont donc pas écrits, et aucune de ces colonnes n'est détournée pour
-/// les y ranger. La vérification protège le comptoir ; la trace manque au
-/// schéma.
+/// les y ranger. Ils partent, eux, dans la charge du serveur. La vérification
+/// protège le comptoir ; la trace manque au schéma local.
 final class SaisieContrat {
   const SaisieContrat({
     required this.vehiculeId,
@@ -138,7 +185,15 @@ final class SaisieContrat {
     required this.pieceIdentite,
     this.permisConduire,
     this.guideId,
+    this.remiseFrancs = 0,
+    this.acompteFrancs = 0,
   });
+
+  /// La remise de la signature, en francs entiers (>= 0).
+  final int remiseFrancs;
+
+  /// L'acompte reçu, en francs entiers (>= 0).
+  final int acompteFrancs;
 
   final String vehiculeId;
   final String clientId;
@@ -163,14 +218,13 @@ final class SaisieContrat {
 /// Les deux motifs d'immobilisation du schéma de référence
 /// (`entretiens_vehicule.type`).
 ///
-/// ## Aucune table locale ne les porte, et ce registre sert quand même
+/// ## Ils s'écrivent dans `entretiens_vehicule_local` (v32, relu le 27/10/2026)
 ///
-/// La vue propose « Entretien » et « Carburation ». `entretiens_vehicule`
-/// **n'a aucune table locale** : ni motif, ni date, ni coût n'ont où
-/// s'écrire. Le registre reste déclaré pour que la modale affiche la liste
-/// **fermée** du schéma plutôt qu'un champ libre — un motif inventé y serait
-/// refusé le jour où la table existera. Ce que l'immobilisation change
-/// réellement sur ce poste est le **statut du véhicule**, et rien d'autre.
+/// La vue propose « Entretien » et « Carburation ». Le texte précédent (« aucune
+/// table locale, ni motif, ni date, ni coût ») était périmé : la table existe
+/// depuis la v32 et `VehiculeDao.enregistrerEntretien` y écrit le type, le jour,
+/// le coût et le chauffeur (liste FERMÉE du schéma, jamais un champ libre).
+/// L'immobilisation ne change PAS le statut du véhicule, comme la PWA.
 enum TypeEntretien {
   entretien('entretien', 'Entretien'),
   carburation('carburation', 'Carburation');
@@ -179,4 +233,32 @@ enum TypeEntretien {
 
   final String code;
   final String libelle;
+}
+
+/// Une immobilisation du parc — un entretien ou une carburation DATÉ (ligne de
+/// `entretiens_vehicule_local`).
+final class EntretienVehicule {
+  const EntretienVehicule({
+    required this.id,
+    required this.vehiculeId,
+    required this.immatriculation,
+    required this.type,
+    required this.date,
+    required this.coutFrancs,
+    this.auteur,
+  });
+
+  final String id;
+  final String vehiculeId;
+
+  /// « — » quand le véhicule n'est pas (encore) détenu ici.
+  final String immatriculation;
+  final TypeEntretien type;
+
+  /// `AAAA-MM-JJ`.
+  final String date;
+  final int coutFrancs;
+
+  /// Le login de qui l'a saisi, ou `null` (ligne descendue du serveur).
+  final String? auteur;
 }

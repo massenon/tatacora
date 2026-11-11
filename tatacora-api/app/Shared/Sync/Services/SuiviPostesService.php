@@ -60,6 +60,12 @@ class SuiviPostesService
         $this->ecrire($posteId, $utilisateur, ['demande_lue_le' => now()]);
     }
 
+    /** Un poste a lancé son contrôle de cohérence (`GET /sync/coherence`). */
+    public function noterControle(string $posteId, User $utilisateur): void
+    {
+        $this->ecrire($posteId, $utilisateur, ['dernier_controle_le' => now()]);
+    }
+
     /** Un poste a téléchargé une page du flux ; il déclare sa file. */
     public function noterDescente(string $posteId, User $utilisateur, ?int $enAttente): void
     {
@@ -112,7 +118,14 @@ class SuiviPostesService
      * usage), révoqué sinon. Un poste appairé qui n'a encore rien envoyé est
      * listé aussi.
      *
-     * @return list<array{poste_id: string, utilisateur: ?string, derniere_montee: ?CarbonImmutable, derniere_descente: ?CarbonImmutable, en_attente: ?int, demande_suivie: bool, appaire: bool, jeton_utilise_le: ?CarbonImmutable}>
+     * « Postes & Appairage » (21/10/2026) y ajoute `appaire_le` (premier jeton),
+     * `expire_le` (le jeton qui dure le plus longtemps ; `null` = sans
+     * expiration), `dernier_controle` et `etat` — `actif` (jeton valide, des
+     * nouvelles depuis moins de `SILENCE_MAX_HEURES`), `silencieux` (valide,
+     * mais plus de nouvelles), `expire` (tous les jetons ont expiré) ou
+     * `non_appaire` (aucun jeton : révoqué, ou jamais appairé).
+     *
+     * @return list<array{poste_id: string, utilisateur: ?string, derniere_montee: ?CarbonImmutable, derniere_descente: ?CarbonImmutable, en_attente: ?int, demande_suivie: bool, appaire: bool, jeton_utilise_le: ?CarbonImmutable, appaire_le: ?CarbonImmutable, expire_le: ?CarbonImmutable, dernier_controle: ?CarbonImmutable, etat: string}>
      */
     public function etats(): array
     {
@@ -125,17 +138,26 @@ class SuiviPostesService
         $etats = EtatPosteSynchronisation::query()->get()->keyBy('poste_id');
         $comptes = DB::table('utilisateurs')->pluck('login', 'id')->all();
         $jetons = $this->jetons()
-            ->select('name', DB::raw('MAX(COALESCE(last_used_at, created_at)) AS utilise_le'))
+            ->select(
+                'name',
+                DB::raw('MAX(COALESCE(last_used_at, created_at)) AS utilise_le'),
+                DB::raw('MIN(created_at) AS appaire_le'),
+                DB::raw('MAX(expires_at) AS expire_le'),
+                DB::raw('SUM(CASE WHEN expires_at IS NULL OR expires_at > ? THEN 1 ELSE 0 END) AS valides'),
+            )
+            ->addBinding(now()->toDateTimeString(), 'select')
             ->groupBy('name')
-            ->pluck('utilise_le', 'name')
-            ->all();
-        $postes = array_values(array_unique([...array_keys($montees), ...$etats->keys()->all(), ...array_keys($jetons)]));
+            ->get()
+            ->keyBy('name');
+        $postes = array_values(array_unique([...array_keys($montees), ...$etats->keys()->all(), ...$jetons->keys()->all()]));
         sort($postes);
         $lignes = [];
 
         foreach ($postes as $poste) {
             $etat = $etats->get($poste);
             $recu = $etat?->derniere_descente_le;
+            $jeton = $jetons->get($poste);
+            $utilise = $jeton !== null ? CarbonImmutable::parse($jeton->utilise_le) : null;
 
             $lignes[] = [
                 'poste_id' => (string) $poste,
@@ -145,11 +167,112 @@ class SuiviPostesService
                 'en_attente' => $etat?->en_attente,
                 'demande_suivie' => $demande === null || ($recu !== null && $recu->greaterThanOrEqualTo($demande)),
                 'appaire' => isset($jetons[$poste]),
-                'jeton_utilise_le' => isset($jetons[$poste]) ? CarbonImmutable::parse($jetons[$poste]) : null,
+                'jeton_utilise_le' => $utilise,
+                'appaire_le' => $jeton?->appaire_le !== null ? CarbonImmutable::parse($jeton->appaire_le) : null,
+                'expire_le' => $jeton?->expire_le !== null ? CarbonImmutable::parse($jeton->expire_le) : null,
+                'dernier_controle' => $etat?->dernier_controle_le?->toImmutable(),
+                'etat' => match (true) {
+                    $jeton === null => 'non_appaire',
+                    (int) $jeton->valides === 0 => 'expire',
+                    $utilise !== null && $utilise->greaterThanOrEqualTo(now()->subHours(self::SILENCE_MAX_HEURES)) => 'actif',
+                    default => 'silencieux',
+                },
             ];
         }
 
         return $lignes;
+    }
+
+    /**
+     * Le voyant de l'icône de synchronisation de la barre supérieure
+     * (03/11/2026, demande du PO) — UNE règle, écrite ici :
+     *
+     *  - `gris` : aucun poste appairé (rien à surveiller) ;
+     *  - `orange` : au moins un poste APPAIRÉ en retard, c'est-à-dire sans
+     *    contact avec le serveur (`jeton_utilise_le`, mis à jour par chaque
+     *    battement de 30 s) depuis plus de `RETARD_MAX_MINUTES`, ou qui n'a
+     *    jamais donné signe de vie ;
+     *  - `vert` : tous les postes appairés ont été vus récemment.
+     *
+     * Un poste révoqué (`non_appaire`) ou expiré ne compte pas : il n'est plus
+     * attendu. `$maintenant` est injectable pour les tests.
+     *
+     * @param  list<array<string, mixed>>|null  $etats  le résultat d'`etats()` (relu si omis)
+     * @return 'gris'|'vert'|'orange'
+     */
+    public function voyant(?array $etats = null, ?CarbonImmutable $maintenant = null): string
+    {
+        $maintenant ??= CarbonImmutable::now();
+        $attendus = array_filter(
+            $etats ?? $this->etats(),
+            static fn (array $poste): bool => $poste['appaire'] && in_array($poste['etat'], ['actif', 'silencieux'], true),
+        );
+
+        if ($attendus === []) {
+            return 'gris';
+        }
+
+        foreach ($attendus as $poste) {
+            if (self::enRetard($poste, $maintenant)) {
+                return 'orange';
+            }
+        }
+
+        return 'vert';
+    }
+
+    /** Un poste attendu est en retard : jamais vu, ou plus de `RETARD_MAX_MINUTES` sans contact. */
+    public static function enRetard(array $poste, ?CarbonImmutable $maintenant = null): bool
+    {
+        $contact = $poste['jeton_utilise_le'] ?? null;
+
+        return $contact === null
+            || $contact->lessThan(($maintenant ?? CarbonImmutable::now())->subMinutes(self::RETARD_MAX_MINUTES));
+    }
+
+    /** Au-delà de ce délai sans battement, l'icône de la barre passe à l'orange. */
+    public const RETARD_MAX_MINUTES = 15;
+
+    /** Au-delà, un poste silencieux n'a plus d'état connu (lot « alerte avant clôture »). */
+    public const SILENCE_MAX_HEURES = 24;
+
+    /**
+     * Les postes APPAIRÉS dont on ne peut pas affirmer qu'ils ont tout envoyé
+     * — l'alerte AVANT de démarrer une clôture (20/10/2026) : une fois N en
+     * clôture, le serveur refuse les pièces datées de N.
+     *
+     *  - `en_attente` : le poste a dit avoir N opérations à envoyer ;
+     *  - `inconnu` : aucun état reçu, ou plus de nouvelles depuis
+     *    `SILENCE_MAX_HEURES` — on ne dit pas « à jour », on dit qu'on ne sait pas.
+     *
+     * @return list<array{poste_id: string, en_attente: int, inconnu: bool, derniere_descente: ?CarbonImmutable}>
+     */
+    public function postesNonAJour(): array
+    {
+        $alertes = [];
+
+        foreach ($this->etats() as $poste) {
+            if (! $poste['appaire']) {
+                continue;
+            }
+
+            $descente = $poste['derniere_descente'];
+            $enAttente = (int) ($poste['en_attente'] ?? 0);
+            $inconnu = $poste['en_attente'] === null
+                || $descente === null
+                || $descente->lessThan(now()->subHours(self::SILENCE_MAX_HEURES));
+
+            if ($enAttente > 0 || $inconnu) {
+                $alertes[] = [
+                    'poste_id' => $poste['poste_id'],
+                    'en_attente' => $enAttente,
+                    'inconnu' => $inconnu,
+                    'derniere_descente' => $descente,
+                ];
+            }
+        }
+
+        return $alertes;
     }
 
     /**

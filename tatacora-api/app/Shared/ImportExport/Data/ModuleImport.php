@@ -17,6 +17,9 @@ final class ModuleImport
      * @param  bool  $doublonExistantBloquant  `true` quand la base porte une
      *                                         contrainte UNIQUE (l'import échouerait) — le doublon avec
      *                                         l'existant devient une erreur, jamais un simple avertissement
+     * @param  bool  $doublonExistantIgnore  `true` pour la CARTE (m4, m5, m6 — 09/11/2026) : une
+     *                                       ligne dont l'identifiant existe déjà est IGNORÉE, jamais ajoutée en doublon,
+     *                                       jamais écrasée — le ré-import d'un même fichier est idempotent (comme sur le poste)
      * @param  list<ColonneImport>  $colonnes
      */
     public function __construct(
@@ -27,6 +30,7 @@ final class ModuleImport
         public readonly string $identifiant,
         public readonly array $colonnes,
         public readonly bool $doublonExistantBloquant = false,
+        public readonly bool $doublonExistantIgnore = false,
     ) {
     }
 

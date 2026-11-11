@@ -1,0 +1,906 @@
+/// Compte de résultat et bilan, calculés sur le poste depuis les écritures
+/// VALIDÉES du serveur (`ecritures_serveur_local`, v34) — 21/10/2026.
+///
+/// Le serveur est le seul comptable (D246) : ce calcul n'écrit rien et ne lit
+/// que le miroir. Il reprend, au centime, `BalanceGeneraleService`,
+/// `CompteResultatService` et `BilanService` (PHP exécuté par
+/// `etats_financiers_contre_serveur_test.dart`), sur le seul filtre
+/// `validee` : le poste ne reçoit pas les brouillons.
+///
+/// Les montants sont des CENTIMES entiers ; le signe est celui de la cascade
+/// du serveur : un produit est positif, une charge négative.
+library;
+
+import '../data/ecritures_serveur_dao.dart';
+import 'entities/comptabilite.dart';
+
+/// Un compte de la balance : ses totaux, jamais son solde (il se déduit).
+final class LigneBalanceEtat {
+  const LigneBalanceEtat({
+    required this.numeroCompte,
+    required this.libelle,
+    required this.classe,
+    required this.debitCentimes,
+    required this.creditCentimes,
+  });
+
+  final String numeroCompte;
+  final String libelle;
+  final String classe;
+  final int debitCentimes;
+  final int creditCentimes;
+}
+
+/// Un compte du plan, pour nommer les comptes de résultat (131 / 139) que les
+/// à-nouveaux provisoires font naître.
+final class CompteDeReport {
+  const CompteDeReport({required this.libelle, required this.classe});
+
+  final String libelle;
+  final String classe;
+}
+
+/// La balance d'un exercice, sans le journal de clôture `CL`.
+final class BalanceEtat {
+  const BalanceEtat({
+    required this.lignes,
+    required this.aNouveauxProvisoiresDe,
+  });
+
+  final List<LigneBalanceEtat> lignes;
+
+  /// L'année dont les soldes ont été reportés PROVISOIREMENT (son exercice
+  /// n'est pas clôturé), sinon `null`.
+  final int? aNouveauxProvisoiresDe;
+}
+
+enum SensRubrique { produit, charge, solde }
+
+/// Une rubrique de la cascade des soldes intermédiaires de gestion.
+final class RubriqueCascade {
+  const RubriqueCascade(
+    this.code,
+    this.libelle,
+    this.sens, {
+    this.prefixes = const [],
+    this.composants = const [],
+  });
+
+  final String code;
+  final String libelle;
+  final SensRubrique sens;
+  final List<String> prefixes;
+  final List<String> composants;
+
+  bool get estSolde => composants.isNotEmpty;
+}
+
+/// `SoldesIntermediairesGestion::CASCADE`, dans l'ordre. Relue du serveur par
+/// un test : une rubrique ajoutée là-bas fait rougir ici.
+const cascadeResultat = <RubriqueCascade>[
+  RubriqueCascade(
+    'TA',
+    'Ventes de marchandises',
+    SensRubrique.produit,
+    prefixes: ['701'],
+  ),
+  RubriqueCascade(
+    'RA',
+    'Achats de marchandises',
+    SensRubrique.charge,
+    prefixes: ['601'],
+  ),
+  RubriqueCascade(
+    'RB',
+    'Variation de stocks de marchandises',
+    SensRubrique.charge,
+    prefixes: ['6031'],
+  ),
+  RubriqueCascade(
+    'XA',
+    'MARGE COMMERCIALE',
+    SensRubrique.solde,
+    composants: ['TA', 'RA', 'RB'],
+  ),
+  RubriqueCascade(
+    'TB',
+    'Ventes de produits fabriqués',
+    SensRubrique.produit,
+    prefixes: ['702'],
+  ),
+  RubriqueCascade(
+    'TC',
+    'Travaux et services vendus',
+    SensRubrique.produit,
+    prefixes: ['705', '706'],
+  ),
+  RubriqueCascade(
+    'TD',
+    'Produits accessoires',
+    SensRubrique.produit,
+    prefixes: ['707'],
+  ),
+  RubriqueCascade(
+    'XB',
+    "CHIFFRE D'AFFAIRES",
+    SensRubrique.solde,
+    composants: ['TA', 'TB', 'TC', 'TD'],
+  ),
+  RubriqueCascade(
+    'TE',
+    'Production stockée (ou déstockage)',
+    SensRubrique.produit,
+    prefixes: ['73'],
+  ),
+  RubriqueCascade(
+    'TF',
+    'Production immobilisée',
+    SensRubrique.produit,
+    prefixes: ['72'],
+  ),
+  RubriqueCascade(
+    'TG',
+    "Subventions d'exploitation",
+    SensRubrique.produit,
+    prefixes: ['71'],
+  ),
+  RubriqueCascade(
+    'TH',
+    'Autres produits',
+    SensRubrique.produit,
+    prefixes: ['75'],
+  ),
+  RubriqueCascade(
+    'TI',
+    "Transferts de charges d'exploitation",
+    SensRubrique.produit,
+    prefixes: ['781'],
+  ),
+  RubriqueCascade(
+    'RC',
+    'Achats de matières premières et fournitures liées',
+    SensRubrique.charge,
+    prefixes: ['602'],
+  ),
+  RubriqueCascade(
+    'RD',
+    'Variation de stocks de matières premières',
+    SensRubrique.charge,
+    prefixes: ['6032'],
+  ),
+  RubriqueCascade(
+    'RE',
+    'Autres achats',
+    SensRubrique.charge,
+    prefixes: ['604', '605', '608'],
+  ),
+  RubriqueCascade(
+    'RF',
+    "Variation de stocks d'autres approvisionnements",
+    SensRubrique.charge,
+    prefixes: ['6033'],
+  ),
+  RubriqueCascade('RG', 'Transports', SensRubrique.charge, prefixes: ['61']),
+  RubriqueCascade(
+    'RH',
+    'Services extérieurs',
+    SensRubrique.charge,
+    prefixes: ['62', '63'],
+  ),
+  RubriqueCascade(
+    'RI',
+    'Impôts et taxes',
+    SensRubrique.charge,
+    prefixes: ['64'],
+  ),
+  RubriqueCascade(
+    'RJ',
+    'Autres charges',
+    SensRubrique.charge,
+    prefixes: ['65'],
+  ),
+  RubriqueCascade(
+    'XC',
+    'VALEUR AJOUTÉE',
+    SensRubrique.solde,
+    composants: [
+      'XB', 'TE', 'TF', 'TG', 'TH', 'TI', //
+      'RA', 'RB', 'RC', 'RD', 'RE', 'RF', 'RG', 'RH', 'RI', 'RJ',
+    ],
+  ),
+  RubriqueCascade(
+    'RK',
+    'Charges de personnel',
+    SensRubrique.charge,
+    prefixes: ['66'],
+  ),
+  RubriqueCascade(
+    'XD',
+    "EXCÉDENT BRUT D'EXPLOITATION",
+    SensRubrique.solde,
+    composants: ['XC', 'RK'],
+  ),
+  RubriqueCascade(
+    'TJ',
+    "Reprises d'amortissements, provisions et dépréciations",
+    SensRubrique.produit,
+    // 799 : quote-part des subventions d'investissement virée au résultat.
+    prefixes: ['791', '798', '799'],
+  ),
+  RubriqueCascade(
+    'RL',
+    'Dotations aux amortissements, provisions et dépréciations',
+    SensRubrique.charge,
+    prefixes: ['681', '691'],
+  ),
+  RubriqueCascade(
+    'XE',
+    "RÉSULTAT D'EXPLOITATION",
+    SensRubrique.solde,
+    composants: ['XD', 'TJ', 'RL'],
+  ),
+  RubriqueCascade(
+    'TK',
+    'Revenus financiers et assimilés',
+    SensRubrique.produit,
+    prefixes: ['77'],
+  ),
+  RubriqueCascade(
+    'TM',
+    'Transferts de charges financières',
+    SensRubrique.produit,
+    prefixes: ['787'],
+  ),
+  RubriqueCascade(
+    'RM',
+    'Frais financiers et charges assimilées',
+    SensRubrique.charge,
+    prefixes: ['67'],
+  ),
+  // 797 et 687 étaient hors cascade : le TAFIRE les lit (10/11/2026).
+  RubriqueCascade(
+    'TL',
+    'Reprises de provisions et dépréciations financières',
+    SensRubrique.produit,
+    prefixes: ['797'],
+  ),
+  RubriqueCascade(
+    'RN',
+    'Dotations aux provisions et dépréciations financières',
+    SensRubrique.charge,
+    prefixes: ['687', '697'],
+  ),
+  RubriqueCascade(
+    'XF',
+    'RÉSULTAT FINANCIER',
+    SensRubrique.solde,
+    composants: ['TK', 'TL', 'TM', 'RM', 'RN'],
+  ),
+  RubriqueCascade(
+    'XG',
+    'RÉSULTAT DES ACTIVITÉS ORDINAIRES',
+    SensRubrique.solde,
+    composants: ['XE', 'XF'],
+  ),
+  RubriqueCascade(
+    'TN',
+    "Produits des cessions d'immobilisations",
+    SensRubrique.produit,
+    prefixes: ['82'],
+  ),
+  RubriqueCascade(
+    'TO',
+    'Autres produits HAO',
+    SensRubrique.produit,
+    prefixes: ['84', '86', '88'],
+  ),
+  RubriqueCascade(
+    'RO',
+    "Valeurs comptables des cessions d'immobilisations",
+    SensRubrique.charge,
+    prefixes: ['81'],
+  ),
+  RubriqueCascade(
+    'RP',
+    'Autres charges HAO',
+    SensRubrique.charge,
+    prefixes: ['83', '85'],
+  ),
+  RubriqueCascade(
+    'XH',
+    'RÉSULTAT HORS ACTIVITÉS ORDINAIRES',
+    SensRubrique.solde,
+    composants: ['TN', 'TO', 'RO', 'RP'],
+  ),
+  RubriqueCascade(
+    'RQ',
+    'Participation des travailleurs',
+    SensRubrique.charge,
+    prefixes: ['87'],
+  ),
+  RubriqueCascade(
+    'RS',
+    'Impôts sur le résultat',
+    SensRubrique.charge,
+    prefixes: ['89'],
+  ),
+  RubriqueCascade(
+    'XI',
+    'RÉSULTAT NET',
+    SensRubrique.solde,
+    composants: ['XG', 'XH', 'RQ', 'RS'],
+  ),
+];
+
+/// `RubriquesSyscohada` : les préfixes du bilan. Relus du serveur par un test.
+abstract final class RubriquesBilan {
+  static const immobilisationsBrutes = ['231', '234', '244', '245'];
+  static const amortissements = ['28'];
+  static const stocks = ['31', '32'];
+  // Clients, plus les créances sur l'État au titre de la TVA : `445` (TVA
+  // récupérable) et `4449` (crédit de TVA à reporter). Même règle que le serveur
+  // (09/11/2026) : sans elles, une TVA déductible tombait « hors nomenclature ».
+  static const creances = ['411', '4449', '445'];
+  static const tresorerieActif = ['521', '522', '55', '571', '572', '573'];
+  // Capital (groupe 10, écrit compte par compte : le plan n'a pas de compte
+  // `10`) dont le COMPTE DE L'EXPLOITANT (104) d'une entreprise individuelle :
+  // un compte de capitaux propres, jamais une dette (avis du 10/11/2026).
+  static const capital = ['101', '102', '103', '104', '105', '106', '109'];
+  // Subventions d'investissement (14) et provisions réglementées (15) :
+  // capitaux propres.
+  static const subventionsInvestissement = ['14'];
+  static const provisionsReglementees = ['15'];
+  // Emprunts (16) et location-acquisition (17), dettes liées à des participations
+  // (18), PROVISIONS pour risques et charges (19, une provision financière, pas un
+  // emprunt) : le poste « Dettes financières et ressources assimilées ».
+  static const dettesFinancieres = ['16', '17'];
+  static const dettesParticipations = ['18'];
+  static const provisionsFinancieres = ['19'];
+  // Réserves (groupe 11) et report à nouveau (groupe 12) : capitaux propres,
+  // nets (un 129 débiteur diminue). Sans eux, l'AFFECTATION DU RÉSULTAT
+  // (09/11/2026) créditait un compte hors nomenclature et le bilan de
+  // l'exercice qui la porte se disait déséquilibré du montant affecté.
+  static const reserves = ['11'];
+  static const reportANouveau = ['12'];
+  // Tout le groupe 13 (`RESULTAT_REPORTE`) : la correspondance des comptes
+  // (26/10/2026) peut rattacher le résultat à un autre compte de la classe 13.
+  static const resultatReporte = ['13'];
+  // `443` (TVA facturée : 4431, 4432…) et `4441` (État, TVA due) sont des dettes
+  // envers l'État : sans `443`, une vente avec TVA laissait le bilan déséquilibré
+  // de la TVA collectée (09/11/2026, même règle que le serveur).
+  static const dettesCirculantes = [
+    '401',
+    '4191',
+    '421',
+    '422',
+    '431',
+    '443',
+    '4441',
+    '447',
+  ];
+  // `465` : dividendes à payer aux associés, dette créditée par l'affectation
+  // d'un bénéfice. Au BILAN c'est une dette du passif circulant (« autres
+  // dettes », « dont dividendes à payer »). À PART des dettes circulantes (comme
+  // le serveur) : le TAFIRE lit la variation de `dettesCirculantes` et traite les
+  // dividendes comme un mouvement des capitaux propres.
+  static const dettesAssocies = ['465'];
+  static const tresoreriePassif = ['561', '564', '565', '566'];
+
+  static List<String> get tous => [
+    ...immobilisationsBrutes,
+    ...amortissements,
+    ...stocks,
+    ...creances,
+    ...tresorerieActif,
+    ...capital,
+    ...subventionsInvestissement,
+    ...provisionsReglementees,
+    ...reserves,
+    ...reportANouveau,
+    ...resultatReporte,
+    ...dettesFinancieres,
+    ...dettesParticipations,
+    ...provisionsFinancieres,
+    ...dettesCirculantes,
+    ...dettesAssocies,
+    ...tresoreriePassif,
+  ];
+}
+
+/// Le code de l'impôt, du résultat avant impôt et du résultat net.
+const codeImpot = 'RS';
+const codeResultatNet = 'XI';
+
+bool _releveDe(String numeroCompte, List<String> prefixes) =>
+    prefixes.any(numeroCompte.startsWith);
+
+/// Une ligne du compte de résultat.
+final class LigneResultatEtat {
+  const LigneResultatEtat({
+    required this.rubrique,
+    required this.montantCentimes,
+  });
+
+  final RubriqueCascade rubrique;
+
+  /// Signé : positif pour un produit, négatif pour une charge.
+  final int montantCentimes;
+}
+
+final class CompteResultatEtat {
+  const CompteResultatEtat({
+    required this.lignes,
+    required this.resultatAvantImpotCentimes,
+    required this.impotCentimes,
+    required this.resultatNetCentimes,
+    required this.aNouveauxProvisoiresDe,
+  });
+
+  final List<LigneResultatEtat> lignes;
+  final int resultatAvantImpotCentimes;
+  final int impotCentimes;
+  final int resultatNetCentimes;
+  final int? aNouveauxProvisoiresDe;
+
+  /// Aucun impôt en classe 89 : le « résultat net » est AVANT impôt.
+  bool get impotNonComptabilise => impotCentimes == 0;
+
+  int? montant(String code) {
+    for (final l in lignes) {
+      if (l.rubrique.code == code) return l.montantCentimes;
+    }
+    return null;
+  }
+}
+
+enum SectionBilan { actif, passif }
+
+final class PosteBilanEtat {
+  const PosteBilanEtat({
+    required this.section,
+    required this.code,
+    required this.libelle,
+    required this.brutCentimes,
+    required this.amortissementCentimes,
+    required this.prefixes,
+  });
+
+  final SectionBilan section;
+  final String code;
+  final String libelle;
+  final int brutCentimes;
+  final int amortissementCentimes;
+  final List<String> prefixes;
+
+  int get netCentimes => brutCentimes - amortissementCentimes;
+}
+
+final class CompteHorsRubrique {
+  const CompteHorsRubrique({
+    required this.numeroCompte,
+    required this.libelle,
+    required this.soldeCentimes,
+  });
+
+  final String numeroCompte;
+  final String libelle;
+  final int soldeCentimes;
+}
+
+final class BilanEtat {
+  const BilanEtat({
+    required this.actif,
+    required this.passif,
+    required this.comptesHorsRubrique,
+    required this.resultatExerciceCentimes,
+    required this.resultatReporteCentimes,
+    required this.dividendesAPayerCentimes,
+    required this.impotNonComptabilise,
+    required this.aNouveauxProvisoiresDe,
+  });
+
+  final List<PosteBilanEtat> actif;
+  final List<PosteBilanEtat> passif;
+  final List<CompteHorsRubrique> comptesHorsRubrique;
+
+  /// Le résultat de CET exercice : produits − charges des classes 6 à 8, rien
+  /// d'autre (`Bilan::resultatExercice`). Jamais les à-nouveaux.
+  final int resultatExerciceCentimes;
+
+  /// Le 131/139 de la balance : résultat de l'exercice PRÉCÉDENT déjà reporté
+  /// (journal AN ou à-nouveaux provisoires). Il entre dans les capitaux propres
+  /// et ne se recompte pas dans le résultat de l'exercice (`Bilan::resultatReporte`).
+  final int resultatReporteCentimes;
+
+  /// Le « dont dividendes à payer » (465) du passif circulant : DÉJÀ compris dans
+  /// le poste `passif_circulant`, jamais additionné (`Bilan::dividendesAPayer`).
+  final int dividendesAPayerCentimes;
+  final bool impotNonComptabilise;
+  final int? aNouveauxProvisoiresDe;
+
+  int get totalActifBrutCentimes => _somme(actif, (p) => p.brutCentimes);
+  int get totalActifAmortissementCentimes =>
+      _somme(actif, (p) => p.amortissementCentimes);
+  int get totalActifCentimes => _somme(actif, (p) => p.netCentimes);
+  int get totalPassifCentimes => _somme(passif, (p) => p.netCentimes);
+  int get ecartCentimes => totalActifCentimes - totalPassifCentimes;
+  bool get equilibre => ecartCentimes == 0;
+
+  static int _somme(
+    List<PosteBilanEtat> postes,
+    int Function(PosteBilanEtat) champ,
+  ) => postes.fold(0, (t, p) => t + champ(p));
+}
+
+/// Les écritures validées reçues, par année d'exercice, et le statut de
+/// chaque exercice connu du poste.
+final class DonneesEtats {
+  const DonneesEtats({
+    required this.ecrituresParAnnee,
+    required this.statutParAnnee,
+    required this.plan,
+    this.anneesAvecClotureActive = const {},
+  });
+
+  /// Les années dont la clôture est ENREGISTRÉE sur ce poste et non rouverte
+  /// (`clotures_exercices_local`, v40) : c'est ce qui rend l'ouverture de
+  /// l'exercice suivant « connue » même quand la clôture n'a écrit aucune pièce
+  /// d'à-nouveaux (`BalanceGeneraleService::soldesOuverture`, `$connu`).
+  final Set<int> anneesAvecClotureActive;
+
+  final Map<int, List<EcritureServeur>> ecrituresParAnnee;
+
+  /// Un exercice absent de cette table n'existe pas : pas de N-1 pour lui, pas
+  /// de report provisoire.
+  final Map<int, StatutExercice> statutParAnnee;
+
+  /// Pour nommer 131 / 139 quand un report provisoire en a besoin.
+  final Map<String, CompteDeReport> plan;
+
+  bool existe(int annee) => statutParAnnee.containsKey(annee);
+}
+
+/// `BalanceGeneraleService` sur le filtre `validee`.
+BalanceEtat balanceDe(int annee, DonneesEtats d) {
+  final comptes =
+      <String, ({String libelle, String classe, int debit, int credit})>{};
+  for (final e in d.ecrituresParAnnee[annee] ?? const <EcritureServeur>[]) {
+    // Le journal de clôture se lit APRÈS clôture, jamais dans la balance
+    // courante : il ramène les comptes de gestion à zéro.
+    if (e.codeJournal == 'CL') continue;
+    final c = comptes[e.numeroCompte];
+    comptes[e.numeroCompte] = (
+      libelle: c?.libelle ?? e.libelleCompte,
+      classe: c?.classe ?? e.classe,
+      debit: (c?.debit ?? 0) + e.debitCentimes,
+      credit: (c?.credit ?? 0) + e.creditCentimes,
+    );
+  }
+
+  int? provisoireDe;
+  final precedent = annee - 1;
+  if (d.existe(precedent) &&
+      d.statutParAnnee[precedent] != StatutExercice.cloture) {
+    provisoireDe = precedent;
+    var resultat = 0;
+    final ajouts = <(String, String, String, int)>[];
+    for (final l in balanceDe(precedent, d).lignes) {
+      final net = l.debitCentimes - l.creditCentimes;
+      if (const ['6', '7', '8'].contains(l.classe)) {
+        resultat -= net;
+        continue;
+      }
+      ajouts.add((l.numeroCompte, l.libelle, l.classe, net));
+    }
+    if (resultat != 0) {
+      final numero = resultat > 0 ? '131' : '139';
+      final compte = d.plan[numero];
+      if (compte != null) {
+        ajouts.add((numero, compte.libelle, compte.classe, -resultat));
+      }
+    }
+    for (final (numero, libelle, classe, net) in ajouts) {
+      if (net == 0) continue;
+      final c = comptes[numero];
+      comptes[numero] = (
+        libelle: c?.libelle ?? libelle,
+        classe: c?.classe ?? classe,
+        debit: (c?.debit ?? 0) + (net > 0 ? net : 0),
+        credit: (c?.credit ?? 0) + (net < 0 ? -net : 0),
+      );
+    }
+  }
+
+  final numeros = comptes.keys.toList()..sort();
+  return BalanceEtat(
+    lignes: [
+      for (final n in numeros)
+        LigneBalanceEtat(
+          numeroCompte: n,
+          libelle: comptes[n]!.libelle,
+          classe: comptes[n]!.classe,
+          debitCentimes: comptes[n]!.debit,
+          creditCentimes: comptes[n]!.credit,
+        ),
+    ],
+    aNouveauxProvisoiresDe: provisoireDe,
+  );
+}
+
+int _sommeCreditrice(List<LigneBalanceEtat> lignes, List<String> prefixes) {
+  var total = 0;
+  for (final l in lignes) {
+    if (_releveDe(l.numeroCompte, prefixes)) {
+      total += l.creditCentimes - l.debitCentimes;
+    }
+  }
+  return total;
+}
+
+int _sommeDebitrice(List<LigneBalanceEtat> lignes, List<String> prefixes) =>
+    -_sommeCreditrice(lignes, prefixes);
+
+/// `CompteResultatService` : la cascade, sans taux d'impôt (PA-19).
+CompteResultatEtat compteResultatDe(int annee, DonneesEtats d) {
+  final balance = balanceDe(annee, d);
+  final valeurs = <String, int>{};
+  final lignes = <LigneResultatEtat>[];
+  for (final r in cascadeResultat) {
+    final montant = r.estSolde
+        ? r.composants.fold<int>(0, (t, c) {
+            final v = valeurs[c];
+            if (v == null) {
+              throw StateError(
+                'Cascade SIG mal ordonnée : ${r.code} cite $c, pas encore évalué.',
+              );
+            }
+            return t + v;
+          })
+        : _sommeCreditrice(balance.lignes, r.prefixes);
+    valeurs[r.code] = montant;
+    lignes.add(LigneResultatEtat(rubrique: r, montantCentimes: montant));
+  }
+  final impot = valeurs[codeImpot]!;
+  return CompteResultatEtat(
+    lignes: lignes,
+    resultatAvantImpotCentimes: valeurs['XG']! + valeurs['XH']!,
+    impotCentimes: impot,
+    resultatNetCentimes: valeurs[codeResultatNet]!,
+    aNouveauxProvisoiresDe: balance.aNouveauxProvisoiresDe,
+  );
+}
+
+/// `BilanService` : trois postes d'actif, quatre de passif, par préfixe.
+BilanEtat bilanDe(int annee, DonneesEtats d) {
+  final balance = balanceDe(annee, d);
+  final resultat = compteResultatDe(annee, d);
+  final lignes = balance.lignes;
+
+  PosteBilanEtat sans(
+    SectionBilan section,
+    String code,
+    String libelle,
+    int montant,
+    List<String> prefixes,
+  ) => PosteBilanEtat(
+    section: section,
+    code: code,
+    libelle: libelle,
+    brutCentimes: montant,
+    amortissementCentimes: 0,
+    prefixes: prefixes,
+  );
+
+  final prefixesCirculant = [
+    ...RubriquesBilan.stocks,
+    ...RubriquesBilan.creances,
+  ];
+  final actif = [
+    PosteBilanEtat(
+      section: SectionBilan.actif,
+      code: 'actif_immobilise',
+      libelle: 'Actif immobilisé',
+      brutCentimes: _sommeDebitrice(
+        lignes,
+        RubriquesBilan.immobilisationsBrutes,
+      ),
+      amortissementCentimes: _sommeCreditrice(
+        lignes,
+        RubriquesBilan.amortissements,
+      ),
+      prefixes: [
+        ...RubriquesBilan.immobilisationsBrutes,
+        ...RubriquesBilan.amortissements,
+      ],
+    ),
+    sans(
+      SectionBilan.actif,
+      'actif_circulant',
+      'Actif circulant',
+      _sommeDebitrice(lignes, prefixesCirculant),
+      prefixesCirculant,
+    ),
+    sans(
+      SectionBilan.actif,
+      'tresorerie_actif',
+      'Trésorerie-Actif',
+      _sommeDebitrice(lignes, RubriquesBilan.tresorerieActif),
+      RubriquesBilan.tresorerieActif,
+    ),
+  ];
+
+  final capital = _sommeCreditrice(lignes, RubriquesBilan.capital);
+  final reporte = _sommeCreditrice(lignes, RubriquesBilan.resultatReporte);
+  final reserves = _sommeCreditrice(lignes, RubriquesBilan.reserves);
+  final reportANouveau = _sommeCreditrice(
+    lignes,
+    RubriquesBilan.reportANouveau,
+  );
+  final subventions = _sommeCreditrice(
+    lignes,
+    RubriquesBilan.subventionsInvestissement,
+  );
+  final provisionsReglementees = _sommeCreditrice(
+    lignes,
+    RubriquesBilan.provisionsReglementees,
+  );
+  final prefixesDettesFinancieres = [
+    ...RubriquesBilan.dettesFinancieres,
+    ...RubriquesBilan.dettesParticipations,
+    ...RubriquesBilan.provisionsFinancieres,
+  ];
+  final dividendesAPayer = _sommeCreditrice(
+    lignes,
+    RubriquesBilan.dettesAssocies,
+  );
+  final prefixesPassifCirculant = [
+    ...RubriquesBilan.dettesCirculantes,
+    ...RubriquesBilan.dettesAssocies,
+  ];
+  final passif = [
+    sans(
+      SectionBilan.passif,
+      'capitaux_propres',
+      'Capitaux propres',
+      capital +
+          subventions +
+          provisionsReglementees +
+          reserves +
+          reportANouveau +
+          reporte +
+          resultat.resultatNetCentimes,
+      [
+        ...RubriquesBilan.capital,
+        ...RubriquesBilan.subventionsInvestissement,
+        ...RubriquesBilan.provisionsReglementees,
+        ...RubriquesBilan.reserves,
+        ...RubriquesBilan.reportANouveau,
+        ...RubriquesBilan.resultatReporte,
+      ],
+    ),
+    sans(
+      SectionBilan.passif,
+      'dettes_financieres',
+      'Dettes financières et ressources assimilées',
+      _sommeCreditrice(lignes, prefixesDettesFinancieres),
+      prefixesDettesFinancieres,
+    ),
+    sans(
+      SectionBilan.passif,
+      'passif_circulant',
+      'Passif circulant',
+      _sommeCreditrice(lignes, prefixesPassifCirculant),
+      prefixesPassifCirculant,
+    ),
+    sans(
+      SectionBilan.passif,
+      'tresorerie_passif',
+      'Trésorerie-Passif',
+      _sommeCreditrice(lignes, RubriquesBilan.tresoreriePassif),
+      RubriquesBilan.tresoreriePassif,
+    ),
+  ];
+
+  final connus = [
+    ...RubriquesBilan.tous,
+    for (final r in cascadeResultat) ...r.prefixes,
+  ];
+  return BilanEtat(
+    actif: actif,
+    passif: passif,
+    comptesHorsRubrique: [
+      for (final l in lignes)
+        if (!_releveDe(l.numeroCompte, connus))
+          CompteHorsRubrique(
+            numeroCompte: l.numeroCompte,
+            libelle: l.libelle,
+            soldeCentimes: l.debitCentimes - l.creditCentimes,
+          ),
+    ],
+    resultatExerciceCentimes: resultat.resultatNetCentimes,
+    resultatReporteCentimes: reporte,
+    dividendesAPayerCentimes: dividendesAPayer,
+    impotNonComptabilise: resultat.impotNonComptabilise,
+    aNouveauxProvisoiresDe: balance.aNouveauxProvisoiresDe,
+  );
+}
+
+/// `IndicateursComptablesService` : `equilibre = balance->equilibree &&
+/// bilan->equilibre` — la balance générale tient SES DEUX égalités (totaux des
+/// mouvements, totaux des soldes) ET le bilan s'équilibre. C'est ce qui allume,
+/// à la vue du hub, l'encadré rouge « Comptabilité déséquilibrée. ».
+///
+/// Calculé ici sur les écritures VALIDÉES reçues du serveur, comme le compte de
+/// résultat et le bilan du poste (le filtre de statut de l'écran ne s'y
+/// applique pas).
+bool comptabiliteEquilibree(int annee, DonneesEtats d) {
+  var debit = 0;
+  var credit = 0;
+  var soldesDebiteurs = 0;
+  var soldesCrediteurs = 0;
+  for (final l in balanceDe(annee, d).lignes) {
+    debit += l.debitCentimes;
+    credit += l.creditCentimes;
+    final net = l.debitCentimes - l.creditCentimes;
+    if (net > 0) soldesDebiteurs += net;
+    if (net < 0) soldesCrediteurs -= net;
+  }
+  return debit == credit &&
+      soldesDebiteurs == soldesCrediteurs &&
+      bilanDe(annee, d).equilibre;
+}
+
+/// Les six indicateurs du bandeau du hub — `IndicateursComptablesService`,
+/// qui n'est qu'un ASSEMBLEUR : tous sont lus du compte de résultat, du bilan
+/// et de la balance, jamais recalculés à part (PA-121).
+final class IndicateursEtat {
+  const IndicateursEtat({
+    required this.chiffreAffairesCentimes,
+    required this.valeurAjouteeCentimes,
+    required this.excedentBrutCentimes,
+    required this.resultatNetCentimes,
+    required this.tresorerieCentimes,
+    required this.totalBilanCentimes,
+    required this.equilibre,
+    required this.impotNonComptabilise,
+  });
+
+  final int chiffreAffairesCentimes;
+  final int valeurAjouteeCentimes;
+  final int excedentBrutCentimes;
+  final int resultatNetCentimes;
+
+  /// La trésorerie NETTE : un découvert ouvert un jour la diminue.
+  final int tresorerieCentimes;
+  final int totalBilanCentimes;
+  final bool equilibre;
+  final bool impotNonComptabilise;
+}
+
+IndicateursEtat indicateursDe(int annee, DonneesEtats d) {
+  final resultat = compteResultatDe(annee, d);
+  final bilan = bilanDe(annee, d);
+  var tresorerie = 0;
+  for (final l in balanceDe(annee, d).lignes) {
+    final net = l.debitCentimes - l.creditCentimes;
+    // Actif : débit - crédit ; passif (découvert) : moins (crédit - débit) —
+    // le même solde signé dans les deux cas.
+    if (_releveDe(l.numeroCompte, RubriquesBilan.tresorerieActif) ||
+        _releveDe(l.numeroCompte, RubriquesBilan.tresoreriePassif)) {
+      tresorerie += net;
+    }
+  }
+  int montant(String code) =>
+      resultat.montant(code) ??
+      (throw StateError('Code de solde inconnu dans la cascade SIG : $code.'));
+  return IndicateursEtat(
+    chiffreAffairesCentimes: montant('XB'),
+    valeurAjouteeCentimes: montant('XC'),
+    excedentBrutCentimes: montant('XD'),
+    resultatNetCentimes: resultat.resultatNetCentimes,
+    tresorerieCentimes: tresorerie,
+    totalBilanCentimes: bilan.totalActifCentimes,
+    equilibre: comptabiliteEquilibree(annee, d),
+    impotNonComptabilise: resultat.impotNonComptabilise,
+  );
+}

@@ -38,6 +38,8 @@ final class ExtraireBarreLateraleTest extends TestCase
         'M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7',
         'M8', 'M9', 'M10', 'M11', 'M12', 'M13', 'M14',
         'ROLES', 'PARAM',
+        // Les trois droits ouverts à tous (09/11/2026) : la barre en dépend (entrées de menu).
+        'SYNCHRO', 'APPAIRAGE', 'IMPORT_EXPORT',
     ];
 
     protected function setUp(): void
@@ -111,7 +113,7 @@ final class ExtraireBarreLateraleTest extends TestCase
             rtrim($sortie, '/\\').'/barre-laterale.json',
             json_encode([
                 '_lisez-moi' => 'PRODUIT par ExtraireBarreLateraleTest, jamais ecrit a la main. '
-                    .'Par role : droits (16 modules) et barre laterale rendue. `actif` : pour chaque '
+                    .'Par role : droits (16 modules + 3 droits transverses) et barre laterale rendue. `actif` : pour chaque '
                     .'entree visitee par l\'administrateur, les entrees allumees.',
                 'roles' => $resultat,
                 'actif' => $actif,

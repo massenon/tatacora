@@ -6,7 +6,7 @@ namespace Tests\Feature\Sync;
 
 use App\Domain\Crm\Models\Client;
 use App\Models\User;
-use App\Pwa\Livewire\Transverse\ImportExport;
+use App\Pwa\Livewire\Transverse\Parametres;
 use App\Shared\Backup\Services\ReinitialisationDonneesTestService;
 use App\Shared\Parametres\Models\ParametreSysteme;
 use App\Shared\Sync\Http\Middleware\GenerationDesDonnees;
@@ -68,7 +68,7 @@ final class ReinitialisationPhaseEssaisTest extends TestCase
 
         $this->assertFalse($service->estAutorisee());
         $this->actingAs($this->admin);
-        Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+        Livewire::test(Parametres::class, ['onglet' => 'activation'])
             ->assertSee(__('pwa.import_export.reset_environnement_production'))
             ->assertDontSee(__('pwa.import_export.reset_phase_essais'));
     }
@@ -94,7 +94,7 @@ final class ReinitialisationPhaseEssaisTest extends TestCase
         $this->enProduction(true);
 
         $this->actingAs($this->admin);
-        Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+        Livewire::test(Parametres::class, ['onglet' => 'activation'])
             ->assertSee(__('pwa.import_export.reset_phase_essais'))
             ->call('ouvrirReinitialisation')
             ->set('phraseConfirmationReset', 'VIDER')

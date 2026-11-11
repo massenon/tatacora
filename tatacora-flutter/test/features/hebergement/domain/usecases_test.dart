@@ -284,6 +284,31 @@ void main() {
       expect(r.nuits, 2);
     });
 
+    test(
+      'une arrivée AUJOURD’HUI (minuit local ou UTC) est acceptée',
+      () async {
+        for (final arrivee in [
+          DateTime(maintenant.year, maintenant.month, maintenant.day),
+          DateTime.utc(maintenant.year, maintenant.month, maintenant.day),
+        ]) {
+          final depot = DepotReservationMemoire(
+            unites: [unite('u1', 'BNG-01', 28000)],
+          );
+          final r = await CreerReservation(depot, maintenant: horloge)(
+            auteurId: 'u-essai',
+            unite: unite('u1', 'BNG-01', 28000),
+            clientId: 'cli-1',
+            clientNom: 'Jean KORA',
+            periode: PeriodeSejour(
+              arrivee: arrivee,
+              depart: arrivee.add(const Duration(days: 2)),
+            ),
+          );
+          expect(r.nuits, 2);
+        }
+      },
+    );
+
     test('une arrivée dans le passé est refusée', () async {
       final depot = DepotReservationMemoire(
         unites: [unite('u1', 'BNG-01', 28000)],

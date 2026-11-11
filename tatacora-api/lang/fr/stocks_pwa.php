@@ -32,7 +32,7 @@ return [
      */
     'liste' => [
         'titre' => 'Gestion des Stocks',
-        'titre_page' => 'Gestion des Stocks — TATACORA AFRIQUE',
+        'titre_page' => 'Gestion des Stocks — LogiReStock — TATACORA AFRIQUE',
 
         // maitre — m6-stocks.html l.28-31
         'sous_titre' => 'Référentiel valorisé au coût moyen pondéré — le stock affiché est',
@@ -191,8 +191,8 @@ return [
         'seuil_aide' => 'Un paramètre, pas un état : il déclenche l\'alerte de sous-stock.',
 
         'stock_ouverture' => 'Stock d\'ouverture',
-        'stock_ouverture_aide' => 'Enregistré comme un MOUVEMENT d\'entrée, pas comme une '
-            . 'colonne : c\'est ce qui le rend visible en fiche de stock.',
+        'stock_ouverture_aide' => 'Enregistré comme un mouvement d\'entrée : '
+            . 'c\'est ce qui le rend visible en fiche de stock.',
 
         /*
          * La valeur d'achat en MODIFICATION est en LECTURE SEULE, et c'est un
@@ -310,20 +310,20 @@ return [
      */
     'import' => [
         'titre' => 'Importer des articles',
-        'sous_titre' => 'Fichier CSV, une ligne par article. Le stock d\'ouverture entre comme '
-            . 'un mouvement, jamais comme une colonne.',
-        'fichier' => 'Fichier CSV',
-        'colonnes' => 'Colonnes attendues, dans cet ordre : :colonnes',
+        'sous_titre' => 'Classeur Excel (.xlsx), une ligne par article. Le stock d\'ouverture entre comme '
+            . 'un mouvement d\'entrée.',
+        'fichier' => 'Fichier Excel (.xlsx) ou CSV',
+        'colonnes' => 'Colonnes attendues (repérées par leur nom, dans n\'importe quel ordre) : :colonnes',
         'valider' => 'Importer',
         'telecharger_modele' => 'Télécharger le modèle',
 
         'bilan' => ':crees article(s) importé(s).',
         'bilan_partiel' => ':crees importé(s), :refuses refusé(s).',
         'ligne_refusee' => 'ligne :numero — :nom : :raison',
-        'fichier_illisible' => 'Le fichier n\'a pas pu être lu : il est vide, ou ce n\'est pas '
-            . 'un CSV.',
-        'entete_absente' => 'La première ligne doit être l\'en-tête du modèle. Téléchargez le '
-            . 'modèle et repartez de lui.',
+        'fichier_illisible' => 'Le fichier n\'a pas pu être lu : il est vide, ou ce n\'est ni un classeur '
+            . '.xlsx ni un CSV.',
+        'entete_absente' => 'Ligne 1 : colonne(s) obligatoire(s) absente(s) de l\'en-tête : :colonnes. '
+            . 'Colonnes trouvées : :trouvees. Téléchargez le modèle .xlsx et repartez de lui.',
         'colonne_manquante' => 'colonne manquante',
     ],
 
@@ -334,7 +334,7 @@ return [
      */
     'inventaires' => [
         'titre' => 'Inventaires & Fiches de stock',
-        'titre_page' => 'Inventaires & Fiches de stock — TATACORA AFRIQUE',
+        'titre_page' => 'Inventaires & Fiches de stock — LogiReStock — TATACORA AFRIQUE',
 
         // maitre — l.28-31
         'sous_titre' => 'Stock initial, entrées, sorties et stock théorique sur une période — '

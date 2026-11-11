@@ -116,7 +116,7 @@ use Livewire\Attributes\Title;
  *      conservee a ce titre : verifiee le 27/08/2026, PA-28 est toujours
  *      ouvert.
  */
-#[Title('Clôture Périodique — TATACORA AFRIQUE')]
+#[Title('Clôture Périodique — LogiReStock — TATACORA AFRIQUE')]
 class Cloture extends PageComptabilite
 {
     public function render(): View

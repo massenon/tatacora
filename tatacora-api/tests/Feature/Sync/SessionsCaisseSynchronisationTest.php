@@ -190,18 +190,19 @@ final class SessionsCaisseSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function sans_ecriture_sur_m5_aucune_session_n_est_synchronisee(): void
+    public function une_session_de_caisse_n_est_pas_jugee_sur_le_module_du_compte_d_appairage(): void
     {
+        // Décision du PO du 09/11/2026 : `receptionniste` (M5 = L) voit l'ouverture de caisse de son
+        // poste acceptée ; le droit d'ouvrir une caisse se juge au poste, aucun refus n'est tracé.
         $receptionniste = $this->creerUtilisateur('receptionniste');
 
         $this->pousser([$this->ouverture($this->uuid(), '2026-10-14 07:00:00', 1000000)], $receptionniste)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertDatabaseHas('journal_securite', [
-            'utilisateur_id' => $receptionniste->id, 'module_concerne' => 'M5',
+        $this->assertDatabaseMissing('journal_securite', [
+            'utilisateur_id' => $receptionniste->id, 'type_evenement' => 'acces_refuse_rbac',
         ]);
-        $this->assertSame(0, SessionCaisse::count());
+        $this->assertSame(1, SessionCaisse::count());
     }
 
     #[Test]

@@ -16,26 +16,29 @@
 /// affirme un état qu'il n'a pas vérifié — la famille PA-59/60/61. L'écran dit
 /// **« enregistré sur ce poste »**.
 ///
-/// ## Aucun `autoDispose`, contrairement à M6 et M7
+/// ## `autoDispose` ET dépendant des paniers (26/10/2026)
 ///
-/// Et c'est la raison inverse : là-bas, garder la réponse ferait réafficher au
-/// retour un registre qui date de la visite précédente, sans qu'aucune copie
-/// locale n'existe pour le corriger. Ici la source **est** la base du poste :
-/// une lecture conservée est exacte tant que personne n'écrit, et
-/// [rafraichirJournalVentes] la rejette dès qu'on écrit.
+/// Le journal a d'abord été gardé sans `autoDispose` ; une vente encaissée au
+/// comptoir restait alors ABSENTE de l'historique tant qu'aucun geste
+/// n'invalidait le journal à la main. Il se recompose maintenant dès que les
+/// paniers se rafraîchissent, et à chaque visite de l'écran.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
+import '../../../core/di/providers.dart' show sessionProvider;
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
+import '../../facturation/impression/ticket_facture.dart'
+    show formatRouleau80mm;
 import '../../facturation/presentation/providers_facturation.dart';
 import '../../pos/presentation/providers_pos.dart';
 import '../domain/entities/vente.dart';
 import '../domain/journal_ventes.dart';
 import '../impression/etat_journal_ventes.dart';
+import '../impression/ticket_vente.dart';
 
 /* ====================================================================== */
 /* Le journal — trois lectures locales, une composition                    */
@@ -50,21 +53,32 @@ import '../impression/etat_journal_ventes.dart';
 /// `libelles()` et non `toutes()` sur le référentiel des tables : `toutes()`
 /// **sème** le jeu initial quand le référentiel est vide, et une lecture ne
 /// doit rien écrire (voir `TablesPosDao.libelles`).
-final journalVentesProvider = FutureProvider<JournalVentes>((ref) async {
+final journalVentesProvider = FutureProvider.autoDispose<JournalVentes>((
+  ref,
+) async {
+  // Le journal DÉPEND des paniers : tout geste qui rafraîchit les paniers (une
+  // clôture au comptoir, une consommation, une annulation) le recompose. Sans
+  // ce lien, une vente encaissée restait ABSENTE du journal tant que personne
+  // n'invalidait celui-ci à la main — et le gérant concluait qu'elle n'avait pas
+  // été enregistrée (correction du 26/10/2026). `autoDispose` : une vente
+  // descendue d'un autre poste apparaît aussi à la visite suivante.
+  ref.watch(paniersProvider);
   final depotPanier = ref.watch(depotPanierProvider);
   final tables = ref.watch(tablesPosDaoProvider);
   final factures = ref.watch(factureDaoProvider);
 
-  final (paniers, libelles, numeros) = await (
+  final (paniers, libelles, numeros, sansLien) = await (
     depotPanier.paniers(),
     tables.libelles(),
     factures.numerosFactureParPanier(),
+    ref.watch(catalogueDaoProvider).referencesSansLienDeStock(),
   ).wait;
 
   return composerJournal(
     paniers: paniers,
     libellesTables: libelles,
     numeroFactureParPanier: numeros,
+    sansLienStock: sansLien,
   );
 });
 
@@ -205,6 +219,51 @@ final exporterVenteProvider = Provider<Future<String?> Function(EtatVente)>(
                 .pdf(),
           ),
 );
+
+/// L'impression du ticket 80 mm d'UNE vente — le bouton « Ticket 80 mm » du
+/// détail d'une vente et de la modale « Vente encaissée ».
+///
+/// Une action injectable, comme les autres documents : un test de widget n'a
+/// pas de greffon d'impression. L'auteur est celui de la session connectée
+/// (« Auteur » du ticket) ; sans session, la ligne n'est pas imprimée plutôt
+/// que de porter un nom par défaut.
+final imprimerTicketVenteProvider = Provider<Future<void> Function(Vente)>(
+  (ref) => (vente) async {
+    final ticket = TicketVente.composer(
+      vente,
+      entete: await ref.read(lireEnteteEtablissementProvider)(),
+      edition: DateTime.now(),
+      auteur: ref.read(sessionProvider)?.nom,
+    );
+    await Printing.layoutPdf(
+      onLayout: (_) => ticket.pdf(),
+      name: '${TicketVente.titre} ${vente.referenceLocale}',
+      format: formatRouleau80mm,
+    );
+  },
+);
+
+/// Annule une vente ENCAISSÉE (`VenteService::annuler`, RG-02) — le geste du
+/// journal du jour et du détail d'une vente. L'auteur est le compte connecté ;
+/// un refus (`RefusVente`) remonte à l'appelant, qui le DIT.
+///
+/// Relit ensuite tout ce qui montre la vente : les paniers (la barre de caisse
+/// compte « N vente(s) » et exclut les annulées du CA) et le journal.
+Future<void> annulerUneVente(
+  WidgetRef ref,
+  String panierId,
+  String motif,
+) async {
+  await ref
+      .read(gererPanierProvider)
+      .annulerVente(
+        panierId,
+        motif,
+        auteurId: ref.read(sessionProvider)?.utilisateurId ?? '',
+      );
+  rafraichirPaniers(ref);
+  rafraichirJournalVentes(ref);
+}
 
 /// Recharge tout ce qui dépend du journal, après une écriture ailleurs.
 ///

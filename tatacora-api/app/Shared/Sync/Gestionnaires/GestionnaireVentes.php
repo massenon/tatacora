@@ -8,21 +8,23 @@ use App\Domain\Caisse\Models\SessionCaisse;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Stocks\Exceptions\RuptureStockException;
 use App\Domain\Ventes\Models\LigneVente;
+use App\Domain\Ventes\Models\Panier;
 use App\Domain\Ventes\Models\Vente;
 use App\Domain\Ventes\Services\VenteService;
 use App\Pwa\Livewire\Pos\PosComptant;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Models\AnomalieSynchronisation;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
-use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
  * Ventes au COMPTANT encaissées hors connexion (M5, et M4 quand le ticket
- * porte des plats — comme `PosComptant::encaissementReel`) — lot S3,
+ * porte des plats, M8 des véhicules, M9 des circuits — comme
+ * `PosComptant::encaissementReel`) — lot S3,
  * décisions du Product Owner du 15/10/2026.
  *
  * ## Le payload : le panier clôturé du poste
@@ -57,14 +59,18 @@ use RuntimeException;
  * `rupture_stock_forcee` par article dans `journal_audit`, RG-06) et
  * l'anomalie `vente_en_rupture` est enregistrée.
  *
- * ## Plat sans composition : vendu, non déduit, SIGNALÉ
+ * ## Plat sans composition : vendu, non déduit, plus signalé
  *
  * Décision du Product Owner du 15/10/2026 : une fiche technique vide (ou un
  * plat sans lien direct au stock) ne fait PAS rejeter une vente synchronisée
  * — elle a été servie et encaissée. `VenteService` (chemin
- * `sansBonDeCuisine`) écarte la ligne de la déduction ; l'anomalie
- * `plat_sans_composition` est enregistrée par plat et rendue au poste dans
- * `anomalies`. En ligne (PWA), la même vente reste refusée.
+ * `sansBonDeCuisine`) écarte la ligne de la déduction. Elle enregistrait
+ * alors l'anomalie `plat_sans_composition`, parce qu'en ligne la même vente
+ * était refusée. Décision du 30/10/2026 (« le stock s'ajoute après ») : un
+ * plat sans fiche se vend partout, sans mouvement de stock ; ce n'est donc plus
+ * une anomalie. La ligne reste notée dans `stock_non_impacte` de la vente
+ * (cause `plat_sans_composition`) ; le type d'anomalie est conservé pour
+ * lire les anciennes entrées du journal.
  *
  * ## La session de caisse : citée, jamais devinée
  *
@@ -95,6 +101,17 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
 {
     private const TYPE_COMPTANT = 'comptant';
 
+    /**
+     * La table d'où vient l'article d'une ligne, selon son module : plats
+     * (M4), cartes boisson (M5), véhicules (M8) et circuits (M9, 22/10/2026).
+     */
+    private const TABLE_DU_MODULE = [
+        'M4' => 'plats',
+        'M5' => 'cartes_boisson',
+        'M8' => 'vehicules',
+        'M9' => 'circuits',
+    ];
+
     /** La vente portée sur la note de chambre (lot F5). */
     private const TYPE_SEJOUR = 'sur_sejour';
 
@@ -102,7 +119,6 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
         private readonly VenteService $ventes,
         ResolveurCorrespondances $correspondances,
         SignalementAnomalies $anomalies,
-        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
         parent::__construct($correspondances, $anomalies);
     }
@@ -110,9 +126,10 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
     /**
      * Lot F6 (17/10/2026) : l'ANNULATION seulement (`statut: annulee` +
      * `motif`), par `VenteService::annuler` — contre-passation de la pièce et
-     * retour des boissons au stock, comme à la PWA. Une vente d'un autre
-     * poste ne s'annule que par l'administration ou le comptable (Q3). Tout
-     * autre champ : refusé.
+     * retour des boissons au stock, comme à la PWA. Le droit d'annuler (y compris
+     * la vente d'un autre poste, ex-règle Q3) se juge AU POSTE sur l'utilisateur
+     * connecté (droit `ANNULATIONS`), plus sur le compte du jeton (décision du PO du
+     * 09/11/2026). Tout autre champ : refusé.
      */
     public function accepteModification(): bool
     {
@@ -133,7 +150,6 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
 
         // Rejeu : déjà annulée — rendue, jamais contre-passée deux fois.
         if (! $vente->estAnnulee()) {
-            $this->autresPostes->verifierAnnulation('ventes', $entiteId, $contexte);
             $this->ventes->annuler($vente, $motif === '' ? __('sync.factures.motif_absent') : $motif);
         }
 
@@ -151,21 +167,27 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
     }
 
     /**
-     * M5 toujours ; M4 EN PLUS dès qu'une ligne est un plat — la règle de
-     * `PosComptant::encaissementReel` (PA-65) : un barman ne doit pas obtenir
-     * par la synchronisation ce que l'écran M4 lui refuse.
+     * Le RBAC du WEB pour corriger une vente reçue (page de réception) : M5 toujours ;
+     * M4 EN PLUS dès qu'une ligne est un plat, M8 (location) et M9 (tourisme) de même —
+     * la règle de `PosComptant::encaissementReel`. Le serveur ne l'applique PLUS au compte
+     * d'appairage d'un poste (décision du PO du 09/11/2026).
      */
-    public function modulesRequis(array $payload): array
+    public function modulesDeLaCorrection(array $payload): array
     {
         $lignes = is_array($payload['lignes'] ?? null) ? $payload['lignes'] : [];
+        $requis = [PosComptant::MODULE];
 
-        foreach ($lignes as $ligne) {
-            if (is_array($ligne) && ($ligne['module_source'] ?? null) === 'M4') {
-                return [PosComptant::MODULE, 'M4'];
+        foreach (['M4', 'M8', 'M9'] as $module) {
+            foreach ($lignes as $ligne) {
+                if (is_array($ligne) && ($ligne['module_source'] ?? null) === $module) {
+                    $requis[] = $module;
+
+                    break;
+                }
             }
         }
 
-        return [PosComptant::MODULE];
+        return $requis;
     }
 
     public function serviceDomaine(): string
@@ -197,7 +219,7 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             $reservation = $reservationId === null ? null : Reservation::with('unite')->find($reservationId);
 
             if ($reservation === null) {
-                throw new RuntimeException(__('sync.ventes.reservation_inconnue'));
+                throw new DependanceManquanteException(__('sync.ventes.reservation_inconnue'));
             }
         }
 
@@ -211,6 +233,10 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             'table_id' => ['nullable', 'string', 'max:255'],
             'client_nom' => ['nullable', 'string', 'max:255'],
             'montant_cloture' => ['nullable', 'integer', 'min:0'],
+            // 21/10/2026 : la remise du panier, telle que le caissier l'a
+            // saisie (type + valeur, jamais un montant pré-calculé).
+            'remise_type' => ['nullable', 'in:' . implode(',', Panier::TYPES_REMISE)],
+            'remise_valeur' => ['nullable', 'numeric', 'min:0'],
             'lignes' => ['required', 'array', 'min:1'],
             'lignes.*.module_source' => ['required', 'string'],
             'lignes.*.code_article' => ['required', 'string'],
@@ -230,20 +256,32 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
                 'module' => $module,
                 // Une carte ou un plat créé hors connexion et FUSIONNÉ côté
                 // serveur est retrouvé sous son identifiant serveur.
-                'reference_id' => $this->resoudre($module === 'M4' ? 'plats' : 'cartes_boisson', (string) $ligne['code_article']),
+                'reference_id' => $this->resoudre(self::TABLE_DU_MODULE[$module] ?? 'cartes_boisson', (string) $ligne['code_article']),
                 'quantite' => (int) $ligne['quantite'],
                 'prix_unitaire' => $this->francs((int) $ligne['prix_unitaire']),
             ];
             $total += (int) $ligne['prix_unitaire'] * (int) $ligne['quantite'];
         }
 
-        // Le total figé au poste doit être celui de ses lignes : un document
-        // incohérent avec lui-même ne s'enregistre pas — on ne saurait pas
-        // lequel des deux chiffres a été encaissé.
-        if (isset($donnees['montant_cloture']) && (int) $donnees['montant_cloture'] !== $total) {
+        // La remise : l'UNIQUE formule du serveur (`Panier::remiseSur`), sur le
+        // total des lignes — hors bornes, elle REFUSE avec sa phrase. Le NET
+        // en est la différence.
+        $remiseType = (string) ($donnees['remise_type'] ?? Panier::REMISE_AUCUNE);
+        $remiseValeur = $remiseType === Panier::REMISE_AUCUNE ? '0.00' : bcadd((string) ($donnees['remise_valeur'] ?? '0'), '0', 2);
+        $remise = Panier::remiseSur($this->francs($total), $remiseType, $remiseValeur);
+        $net = bcsub($this->francs($total), $remise, 2);
+
+        // Le total figé au poste est le NET de ses lignes (sans remise : leur
+        // total) : un document incohérent avec lui-même ne s'enregistre pas — on
+        // ne saurait pas lequel des deux chiffres a été encaissé. Le poste
+        // compte en francs entiers : un net à centimes (10 % de 1 005 F) lui
+        // arrive arrondi au franc, le serveur garde les centimes.
+        $attendu = (int) bcadd($net, '0.5', 0);
+
+        if (isset($donnees['montant_cloture']) && (int) $donnees['montant_cloture'] !== $attendu) {
             throw new RuntimeException(__('sync.ventes.total_incoherent', [
                 'annonce' => (string) $donnees['montant_cloture'],
-                'lignes' => (string) $total,
+                'lignes' => (string) $attendu,
             ]));
         }
 
@@ -263,6 +301,8 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             'table' => $reservation !== null ? $reservation->unite?->numero : ($donnees['table'] ?? null),
             'table_id' => $donnees['table_id'] ?? null,
             'mode_paiement' => (string) $donnees['mode_paiement'],
+            'remise_type' => $remiseType,
+            'remise_valeur' => $remiseValeur,
             'utilisateur_id' => $contexte->utilisateur->id,
             'validation_rupture' => false,
             'lignes' => $lignes,
@@ -293,24 +333,6 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             ]);
         }
 
-        // Plat sans composition (décision PO du 15/10/2026) : la vente est
-        // écrite, la ligne n'a rien sorti du stock — `VenteService` l'a noté
-        // dans `stock_non_impacte` ; on le SIGNALE, un plat par anomalie.
-        foreach ($this->platsSansComposition($entiteId) as $ligne) {
-            $this->anomalies->signaler(
-                $contexte,
-                $this->table(),
-                $entiteId,
-                AnomalieSynchronisation::PLAT_SANS_COMPOSITION,
-                reference: (string) $ligne['plat_id'],
-                details: [
-                    'plat' => $ligne['ligne'] ?? null,
-                    'quantite' => $ligne['quantite'] ?? null,
-                    'motif' => $ligne['motif'] ?? null,
-                ],
-            );
-        }
-
         foreach ($this->ecartsDePrix($entiteId) as $ecart) {
             $this->anomalies->signaler(
                 $contexte,
@@ -338,22 +360,6 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             ...($ecarts !== [] ? ['ecart_prix' => $ecarts] : []),
             ...($anomalies !== [] ? ['anomalies' => $anomalies] : []),
         ]);
-    }
-
-    /**
-     * Les lignes de plats écartées de la déduction faute de composition.
-     *
-     * @return list<array<string, mixed>>
-     */
-    private function platsSansComposition(string $venteId): array
-    {
-        $nonImpacte = Vente::query()->findOrFail($venteId)->stock_non_impacte ?? [];
-
-        return array_values(array_filter(
-            $nonImpacte,
-            static fn (mixed $ligne): bool => is_array($ligne)
-                && ($ligne['cause'] ?? null) === VenteService::CAUSE_PLAT_SANS_COMPOSITION,
-        ));
     }
 
     /**

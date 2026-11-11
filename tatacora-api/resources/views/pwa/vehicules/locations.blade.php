@@ -81,7 +81,7 @@
     @include('pwa.partials.menu-lateral')
 
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1600px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         {{-- EN-TETE — maitre l.30-48 --}}
         <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -388,7 +388,16 @@
                             <span class="text-[11px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">{{ __('vehicules.pwa.contrat_actif') }}</span>
                           @endif
                         </td>
-                        <td class="px-3 py-2 text-right">
+                        <td class="px-3 py-2 text-right whitespace-nowrap">
+                          {{-- Le reçu (PDF) est une LECTURE : offert à tout rôle qui voit l'écran,
+                               annulé compris (le document porte alors « ANNULÉ »). --}}
+                          <button type="button" wire:click="imprimerRecu('{{ $c->id }}')"
+                                  class="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-white">{{ __('vehicules.pwa.recu') }}</button>
+                          {{-- Proforma prérempli depuis le contrat (PO, 07/11/2026) : écran Facturation > Proformas, droit M2 = C. --}}
+                          @if (auth()->user()?->niveauSurModule('M2') === 'C' && ! $estAnnule)
+                            <a href="{{ route('pwa.facturation.proformas', ['flux' => 'location', 'source' => $c->id]) }}" wire:navigate
+                               class="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-white">{{ __('proforma.ui.creer_depuis_module') }}</a>
+                          @endif
                           @if ($peutEcrire && ! $estAnnule)
                             <button type="button" wire:click="confirmerArchivage('contrat', '{{ $c->id }}')"
                                     class="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-white">{{ __('vehicules.pwa.annuler_contrat') }}</button>

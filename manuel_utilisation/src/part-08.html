@@ -1,0 +1,492 @@
+<!-- ============================ CHAPITRE 11 ============================ -->
+<section class="chapitre" id="ch11">
+  <h1 class="chapitre"><span class="numero">Chapitre 11</span>États, rapports et fiche des prix</h1>
+
+  <p class="chapeau">
+    Douze états à consulter à l'écran, une seule en-tête sur tous les documents que le logiciel produit. Un état ne dessine jamais sa propre
+    en-tête : établissement, période, auteur et horodatage viennent d'un générateur unique, si bien que deux documents ne peuvent pas afficher l'établissement différemment.
+  </p>
+
+  <h2>11.1 Consulter un état</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> États &amp; Rapports
+  </span>
+
+  <ol class="etapes">
+    <li>Cherchez l'état par son nom — la touche <strong>/</strong> place le curseur dans <strong>Rechercher un état…</strong> — ou filtrez le catalogue par module : <strong>Tous</strong>, puis M1, M3, M5, M6, M7, M8, M9, M10, M11, M13.</li>
+    <li>Cliquez sur l'état voulu. <strong>L'aperçu s'affiche immédiatement</strong> à droite, avec ses indicateurs et son tableau. Tant qu'aucun état n'est choisi, la zone d'aperçu le dit et rappelle combien d'états sont accessibles avec vos droits.</li>
+    <li>La <strong>période</strong> de l'aperçu est celle de l'<strong>exercice consulté</strong> : changez-la avec le sélecteur <strong>Exercice</strong> de la barre supérieure (§9.2).</li>
+  </ol>
+
+  <figure>
+    <img src="../captures/a-etats.png" alt="Écran États &amp; Rapports annoté">
+    <figcaption><b>Figure 11.1</b> — Le catalogue des états.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>La <strong>recherche</strong> d'un état par son nom.</li>
+      <li><span class="n">2</span>Les <strong>filtres par module</strong>.</li>
+      <li><span class="n">3</span>Le <strong>catalogue</strong>, groupé par module.</li>
+      <li><span class="n">4</span>La zone d'<strong>aperçu</strong> : tant qu'aucun état n'est choisi, elle le dit.</li>
+    </ul>
+  </figure>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>L'écran États &amp; Rapports est un écran de lecture : il n'offre ni bouton Imprimer, ni Excel, ni PDF.</strong> L'aperçu se lit à l'écran. Pour sortir un document, utilisez le bouton
+    <strong>Exporter</strong> (ou <strong>Excel</strong> / <strong>PDF</strong>) de l'écran du module concerné — stocks, dépenses, approvisionnement, paie, véhicules, tourisme, journal comptable, notifications… —
+    qui exporte ce que vous voyez, filtres compris, sous l'en-tête normalisée.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    <strong>Le droit de consulter un état suit son module source</strong>, pas l'écran des états. Un magasinier ne lit
+    pas le livre de paie parce qu'il a accès à « États &amp; Rapports ». Le catalogue n'affiche que les états
+    que votre profil a le droit de produire.
+  </span>
+
+  <h2>11.2 Le catalogue des états</h2>
+  <p>
+    Le catalogue liste les états que le moteur produit <strong>réellement</strong>, groupés par module source.
+    Un administrateur, qui a droit sur tous les modules, en voit <strong>douze</strong> ; votre profil en voit
+    d'autant moins que ses droits sont étroits, et le pied du catalogue rappelle le compte.
+  </p>
+  <table>
+    <thead><tr><th>Module</th><th>État</th></tr></thead>
+    <tbody>
+      <tr><td><strong>M1 — Hébergement</strong></td><td>État des réservations</td></tr>
+      <tr><td><strong>M3 — Clients &amp; créances</strong></td><td>État des créances clients</td></tr>
+      <tr><td><strong>M5 — Point de vente</strong></td><td>État des ventes</td></tr>
+      <tr><td><strong>M6 — Stocks</strong></td><td>État des stocks — tous points de stockage</td></tr>
+      <tr><td><strong>M7 — Achats</strong></td><td>État des achats et dettes fournisseurs</td></tr>
+      <tr><td><strong>M8 — Véhicules</strong></td><td>État du parc de véhicules · État des locations de véhicules</td></tr>
+      <tr><td><strong>M9 — Tourisme</strong></td><td>État des réservations de circuits</td></tr>
+      <tr><td><strong>M10 — Comptabilité</strong></td><td>État des dépenses · Balance générale — Exercice AAAA</td></tr>
+      <tr><td><strong>M11 — Pilotage</strong></td><td>Tableau de bord — synthèse consolidée</td></tr>
+      <tr><td><strong>M13 — Ressources humaines</strong></td><td>État Paie &amp; Effectif</td></tr>
+    </tbody>
+  </table>
+
+  <h3>L'état « Locations » et les contrats annulés</h3>
+  <p>
+    Un état affiché sans données le dit — « Aucune ligne sur cette période » — et ne produit pas une page blanche.
+    L'état <strong>Locations de véhicules</strong> <strong>exclut par défaut les contrats annulés</strong> : ils ne comptent ni dans le nombre de contrats, ni dans le montant. Cochez <strong>Inclure les contrats annulés</strong>
+    (case visible sur ce seul état) pour les voir apparaître : une colonne <em>Statut</em> (Actif / Annulé) s'ajoute, les annulés sont listés à part après tous les actifs, avec un montant vide,
+    et <strong>les totaux restent identiques</strong> case cochée ou non. La période affichée précise si les annulés sont exclus ou inclus.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Si un état vous paraît vide à tort, vérifiez d'abord l'<strong>exercice consulté</strong> dans la barre supérieure.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Le poste présente le même catalogue, filtré par vos droits, et calcule les aperçus <strong>sur ses propres données, sans réseau</strong> — y compris les créances clients et la balance. Quand l'exercice consulté n'est pas l'exercice courant, un aperçu du poste
+    le dit (« Sur ce poste : aperçu du jour, pas de l'exercice choisi ») au lieu d'afficher un chiffre faux. Les états de comptabilité du poste comptent les pièces saisies à la main non encore reprises par le serveur (§9.3).
+    La case « Inclure les contrats annulés » existe aussi sur le poste.
+  </span>
+
+  <h2>11.3 La bibliothèque d'états par module (web)</h2>
+  <p>
+    Une seconde page web, <strong>États, Rapports &amp; Exports</strong>, présente les états accessibles à votre profil sous forme de
+    <strong>cartes par module</strong> et, dessous, le tableau <strong>Historique des éditions</strong> : un journal en lecture seule, qui
+    conserve la trace de qui a édité quoi, quand et dans quel format.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>Cet écran est une maquette remplacée.</strong> Il le dit lui-même en bandeau : la page reste
+    consultable parce qu'elle a été validée par le client, mais <strong>elle n'est plus au menu</strong> et l'écran en service est
+    <strong>États &amp; Rapports</strong> (§11.1). Elle n'existe pas sur le poste Windows.
+  </span>
+  <figure>
+    <img src="../captures/m14-etats.png" alt="La bibliothèque d'états par module.">
+    <figcaption><b>Figure 11.2</b> — La <b>bibliothèque d'états</b> par module.</figcaption>
+  </figure>
+
+
+  <h2>11.4 Imprimer la fiche des prix</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Restaurant (ou Bar) <span class="fleche">➔</span> Imprimer la fiche des prix
+  </span>
+  <p>
+    La fiche des prix est le document remis au client. Ce n'est pas un tableau de gestion : les
+    catégories deviennent des sections — entrées, plats, sauces, boissons — et se lisent d'un bout à
+    l'autre. Le logiciel la produit en document PDF, sous l'en-tête de l'établissement.
+  </p>
+  <ol class="etapes">
+    <li>Ouvrez la carte du <strong>Restaurant</strong> ou celle du <strong>Bar</strong>.</li>
+    <li>Cliquez sur <strong>Imprimer la fiche des prix</strong>.</li>
+    <li>Ouvrez le document produit, puis imprimez-le sur votre imprimante, ou enregistrez-le en PDF pour l'envoyer par message. Sur le poste Windows, une fenêtre d'impression propose l'imprimante ou l'enregistrement au format PDF.</li>
+  </ol>
+  <p>Ce bouton n'exige aucun droit d'écriture : un profil en lecture peut imprimer la fiche.</p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>Un article sans prix n'est pas imprimé</strong> sur la fiche remise au client — l'écran annonce combien d'articles ont été écartés. Un tarif absent d'un document officiel devient
+    négociable au comptoir. Si aucun article n'est tarifé, la fiche est refusée. Complétez les
+    prix dans la carte avant d'éditer la fiche.
+  </span>
+</section>
+
+<!-- ============================ CHAPITRE 12 ============================ -->
+<section class="chapitre" id="ch12">
+  <h1 class="chapitre"><span class="numero">Chapitre 12</span>Notifications</h1>
+
+  <p class="chapeau">
+    Le module compose les messages destinés aux clients, aux salariés et à l'équipe — avec les vrais
+    noms, les vrais montants et les vraies dates — et <strong>seul l'e-mail peut réellement partir, sous conditions</strong>.
+    Pour les autres canaux, le logiciel prépare le texte, mais c'est vous qui prévenez.
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>WhatsApp, SMS et notifications Android ne partent pas</strong> : aucun des trois n'est contracté ni configuré. <strong>L'e-mail part si, et seulement si, deux conditions sont réunies</strong> :
+    l'adresse e-mail du destinataire est connue (fiche client, fiche employé), et un serveur d'envoi (SMTP) est configuré dans les Paramètres (§13.2). Sinon le message reste en file avec sa raison — « Aucune adresse e-mail connue » ou
+    « Aucun relais SMTP réel configuré ». <strong>Ne considérez jamais un client comme prévenu tant que le message n'est pas marqué « Envoyé »</strong> : appelez-le, puis tracez l'envoi à la main.
+  </span>
+
+  <h2>12.1 Le hub Notifications</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Notifications
+  </span>
+  <p>
+    Six compteurs — en file d'attente, réellement envoyés (e-mails partis), transmis à la main, abandonnés, modèles actifs, canaux branchés — puis cinq onglets. La bande de compteurs se replie.
+  </p>
+  <table>
+    <thead><tr><th>Onglet</th><th>Ce que vous y faites</th></tr></thead>
+    <tbody>
+      <tr><td><strong>File d'attente</strong></td><td>Les messages composés, avec leur destinataire, leur canal et leur texte complet. Pour un e-mail : <strong>Envoyer</strong> (ou <strong>Renvoyer</strong> après un échec). Pour tout message : <strong>Transmis à la main</strong> (en indiquant comment) et <strong>Abandonner</strong> (avec motif). Une ligne dit combien de tentatives ont eu lieu, la dernière erreur, et si les relances automatiques sont épuisées. Les trois canaux non branchés portent la mention « à paramétrer au déploiement ».</td></tr>
+      <tr><td><strong>Modèles</strong></td><td>Les modèles de messages : objet, texte, variables disponibles, longueur. <strong>+ Modèle</strong> en crée un, <strong>Modifier</strong> le corrige, <strong>Activer</strong> / <strong>Désactiver</strong> le met en service ou le retire. Un modèle utilisant une variable inconnue serait refusé : l'écran le signale.</td></tr>
+      <tr><td><strong>Déclencheurs</strong></td><td>L'événement qui produit chaque message : séjour — arrivée demain ; séjour — départ du jour ; créance échue de plus de 30 jours ; créance de plus de 90 jours (alerte au Gérant) ; article sous le seuil d'alerte (au magasinier) ; circuit — départ demain ; véhicule — restitution du jour ; bulletin de paie disponible ; échéance VPS le 10 du mois (au Comptable).</td></tr>
+      <tr><td><strong>Journal</strong></td><td>La trace de tout ce qui a été composé, transmis ou abandonné, avec l'auteur et la colonne <em>Envoi système</em> : « oui » uniquement pour un message que le transport a réellement accepté.</td></tr>
+      <tr><td><strong>Canaux</strong></td><td>L'état des quatre canaux — WhatsApp, e-mail, Android (push) et SMS — avec, pour chacun, ce qui le bloque.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Le bouton <strong>Détecter maintenant</strong> compose tout de suite les messages à partir des données du jour. Sur le serveur, cette détection tourne aussi <strong>d'elle-même toutes les heures</strong>, et les e-mails en échec sont
+    relancés régulièrement : vous n'avez pas à cliquer pour qu'un rappel de séjour parte, pourvu que l'adresse et le serveur d'envoi soient en place.
+  </p>
+  <figure>
+    <img src="../captures/m12-notifications-hub.png" alt="Le hub Notifications : file d'attente, modèles, déclencheurs, journal et canaux.">
+    <figcaption><b>Figure 12.1</b> — Le hub <b>Notifications</b>.</figcaption>
+  </figure>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>Un message « Transmis à la main » n'est pas un message envoyé par le logiciel</strong> : il sort de la file, mais reste marqué « non envoyé par le système », pour que la distinction reste lisible à l'audit.
+    Un message abandonné ne part jamais ; il reste au journal avec son motif.
+  </span>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    Relisez régulièrement les <strong>formulations</strong> des modèles : un message composé avec de vraies données
+    montre mieux qu'une maquette ce que le client va lire. Signalez à l'éditeur toute tournure à corriger.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Le poste envoie lui-même ses e-mails, par le serveur d'envoi (SMTP) configuré dans <strong>ses</strong> Paramètres (onglet Email, avec le mot de passe saisi sur ce poste). Chaque e-mail à envoyer est rangé dans la <strong>boîte d'envoi</strong> du poste :
+    il part tout de suite si la configuration est complète, sinon il attend ; en cas d'échec le poste retente automatiquement, à intervalles croissants (de 5 minutes à 6 heures, jusqu'à 30 tentatives), puis affiche « Relances automatiques épuisées »
+    et propose <strong>Renvoyer</strong>. Un message transmis à la main ou abandonné ne part jamais. Le canal e-mail apparaît « branché » seulement quand la configuration SMTP du poste est complète.
+    Le poste ne détecte lui-même que deux déclencheurs — séjour demain et départ du jour ; les autres messages sont composés et envoyés par le serveur.
+  </span>
+
+  <h2>12.2 Les modèles de messages</h2>
+  <p>
+    L'onglet Modèles présente chaque modèle avec son événement déclencheur, son canal, son objet, ses variables et son statut (actif, désactivé), et indique la longueur du message au regard de la limite du canal.
+    Les variables entre accolades — <code>{nom}</code>, <code>{date}</code>, <code>{numero}</code>, <code>{montant}</code> — sont remplacées par les valeurs réelles
+    au moment de la composition ; l'écran liste, pour chaque modèle, les variables qu'il peut employer. Les boutons <strong>PDF</strong> et <strong>Excel</strong> exportent l'onglet affiché.
+  </p>
+</section>
+
+<!-- ============================ CHAPITRE 13 ============================ -->
+<section class="chapitre" id="ch13">
+  <h1 class="chapitre"><span class="numero">Chapitre 13</span>Administration : droits, paramètres et données</h1>
+
+  <p class="chapeau">
+    Ce chapitre s'adresse à l'administrateur, et à ceux qu'il habilite. Il décrit qui a le droit de faire quoi,
+    comment paramétrer l'établissement, comment charger des données et comment sauvegarder.
+  </p>
+
+  <h2>13.1 Rôles &amp; Permissions</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Rôles &amp; Permissions
+  </span>
+  <p>
+    Onze rôles métier, seize modules, trois niveaux : <strong>C</strong> accès complet, <strong>L</strong> lecture seule,
+    <strong>—</strong> aucun accès. L'écran affiche une carte par rôle — avec le nombre de modules en accès complet et en lecture, le nombre de comptes rattachés et un badge
+    <em>Conforme au socle du CdCF</em> ou <em>Matrice amendée</em> — puis la <strong>matrice complète des permissions</strong>. Une section <strong>Profil</strong> de la matrice règle, rôle par rôle,
+    trois droits personnels : modifier son nom complet, son téléphone, son intitulé de poste (« Mon profil »).
+  </p>
+
+  <h3>Modifier les droits d'un rôle</h3>
+  <ol class="etapes">
+    <li>Sur la carte du rôle, cliquez sur <strong>Modifier les droits</strong>.</li>
+    <li>Pour chaque module, choisissez <strong>C</strong>, <strong>L</strong> ou <strong>—</strong> (<strong>Tout retirer</strong> ferme tout d'un coup).</li>
+    <li>Enregistrez. La matrice et les menus de tous les utilisateurs de ce rôle sont mis à jour.</li>
+  </ol>
+  <p>
+    Le bouton <strong>+ Nouveau rôle</strong> crée un profil supplémentaire (libellé et description) : tous ses modules sont fermés jusqu'à ce que vous lui accordiez des droits. Le bouton
+    <strong>Rétablir le socle du CdCF</strong> remet les <strong>onze rôles du socle</strong> dans leur état contractuel d'origine — tout amendement apporté à ces rôles est perdu ; les rôles que vous avez créés ne sont pas touchés.
+    Un administrateur ne peut pas se retirer l'accès à Rôles &amp; Permissions : il se verrouillerait hors de l'écran qui permet de se corriger.
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>N'élargissez jamais un droit « pour dépanner ».</strong> Un accès ouvert en urgence reste ouvert :
+    personne ne le referme. Si un utilisateur a besoin d'un écran, créez ou ajustez son <strong>rôle</strong> —
+    la modification part au journal d'audit et reste explicable.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    <strong>Le menu masque certains écrans au gérant, même si ses droits les permettent.</strong> Sur décision de la Direction, le menu du gérant ne montre ni Tourisme, ni Véhicules &amp; Locations, ni Comptabilité, ni Personnel &amp; Paie, ni États &amp; Rapports,
+    ni Notifications, ni Clients &amp; Créances, ni Facturation, ni le groupe d'administration. C'est un masquage d'interface, pas un retrait de droits : la matrice du gérant reste inchangée.
+    Pour retirer réellement un droit, passez par la matrice.
+  </span>
+  <figure>
+    <img src="../captures/roles-permissions.png" alt="La matrice des permissions : modules et rôles.">
+    <figcaption><b>Figure 13.1</b> — La <b>matrice des permissions</b>.</figcaption>
+  </figure>
+
+  <p>
+    Les comptes des utilisateurs — réinitialisation d'un mot de passe oublié, code de secours de l'administrateur, suppression d'un compte — ont leur écran <strong>Comptes utilisateurs</strong> :
+    voir le chapitre consacré aux comptes. Les deux rôles les plus élevés ne sont pas équivalents : seul un <strong>super administrateur</strong> peut supprimer un compte ou réinitialiser le mot de passe d'un autre super administrateur.
+  </p>
+
+  <h2>13.2 Paramètres</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Paramètres
+  </span>
+  <p>
+    Chaque réglage se modifie par son bouton <strong>Modifier</strong>, dans une fenêtre qui enregistre <strong>un réglage à la fois</strong> : il n'y a pas de bouton global « Enregistrer les paramètres », pour qu'un enregistrement groupé n'écrase pas en silence
+    le changement d'un autre administrateur. Chaque modification est tracée au journal d'audit.
+  </p>
+  <table>
+    <thead><tr><th>Onglet</th><th>Contenu</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Identité &amp; Légal</strong></td><td><em>Sous l'interrupteur « Afficher la signature et le cachet sur les factures », le bloc <strong>Signature et cachet</strong> permet de déposer (PNG, JPG ou WebP, réduites à 400 Ko), remplacer ou retirer les deux images ; le poste Windows les reçoit en lecture seule.</em> Raison sociale, promoteur, adresse, téléphone, e-mail de contact, activités (en-tête des factures), ville du lieu d'émission, référence facture, signataire (nom et fonction), affichage de la signature et du cachet, durée de validité des proformas ; puis IFU, RCCM, n° contribuable MECeF et régime fiscal (Réel normal, Réel simplifié, Taxe Professionnelle Unique) ; assujettissement à la TVA, taux de TVA, convention des prix du catalogue ; enfin la rubrique <strong>Facturation normalisée (MECeF)</strong> (ci-dessous).</td></tr>
+      <tr><td><strong>Communication</strong></td><td>Site web, numéro WhatsApp Business, état des canaux de notification : les coordonnées utilisées dans les messages et les documents.</td></tr>
+      <tr><td><strong>Email (SMTP)</strong></td><td>Serveur SMTP, port, sécurité (TLS, SSL ou aucune), utilisateur et <strong>mot de passe SMTP</strong>, puis le bouton <strong>Envoyer un email de test</strong> (ci-dessous).</td></tr>
+      <tr><td><strong>Logo &amp; Apparence</strong></td><td><strong>Changer le logo</strong>, <strong>Changer le favicon</strong>, et — pour les documents commerciaux — <strong>Changer la signature</strong> et <strong>Changer le cachet</strong>. Une image de plus de 400 Ko est réduite automatiquement ; l'ancien fichier n'est pas conservé.</td></tr>
+      <tr><td><strong>Canaux de réservation</strong></td><td>La liste des canaux proposés à la prise de réservation : <strong>Ajouter un canal</strong>, <strong>Renommer</strong>, <strong>Désactiver</strong> / <strong>Réactiver</strong>. Un canal utilisé ne se supprime pas, il se désactive ; renommer ne réécrit pas les réservations passées.</td></tr>
+      <tr><td><strong>Espaces &amp; tables</strong></td><td>Les espaces (Restaurant, Jardin, Plage) et leurs tables : <strong>Ajouter une table</strong>, <strong>Renuméroter</strong>, activer ou désactiver, <strong>Rétablir le jeu initial</strong> (les treize tables d'origine). Une table dont le panier est ouvert ne se désactive pas.</td></tr>
+      <tr><td><strong>Activation &amp; Sécurité</strong></td><td>Les trois bascules ci-dessous, puis deux rubriques de réglages : <strong>Charges sociales</strong> (taux CNSS, VPS) et <strong>Exploitation</strong> (tolérance de réception, taux d'annulation à moins de 24 h, préavis de congé, effectif minimal présent par service, rétention du journal d'audit).</td></tr>
+    </tbody>
+  </table>
+  <figure>
+    <img src="../captures/parametres.png" alt="L'écran Paramètres et ses sept onglets.">
+    <figcaption><b>Figure 13.2</b> — L'écran <b>Paramètres</b> et ses sept onglets.</figcaption>
+  </figure>
+
+  <h3>La facturation normalisée</h3>
+  <p>
+    La rubrique <strong>Facturation normalisée (MECeF)</strong> règle le <strong>Mode</strong>, que seul l'administrateur modifie : <strong>Désactivé</strong> (le mode par défaut : factures simples, sans valeur fiscale),
+    <strong>e-MECeF (en ligne)</strong> (le serveur certifie par l'API de la DGI, réseau exigé) ou <strong>Boîtier CC300 (poste)</strong> (le poste de la réception certifie par le boîtier branché en USB, même hors ligne).
+    Elle porte aussi l'adresse de l'API, l'identifiant et le nom de l'opérateur, et, <strong>sur le web uniquement</strong>, le <strong>jeton e-MECeF</strong> : saisi par l'administrateur, rangé chiffré, <strong>jamais réaffiché</strong> et jamais envoyé aux postes ;
+    <strong>Tester la connexion</strong> vérifie l'accès. Les modes et réglages se règlent au serveur ; le poste les reçoit en lecture. Cette fonction n'a pas encore été éprouvée sur le terrain : voir le chapitre consacré à la facturation normalisée et le §14.5.
+  </p>
+
+  <figure class="compact">
+    <img src="../captures/x-parametres-mecef.png" alt="La rubrique Facturation normalisée (MECeF) des Paramètres.">
+    <figcaption><b>Figure 13.3</b> — La rubrique <b>Facturation normalisée (MECeF)</b> : mode, adresse de l'API, identifiant et nom de l'opérateur, <b>Saisir un nouveau jeton</b> (« Aucun jeton enregistré ») et <b>Tester la connexion</b>.</figcaption>
+  </figure>
+
+  <h3>Le serveur d'envoi d'e-mails</h3>
+  <p>
+    Dans l'onglet <strong>Email (SMTP)</strong>, renseignez le serveur, le port, la sécurité et l'utilisateur, puis saisissez le <strong>mot de passe SMTP</strong> avec <strong>Enregistrer le mot de passe</strong> (<strong>Effacer</strong> le retire). Ce mot de passe est
+    <strong>enregistré chiffré, jamais réaffiché</strong> ; seul un administrateur peut le saisir. Sans mot de passe saisi ici, la configuration du serveur s'applique. <strong>Envoyer un email de test</strong> écrit à l'« Email de contact » de l'onglet Identité &amp; Légal
+    et donne un résultat honnête : <em>Email de test envoyé à …</em>, <em>Échec de l'envoi — le transport a répondu …</em>, ou <em>Aucun transport réel n'est configuré</em>. Sur le poste Windows, le mot de passe SMTP est enregistré <strong>sur ce poste seulement</strong> (jamais dans la base) et jamais affiché.
+  </p>
+
+  <figure class="compact">
+    <img src="../captures/x-parametres-email.png" alt="L'onglet Email (SMTP) des Paramètres.">
+    <figcaption><b>Figure 13.4</b> — L'onglet <b>Email (SMTP)</b> : serveur, port, sécurité, utilisateur, mot de passe SMTP (« Non renseigné ici », jamais réaffiché) et <b>Envoyer un email de test</b>.</figcaption>
+  </figure>
+
+  <h3>Les trois bascules d'activation</h3>
+  <table>
+    <thead><tr><th>Bascule</th><th>Effet</th><th>Par défaut</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Suppression d'un enregistrement</strong></td><td>Affiche le bouton <em>Supprimer</em> aux profils autres que l'administrateur (qui l'a toujours). La suppression reste un archivage : l'élément part aux archives et se restaure.</td><td><span class="pastille rouge">Fermée</span></td></tr>
+      <tr><td><strong>Réinitialisation des données de test</strong></td><td>Ouvre l'onglet qui vide les jeux d'essai (§13.4).</td><td><span class="pastille rouge">Fermée</span></td></tr>
+      <tr><td><strong>Alertes à l'ouverture de session</strong></td><td>Affiche les stocks critiques et les créances échues dès la connexion.</td><td><span class="pastille vert">Ouverte</span></td></tr>
+    </tbody>
+  </table>
+  <p>
+    Chaque bascule est étiquetée par son niveau de risque (faible, modéré, élevé). Une action désactivée est <strong>retirée</strong> de l'écran, pas grisée. Les anciennes bascules de duplication, de suppression groupée et de sauvegarde hebdomadaire n'existent plus :
+    la sauvegarde automatique est désormais <strong>quotidienne</strong> (§13.4).
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Refermez la bascule <strong>Réinitialisation des données de test</strong> dès que l'exploitation réelle a
+    commencé. Cet onglet vide les jeux d'essai — et il ne fait pas la différence entre une
+    donnée de test et une donnée de production saisie depuis.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Les droits (RBAC) et ces bascules ne se remplacent pas, ils <strong>se superposent</strong> : le RBAC dit ce que
+    <em>votre profil</em> peut faire, les bascules disent ce que <em>l'application propose à tout le monde</em>.
+    La règle la plus restrictive gagne.
+  </span>
+
+  <h2>13.3 Importer des données</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Import &amp; Export <span class="fleche">➔</span> onglet Importer les données
+  </span>
+  <ol class="etapes">
+    <li><strong>Choisissez le module</strong> à alimenter : Clients, Unités d'hébergement, Carte du bar, Carte du restaurant, Articles de stock, Fournisseurs, Parc de véhicules ou Circuits touristiques. Les colonnes attendues s'affichent, avec la mention <em>OBLIGATOIRE</em> ou <em>facultatif</em>.</li>
+    <li><strong>Téléchargez le modèle</strong> : c'est un classeur Excel (une colonne par champ, une ligne d'exemple, une feuille « Aide » qui détaille chaque colonne). Remplacez la ligne d'exemple sans modifier la ligne d'en-tête.</li>
+    <li><strong>Enregistrez en classeur Excel (.xlsx)</strong>. Les colonnes sont repérées par leur nom ; le CSV reste accepté en secours.</li>
+    <li><strong>Déposez le fichier</strong> et cliquez sur <strong>Valider et contrôler le fichier</strong>. Rien n'est importé à ce stade.</li>
+    <li><strong>Corrigez les erreurs</strong> signalées (ERREUR, AVERTIS., ligne par ligne), redéposez, puis <strong>Confirmer l'import</strong>.</li>
+  </ol>
+
+  <figure>
+    <img src="../captures/a-import.png" alt="Écran Import &amp; Export annoté">
+    <figcaption><b>Figure 13.5</b> — L'import de données, en trois zones.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>Le <strong>module</strong> à alimenter.</li>
+      <li><span class="n">2</span><strong>Télécharger le modèle</strong> — colonnes exactes et ligne d'exemple.</li>
+      <li><span class="n">3</span>La zone de <strong>dépôt</strong> du fichier rempli.</li>
+    </ul>
+  </figure>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    <strong>Aucun import partiel.</strong> Tant qu'une erreur subsiste, rien n'entre en base. Importer « ce qui
+    passe » laisserait un jeu incomplet dont personne ne saurait dire ce qui manque. Un <strong>historique des imports</strong> garde la trace de chaque import réalisé.
+  </span>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    Le bouton <strong>Carte du Gîte Chez Noël (exemple)</strong> télécharge le même modèle, déjà rempli avec la carte des affiches du Gîte (prix, catégories), sans stock ni quantité. Importez dans cet ordre :
+    <strong>Articles de stock</strong>, puis <strong>Carte du bar</strong> ; la carte du restaurant est indépendante. Le stock se saisit ensuite.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Le poste importe les mêmes huit modules (sur ceux où votre profil a le droit d'écriture), mais sans glisser-déposer : la zone de dépôt ouvre la fenêtre « Ouvrir » de Windows, et le modèle s'enregistre par « Enregistrer sous ».
+    Une ligne déjà présente est <strong>ignorée</strong>, jamais dupliquée. L'historique des imports n'est que celui de la session en cours.
+  </span>
+
+  <h2>13.4 Sauvegarder, restaurer, réinitialiser</h2>
+  <p>Le même écran porte deux autres onglets ; la réinitialisation des données de test, elle, se trouve dans <strong>Paramètres › Activation &amp; Sécurité</strong>.</p>
+  <ul class="puces">
+    <li><strong>Sauvegardes de la base</strong> — le serveur sauvegarde <strong>automatiquement chaque nuit à 02 h 00</strong> et conserve les trente derniers jours. <strong>Générer une sauvegarde de la base</strong> en produit une à la demande ; chaque ligne se <strong>Télécharge</strong>.
+      Un bandeau vert annonce la sauvegarde générée, un bandeau doré rappelle la plus récente <em>jamais téléchargée</em> ; <strong>Retirer de la liste</strong> demande une confirmation forte quand la sauvegarde n'a jamais été téléchargée, car il n'en existe alors aucune copie ailleurs.
+      <strong>Exporter une table existante</strong> sort le contenu d'une table au format JSON.</li>
+    <li><strong>Restaurer</strong> — remet en place un <strong>logement ou un véhicule archivé</strong> (les autres éléments archivés — articles, fournisseurs… — se restaurent depuis leur propre écran, bouton <strong>Restaurer</strong>). Filtres : À restaurer, Toutes les entrées, Déjà restaurées. La restauration <strong>refuse d'écraser</strong> un élément existant.
+      Une <strong>purge définitive</strong> existe, réservée à l'administrateur : c'est le seul endroit de l'application où une donnée disparaît vraiment, sans retour, et elle est refusée si des enregistrements passés référencent encore l'élément.</li>
+  </ul>
+
+  <figure class="compact">
+    <img src="../captures/x-sauvegardes.png" alt="L'onglet Sauvegardes de la base.">
+    <figcaption><b>Figure 13.6</b> — L'onglet <b>Sauvegardes de la base</b> : le bandeau « Sauvegarde en attente de téléchargement », quatre indicateurs (dont le rythme « Quotidien (02h00) »), <b>Générer une sauvegarde de la base</b> et la liste des fichiers « non téléchargée ».</figcaption>
+  </figure>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>Téléchargez vos sauvegardes.</strong> Une sauvegarde qui reste sur le serveur ne protège de rien :
+    le jour où la machine tombe en panne, elle tombe avec elle. Copiez-la sur une clé ou un disque externe,
+    et rangez-la ailleurs que dans le bureau.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Sur le poste, <strong>Générer une sauvegarde de la base</strong> range une copie cohérente de la base dans le dossier <em>sauvegardes</em> du poste ; <strong>Télécharger</strong> l'enregistre où vous le choisissez (« Enregistrer sous »), et les trente jours de conservation s'appliquent aussi.
+    <strong>Il n'y a pas de sauvegarde automatique nocturne sur le poste</strong> : un ordinateur de bureau n'est pas allumé à 02 h 00, donc la ligne « Rythme automatique » reste vide. Pensez à générer et à copier une sauvegarde chaque semaine (§14.7).
+    Les archives de clôture du poste sont rangées à côté, mais la sauvegarde de la base ne les contient pas.
+  </span>
+
+  <h3>Réinitialiser après les essais</h3>
+  <p>
+    « Réinitialiser comme neuf » vide les données saisies pendant les essais, pour démarrer l'exploitation réelle sur une base propre. <strong>Elle n'est possible qu'à trois conditions réunies</strong> : être administrateur ; que la bascule
+    <em>Réinitialisation des données de test</em> soit ouverte (§13.2) ; et que l'installation soit <strong>en phase d'essais</strong> (réglage technique posé par l'éditeur ou l'administrateur système). Une fois l'exploitation réelle lancée, la fonction est refusée
+    <strong>quel que soit le rôle</strong> : c'est l'environnement qui refuse, pas un droit qui manque.
+  </p>
+  <ol class="etapes">
+    <li>Lisez les deux listes de l'écran : <strong>ce qui sera vidé</strong> (clients, réservations et séjours, ventes, factures, achats, dépenses, locations, paie et employés, écritures comptables, notifications, et tout le catalogue — plats, menus, recettes, articles de stock, carte du bar…) et <strong>ce qui sera conservé</strong>
+      (comptes et droits, paramètres, journaux, chambres, points de stockage, tables de salle, véhicules, catalogue tourisme et plan comptable).</li>
+    <li>Cliquez sur <strong>Réinitialiser comme neuf</strong>, saisissez le mot <strong>VIDER</strong> et confirmez. Une sauvegarde complète est générée juste avant ; si elle échoue, rien n'est vidé.</li>
+    <li><strong>Refermez la bascule</strong> dans Paramètres, onglet Activation &amp; Sécurité.</li>
+  </ol>
+  <figure class="compact">
+    <img src="../captures/x-reinitialiser.png" alt="La section Réinitialiser les données de test.">
+    <figcaption><b>Figure 13.7</b> — La section <b>Réinitialiser les données de test</b> (Paramètres › Activation &amp; Sécurité) : « Ce qui sera vidé », « Ce qui sera conservé » et <b>Réinitialiser comme neuf</b>.</figcaption>
+  </figure>
+
+  <figure class="compact">
+    <img src="../captures/x-reinitialiser-modale.png" alt="La fenêtre de confirmation Réinitialiser comme neuf.">
+    <figcaption><b>Figure 13.8</b> — La fenêtre de confirmation : il faut saisir <b>VIDER</b> pour activer <b>Vider définitivement</b> (saisie non effectuée sur cette capture).</figcaption>
+  </figure>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>Réinitialisez aussi chaque poste Windows.</strong> Après la réinitialisation du serveur, un poste qui n'a pas été réinitialisé est refusé à la synchronisation (voyant rouge : « Le serveur a été réinitialisé… ») et ne renvoie pas ses essais : connectez-vous en administrateur sur le poste,
+    ouvrez Paramètres › Activation &amp; Sécurité, section Réinitialiser les données de test, puis resynchronisez. Les numéros de factures, de ventes et de pièces repartent de 00001. Un exercice comptable démarré en clôture ou clôturé pendant les essais redevient ouvert, et ses archives d'essai sont effacées.
+    Les opérations réelles d'une installation en exploitation ne se réinitialisent jamais.
+  </span>
+
+  <h2>13.5 Le journal d'audit</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Barre supérieure <span class="fleche">➔</span> Journal d'Audit
+  </span>
+  <p>
+    Chaque action sensible y figure : utilisateur, action (connexion, déconnexion, création, modification, suppression…), détail, date, heure et poste. Le détail nomme le <strong>type d'élément</strong> concerné (Réservation, Facture, Mouvement de stock…) et, quand il existe encore, son libellé ;
+    il ne recopie pas les valeurs saisies, pour que le journal ne devienne pas une seconde surface d'exposition des données personnelles. La recherche porte sur l'utilisateur, l'action et le détail, et une liste filtre par type d'action ; au-delà d'un plafond, seules les entrées les plus récentes sont affichées et l'écran vous invite à affiner.
+    Le journal est en <strong>lecture seule pour tous les profils</strong>, y compris l'administrateur : on ne le modifie pas depuis l'écran. Seule une durée de conservation fixée par l'administrateur (Paramètres, rubrique Exploitation, <em>Rétention du journal d'audit</em>)
+    déclenche la suppression définitive des traces les plus anciennes ; laissée vide, aucune purge n'a lieu.
+  </p>
+  <figure>
+    <img src="../captures/journal-audit.png" alt="Le journal d'audit, en lecture seule pour tous.">
+    <figcaption><b>Figure 13.9</b> — Le <b>journal d'audit</b>, en lecture seule pour tous.</figcaption>
+  </figure>
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Le journal du poste est tiré de ce que <strong>ce poste</strong> a lui-même écrit (créations et modifications), avec le compte connecté et le nom de l'ordinateur. Ce n'est donc pas le registre complet de l'établissement : celui-ci se lit au web.
+    Une phrase au pied de l'écran le rappelle.
+  </span>
+
+  <h2>13.6 Aide, FAQ et contact éditeur</h2>
+  <ul class="puces">
+    <li><strong>Aide &amp; À propos</strong> — la présentation de l'application, les cartes des modules (quatorze modules plus l'administration ; celui sur lequel votre profil n'a aucun droit est grisé et porte « SANS ACCÈS »), une foire aux questions avec recherche, classée par thème (prise en main, données, import et export, comptabilité, hors connexion, sécurité), et les ressources utiles.</li>
+    <li><strong>Contactez l'éditeur</strong> — deux formulaires : <strong>Envoyer un message</strong> et <strong>Signaler un bug</strong> (module concerné, description, étapes pour reproduire — le champ le plus utile —, capture d'écran PNG ou JPG de 2 Mo au plus). Votre nom, votre rôle, la page d'où vous écrivez et la version du logiciel sont joints automatiquement.
+      Les coordonnées directes de l'éditeur y figurent également, pour toute demande urgente. Le tableau <strong>Vos envois</strong> liste vos 50 derniers envois : <em>Transmis</em> signifie que le courriel est réellement parti ; <em>En attente d'envoi</em> signifie que la messagerie n'a pas pu joindre l'éditeur et que le message sera renvoyé automatiquement (avec la dernière erreur).</li>
+  </ul>
+  <figure>
+    <img src="../captures/aide-a-propos.png" alt="L'écran Aide &amp; À propos : les modules et la foire aux questions.">
+    <figcaption><b>Figure 13.10</b> — L'écran <b>Aide &amp; À propos</b> : les modules et la foire aux questions.</figcaption>
+  </figure>
+
+</section>

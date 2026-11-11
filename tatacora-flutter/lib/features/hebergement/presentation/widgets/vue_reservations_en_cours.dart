@@ -12,6 +12,7 @@ import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/entities/historique_reservations.dart';
 import '../../domain/entities/service_reservation.dart';
 import '../fiche_reservation.dart';
+import '../../domain/entities/unite_hebergement.dart';
 import '../providers_hebergement.dart';
 
 /// L'onglet **« Réservations en cours »** — `hebergement.blade.php`
@@ -90,8 +91,21 @@ class _VueReservationsEnCoursState
               // `unite_id`. L'exclure ferait disparaître tout l'historique du
               // poste de cet onglet.
               if (l.reservation.lignes.isEmpty) return true;
-              return l.services.contains(ServiceReservation.hebergement);
+              // Les LIGNES, pas `services` : celui-ci dit toujours « Hébergement » (toute réservation
+              // en porte), alors que cette vue exclut la fiche qui n'a que des services.
+              return l.reservation.lignes.any(
+                (ligne) => ligne.service == ServiceReservation.hebergement,
+              );
             }).toList();
+
+        // Les NOMS des unités (`numéro — catégorie`) : une réservation reçue d'un autre poste sans
+        // service n'a aucune ligne d'hébergement, mais elle a TOUJOURS son unité — jamais « — », jamais un
+        // identifiant (constaté le 09/11/2026).
+        final nomsUnites = <String, String>{
+          for (final u
+              in ref.watch(unitesProvider).value ?? const <UniteHebergement>[])
+            u.id: '${u.numero} — ${u.categorieLibelle}',
+        };
 
         final total = lignes.length;
         final pages = total == 0
@@ -119,7 +133,7 @@ class _VueReservationsEnCoursState
                   ColonneRestaurant('Départ'),
                   ColonneRestaurant('Statut'),
                 ],
-                lignes: [for (final l in visibles) _ligne(l)],
+                lignes: [for (final l in visibles) _ligne(l, nomsUnites)],
                 clesLignes: [
                   for (final l in visibles)
                     ValueKey('en-cours-${l.reservation.id}'),
@@ -158,7 +172,7 @@ class _VueReservationsEnCoursState
     enBas: false,
   );
 
-  List<Widget> _ligne(LigneHistorique l) {
+  List<Widget> _ligne(LigneHistorique l, Map<String, String> nomsUnites) {
     // Le maître affiche « nom de l'unité × N nuits ». Le libellé de la ligne
     // est celui FIGÉ à la réservation : reprendre le nom courant de l'unité
     // afficherait un nom qu'elle n'avait pas au moment du séjour.
@@ -178,7 +192,10 @@ class _VueReservationsEnCoursState
       ),
       // `text-slate-600` (l.395).
       Text(
-        unites.isEmpty ? '—' : unites,
+        unites.isEmpty
+            ? (nomsUnites[l.reservation.uniteId] ??
+                  LigneHistorique.unitesInconnue)
+            : unites,
         style: TextesRestaurant.corpsCrud.copyWith(color: Ardoise.c600),
       ),
       _date(formaterDate(l.reservation.periode.arrivee)),

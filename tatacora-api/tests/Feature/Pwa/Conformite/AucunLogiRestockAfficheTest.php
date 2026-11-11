@@ -33,6 +33,12 @@ use Tests\TestCase;
  * rend) : le client Flutter suit ces cles, et une vue qui se remettrait a
  * ecrire la mention en dur echapperait a la seule relecture des langues.
  *
+ * MISE A JOUR DU 26/10/2026 (PO) : le nom COMMERCIAL de l'application est
+ * « LogiReStock » (S majuscule) et l'onglet du navigateur dit « <page> —
+ * LogiReStock — TATACORA AFRIQUE ». La garde reste exacte sur l'ancienne
+ * ORTHOGRAPHE « LogiRestock » (comparaison sensible a la casse) : c'est le nom
+ * d'un autre produit, et c'est lui qui ne doit jamais s'afficher.
+ *
  * Hors perimetre, laisses deliberement : `.env.production.example` (domaine de
  * deploiement), `docs/DEPLOIEMENT_LOGIRESTOCK.md` et les documents
  * historiques — aucun n'est affiche par la PWA.
@@ -86,10 +92,11 @@ final class AucunLogiRestockAfficheTest extends TestCase
         // Decision PO du 14/10/2026 : la mention sous la marque.
         $this->assertStringContainsString(e('Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)'), $demarrage);
         $this->assertStringContainsString(e('Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)'), $aide);
-        // `{!! !!}` : le <br> de la vue passe tel quel.
+        // `{!! !!}` : le <br> de la vue passe tel quel (panneau gauche, retabli
+        // le 29/10/2026). L'onglet est « Connexion — LogiReStock ».
         $this->assertStringContainsString('Système de gestion Intégré<br>TATACORA AFRIQUE', $connexion);
         $this->assertStringContainsString(
-            '<title>'.e('Système de gestion Intégré TATACORA AFRIQUE — TATACORA AFRIQUE').'</title>',
+            '<title>'.e('Connexion — LogiReStock').'</title>',
             $connexion,
         );
         $this->assertStringContainsString(e('Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)'), $aide);
@@ -100,7 +107,7 @@ final class AucunLogiRestockAfficheTest extends TestCase
     {
         $vues = [
             'pwa/demarrage' => "{{ __('rapports.entete.localisation') }}",
-            'pwa/partials/barre-superieure' => "{{ __('rapports.entete.localisation') }}",
+            'pwa/partials/barre-superieure' => "{{ __('pwa.barre_localisation') }}",
             'pwa/livewire/connexion' => "{!! __('pwa.connexion.titre_panneau') !!}",
             'pwa/transverse/aide-a-propos' => "{{ __('pwa.aide.enseigne') }}",
         ];
@@ -117,7 +124,7 @@ final class AucunLogiRestockAfficheTest extends TestCase
 
         $this->assertSame('Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)', __('rapports.entete.localisation'));
         $this->assertSame('Système de gestion Intégré<br>TATACORA AFRIQUE', __('pwa.connexion.titre_panneau'));
-        $this->assertSame('Système de gestion Intégré TATACORA AFRIQUE — TATACORA AFRIQUE', __('pwa.connexion.titre_page'));
+        $this->assertSame('Connexion — LogiReStock', __('pwa.connexion.titre_page'));
         $this->assertSame('Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)', __('pwa.aide.enseigne'));
     }
 

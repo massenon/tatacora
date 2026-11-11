@@ -21,6 +21,14 @@ php artisan up
 php artisan tatacora:verifier-production
 ```
 
+> **`composer install --no-dev --optimize-autoloader` est OBLIGATOIRE à chaque mise à jour du
+> code** (07/11/2026) : il installe la bibliothèque `bacon/bacon-qr-code`, qui DESSINE le QR code
+> des factures normalisées (MECeF) dans le PDF A4. Sans elle, le PDF d'une facture normalisée
+> échoue. Vérification : `ls vendor/bacon/bacon-qr-code` doit répondre ; sinon relancer
+> la commande. Hébergement mutualisé : si `composer` n'est pas disponible, lancer la commande en
+> local puis envoyer le dossier `vendor/` avec le code. Extensions PHP requises : `gd` et
+> `xmlwriter` (déjà exigées par DomPDF).
+
 - [ ] `tatacora:verifier-production` se termine **sans ÉCHEC** (code de
       sortie 0). Chaque ligne « ATTENTION » est lue et acceptée en conscience.
 
@@ -62,12 +70,12 @@ php artisan tatacora:verifier-production
 
 - [ ] La version installée est la nouvelle : Paramètres Windows →
       Applications → TATACORA, version = celle de `pubspec.yaml` (l'installateur
-      s'appelle `TATACORA_Setup_<version>.exe`). « Aide → À propos » ne
+      s'appelle `LogiReStock_Setup_<version>.exe`). « Aide → À propos » ne
       l'affiche pas.
 - [ ] Connexion avec un compte du poste.
 - [ ] La base est au bon endroit :
       `%LOCALAPPDATA%\TATACORA\donnees\tatacora.sqlite` (pas dans Documents).
-- [ ] Paramètres → Synchronisation → **Tester la connexion** : « Connexion
+- [ ] menu Appairage Postes → **Tester la connexion** : « Connexion
       établie ».
 - [ ] Bouton de synchronisation (barre du haut) → **Synchroniser
       maintenant** : voyant **vert**, aucune opération « À traiter ».
@@ -83,6 +91,24 @@ php artisan tatacora:verifier-production
 - [ ] Une sauvegarde automatique datée de la nuit existe (02:00 UTC =
       03:00 à Natitingou) et pèse plus de 10 Ko.
 - [ ] `tatacora:verifier-production` : toujours sans ÉCHEC.
+
+## Sessions et « page expirée » : variables `.env` utiles (30/10/2026)
+
+La boîte « This page has expired. Would you like to refresh the page? » (HTTP
+419 : jeton CSRF ou session expiré) est interceptée par le gabarit
+(`pwa.partials.session-expiree`) : la page se recharge, la connexion s'affiche
+avec « Votre session a expiré, reconnectez-vous. ». Pour qu'elle reste
+l'exception, vérifier dans le `.env` de production :
+
+| Variable | Valeur | Pourquoi |
+|---|---|---|
+| `SESSION_DRIVER` | `database` | la table `sessions` est créée par la migration `0001_01_01_000003_create_sessions_table` : `php artisan migrate --force` avant la première visite. |
+| `SESSION_LIFETIME` | `480` (minutes) | une journée de service ; défaut du code : 120. Aucun « keep-alive » ne prolonge la session au-delà. |
+| `SESSION_SECURE_COOKIE` | `true` | cookie réservé à https (défaut déjà sûr hors `local`/`testing`). |
+| `TRUSTED_PROXIES` | `*` (défaut) | derrière le proxy de l'hébergeur, Laravel doit lire `X-Forwarded-Proto: https`, sinon le cookie `Secure` n'est pas reconnu et les jetons se désynchronisent. |
+| `LOG_LEVEL` | `error` | en production, seulement les erreurs. |
+
+Après modification : `php artisan config:clear` (puis `config:cache`).
 
 ## En cas d'ÉCHEC
 

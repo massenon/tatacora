@@ -1,21 +1,32 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../comptabilite/presentation/providers_comptabilite.dart';
+import '../../depenses/data/recus_depenses_locaux.dart';
+import '../../depenses/domain/recu_depense.dart';
 import '../../../core/config/environnement.dart';
 import '../../../core/di/providers.dart';
 import '../../transverse/data/configuration_poste.dart';
+import '../../transverse/data/journal_securite_dao.dart';
 import '../data/controle_coherence.dart';
 import '../data/descente_catalogue.dart';
 import '../data/descente_catalogue_dao.dart';
+import '../data/telechargement_recu_depense.dart';
+import '../data/envoi_recus_depenses.dart';
 import '../data/operations_sync_dao.dart';
+import '../data/service_adresse_serveur.dart';
 import '../data/service_appairage.dart';
+import '../../facturation/data/images_document_poste.dart';
 import '../data/sync_manager.dart';
+import '../data/telechargement_images_document.dart';
 import '../data/transport_synchronisation.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
+import '../domain/frequence_synchronisation.dart';
 import '../domain/operation_sync.dart';
 import '../domain/voyant_synchronisation.dart';
 
@@ -47,7 +58,9 @@ final transportSynchronisationProvider = Provider<TransportSynchronisation>(
 );
 
 /// L'adresse de l'API du BUILD (`--dart-define=ENV=…`) ; `null` en
-/// démonstration. Jamais une saisie.
+/// démonstration. C'est la valeur PAR DÉFAUT : l'adresse choisie à l'écran
+/// (`poste.json`, `ServiceAdresseServeur`) l'emporte, et les requêtes du
+/// moteur partent vers l'adresse de l'appairage lue dans ce fichier.
 final urlServeurSynchronisationProvider = Provider<String?>(
   (ref) => Environnement.actuel.baseUrl,
 );
@@ -77,6 +90,67 @@ final serviceAppairageProvider = Provider<ServiceAppairage>((ref) {
     ecrivain: EcrivainConfigurationPoste(chemin: chemin),
   );
 });
+
+/// L'adresse du serveur (Paramètres → Synchronisation) : lire, tester,
+/// enregistrer. N'écrit jamais la file d'envoi.
+final serviceAdresseServeurProvider = Provider<ServiceAdresseServeur>((ref) {
+  final chemin = ref.watch(cheminConfigurationPosteProvider);
+  return ServiceAdresseServeur(
+    transport: ref.watch(transportSynchronisationProvider),
+    urlParDefaut: ref.watch(synchronisationInterditeProvider)
+        ? null
+        : ref.watch(urlServeurSynchronisationProvider),
+    journal: JournalSecuriteDao(ref.watch(baseLocaleProvider)),
+    lecteur: LecteurConfigurationPoste(chemin: chemin),
+    ecrivain: EcrivainConfigurationPoste(chemin: chemin),
+    descente: ref.watch(descenteCatalogueProvider),
+  );
+});
+
+/// L'adresse en vigueur, relue du fichier ; invalidée à l'enregistrement.
+final adresseServeurActuelleProvider =
+    FutureProvider.autoDispose<EtatAdresseServeur?>(
+      (ref) => ref.watch(serviceAdresseServeurProvider).etat(),
+    );
+
+/// La fréquence du réveil périodique, relue de `poste.json` (absente :
+/// 5 minutes). Invalidée à l'enregistrement : le planificateur se réarme.
+final frequenceSynchronisationProvider =
+    FutureProvider<FrequenceSynchronisation>((ref) async {
+      final minutes = await LecteurConfigurationPoste(
+        chemin: ref.watch(cheminConfigurationPosteProvider),
+      ).frequenceSynchronisationMinutes();
+      return FrequenceSynchronisation.depuisMinutes(minutes);
+    });
+
+/// L'interrupteur « Synchronisation activée » du poste, relu du fichier
+/// `poste.json` (absent : activée). Invalidé par la bascule de Paramètres.
+final synchronisationActiveeProvider = FutureProvider.autoDispose<bool>(
+  (ref) => LecteurConfigurationPoste(
+    chemin: ref.watch(cheminConfigurationPosteProvider),
+  ).synchronisationActivee(),
+);
+
+/// La BASCULE de l'interrupteur (Paramètres → Synchronisation). Écrit
+/// `poste.json`, relit l'état partout (voyant, onglet), et — à la
+/// réactivation — lance aussitôt un passage pour rattraper (envoi de la file
+/// dans l'ordre, puis descente), sans l'attendre.
+final basculerSynchronisationProvider =
+    Provider<Future<void> Function(bool activee, {required String par})>(
+      (ref) => (activee, {required par}) async {
+        await EcrivainConfigurationPoste(
+          chemin: ref.read(cheminConfigurationPosteProvider),
+        ).enregistrerSynchronisationActivee(
+          activee,
+          par: par,
+          le: DateTime.now(),
+        );
+        ref
+          ..invalidate(synchronisationActiveeProvider)
+          ..invalidate(appairageActuelProvider);
+        if (activee) ref.read(declencheurSynchronisationProvider)();
+      },
+    );
 
 /// L'appairage actuel, relu du fichier à chaque lecture.
 final appairageActuelProvider = FutureProvider.autoDispose<AppairagePoste?>(
@@ -127,6 +201,49 @@ final descenteCatalogueProvider = Provider<DescenteCatalogue>((ref) {
   );
 });
 
+/// Le transport des FICHIERS (lot L4 — le reçu d'une dépense) : le même
+/// `package:http` que [transportSynchronisationProvider], mais une interface à
+/// part (`/sync` reste du JSON). Un test le remplace.
+final transportFichiersProvider = Provider<TransportFichiers>(
+  (ref) => TransportHttp(),
+);
+
+/// Le rangement des reçus de dépenses : `recus_depenses/` à côté de
+/// `poste.json`, jamais dans la base (lot L4, 27/10/2026).
+final recusDepensesLocauxProvider = Provider<RecusDepensesLocaux>((ref) {
+  final chemin = ref.watch(cheminConfigurationPosteProvider);
+  return RecusDepensesLocaux(
+    () async =>
+        Directory(p.join(p.dirname(await chemin()), dossierRecusDepenses)),
+  );
+});
+
+/// L'envoi des reçus de dépenses (lot L4), branché sur le passage du
+/// [SyncManager].
+final envoiRecusDepensesProvider = Provider<EnvoiRecusDepenses>(
+  (ref) => EnvoiRecusDepenses(
+    db: ref.watch(baseLocaleProvider),
+    transport: ref.watch(transportFichiersProvider),
+    recus: ref.watch(recusDepensesLocauxProvider),
+  ),
+);
+
+/// Le téléchargement À LA DEMANDE d'un reçu (lot L4) : le fichier du poste s'il
+/// y est, sinon le serveur — jamais en masse, jamais interrupteur éteint.
+final telechargementRecuDepenseProvider = Provider<TelechargementRecuDepense>((
+  ref,
+) {
+  final chemin = ref.watch(cheminConfigurationPosteProvider);
+  return TelechargementRecuDepense(
+    db: ref.watch(baseLocaleProvider),
+    transport: ref.watch(transportFichiersProvider),
+    recus: ref.watch(recusDepensesLocauxProvider),
+    urlServeur: ref.watch(urlServeurSynchronisationProvider),
+    demonstration: ref.watch(synchronisationInterditeProvider),
+    lecteur: LecteurConfigurationPoste(chemin: chemin),
+  );
+});
+
 /// Le moteur d'envoi — UNE instance : c'est elle qui tient le « un seul
 /// envoi à la fois » du processus. Depuis le lot F2b, il descend aussi le
 /// catalogue après l'envoi.
@@ -139,9 +256,18 @@ final syncManagerProvider = Provider<SyncManager>((ref) {
     demonstration: ref.watch(synchronisationInterditeProvider),
     lecteur: LecteurConfigurationPoste(chemin: chemin),
     ecrivain: EcrivainConfigurationPoste(chemin: chemin),
-    surBilan: (bilan) =>
-        ref.read(dernierBilanSynchronisationProvider.notifier).poser(bilan),
+    surBilan: (bilan) {
+      ref.read(dernierBilanSynchronisationProvider.notifier).poser(bilan);
+      // Un rôle modifié au serveur est descendu et recopié sur les comptes : la session
+      // ouverte le prend en compte tout de suite (menu, gardes), sans reconnexion.
+      unawaited(ref.read(sessionProvider.notifier).relireDroitsSiChange());
+    },
     descente: ref.watch(descenteCatalogueProvider),
+    recus: ref.watch(envoiRecusDepensesProvider),
+    images: TelechargementImagesDocument(
+      ref.watch(transportSynchronisationProvider),
+      ref.watch(imagesDocumentPosteProvider),
+    ),
   );
 });
 
@@ -225,11 +351,15 @@ final controleCoherenceProvider = Provider<ControleCoherence>(
     db: ref.watch(baseLocaleProvider),
     transport: ref.watch(transportSynchronisationProvider),
     urlServeur: ref.watch(urlServeurSynchronisationProvider),
+    lecteur: LecteurConfigurationPoste(
+      chemin: ref.watch(cheminConfigurationPosteProvider),
+    ),
   ),
 );
 
-/// La période du réveil automatique.
-const Duration periodeSynchronisation = Duration(minutes: 5);
+/// La période PAR DÉFAUT du réveil automatique (réglable par poste :
+/// [FrequenceSynchronisation]).
+const Duration periodeSynchronisation = Duration(minutes: 1);
 
 /// La période du PASSAGE COURT (décision PO du 18/10/2026) : la lecture de
 /// la demande « Synchroniser » faite au serveur — une requête légère, rien
@@ -260,7 +390,8 @@ final declencheurSynchronisationProvider = Provider<void Function()>(
 );
 
 /// Le réveil AUTOMATIQUE : une synchronisation au démarrage, puis toutes les
-/// [periodeSynchronisation] tant que l'application tourne — sans requête
+/// minutes par défaut (ou la fréquence choisie dans Paramètres, jusqu'à
+/// « Manuelle seulement ») tant que l'application tourne — sans requête
 /// quand aucune opération n'est échue (le moteur s'arrête sur une file vide
 /// ou en repli). Démarré par `main.dart` après la première image, PAS par
 /// `main_demo.dart` (et le moteur refuserait la démonstration de toute
@@ -268,18 +399,37 @@ final declencheurSynchronisationProvider = Provider<void Function()>(
 final synchronisationAutomatiqueProvider = Provider<void>((ref) {
   final manager = ref.watch(syncManagerProvider);
   lancerSynchronisationSansAttendre(() => manager);
-  final minuteur = Timer.periodic(
-    periodeSynchronisation,
-    (_) => lancerSynchronisationSansAttendre(() => manager),
-  );
+  // La période vient de `poste.json` (Paramètres → Synchronisation) : le
+  // défaut d'une minute court tant que le fichier n'est pas lu, puis le
+  // minuteur est réarmé quand le choix change — sans nouvelle synchronisation.
+  Timer? minuteur;
+  Duration? armee;
+  void armer(FrequenceSynchronisation frequence) {
+    final periode = frequence.periode;
+    if (periode == armee && (minuteur != null || periode == null)) return;
+    minuteur?.cancel();
+    armee = periode;
+    minuteur = periode == null
+        ? null
+        : Timer.periodic(
+            periode,
+            (_) => lancerSynchronisationSansAttendre(() => manager),
+          );
+  }
+
+  armer(FrequenceSynchronisation.parDefaut);
+  ref.listen(frequenceSynchronisationProvider, (_, suivante) {
+    final frequence = suivante.value;
+    if (frequence != null) armer(frequence);
+  }, fireImmediately: true);
   // Le bouton « Synchroniser » du serveur : sa demande est suivie dans les
-  // 30 s, sans attendre le réveil de 5 minutes.
+  // 30 s, sans attendre le réveil périodique.
   final passageCourt = Timer.periodic(
     periodeDemandeServeur,
     (_) => unawaited(manager.suivreDemandeDuServeur()),
   );
   ref.onDispose(() {
-    minuteur.cancel();
+    minuteur?.cancel();
     passageCourt.cancel();
   });
 });
@@ -325,12 +475,15 @@ final voyantSynchronisationProvider =
           ref.watch(urlServeurSynchronisationProvider) == null;
       final comptes = ref.watch(comptesFileSynchronisationProvider);
       final appairage = ref.watch(appairageActuelProvider);
-      if (!interdite && (!comptes.hasValue || !appairage.hasValue)) {
+      final activee = ref.watch(synchronisationActiveeProvider);
+      if (!interdite &&
+          (!comptes.hasValue || !appairage.hasValue || !activee.hasValue)) {
         return null;
       }
       return voyantDe(
         interdite: interdite,
         appaire: appairage.value != null,
+        desactivee: activee.value == false,
         refusJeton: appairage.value?.refus != null,
         serveurReinitialise:
             ref.watch(reinitialisationServeurProvider).value != null,

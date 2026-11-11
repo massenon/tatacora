@@ -92,7 +92,7 @@
         @php($clientPiece = $clients->get($facture->client_id))
         @php($lignesActivites = $facture->lignes->pluck('source_module')->unique()->map(fn (string $m): string => $activites[$m] ?? $m)->implode(', '))
         <tr>
-          <td class="text-left">{{ $facture->numero_mecef ?? \App\Pwa\Support\MontantFcfa::TIRET }}</td>
+          <td class="text-left">{{ \App\Pwa\Support\NumeroRegistre::valeur($facture) }}</td>
           <td class="text-left">{{ $facture->date_emission->format('d/m/Y') }}</td>
           <td class="text-left">{{ $clientPiece === null ? \App\Pwa\Support\MontantFcfa::TIRET : trim(($clientPiece->prenom ?? '').' '.$clientPiece->nom) }}</td>
           <td class="text-left">{{ $lignesActivites !== '' ? $lignesActivites : \App\Pwa\Support\MontantFcfa::TIRET }}</td>

@@ -23,7 +23,7 @@ use Illuminate\Support\Carbon;
 final class BulletinDisponibleDetecteur implements DetecteurDeclencheurInterface
 {
     /**
-     * @return list<array{reference: string, destinataire: string, variables: array<string, string>}>
+     * @return list<array{reference: string, destinataire: string, email?: string|null, variables: array<string, string>}>
      */
     public function detecter(): array
     {
@@ -41,6 +41,9 @@ final class BulletinDisponibleDetecteur implements DetecteurDeclencheurInterface
                 return [
                     'reference' => $bulletin->id,
                     'destinataire' => $nom,
+                    // E-mail FACULTATIF du salarié (28/10/2026) : sans adresse, le message est composé
+                    // mais ne part pas — jamais une erreur.
+                    'email' => filled($employe->email) ? (string) $employe->email : null,
                     'variables' => [
                         'employe' => $nom,
                         'periode' => $periode,

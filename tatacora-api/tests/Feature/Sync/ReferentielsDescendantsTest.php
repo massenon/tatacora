@@ -99,7 +99,9 @@ final class ReferentielsDescendantsTest extends TestCase
         $this->assertSame(
             array_values(array_filter(
                 array_keys(CatalogueDescendantService::COLONNES),
-                static fn (string $t): bool => DB::table($t)->exists(),
+                static fn (string $t): bool => DB::table($t)
+                    ->when(isset(CatalogueDescendantService::NON_NULS[$t]), static fn ($q) => $q->whereNotNull(CatalogueDescendantService::NON_NULS[$t]))
+                    ->exists(),
             )),
             $tables,
         );
@@ -144,7 +146,32 @@ final class ReferentielsDescendantsTest extends TestCase
     }
 
     /**
-     * Des DÉFINITIONS (leçon PA-129) : ni stock, ni coût moyen, ni dernier
+     * Constat du PO (10/11/2026) : postes à jour, mais « — » en valeur d'achat / CMP / valeur
+     * stock — le web, lui, affiche le CMP de l'article. Le CMP et le dernier prix d'achat
+     * descendent donc en RÉFÉRENCE, et chaque page annonce l'empreinte de la définition : un
+     * poste qui en retient une autre repart du début (sinon une colonne ajoutée côté serveur
+     * n'atteindrait jamais les lignes déjà reçues).
+     */
+    #[Test]
+    public function le_cmp_descend_en_reference_et_chaque_page_annonce_l_empreinte(): void
+    {
+        \Illuminate\Support\Facades\DB::table('articles')->update(['cout_moyen_pondere' => '4000.0000', 'prix_achat' => '4000.00']);
+
+        $articles = collect($this->tousLesElementsDe($this->admin))->where('table', 'articles');
+        $this->telecharger($this->admin, poste: 'poste-empreinte', limite: 500)
+            ->assertHeader('X-Tatacora-Descente', CatalogueDescendantService::empreinte());
+        $this->assertNotEmpty($articles);
+        foreach ($articles as $article) {
+            $this->assertSame('4000.0000', $article['donnees']['cout_moyen_pondere']);
+            $this->assertSame('4000.00', $article['donnees']['prix_achat']);
+        }
+        // L'empreinte suit la DÉFINITION : elle contient bien la colonne ajoutée.
+        $this->assertSame(16, strlen(CatalogueDescendantService::empreinte()));
+        $this->assertContains('cout_moyen_pondere', CatalogueDescendantService::COLONNES['articles']);
+    }
+
+    /**
+     * Des DÉFINITIONS (leçon PA-129) : ni stock, ni solde, ni
      * prix d'achat, ni coût matière. Les archivés descendent, marqués.
      */
     #[Test]
@@ -154,7 +181,7 @@ final class ReferentielsDescendantsTest extends TestCase
 
         $riz = $elements[$this->ids['riz']];
         $this->assertSame(
-            ['libelle', 'categorie', 'unite_mesure', 'point_stockage_id', 'suivi', 'seuil_alerte', 'seuil_reappro'],
+            ['libelle', 'categorie', 'unite_mesure', 'point_stockage_id', 'suivi', 'seuil_alerte', 'seuil_reappro', 'prix_achat', 'cout_moyen_pondere'],
             array_keys($riz['donnees']),
         );
         $this->assertTrue($riz['actif']);
@@ -162,9 +189,13 @@ final class ReferentielsDescendantsTest extends TestCase
 
         $this->assertFalse($elements[$this->ids['archive']]['actif']);
 
+        // 30/10/2026 (poste v47) : la description facultative d'un plat descend avec lui.
+        $plat = $elements->first(static fn (array $e): bool => $e['table'] === 'plats' && $e['donnees']['libelle'] === 'Riz sauté');
+        $this->assertSame('Riz, oignon, poivron', $plat['donnees']['description']);
+
         // Lot F3 : un client archivé descend marqué, son solde (calcul) non.
         $client = $elements[$this->ids['client']];
-        $this->assertSame(['nom', 'prenom', 'telephone', 'email', 'type_client'], array_keys($client['donnees']));
+        $this->assertSame(['nom', 'prenom', 'telephone', 'email', 'type_client', 'ifu'], array_keys($client['donnees']));
         $this->assertTrue($client['actif']);
         $this->assertFalse($elements[$this->ids['client_archive']]['actif']);
 
@@ -186,7 +217,7 @@ final class ReferentielsDescendantsTest extends TestCase
         $this->assertSame([['article_id' => $this->ids['riz'], 'quantite_unitaire' => '0.150']], $recette['lignes']);
 
         foreach ($elements as $element) {
-            foreach (['cout_moyen_pondere', 'prix_achat', 'stock', 'cout_matiere_calcule', 'utilisateur_creation_id', 'solde', 'utilisateur_annulation_id'] as $interdit) {
+            foreach (['stock', 'cout_matiere_calcule', 'utilisateur_creation_id', 'solde', 'utilisateur_annulation_id'] as $interdit) {
                 $this->assertArrayNotHasKey($interdit, $element['donnees'], $element['table']);
             }
         }
@@ -397,7 +428,7 @@ final class ReferentielsDescendantsTest extends TestCase
         app(CompositionRecetteService::class)->remplacerComposition($recette, [
             ['article_id' => $riz->id, 'quantite_unitaire' => '0.150'],
         ]);
-        $carte->creerPlat(['libelle' => 'Riz sauté', 'menu_id' => $menu->id, 'recette_id' => $recette->id, 'prix_vente' => '2500']);
+        $carte->creerPlat(['libelle' => 'Riz sauté', 'description' => 'Riz, oignon, poivron', 'menu_id' => $menu->id, 'recette_id' => $recette->id, 'prix_vente' => '2500']);
 
         $categorie = CategorieHebergement::create(['libelle' => 'Bungalow', 'capacite_max' => 2, 'tarif_base' => '25000.00']);
         $unite = UniteHebergement::create(['categorie_id' => $categorie->id, 'numero' => 'B-01', 'statut' => 'libre']);
@@ -436,7 +467,14 @@ final class ReferentielsDescendantsTest extends TestCase
         $tous = [];
 
         foreach (array_keys(CatalogueDescendantService::COLONNES) as $table) {
-            foreach (DB::table($table)->pluck('id') as $id) {
+            $requete = DB::table($table);
+
+            // Les comptes : seuls les SUPPRIMÉS descendent (03/11/2026).
+            if (isset(CatalogueDescendantService::NON_NULS[$table])) {
+                $requete->whereNotNull(CatalogueDescendantService::NON_NULS[$table]);
+            }
+
+            foreach ($requete->pluck('id') as $id) {
                 $tous[] = $table . ':' . $id;
             }
         }

@@ -131,7 +131,7 @@ use Livewire\Attributes\Url;
  * @see RG-19 Moteur d'etats
  * @see LARAVEL_PWA.md §1, §2, §3
  */
-#[Title('États & Rapports — TATACORA AFRIQUE')]
+#[Title('États & Rapports — LogiReStock — TATACORA AFRIQUE')]
 class EtatsStudio extends PageMetier
 {
     /** Recherche libre — PROPRIETE Livewire, jamais une methode (PA-67). */
@@ -151,6 +151,22 @@ class EtatsStudio extends PageMetier
      */
     #[Url(as: 'etat')]
     public string $etat = '';
+
+    /**
+     * Case « Inclure les contrats annulés » de l'état « Locations » (M8) —
+     * décochée par défaut (PRD corrections Locations, R4).
+     *
+     * PROPRIÉTÉ liée à la case (`wire:model.live`), jamais une action : la
+     * liste fermée de `PwaActionsReluesTest` n'est pas élargie. Elle n'est
+     * transmise qu'à cet état (`FILTRE_ANNULES`) : les autres l'ignoreraient en
+     * silence, et un filtre ignoré laisse croire qu'il a été pris en compte.
+     * Règle de l'état : voir `EtatLocations` (un annulé n'est jamais compté).
+     */
+    #[Url(as: 'annules')]
+    public bool $inclureAnnules = false;
+
+    /** L'unique état qui lit la case « Inclure les contrats annulés ». */
+    public const FILTRE_ANNULES = 'locations-vehicules';
 
     /**
      * Le catalogue REELLEMENT accessible a l'utilisateur connecte.
@@ -223,6 +239,9 @@ class EtatsStudio extends PageMetier
             // l'exercice CONSULTÉ — ses bornes pour les états datés, son année
             // pour la balance. Un état sans dates (stocks, parc) les ignore.
             $filtres = self::filtresDeLExercice();
+            if ($selection === self::FILTRE_ANNULES && $this->inclureAnnules) {
+                $filtres['inclure_annules'] = '1';
+            }
             /** @var EtatResultat $resultat */
             $resultat = $etat->calculer($filtres);
             $titre = $etat->libelle($filtres);
@@ -239,6 +258,7 @@ class EtatsStudio extends PageMetier
             'titreEtat' => $titre,
             'periodeEtat' => $periode,
             'moduleSource' => $moduleSource,
+            'offreCaseAnnules' => $selection === self::FILTRE_ANNULES,
             'totalAccessibles' => count($accessibles),
             // `data-module="M14"` — celui du `<body>` du maitre (l.32).
         ]))->layout('layouts.pwa', ['module' => 'M14']);

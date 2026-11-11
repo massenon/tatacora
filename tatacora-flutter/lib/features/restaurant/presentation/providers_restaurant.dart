@@ -25,8 +25,15 @@ import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../bar/data/boissons_api.dart'
+    show BarInjoignable, BarRecu, BarRefuse, ResultatBar;
+import '../../bar/domain/entities/trace_prix.dart';
+import '../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
 import '../../stocks/presentation/providers_stocks.dart';
+import '../../stocks/data/articles_de_carte.dart';
+import '../data/rapprochement_plats_stock.dart';
 import '../data/restaurant_api.dart';
+import '../data/retraits_plats.dart';
 import '../data/restaurant_dao.dart';
 import '../domain/entities/carte_restaurant.dart';
 import '../domain/entities/plat.dart';
@@ -35,12 +42,82 @@ import '../impression/etat_carte_restaurant.dart';
 /// M4 sur la base LOCALE du poste. Les droits et l'auteur sont lus À CHAQUE
 /// appel (jamais capturés à la construction) : une session qui change entre
 /// deux gestes ne doit pas écrire sous l'identité de la précédente (RG-15).
+/// Le retrait et la remise d'un plat (v31, 21/10/2026).
+final retraitsPlatsProvider = Provider<RetraitsPlats>(
+  (ref) => RetraitsPlats(ref.watch(baseLocaleProvider)),
+);
+
+/// Le rapprochement plats ↔ stock de la cuisine (09/11/2026) : l'import m4 et
+/// le bouton « Rapprocher les plats du stock » de la carte.
+/// L'article de stock d'une ligne de carte importée (reprise, création,
+/// complément sans écrasement) — partagé par m4 et m5.
+final articlesDeCarteProvider = Provider<ArticlesDeCarte>(
+  (ref) => ArticlesDeCarte(
+    ref.watch(baseLocaleProvider),
+    ref.watch(stocksApiProvider),
+  ),
+);
+
+final rapprochementPlatsStockProvider = Provider<RapprochementPlatsStock>(
+  (ref) => RapprochementPlatsStock(
+    ref.watch(baseLocaleProvider),
+    restaurant: ref.watch(restaurantDaoProvider),
+    stocks: ref.watch(stocksApiProvider),
+    articles: ref.watch(articlesDeCarteProvider),
+  ),
+);
+
+/// « Rapprocher les plats du stock » (rattrapage, 09/11/2026) : rend la PHRASE à
+/// dire — le bilan, ou le refus. Droit : écriture sur M4 ET sur M6 (les
+/// articles créés), comme au serveur. Relit tout ce que M4 montre.
+final rapprocherLesPlatsProvider = Provider<Future<String> Function()>(
+  (ref) => () async {
+    final droits = ref.read(droitsProvider);
+    if (!droits.peutEcrire(ModuleTatacora.m4Restaurant) ||
+        !droits.peutEcrire(ModuleTatacora.m6Stocks)) {
+      return TextesRapprochement.droitManquant;
+    }
+    try {
+      final bilan = await ref
+          .read(rapprochementPlatsStockProvider)
+          .rapprocher(auteurId: ref.read(sessionProvider)?.utilisateurId);
+      ref
+        ..invalidate(carteRestaurantProvider)
+        ..invalidate(platsProvider)
+        ..invalidate(articlesLiensProvider)
+        ..invalidate(articlesFichesProvider)
+        ..invalidate(etatStockProvider);
+      return TextesRapprochement.fait(bilan.phrase);
+    } on StateError catch (e) {
+      return e.message;
+    } on RefusRestaurant catch (e) {
+      return e.motif;
+    }
+  },
+);
+
 final restaurantDaoProvider = Provider<RestaurantDao>(
   (ref) => RestaurantDao(
     ref.watch(baseLocaleProvider),
     stocks: ref.watch(stocksDaoProvider),
   ),
 );
+
+/// L'historique des prix d'UN plat, relu à CHAQUE ouverture de la modale
+/// (`autoDispose`, aucun cache : une liste gardée d'une visite précédente ne
+/// dirait pas qu'elle date, sur la question même « depuis quand ce prix ? »).
+/// Rendu dans la famille de résultats du bar, parce que la modale « Historique
+/// des prix » est CELLE du corps partagé des deux cartes.
+final historiquePrixPlatProvider = FutureProvider.autoDispose
+    .family<ResultatBar<List<TracePrix>>, String>((ref, platId) async {
+      final r = await ref.watch(restaurantApiProvider).historiquePrix(platId);
+      return switch (r) {
+        RestaurantRecu<List<TracePrix>>(:final donnees) => BarRecu(donnees),
+        RestaurantRefuse<List<TracePrix>>(:final motif, :final code) =>
+          BarRefuse(motif: motif, code: code),
+        RestaurantInjoignable<List<TracePrix>>() => const BarInjoignable(),
+      };
+    });
 
 final restaurantApiProvider = Provider<RestaurantApi>(
   (ref) => RestaurantApi(
@@ -64,8 +141,8 @@ final rechercheCarteRestaurantProvider =
 
 /// Le sélecteur de catégorie de la carte — l.63.
 final categorieCarteRestaurantProvider =
-    NotifierProvider<_CategorieNotifier, CategoriePlat?>(
-      _CategorieNotifier.new,
+    NotifierProvider<_CategorieCarteNotifier, CategorieCarte?>(
+      _CategorieCarteNotifier.new,
     );
 
 /// Le sélecteur d'état de la carte — l.64-71.
@@ -104,8 +181,8 @@ final rechercheRestaurationProvider = NotifierProvider<_TexteNotifier, String>(
 
 /// Le filtre « Toutes les catégories » du catalogue — l.66-76.
 final categorieRestaurationProvider =
-    NotifierProvider<_CategorieNotifier, CategoriePlat?>(
-      _CategorieNotifier.new,
+    NotifierProvider<_CategorieCarteNotifier, CategorieCarte?>(
+      _CategorieCarteNotifier.new,
     );
 
 /// La page courante du catalogue. Elle revient à 1 dès qu'un filtre change —
@@ -116,12 +193,39 @@ final pageRestaurationProvider = NotifierProvider<_PageNotifier, int>(
   _PageNotifier.new,
 );
 
+/// La sélection du catalogue — `selection` de la vue (cases à cocher), par
+/// identifiant de plat. Elle revient à vide dès qu'un filtre ou une page change,
+/// comme `updated()` de la vue (`$this->selection = []`) : une sélection
+/// survivante serait invisible.
+final selectionPlatsProvider =
+    NotifierProvider<SelectionPlatsNotifier, Set<String>>(
+      SelectionPlatsNotifier.new,
+    );
+
+final class SelectionPlatsNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+
+  void definir(Set<String> valeur) => state = valeur;
+  void basculer(String id, {required bool coche}) =>
+      state = coche ? {...state, id} : ({...state}..remove(id));
+  void vider() => state = const {};
+}
+
+/// Les retraits de la carte en cours, par plat (`indisponibilites_carte_local`)
+/// : la colonne « Disponible » et la carte « Retirés de la carte ».
+final platsRetiresProvider =
+    FutureProvider.autoDispose<Map<String, IndisponibiliteDistante>>(
+      (ref) => ref.watch(retraitsPlatsProvider).retires(),
+    );
+
 /// La recherche de l'onglet des fiches techniques.
 final rechercheFichesProvider = NotifierProvider<_TexteNotifier, String>(
   _TexteNotifier.new,
 );
 
-/// « Fiches vides seulement » : le filtre qui rend le blocage praticable.
+/// « Fiches vides seulement » : le filtre qui isole les plats sans sortie de stock
+/// (ils se vendent quand même, depuis le 30/10/2026).
 final videsSeulementProvider = NotifierProvider<_BoolNotifier, bool>(
   _BoolNotifier.new,
 );
@@ -145,11 +249,13 @@ final class _TexteNotifier extends Notifier<String> {
   void definir(String valeur) => state = valeur;
 }
 
-final class _CategorieNotifier extends Notifier<CategoriePlat?> {
+/// Le filtre « Toutes les catégories » de la carte ET du catalogue : l'une des
+/// dix catégories du plat (v41).
+final class _CategorieCarteNotifier extends Notifier<CategorieCarte?> {
   @override
-  CategoriePlat? build() => null;
+  CategorieCarte? build() => null;
 
-  void definir(CategoriePlat? valeur) => state = valeur;
+  void definir(CategorieCarte? valeur) => state = valeur;
 }
 
 final class _EtatNotifier extends Notifier<EtatArticleCarte> {
@@ -261,6 +367,12 @@ final articlesFichesProvider = FutureProvider.autoDispose<List<ArticleChoix>?>(
   (ref) => ref.watch(restaurantApiProvider).articlesPourFiches(),
 );
 
+/// Les articles que « Lier au stock » propose (suivi permanent). `null` = on ne
+/// sait pas (droit manquant).
+final articlesLiensProvider = FutureProvider.autoDispose<List<ArticleChoix>?>(
+  (ref) => ref.watch(restaurantApiProvider).articlesPourLien(),
+);
+
 /// La composition d'une fiche, prête à être rééditée.
 final compositionEditableProvider = FutureProvider.autoDispose
     .family<List<({String articleId, String quantite})>?, String>(
@@ -280,7 +392,9 @@ void invaliderRestaurant(WidgetRef ref) {
     ..invalidate(menusListeProvider)
     ..invalidate(compteursCatalogueProvider)
     ..invalidate(compteursFichesProvider)
-    ..invalidate(articlesFichesProvider);
+    ..invalidate(articlesFichesProvider)
+    ..invalidate(articlesLiensProvider)
+    ..invalidate(platsRetiresProvider);
 }
 
 /// La fiche détail d'un plat — ce que la modale « Détail » du maître affiche.

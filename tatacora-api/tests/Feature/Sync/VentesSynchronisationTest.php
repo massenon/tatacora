@@ -9,7 +9,6 @@ use App\Domain\Caisse\Services\SessionCaisseService;
 use App\Domain\Comptabilite\Models\CompteComptable;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\JournalComptable;
-use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
 use App\Domain\Restaurant\Models\CommandeRestaurant;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Models\Recette;
@@ -164,14 +163,15 @@ final class VentesSynchronisationTest extends TestCase
     }
 
     /**
-     * Décision du PO du 15/10/2026 : un plat SANS composition (fiche vide,
-     * aucun lien direct) ne fait pas rejeter une vente synchronisée. La vente
-     * est écrite, ses autres lignes sortent leur stock, la ligne fautive n'en
-     * sort aucun et l'anomalie `plat_sans_composition` est enregistrée — une
-     * seule fois, même au rejeu. En ligne, la même vente reste refusée.
+     * Décision du PO du 15/10/2026 (vente synchronisée), étendue le 30/10/2026
+     * (« le stock s'ajoute après ») : un plat SANS composition (fiche vide,
+     * aucun lien direct) se vend PARTOUT. La vente est écrite, ses autres lignes
+     * sortent leur stock, la ligne sans fiche n'en sort aucun et le DIT dans
+     * `stock_non_impacte` — mais ce n'est plus une anomalie à examiner. En ligne,
+     * la même vente passe aussi.
      */
     #[Test]
-    public function un_plat_sans_composition_ne_fait_pas_rejeter_la_vente_mais_est_signale(): void
+    public function un_plat_sans_fiche_se_vend_sans_mouvement_de_stock_et_sans_anomalie(): void
     {
         $ficheVide = Recette::create(['libelle' => 'Salade du jour', 'cout_matiere_calcule' => '0.00']);
         $salade = Plat::create([
@@ -188,7 +188,7 @@ final class VentesSynchronisationTest extends TestCase
         $this->pousser([$operation], $this->gerant)
             ->assertJsonPath('resultats.0.statut', 'synchronise')
             ->assertJsonPath('resultats.0.montant_total', '10500.00')
-            ->assertJsonPath('resultats.0.anomalies', [AnomalieSynchronisation::PLAT_SANS_COMPOSITION]);
+            ->assertJsonMissingPath('resultats.0.anomalies');
 
         $vente = Vente::findOrFail($id);
         $this->assertSame(3, $vente->lignes()->count());
@@ -198,44 +198,86 @@ final class VentesSynchronisationTest extends TestCase
             'motif' => __('ventes.stock_non_sorti_plat_sans_composition', ['plat' => 'Salade du jour']),
             'cause' => 'plat_sans_composition', 'plat_id' => $salade->id, 'quantite' => 3,
         ]], $vente->stock_non_impacte);
-        // Les autres lignes ont sorti leur stock.
+        // Les autres lignes ont sorti leur stock : un plat AVEC fiche décrémente toujours.
         $this->assertSame('0.50', (string) MouvementStock::where('article_id', $this->articleRiz->id)->where('type_mouvement', 'sortie')->sole()->quantite);
         $this->assertSame(1, $this->nombreDeMouvements($this->articleBiere->id, 'sortie'));
-        $this->assertDatabaseHas('anomalies_synchronisation', [
-            'table_concernee' => 'ventes', 'entite_id' => $id,
-            'type' => AnomalieSynchronisation::PLAT_SANS_COMPOSITION, 'reference' => $salade->id,
-        ]);
+        $this->assertSame(0, AnomalieSynchronisation::where('type', AnomalieSynchronisation::PLAT_SANS_COMPOSITION)->count());
 
-        // Rejeu après purge : même document, aucune seconde anomalie.
-        $this->purgerLaMemoireDIdempotence();
-        $this->pousser([$this->nouvelleTentative($operation)], $this->gerant)
-            ->assertJsonPath('resultats.0.document_deja_enregistre', true);
-        $this->assertSame(1, AnomalieSynchronisation::where('type', AnomalieSynchronisation::PLAT_SANS_COMPOSITION)->count());
-
-        // En ligne (sans `sansBonDeCuisine`), rien ne change : refusée.
-        $this->expectException(RecetteManquanteException::class);
+        // En ligne (sans `sansBonDeCuisine`) : la même vente passe, sans mouvement.
+        $avant = MouvementStock::count();
         $this->actingAs($this->gerant);
-        app(VenteService::class)->enregistrer([
+        $enLigne = app(VenteService::class)->enregistrer([
             'mode_paiement' => 'especes',
             'lignes' => [['module' => 'M4', 'reference_id' => $salade->id, 'quantite' => 1]],
         ]);
+        $this->assertSame($avant, MouvementStock::count(), 'Un plat sans fiche ne produit aucun mouvement de stock.');
+        $this->assertSame('plat_sans_composition', $enLigne->refresh()->stock_non_impacte[0]['cause']);
     }
 
     #[Test]
-    public function un_ticket_avec_des_plats_exige_aussi_l_ecriture_sur_m4(): void
+    public function un_ticket_avec_des_plats_n_est_pas_juge_sur_les_modules_du_compte_d_appairage(): void
     {
-        // `barman` : M5 = C, M4 = '-'.
+        // Décision du PO du 09/11/2026 : le barman (M5 = C, M4 = '-') pousse un ticket bar + plat,
+        // la réceptionniste (M5 = L) un ticket de bière : le serveur accepte, le RBAC se juge au poste.
         $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(1), $this->lignePlat(1)])], $this->barman)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertDatabaseHas('journal_securite', ['utilisateur_id' => $this->barman->id, 'module_concerne' => 'M4']);
-        $this->assertSame(0, Vente::count());
+        $this->assertDatabaseMissing('journal_securite', ['utilisateur_id' => $this->barman->id, 'type_evenement' => 'acces_refuse_rbac']);
+        $this->assertSame(1, Vente::count());
 
         $receptionniste = $this->creerUtilisateur('receptionniste');
         $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(1)])], $receptionniste)
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
-        $this->assertSame(0, Vente::count());
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(2, Vente::count());
+    }
+
+    /**
+     * Tourisme (M9) et location (M8) au comptoir (22/10/2026) : la vente du
+     * poste monte avec ses bons modules, la pièce VTE crédite 7061 / 7073, et
+     * aucune sortie de stock n'est produite. Ils exigent EN PLUS l'écriture
+     * sur M9 / M8, comme le comptoir web.
+     */
+    #[Test]
+    public function une_vente_de_tourisme_et_de_location_monte_avec_ses_comptes_sans_sortie_de_stock(): void
+    {
+        $circuit = \App\Domain\Tourisme\Models\Circuit::create([
+            'nom' => 'Cascades de Kota', 'theme' => 'nature', 'zone' => 'Atacora',
+            'duree' => '1 jour', 'prix' => '15000.00', 'capacite_max' => 12,
+        ]);
+        $vehicule = \App\Domain\Vehicules\Models\Vehicule::create([
+            'categorie' => '4x4', 'immatriculation' => 'AB-123-CD', 'annee' => 2022,
+            'transmission' => 'automatique', 'capacite' => 5, 'tarif_jour' => '65000.00',
+            'statut' => 'disponible',
+        ]);
+        $lignes = [
+            ['module_source' => 'M9', 'code_article' => $circuit->id, 'libelle' => 'Cascades de Kota', 'prix_unitaire' => 15000, 'quantite' => 2],
+            ['module_source' => 'M8', 'code_article' => $vehicule->id, 'libelle' => 'AB-123-CD', 'prix_unitaire' => 65000, 'quantite' => 1],
+        ];
+
+        // Le barman (M5 seul) : plus jugé par le serveur (décision du PO du 09/11/2026), le droit de
+        // vendre location et tourisme se juge au poste. Le serveur écrit pareil.
+        $this->pousser([$this->vente($this->uuid(), $lignes)], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(1, Vente::count());
+
+        $id = $this->uuid();
+        $this->pousser([$this->vente($id, $lignes)], $this->gerant)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.montant_total', '95000.00');
+
+        $this->assertEqualsCanonicalizing(
+            ['M8', 'M9'],
+            LigneVente::where('vente_id', $id)->pluck('module')->all(),
+        );
+        $numero = Vente::findOrFail($id)->numero;
+        $piece = EcritureComptable::where('libelle', __('ventes.libelle_ecriture', ['numero' => $numero]))->get();
+        $credit = fn (string $compte): string => (string) $piece->firstWhere(
+            'compte_id',
+            CompteComptable::where('numero_compte', $compte)->value('id'),
+        )?->credit;
+        $this->assertSame('30000.00', $credit('7061'));
+        $this->assertSame('65000.00', $credit('7073'));
+        $this->assertSame(0, MouvementStock::where('type_mouvement', 'sortie')->count());
     }
 
     /**
@@ -403,45 +445,133 @@ final class VentesSynchronisationTest extends TestCase
 
     /**
      * Lot F6 : l'annulation, par `VenteService::annuler` (contre-passation),
-     * une fois ; une vente d'un AUTRE poste ne s'annule que par
-     * l'administration ou le comptable (Q3).
+     * une fois. Depuis le 09/11/2026 (décision du PO) la règle Q3 — « une vente d'un
+     * AUTRE poste ne s'annule que par l'administration ou le comptable » — ne se juge plus
+     * sur le compte du jeton : le droit `ANNULATIONS` se juge AU POSTE, sur l'utilisateur
+     * connecté. Le serveur garde la cohérence (idempotence, une seule contre-passation).
      */
     #[Test]
-    public function l_annulation_passe_par_le_service_et_suit_la_regle_des_autres_postes(): void
+    public function l_annulation_passe_par_le_service_sans_juger_le_compte_d_appairage(): void
     {
         $id = $this->uuid();
         $this->pousser([$this->vente($id, [$this->ligneBiere(2)])], $this->barman, 'poste-a');
         $annulation = fn (): array => $this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Erreur de table']);
 
+        // Un AUTRE poste annule : accepté (le poste B a jugé son utilisateur), contre-passée UNE fois.
         $this->pousser([$annulation()], $this->barman, 'poste-b')
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('sync.annulation_autre_poste'));
-        $this->assertFalse(Vente::findOrFail($id)->estAnnulee());
-
-        $this->pousser([$annulation()], $this->barman, 'poste-a')->assertJsonPath('resultats.0.statut', 'synchronise');
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertTrue(Vente::findOrFail($id)->estAnnulee());
         $this->assertTrue(Vente::findOrFail($id)->estAnnulee());
         $lignes = EcritureComptable::count();
 
-        // Rejeu (autre uuid, plus tard) : rien n'est contre-passé deux fois.
+        // Rejeu (autre uuid, plus tard, même poste d'origine) : rien n'est contre-passé deux fois.
         $this->travel(1)->minutes();
         $this->pousser([$annulation()], $this->barman, 'poste-a')->assertJsonPath('resultats.0.statut', 'synchronise');
         $this->assertSame($lignes, EcritureComptable::count());
     }
 
     #[Test]
-    public function l_administration_annule_la_vente_d_un_autre_poste_le_gerant_non(): void
+    public function l_annulation_de_la_vente_d_un_autre_poste_ne_juge_ni_le_gerant_ni_l_administration(): void
     {
         $id = $this->uuid();
         $this->pousser([$this->vente($id, [$this->ligneBiere(1)])], $this->barman, 'poste-a');
 
+        // Le gérant n'est plus refusé (09/11/2026) ; la seconde annulation, par l'administration,
+        // est un rejeu : rendue sans second effet.
         $this->pousser([$this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Doublon'])], $this->gerant, 'poste-b')
-            ->assertJsonPath('resultats.0.statut', 'rejete');
-        $this->pousser([$this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Doublon'])], $this->creerUtilisateur('administrateur'), 'poste-b')
             ->assertJsonPath('resultats.0.statut', 'synchronise');
         $this->assertTrue(Vente::findOrFail($id)->estAnnulee());
+        $lignes = EcritureComptable::count();
+
+        $this->travel(1)->minutes();
+        $this->pousser([$this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Doublon'])], $this->creerUtilisateur('administrateur'), 'poste-b')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame($lignes, EcritureComptable::count());
     }
 
     // ------------------------------------------------------------- Helpers
+
+    /**
+     * La remise du panier (21/10/2026) : le poste pousse le TYPE et la VALEUR
+     * saisis, le serveur dérive le montant par `Panier::remiseSur` et encaisse
+     * le NET — `montant_total`, pièce `VTE` (débit caisse) et théorique de
+     * caisse.
+     */
+    #[Test]
+    public function la_remise_en_pourcentage_est_appliquee_et_la_piece_passe_sur_le_net(): void
+    {
+        $id = $this->uuid();
+
+        // 3 bières à 1 000 F = 3 000 F, 10 % de remise : 300 F, net 2 700 F.
+        $this->pousser([$this->vente($id, [$this->ligneBiere(3)], extra: [
+            'remise_type' => 'pourcentage', 'remise_valeur' => 10, 'montant_cloture' => 2700,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.montant_total', '2700.00');
+
+        $vente = Vente::findOrFail($id);
+        $this->assertSame('2700.00', (string) $vente->montant_total);
+        // Les lignes restent au prix brut figé.
+        $this->assertSame('3000.00', (string) LigneVente::where('vente_id', $id)->sole()->montant);
+
+        $piece = EcritureComptable::where('libelle', __('ventes.libelle_ecriture', ['numero' => $vente->numero]))->get();
+        $caisse = CompteComptable::where('numero_compte', '5711')->value('id');
+        $this->assertSame('2700.00', (string) $piece->firstWhere('compte_id', $caisse)?->debit);
+    }
+
+    #[Test]
+    public function la_remise_en_montant_et_le_total_annonce_se_confrontent_au_net(): void
+    {
+        $id = $this->uuid();
+
+        $this->pousser([$this->vente($id, [$this->ligneBiere(2)], extra: [
+            'remise_type' => 'montant', 'remise_valeur' => 500, 'montant_cloture' => 1500,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.montant_total', '1500.00');
+
+        // Le total annonce le BRUT alors qu'une remise existe : incohérent, rejeté.
+        $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(2)], extra: [
+            'remise_type' => 'montant', 'remise_valeur' => 500, 'montant_cloture' => 2000,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'rejete');
+        $this->assertSame(1, Vente::count());
+    }
+
+    #[Test]
+    public function une_remise_hors_bornes_est_rejetee_avec_la_phrase_du_serveur(): void
+    {
+        $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(1)], extra: [
+            'remise_type' => 'montant', 'remise_valeur' => 5000,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('ventes.remise_superieure_au_total'));
+
+        $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(1)], extra: [
+            'remise_type' => 'pourcentage', 'remise_valeur' => 120,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('ventes.remise_pourcentage_hors_bornes'));
+
+        $this->assertSame(0, Vente::count());
+    }
+
+    /**
+     * Un pourcentage qui donne des centimes (10 % de 1 005 F = 100,50 F) : le
+     * poste compte en francs entiers et annonce le net ARRONDI au franc ; le
+     * serveur garde les centimes de SA formule.
+     */
+    #[Test]
+    public function un_net_a_centimes_est_annonce_arrondi_au_franc_et_garde_ses_centimes(): void
+    {
+        $id = $this->uuid();
+
+        $this->pousser([$this->vente($id, [$this->ligneBiere(1, prix: 1005)], extra: [
+            'remise_type' => 'pourcentage', 'remise_valeur' => 10, 'montant_cloture' => 905,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.montant_total', '904.50');
+    }
 
     /**
      * @param  list<array<string, mixed>>  $lignes

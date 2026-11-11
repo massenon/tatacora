@@ -51,6 +51,16 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  // Taille minimale et zone d'agrandissement : AVANT les greffons. Le plugin
+  // `window_manager` repond a `WM_GETMINMAXINFO` (resultat 0) meme sans taille
+  // minimale posee, ce qui court-circuiterait le calcul du runner (minimum
+  // 1024 x 640 borne a la zone de travail, agrandissement hors barre des
+  // taches) : voir `Win32Window::MessageHandler`. Le plugin n'a rien a y
+  // ajouter, aucune taille n'etant commandee depuis le Dart.
+  if (message == WM_GETMINMAXINFO) {
+    return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

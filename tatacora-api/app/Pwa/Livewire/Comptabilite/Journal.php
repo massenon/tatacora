@@ -43,7 +43,7 @@ use Livewire\Attributes\Url;
  *
  * @see EF-M10-06
  */
-#[Title('Journal Comptable — TATACORA AFRIQUE')]
+#[Title('Journal Comptable — LogiReStock — TATACORA AFRIQUE')]
 class Journal extends PageComptabilite
 {
     #[Url(as: 'journal')]

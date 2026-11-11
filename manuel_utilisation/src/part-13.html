@@ -1,0 +1,204 @@
+<!-- ============================ CHAPITRE 18 ============================ -->
+<section class="chapitre" id="ch18">
+  <h1 class="chapitre"><span class="numero">Chapitre 18</span>La facture proforma</h1>
+
+  <p class="chapeau">
+    Une <strong>facture proforma</strong> est un <strong>devis chiffré</strong> que l'on remet à un client avant la prestation :
+    « voici ce que cela coûtera ». Elle se prépare au poste, même sans Internet, s'imprime en A4 et, si le client accepte,
+    se transforme en vraie facture en un clic. Ce n'est <strong>pas</strong> une facture : elle n'a aucune valeur fiscale.
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Ce que la proforma n'est PAS</span>
+    La proforma est un document <strong>non fiscal</strong>. Elle ne porte <strong>jamais</strong> de numéro MECeF, de QR code ni de mention de
+    normalisation, <strong>quel que soit le mode de facturation</strong> (chapitre 17). Elle ne crée <strong>aucune écriture comptable</strong>,
+    ne touche <strong>aucun stock</strong> et n'encaisse rien. Elle ne se remet jamais à un client comme si c'était une facture.
+  </span>
+
+  <h2>18.1 Où la trouver</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Facturation <span class="fleche">➔</span> lien Proformas
+  </span>
+  <p>
+    L'écran <strong>Factures proforma</strong> (sous-titre : <em>« Documents commerciaux non fiscaux : devis chiffrés remis au client,
+    convertibles en facture. »</em>) liste les proformas avec les colonnes <strong>Numéro</strong>, <strong>Date</strong>, <strong>Client</strong>,
+    <strong>Objet</strong>, <strong>Total</strong> et <strong>Statut</strong>. On y trouve une recherche (<em>Rechercher (numéro, client, objet)</em>),
+    un filtre <strong>Tous les statuts</strong>, le bouton <strong>Nouvelle facture proforma</strong> et, pour revenir, <strong>Retour aux factures</strong>.
+    Il est ouvert aux comptes qui ont accès au module Facturation.
+  </p>
+
+  <figure class="compact">
+    <img src="../captures/c18-proformas-liste.png" alt="L'écran « Factures proforma » : une proforma émise, une annulée (motif « Essai ») et un brouillon.">
+    <figcaption><b>Figure 18.1</b> — La liste des factures proforma. <i>Rendu de l’écran du poste ; les numéros « PROV-FP-… » sont provisoires.</i></figcaption>
+  </figure>
+
+  <h2>18.2 Créer une proforma</h2>
+
+  <h3>À partir de zéro (saisie libre)</h3>
+  <ol class="etapes">
+    <li>Cliquez sur <strong>Nouvelle facture proforma</strong>.</li>
+    <li>Renseignez le <strong>Client</strong> (obligatoire : « Le nom du client est obligatoire. »), son <strong>Téléphone</strong>, son <strong>IFU</strong> (<em>13 chiffres, facultatif</em> : « L'IFU du client doit compter exactement 13 chiffres. ») et l'<strong>Objet</strong>.</li>
+    <li>Ajoutez les <strong>lignes</strong> (<em>prix unitaire TTC en FCFA</em>) : <strong>Désignation</strong> libre, <strong>Quantité</strong> entière, <strong>Prix unitaire</strong> en francs entiers. Le montant de chaque ligne (quantité × prix) et le total se calculent seuls. <strong>Ajouter une ligne</strong> en ajoute une ; <strong>Retirer</strong> l'enlève. Il faut au moins une ligne : « Ajoutez au moins une ligne à la proforma. »</li>
+    <li>Cliquez sur <strong>Enregistrer le brouillon</strong> (la proforma reste modifiable et n'a pas de numéro) ou sur <strong>Enregistrer et émettre</strong> (elle reçoit son numéro).</li>
+  </ol>
+  <p>
+    Aucune TVA n'est affichée sur la proforma. Un total au-delà de la limite admise est refusé (« Le montant de la proforma dépasse la limite admise. »).
+  </p>
+
+  <figure class="compact">
+    <img src="../captures/c18-proforma-formulaire.png" alt="La fenêtre « Nouvelle facture proforma », saisie et non validée : client, objet, une ligne de désignation, quantité et prix.">
+    <figcaption><b>Figure 18.2</b> — La saisie d'une proforma. <i>Rendu de l’écran du poste.</i></figcaption>
+  </figure>
+
+  <h3>À partir d'une réservation, d'un contrat ou d'un circuit</h3>
+  <p>
+    Un bouton <strong>Créer une proforma</strong> (ou <strong>Proforma</strong>, en abrégé) existe dans plusieurs modules. Il ouvre la saisie avec le
+    <strong>client, l'objet et les lignes déjà remplis</strong> à partir de ce qui est enregistré. Les lignes restent <strong>toujours modifiables</strong> ;
+    rien n'est inventé (une réservation sans tarif donne 0).
+  </p>
+  <table>
+    <thead><tr><th>Où</th><th>Ce qui est prérempli</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Véhicules &amp; Locations</strong> — un contrat</td><td>Le client ; une ligne « véhicule × nombre de jours » au tarif journalier.</td></tr>
+      <tr><td><strong>Tourisme</strong> — une réservation de circuit</td><td>Le client ; une ligne « circuit × nombre de participants ».</td></tr>
+      <tr><td><strong>Hébergement</strong> — une réservation</td><td>Le client ; les nuitées au tarif enregistré, plus les lignes de services (les remises ne sont pas reprises).</td></tr>
+      <tr><td><strong>Restauration</strong> — événement</td><td><strong>Proforma vide</strong> : il n'existe pas de module événement qui puisse la préremplir. Vous saisissez le client et les lignes.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>18.3 Le numéro : N°0045 FP-GCN/2026</h2>
+  <p>Le numéro d'une proforma a toujours la forme <code>N°0045 FP-GCN/2026</code> :</p>
+  <ul class="puces">
+    <li><strong>0045</strong> : le rang de la proforma dans l'année, sur quatre chiffres, sans trou ni doublon ; la numérotation <strong>repart à 1 le 1<sup>er</sup> janvier</strong> ;</li>
+    <li><strong>FP</strong> : « facture proforma » ;</li>
+    <li><strong>GCN</strong> : la <strong>référence facture</strong> du Gîte, un réglage (<em>Paramètres ➔ Identité &amp; Légal ➔ Référence facture</em>, « GCN » si vide) ;</li>
+    <li><strong>2026</strong> : l'année d'émission.</li>
+  </ul>
+
+  <table>
+    <thead><tr><th>Moment</th><th>Numéro</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Brouillon</strong></td><td>Aucun numéro (le PDF porte « BROUILLON — non numérotée »). Un brouillon abandonné ne laisse donc aucun trou dans la suite.</td></tr>
+      <tr><td><strong>Émission en ligne</strong></td><td>Le numéro définitif est attribué tout de suite par le serveur.</td></tr>
+      <tr><td><strong>Émission hors ligne</strong> (au poste, sans Internet)</td><td>Un numéro <strong>provisoire</strong> de la forme <code>PROV-FP-2026-00012</code>. À la première synchronisation, le serveur le remplace par le numéro <strong>définitif</strong>. Il n'existe jamais deux numéros définitifs identiques.</td></tr>
+      <tr><td><strong>Annulée</strong></td><td>Elle <strong>garde</strong> son numéro.</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    La référence facture est <strong>copiée sur la proforma au moment de l'émission</strong> : changer le réglage ensuite ne renumérote
+    <strong>aucune</strong> proforma déjà émise. Ce réglage se modifie <strong>sur le web</strong>, le poste le reçoit en lecture.
+    Si vous imprimez une proforma hors ligne, le numéro provisoire figure sur le papier : prévenez le client que le numéro définitif sera communiqué ensuite, ou attendez la synchronisation avant d'imprimer.
+  </span>
+
+  <h2>18.4 Le cycle de vie : les statuts</h2>
+  <table>
+    <thead><tr><th>Statut</th><th>Sens</th><th>Ce que l'on peut faire</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille gris">Brouillon</span></td><td>Enregistrée, sans numéro.</td><td>Modifier, Émettre, Annuler.</td></tr>
+      <tr><td><span class="pastille vert">Émise</span></td><td>Numérotée, remise (ou prête à l'être) au client.</td><td>Modifier (chaque modification est tracée), PDF A4, Convertir en facture, Annuler.</td></tr>
+      <tr><td><span class="pastille or">Expirée</span></td><td>Émise dont la date de validité est dépassée (voir 18.5). Ce statut se <strong>déduit</strong> de la date : il n'est jamais enregistré.</td><td>La <strong>conversion reste possible</strong>, avec confirmation.</td></tr>
+      <tr><td><span class="pastille">Convertie</span></td><td>Transformée en facture. <strong>Immuable.</strong></td><td>Le lien <em>Facture …</em> mène à la facture.</td></tr>
+      <tr><td><span class="pastille rouge">Annulée</span></td><td>Abandonnée, avec son motif.</td><td>Plus de modification, plus de conversion.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Une proforma <strong>convertie</strong> ou <strong>annulée</strong> n'est plus modifiable (« Cette proforma est … : elle n'est plus modifiable. »).
+  </p>
+
+  <h2>18.5 La date de validité</h2>
+  <p>
+    Deux réglages (<em>Paramètres ➔ Identité &amp; Légal</em>, modifiables <strong>sur le web</strong>) commandent la validité :
+  </p>
+  <ul class="puces">
+    <li><strong>Afficher la date de validité sur les proformas</strong> : <strong>Non</strong> par défaut ;</li>
+    <li><strong>Durée de validité d'une proforma (jours)</strong> : 30 jours par défaut, de 1 à 365.</li>
+  </ul>
+  <p>
+    Avec <strong>Oui</strong>, à l'émission, la date limite est calculée (date d'émission + durée), <strong>enregistrée sur la proforma</strong> et imprimée :
+    <em>« Valable jusqu'au … »</em>. Changer le réglage plus tard ne touche pas aux proformas déjà émises. Les <strong>factures</strong>, elles,
+    n'ont pas de date de validité : ce réglage ne vise que les proformas.
+  </p>
+
+  <h2>18.6 Signature et cachet</h2>
+  <p>
+    Le réglage <strong>Afficher la signature et le cachet sur les factures</strong> (Oui/Non) décide si le bloc de signature est imprimé. Il
+    vaut pour les <strong>proformas et pour les factures A4</strong> ; le <strong>ticket</strong> n'en porte jamais.
+  </p>
+  <table>
+    <thead><tr><th>Réglage</th><th>Résultat sur le papier</th></tr></thead>
+    <tbody>
+      <tr><td>Non</td><td>Aucun bloc de signature.</td></tr>
+      <tr><td>Oui, avec images déposées</td><td>Le <strong>nom</strong> et la <strong>fonction</strong> du signataire, la <strong>signature</strong> et le <strong>cachet</strong>.</td></tr>
+      <tr><td>Oui, sans image</td><td>Le nom et la fonction du signataire seulement.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Le nom et la fonction du signataire (<em>Signataire — nom</em>, <em>Signataire — fonction</em>) et les <strong>images</strong> de la signature et du cachet se règlent
+    <strong>sur le web</strong> (images de 400 Ko au plus, réduites automatiquement). Le poste reçoit ces images à la synchronisation : sans
+    avoir été synchronisé au moins une fois, un poste neuf n'a pas les images à imprimer.
+  </p>
+
+  <h2>18.7 Le montant en lettres et le modèle imprimé</h2>
+  <p>
+    La proforma s'imprime sur une feuille <strong>A4</strong> (bouton <strong>PDF A4</strong>) qui reprend le modèle papier du Gîte : le titre
+    <strong>FACTURE PROFORMA</strong>, la référence, les informations du client (nom, IFU, téléphone, objet), le tableau des lignes
+    (<em>Désignation, Quantité, Prix unitaire (FCFA), Montant (FCFA)</em>), le <strong>TOTAL</strong>, puis la phrase :
+  </p>
+  <p style="margin-left:6mm"><em>« Arrêté la présente FACTURE PROFORMA à la somme de : QUATRE-VINGT MILLE FRANCS CFA. »</em></p>
+  <p>
+    Le <strong>montant en lettres</strong> est calculé par le logiciel, en majuscules, avec les règles de l'orthographe française
+    (« quatre-vingts » prend un s seulement s'il termine le nombre, « cent » aussi quand il est multiplié et terminal, « mille » ne
+    change jamais). Le suffixe est « FRANCS CFA » (« FRANC CFA » pour 0 ou 1). Vous n'avez rien à saisir.
+  </p>
+
+  <figure>
+    <img src="../captures/c18-proforma-a4.png" alt="Une proforma émise en A4 : en-tête, tableau vert, montant en lettres et nom du signataire.">
+    <figcaption><b>Figure 18.3</b> — Une facture proforma en A4. <i>Rendu du document du poste (PDF rastérisé), identité de l’établissement fictive, sans image de signature ni cachet.</i></figcaption>
+  </figure>
+
+  <h2>18.8 Annuler une proforma</h2>
+  <ol class="etapes">
+    <li>Dans la liste, ouvrez la proforma et cliquez sur <strong>Annuler</strong>.</li>
+    <li>La fenêtre <strong>Annuler la proforma</strong> demande le <strong>Motif de l'annulation</strong>. Il est <strong>obligatoire</strong> : « Le motif d'annulation est obligatoire. »</li>
+    <li>Validez : « Proforma annulée. » La proforma garde son numéro et reste visible, au statut Annulée.</li>
+  </ol>
+  <p>Une proforma déjà convertie ne s'annule pas : on annule alors la <strong>facture</strong> qui en est issue (avoir, chapitre 17).</p>
+
+  <h2>18.9 Convertir en facture</h2>
+  <p>
+    Quand le client accepte, <strong>Convertir en facture</strong> crée une <strong>vraie facture</strong>, avec le même client, le même IFU, les mêmes
+    lignes et les mêmes montants. La fenêtre le dit : <em>« Une vraie facture sera créée avec le même client, les mêmes lignes et les mêmes
+    montants. La proforma ne sera plus modifiable. Cette conversion ne se fait qu'une fois. »</em> Le bouton <strong>Convertir</strong> confirme.
+  </p>
+  <ul class="puces">
+    <li><strong>Une seule fois.</strong> Un brouillon ne se convertit pas (« Émettez d'abord la proforma : un brouillon ne se convertit pas en facture. »), une proforma annulée non plus, une proforma déjà convertie renvoie à sa facture.</li>
+    <li><strong>Même une proforma expirée</strong> peut être convertie, avec ce message : « Cette proforma est expirée : la conversion reste possible. »</li>
+    <li>Après conversion : « Proforma convertie en facture … », et le lien <em>Facture …</em> apparaît sur la ligne.</li>
+    <li>Le <strong>mode de facturation</strong> décide ensuite de la suite : en mode Désactivé, c'est une facture simple ; en e-MECeF ou boîtier, elle est « en attente de normalisation » et il faut cliquer sur <strong>Normaliser</strong> (chapitre 17). La conversion ne normalise jamais seule.</li>
+  </ul>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    Pour un séjour de groupe ou un événement, établissez la proforma <strong>avant</strong> l'arrivée, faites-la valider par le client, puis
+    convertissez-la le jour de la facturation : les montants ne changent pas, et vous évitez de ressaisir les lignes.
+  </span>
+
+  <h2>18.10 Hors ligne, synchronisation et droits</h2>
+  <ul class="puces">
+    <li>Tout se fait <strong>hors ligne</strong> : création, émission, impression, annulation, conversion. Les proformas du poste montent au serveur à la synchronisation, puis descendent vers les autres postes et le web.</li>
+    <li>Les droits sont ceux du module <strong>Facturation</strong> (M2) : sans droit d'écriture, vous pouvez consulter mais pas créer ni modifier.</li>
+    <li>Les libellés de l'écran du poste sont les mêmes que ceux du web.</li>
+  </ul>
+
+  <h2>18.11 Ce qui reste à éprouver</h2>
+  <ul class="puces">
+    <li>L'<strong>essai terrain</strong> reste à faire : émettre une proforma réelle hors ligne sur un vrai poste, l'imprimer en A4 et la comparer au modèle papier du Gîte (en-tête, ligne des activités, date longue, tableau vert, montant en lettres, signature et cachet), puis reconnecter le poste, vérifier le numéro définitif et la convertir.</li>
+    <li>Il n'existe <strong>pas de module « événement »</strong> : la proforma d'un événement se saisit à la main.</li>
+  </ul>
+</section>

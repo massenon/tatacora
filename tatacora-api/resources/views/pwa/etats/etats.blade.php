@@ -29,15 +29,6 @@
   @include('pwa.partials.barre-superieure')
   
 
-  {{-- Le bandeau du maître, porté tel quel (l.15-21). Son lien pointe vers la
-       version fonctionnelle, qui est servie par cette PWA. --}}
-  <div style="background:#FFFBEB;border-bottom:1px solid #FDE68A;padding:10px 20px">
-    <p style="font-size:13px;color:#78350F;margin:0">
-      <strong>{{ __('pwa.etats_legacy.remplace_titre') }}</strong> {{ __('pwa.etats_legacy.remplace_texte') }}
-      <a href="{{ route('pwa.etats.studio') }}" style="color:#78350F;font-weight:700;text-decoration:underline">{{ __('pwa.etats.titre') }}</a>.
-    </p>
-  </div>
-
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">
@@ -141,8 +132,8 @@
                        un auteur nul avant toute écriture. Une édition sans
                        émetteur ne peut pas exister ; un repli serait du code
                        que rien n'exerce (même défaut que PA-150). --}}
-                  <td class="px-5 py-3 text-slate-500">{{ $edition->utilisateur->login }}</td>
-                  <td class="px-5 py-3 text-slate-500">{{ $edition->date_edition->format('d/m/Y H:i') }}</td>
+                  <td class="px-5 py-3 text-slate-500">{{ $edition->utilisateur->libelleAuteur() }}</td>
+                  <td class="px-5 py-3 text-slate-500">{{ \App\Shared\Support\HeureLocale::formater($edition->date_edition, 'd/m/Y H:i') }}</td>
                   <td class="px-5 py-3 text-slate-500">{{ strtoupper($edition->format) }}</td>
                   {{-- L'action « Retélécharger » du maître n'est pas rendue :
                        `chemin_fichier_archive` vaut TOUJOURS `null` (PA-48), il

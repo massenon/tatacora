@@ -237,6 +237,11 @@ abstract final class AppLayout {
   /// étroites seulement, la mesure se fait à 1 040 px de contenu.
   static const double enTeteReservationsEnRangee = 900;
 
+  /// Registre des factures (poste) : N° et actions ont une largeur FIXE — le N° tient sur une ligne, « Facture A4 » et
+  /// « Avoir » ne passent plus à la ligne lettre par lettre (PO 10/11/2026).
+  static const double colonneNumeroFacture = 150;
+  static const double colonneActionsFacture = 190;
+
   /// La colonne de la case de sélection d'un tableau de la vue (`th px-4
   /// w-10 no-print`) : 16 + 16 de marge autour d'une case de 16 px.
   static const double colonneSelection = 48;
@@ -270,6 +275,20 @@ abstract final class AppLayout {
   /// déplace pas l'autre.
   static const double modaleRecouvrementCrm = 560;
 
+  /// La modale « Historique d'un client » de `clients-creances.blade.php`
+  /// (`<x-pwa.modale … largeur="720px">`, l.728).
+  static const double modaleHistoriqueClientCrm = 720;
+
+  /// La modale « Tracer une relance » de `clients-creances.blade.php`
+  /// (`<x-pwa.modale … largeur="520px">`, l.692).
+  static const double modaleRelanceCrm = 520;
+
+  /// LE jeton de largeur de page, UN SEUL (directive du PO du 26/10/2026) :
+  /// le premier `<div>` après `<main>` de toute vue de la PWA porte
+  /// `max-w-[1440px] mx-auto p-5 lg:p-8`. Les jetons `page*` ci-dessous et dans
+  /// [MesuresTransverses] ne sont plus que des NOMS d'écran qui renvoient ici :
+  /// il n'existe plus de 1100, 1200, 1500 ou 1600 px. La garde
+  /// `test/core/qualite/largeur_page_unique_test.dart` le vérifie.
   static const double maxContentWidth = 1440;
 
   /// La hauteur maximale des modales de l'écran Stocks, en **fraction** de la
@@ -389,7 +408,7 @@ abstract final class AppLayout {
   /// Valeur **entre crochets**, mesuree : elle ne vient d'aucune echelle, et
   /// elle differe des 1440 px employes ailleurs dans le maitre
   /// ([maxContentWidth]). Les aligner serait choisir a la place du maitre.
-  static const double pageHistoriqueVentes = 1500;
+  static const double pageHistoriqueVentes = maxContentWidth;
 
   /// Une carte de la bande d'indicateurs du journal — `grid-cols-2
   /// sm:grid-cols-3 xl:grid-cols-5 gap-3` (l.32) sur les 1500 px de contenu
@@ -439,14 +458,14 @@ abstract final class AppLayout {
   /// distinct : deux ecrans qui portent aujourd'hui la meme largeur ne sont
   /// pas le meme reglage, et le jour ou le maitre en bougerait un, un jeton
   /// partage deplacerait l'autre sans que personne ne l'ait demande.
-  static const double pageCarteRestaurant = 1500;
+  static const double pageCarteRestaurant = maxContentWidth;
 
   /// La colonne de contenu de la carte du bar — `max-w-[1500px]`
   /// (`pwa/carte/corps.blade.php` l.73, corps partage des deux cartes). Valeur
   /// entre crochets, mesuree. Jeton distinct de [pageCarteRestaurant] pour la
   /// meme raison que celui-ci l'est de [pageHistoriqueVentes] : le corps est
   /// commun aujourd'hui, rien ne dit qu'il le restera.
-  static const double pageCarteBar = 1500;
+  static const double pageCarteBar = maxContentWidth;
 
   /// La liste « categorie » de la barre de filtres de la carte du bar. La vue
   /// laisse ses `<select>` a leur largeur naturelle (`corps.blade.php`
@@ -594,6 +613,10 @@ abstract final class AppLayout {
   /// la vue : ni `max-w-md` (448) ni `max-w-sm` (384).
   static const double modalePrixBoisson = 420;
 
+  /// La modale « Modifier la boisson — » de la Carte du bar —
+  /// `largeur="480px"` (`pwa/carte/corps.blade.php` l.790).
+  static const double modaleModifierBoisson = 480;
+
   /// La modale « Lier au stock » — `largeur="560px"` (composant Blade
   /// `modal-lieraustock`, l.52), la mesure du maître que la vue a rétablie
   /// après une dérive à 540. Chemin écrit sans son préfixe : cité en entier,
@@ -668,7 +691,30 @@ abstract final class AppLayout {
   /// Valeur ENTRE CROCHETS, propre a cette page : son planning porte 62
   /// colonnes, et le maitre lui donne 160 px de plus qu'au [maxContentWidth]
   /// des autres ecrans.
-  static const double pageVehicules = 1600;
+  static const double pageVehicules = maxContentWidth;
+
+  /// La page « Congés & Plannings » — `max-w-[1600px] mx-auto p-5 lg:p-8`
+  /// (`rh/conges-plannings.blade.php`). Valeur ENTRE CROCHETS, la même que
+  /// [pageVehicules] : les deux vues posent la même classe.
+  static const double pageCongesPlannings = maxContentWidth;
+
+  /// Paramètres → Logo & Apparence : l'aperçu du logo (`w-20 h-20`), celui du
+  /// favicon (`w-10 h-10`) et une pastille de la charte (`w-12 h-12`).
+  static const double apercuLogo = 80;
+  static const double apercuFavicon = 40;
+  static const double pastilleCharte = 48;
+
+  /// La modale « Changer le logo » / « Changer le favicon » — `largeur="440px"`.
+  static const double modaleApparence = 440;
+
+  /// Les deux `<select>` de filtre de « Congés & Plannings » (service, statut)
+  /// n'ont AUCUNE largeur à la vue : le navigateur les dimensionne sur leur
+  /// plus long libellé (`px-3 py-2`, 13 px). Un champ Flutter n'a pas de
+  /// largeur intrinsèque : ces valeurs sont celles que le plus long libellé
+  /// (« Tous les services », « Tous les statuts ») occupe. À vérifier à
+  /// l'écran.
+  static const double filtreServiceCongesPlannings = 200;
+  static const double filtreStatutCongesPlannings = 180;
 
   /// Le champ de recherche du parc — `min-w-[200px]` sur un conteneur
   /// `flex-1` (`m8-locations.html` l.56). Meme motif exact que
@@ -695,6 +741,10 @@ abstract final class AppLayout {
   /// 520 n'est PAS `max-w-lg` (512) : huit pixels d'ecart, exactement
   /// l'approximation que l'Article 1 interdit au n° 09.
   static const double modaleImmobilisation = 520;
+
+  /// Les modales « Planifier un créneau » et « Demander un congé » —
+  /// `largeur="520px"` (`rh/conges-plannings.blade.php`).
+  static const double modaleCongesPlannings = 520;
 
   /// La modale « Véhicule » — `largeur="560px"` (`vehicules/locations.blade.php`
   /// l.782). Chemin écrit sans son préfixe : ce fichier ne porte pas la vue
@@ -852,6 +902,29 @@ abstract final class AppLayout {
   /// cette modale — elle défile au-delà.
   static const double hauteurMaxPropositionsCompte = 240;
 
+  /// La modale « Créer un compte » du hub comptable — `largeur="520px"`
+  /// (`comptabilite/hub`, `etatFormulaire === 'compte'`).
+  static const double modaleCompte = 520;
+
+  /// La modale des états comptables du hub (flux de trésorerie, notes
+  /// annexes, états financiers) : les pages séparées de la vue tiennent dans
+  /// `max-w-[900px]` (`comptabilite/etats-financiers`).
+  static const double modaleEtatsComptables = 900;
+
+  /// La modale « Ouvrir un exercice » du hub comptable — `largeur="420px"`
+  /// (`etatFormulaire === 'exercice'`).
+  static const double modaleExercice = 420;
+
+  /// La modale « Nouvelle immobilisation » du hub comptable — `largeur="560px"`.
+  static const double modaleImmobilisationComptable = 560;
+
+  /// La modale « Plan » d'amortissement — `largeur="640px"`.
+  static const double modalePlanAmortissement = 640;
+
+  /// La largeur du champ de recherche des onglets « Plan comptable » — `flex-1
+  /// max-w-md` de la vue (28 rem).
+  static const double rechercheOngletComptable = 448;
+
   /// L'icone de l'ecran d'accueil de l'apercu — `<svg width="48"
   /// height="48" stroke="#CBD5E1">` (`m14-etats-studio.js` l.120).
   ///
@@ -922,7 +995,7 @@ abstract final class AppLayout {
   /// Valeur ENTRE CROCHETS. Elle vaut le meme nombre que
   /// [pageHistoriqueVentes] et reste un jeton DISTINCT : deux ecrans qui
   /// portent aujourd'hui la meme largeur ne sont pas le meme reglage.
-  static const double pageNotifications = 1500;
+  static const double pageNotifications = maxContentWidth;
 
   /// L'icone d'avertissement du bandeau — `<svg width="20" height="20">`
   /// (`hub.blade.php` l.129). Valeur en dur du SVG, pas une classe Tailwind.
@@ -995,7 +1068,7 @@ abstract final class AppLayout {
   /// Valeur ENTRE CROCHETS. Elle vaut le meme nombre que [pageVehicules] et
   /// reste un jeton DISTINCT : le jour ou l'une des deux pages changera de
   /// gabarit, l'autre ne doit pas suivre par effet de bord.
-  static const double pageTourisme = 1600;
+  static const double pageTourisme = maxContentWidth;
 
   /// Le champ de recherche de la barre de filtres — `min-w-[200px]` sur un
   /// conteneur `flex-1` (l.178).
@@ -1080,6 +1153,10 @@ abstract final class AppLayout {
   /// l.817). L'aligner sur 520 serrerait cette rangee.
   static const double modalePrestationTourisme = 560;
 
+  /// La modale « Ajouter un guide touristique » — `largeur="460px"`, posée par
+  /// la vue au-dessus de « Réserver des places ».
+  static const double modaleAjoutGuideTourisme = 460;
+
   /// La jauge de remplissage d'un depart — `w-20` (l.308), soit 80 px de
   /// l'echelle NOMMEE de Tailwind, pas une valeur entre crochets.
   static const double jaugeRemplissage = 80;
@@ -1110,7 +1187,7 @@ abstract final class AppLayout {
   /// [pageHistoriqueVentes] et reste un jeton DISTINCT : deux ecrans qui
   /// portent aujourd'hui la meme largeur ne sont pas le meme reglage, et le
   /// jour ou la vue en bougerait un, un jeton partage deplacerait l'autre.
-  static const double pageDepenses = 1500;
+  static const double pageDepenses = maxContentWidth;
 
   /// La modale « Nouvelle Depense » — `largeur="760px"` (l.326).
   ///
@@ -1223,10 +1300,23 @@ abstract final class AppLayout {
   /// (`max-w-sm` = 384, `max-w-md` = 448).
   static const double modaleArchivageUnite = 420;
 
+  /// La modale « Émettre un avoir » de la facturation —
+  /// `largeur="560px"` (`facturation.blade.php` l.328). Même nombre que les
+  /// autres 560 : un réglage par écran, jamais partagé.
+  static const double modaleAvoirFacture = 560;
+
+  /// La modale « Réservation rapide » du parc — `largeur="512px"`
+  /// (`hebergement.blade.php` l.564).
+  static const double modaleReservationRapideParc = 512;
+
+  /// La modale « Ajouter un client » de la fiche de réservation —
+  /// `largeur="420px"` (`reservations.blade.php` l.749).
+  static const double modaleClientReservation = 420;
+
   /// La colonne de contenu d'Hebergement — `max-w-[1440px]` (l.56). Valeur
   /// ENTRE CROCHETS, distincte des 1500 px des cartes et des 1600 px de la
   /// paie : un reglage par ecran, jamais partage.
-  static const double pageHebergement = 1440;
+  static const double pageHebergement = maxContentWidth;
 
   /// Le `<select>` de categorie de la barre d'outils du plan (l.168). La vue le
   /// laisse a sa largeur NATURELLE, que le releve ne mesure pas (il ne releve
@@ -1269,7 +1359,7 @@ abstract final class AppLayout {
   /// La colonne de contenu de la paie — `max-w-[1600px]` (l.102). Valeur
   /// ENTRE CROCHETS, distincte des 1500 px des autres ecrans : un reglage par
   /// ecran, jamais partage.
-  static const double pagePaie = 1600;
+  static const double pagePaie = maxContentWidth;
 
   /// Le `<input type="month">` de l'en-tete (l.116). La vue ne lui pose
   /// aucune largeur : le navigateur le dimensionne a son contenu (texte
@@ -1418,6 +1508,22 @@ abstract final class LargeursPos {
   /// (`pos/comptant.blade.php` l.641 et l.663).
   static const double modaleCaisse = 448;
 
+  /// `largeur="448px"` des modales « Annuler cette vente » et « Stock
+  /// insuffisant » (`pos/comptant.blade.php` l.707 et l.728) : la même mesure
+  /// que celles de la caisse, nommée pour ce qu'elle porte ici.
+  static const double modaleAnnulationVente = 448;
+
+  /// `largeur="480px"` — la modale « Vente encaissée » (`pos/comptant.blade.php`
+  /// l.434).
+  static const double modaleVenteEncaissee = 480;
+
+  /// `largeur="620px"` — la modale « Journal du jour » (l.513).
+  static const double modaleJournalDuJour = 620;
+
+  /// `max-h-[300px]` — le tableau du journal du jour défile à cette hauteur
+  /// (l.553), en-tête collant.
+  static const double hauteurTableauJournal = 300;
+
   /// `w-2 h-2` — la pastille d'état de la barre de session de caisse
   /// (`pos/comptant.blade.php` l.79 et l.143).
   static const double pastilleCaisse = 8;
@@ -1480,7 +1586,7 @@ abstract final class MesuresAccueil {
   /// `max-w-[1500px]` du conteneur de page (l.220). Même nombre que
   /// [AppLayout.pageHistoriqueVentes], jeton DISTINCT : deux écrans qui
   /// partagent une largeur par hasard ne doivent pas changer ensemble.
-  static const double page = 1500;
+  static const double page = AppLayout.maxContentWidth;
 
   /// Largeur du `<select wire:model.live="filtrePeriode">` de l'en-tête. La
   /// vue n'en pose aucune : c'est la largeur naturelle du contrôle natif, celle
@@ -1656,11 +1762,13 @@ abstract final class MesuresAccesRapide {
 /// Les deux composants sont HORS `<main>` : aucune taille n'est remappée par
 /// `app.css` ([Tailles], jamais [TaillesContenu]). Le champ de recherche est
 /// mesuré dans le relevé du châssis (`chassis__administrateur.json` : texte du
-/// champ à 208,4 × 16 px, la boîte `w-64` commençant 35 px plus à gauche) ;
+/// champ à 208,4 × 16 px, la boîte (alors `w-64`, aujourd'hui `w-[125px]`) commençant 35 px plus à gauche) ;
 /// les panneaux, fermés lors des captures, sont LUS sur les classes.
 abstract final class MesuresBarreSuperieure {
-  /// `w-64` — la boîte du champ de recherche, 256 px.
-  static const double champRecherche = 256;
+  /// `w-[125px]` — la boîte du champ de recherche, 125 px (décision du PO du
+  /// 30/10/2026 : « width: 125px », web ET poste ; c'était `w-64`, 256 px).
+  /// L'invite longue est tronquée par des points de suspension.
+  static const double champRecherche = 125;
 
   /// `<svg width="14">` — la loupe du champ.
   static const double iconeRecherche = 14;

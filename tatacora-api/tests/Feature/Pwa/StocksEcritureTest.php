@@ -363,7 +363,7 @@ final class StocksEcritureTest extends TestCase
             ['forcerMouvement', []],
             ['ouvrirImport', []],
             ['lancerImport', []],
-            ['telechargerModeleCsv', []],
+            ['telechargerModele', []],
             ['ouvrirExport', []],
             ['genererExport', []],
             ['fermerModales', []],

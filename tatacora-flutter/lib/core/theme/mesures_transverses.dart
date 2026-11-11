@@ -11,22 +11,24 @@ library;
 
 import 'package:flutter/painting.dart';
 
+import 'app_spacing.dart' show AppLayout;
+
 /// Largeurs et tailles.
 abstract final class MesuresTransverses {
   /// `max-w-[1200px]` — Aide & À propos, Contactez l'éditeur, Import &
   /// Export. Valeur ENTRE CROCHETS.
-  static const double pageEtroite = 1200;
+  static const double pageEtroite = AppLayout.maxContentWidth;
 
   /// `max-w-[1100px]` — Mon profil. Valeur ENTRE CROCHETS.
-  static const double pageProfil = 1100;
+  static const double pageProfil = AppLayout.maxContentWidth;
 
   /// `max-w-[1440px]` — Journal d'Audit, Rôles & Permissions. Un jeton
   /// distinct de `AppLayout.maxContentWidth` : deux écrans qui portent
   /// aujourd'hui la même largeur ne sont pas le même réglage.
-  static const double pageLarge = 1440;
+  static const double pageLarge = AppLayout.maxContentWidth;
 
   /// `max-w-[1600px]` — le hub Comptabilité. Valeur ENTRE CROCHETS.
-  static const double pageComptabilite = 1600;
+  static const double pageComptabilite = AppLayout.maxContentWidth;
 
   /// `max-w-[640px]` — le texte de l'état « aucun exercice ».
   static const double texteAucunExercice = 640;
@@ -113,6 +115,33 @@ abstract final class MesuresTransverses {
   /// Une colonne de rôle de la matrice (`px-3`, en-tête `whitespace-nowrap`).
   static const double colonneRoleMatrice = 120;
 
+  /// Les deux listes de filtre de la partie « Réception » de l'écran de
+  /// synchronisation (table, issue) — AJOUT du poste.
+  static const double filtreReceptionTable = 260;
+  static const double filtreReceptionIssue = 230;
+
+  /// Les largeurs FIXES (par rang de colonne) du journal de réception et de la
+  /// liste « À traiter » : sans elles, une phrase longue élargit TOUTES les
+  /// colonnes du tableau (largeur intrinsèque d'une rangée `Expanded`) et les
+  /// boutons d'action sortent de l'écran.
+  static const Map<int, double> colonnesReception = {
+    0: 170,
+    1: 190,
+    2: 170,
+    3: 190,
+    4: 210,
+    5: 80,
+    6: 330,
+  };
+  static const Map<int, double> colonnesATraiter = {
+    0: 150,
+    1: 190,
+    2: 150,
+    3: 110,
+    4: 440,
+    5: 300,
+  };
+
   /// `<x-pwa.modale … largeur="440px">` — « Nouveau rôle » et « Rétablir le
   /// socle du CdCF ». Valeur en dur de la vue (ni `max-w-md` 448 ni
   /// `max-w-lg` 512).
@@ -135,6 +164,27 @@ abstract final class MesuresTransverses {
   /// Une colonne de tableau sans largeur dans la vue (`<th>` nu) : la largeur
   /// minimale qui garde l'en-tête sur une ligne.
   static const double colonneTableauMin = 110;
+
+  /// Les colonnes FIXES du tableau « Comptes utilisateurs » (21/10/2026). Sans
+  /// elles, chaque colonne libre prenait la largeur de la plus large cellule
+  /// (les deux boutons d'action) et le tableau débordait de la fenêtre. Seul
+  /// le nom reste libre. Largeurs choisies sur le plus long contenu de chaque
+  /// colonne (« Administrateur système », une date `jj/mm/aaaa`, deux boutons).
+  static const double colonneCompteIdentifiant = 140;
+  static const double colonneCompteRole = 190;
+  static const double colonneCompteStatut = 100;
+  static const double colonneCompteCreeLe = 120;
+  static const double colonneCompteMotDePasse = 150;
+  static const double colonneCompteActions = 280;
+
+  /// Les colonnes FIXES de « Postes & Appairage » (21/10/2026) : sans elles,
+  /// neuf colonnes libres prennent chacune la largeur de la plus large cellule.
+  /// Une date `jj/mm/aaaa hh:mm`, un utilisateur, un état avec sa ligne de
+  /// détail, le bouton « Révoquer ».
+  static const double colonnePosteUtilisateur = 130;
+  static const double colonnePosteDate = 140;
+  static const double colonnePosteEtat = 260;
+  static const double colonnePosteActions = 120;
 
   /// La colonne « Intitulé » / « Libellé » des tableaux comptables.
   static const double colonneLibelleCompta = 220;

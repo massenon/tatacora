@@ -13,6 +13,9 @@ library;
 
 import 'dart:convert';
 
+import '../../comptabilite/domain/messages_affectation.dart';
+import '../../comptabilite/domain/messages_cloture.dart';
+
 import 'descente_catalogue.dart';
 import 'operation_sync.dart';
 
@@ -57,6 +60,27 @@ String motifOperation(OperationSync o) {
     StatutOperationSync.rejete => 'Refusée par le serveur (motif non fourni).',
     _ => '',
   };
+}
+
+/// Lot A2 : une pièce saisie à la main REFUSÉE par le serveur ne disparaît pas
+/// du poste. Validée, elle est immuable (RG-11) et COMPTÉE dans ses états ;
+/// brouillon, elle y est comptée dès qu'elle est validée. `null` pour toute
+/// autre opération.
+String? notePieceSaisieRefusee(OperationSync o) {
+  if (o.table != TableSynchronisee.piecesSaisie ||
+      o.statut != StatutOperationSync.rejete) {
+    return null;
+  }
+  final Object? brut;
+  try {
+    brut = jsonDecode(o.payload);
+  } on FormatException {
+    return null;
+  }
+  final validee = brut is Map && brut['statut'] == 'validee';
+  return validee
+      ? 'Cette pièce reste validée, immuable et COMPTÉE dans les états de ce poste.'
+      : 'Cette pièce reste sur ce poste en brouillon ; elle sera comptée dans les états dès qu\'elle y sera validée.';
 }
 
 /// Le DOCUMENT que l'opération porte, en clair — lu du payload figé. `null`
@@ -113,6 +137,43 @@ String? libelleDocument(OperationSync o) {
       final d? => 'Vente du $d',
       null => null,
     },
+    // 28/10/2026 (D246 rouvert) : un compte du plan se dit par son numéro ; une
+    // pièce saisie à la main, par son libellé (la branche par défaut).
+    TableSynchronisee.planComptable => switch ((
+      t('numero_compte'),
+      t('libelle'),
+    )) {
+      (final n?, final l?) => '$n · $l',
+      (final n?, null) => n,
+      _ => null,
+    },
+    // 26/10/2026 : la demande de clôture d'un exercice se dit par le geste de
+    // l'onglet « Clôtures » (les mots de la vue, `comptabilite_pwa.*`).
+    TableSynchronisee.demandesClotureExercice => switch ((
+      champs['annee'],
+      t('action'),
+    )) {
+      (final int a, 'demarrer') => MessagesCloture.dire(
+        'comptabilite_pwa.cloture_demarrer',
+        {'annee': '$a'},
+      ),
+      (final int a, 'reprendre_saisie') =>
+        '${MessagesCloture.dire('comptabilite_pwa.cloture_reprendre')} '
+            '($a)',
+      (final int a, 'cloturer') => MessagesCloture.dire(
+        'comptabilite_pwa.cloture_definitive',
+        {'annee': '$a'},
+      ),
+      (final int a, 'rouvrir') => MessagesCloture.dire(
+        'comptabilite_pwa.reouvrir',
+        {'annee': '$a'},
+      ),
+      // 09/11/2026 : la contre-passation de l'affectation du résultat.
+      (final int a, 'annuler_affectation') =>
+        '${MessagesAffectation.dire('comptabilite_pwa.affectation_contrepasser')} '
+            '($a)',
+      _ => null,
+    },
     _ => t('libelle'),
   };
 }
@@ -156,6 +217,9 @@ const Map<String, String> libellesAnomalies = {
   'paiement_session_inconnue':
       'Encaissement d\'une caisse que le serveur ne connaît pas : rattaché à '
       'la caisse ouverte du serveur',
+  'paiement_arrondi_plafonne':
+      'Encaissement plafonné au reste dû (écart d\'un centime d\'arrondi) : '
+      'enregistré pour le reste dû, la synchronisation n\'est pas bloquée',
 };
 
 /// Le libellé d'une anomalie ; une anomalie inconnue est rendue par son

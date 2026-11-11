@@ -250,6 +250,11 @@ abstract final class PaletteMaitre {
   /// comptant (`pos/comptant.blade.php` l.199), 14/10/2026.
   static const Color bleu300 = Color(0xFF93C5FD);
 
+  /// `blue-600` — la colonne « Sortie » et la carte « Articles mouvementes » de
+  /// la fiche de stock consolidée (`stocks/inventaires.blade.php` l.248, 300,
+  /// 340 : `text-blue-600`), 21/10/2026. Tailwind : #2563EB.
+  static const Color bleu600 = Color(0xFF2563EB);
+
   /// `blue-700` — 7 emplois. C'est aussi `--info` du maître, au bit près.
   static const Color bleu700 = Color(0xFF1D4ED8);
 
@@ -290,6 +295,11 @@ abstract final class PaletteMaitre {
   /// (`carte-module.js` l.55) et du bandeau « Ecran remplace » de
   /// `m4-restaurant.html` l.20.
   static const Color ambre900 = Color(0xFF78350F);
+
+  /// `#92400E` — `amber-800`. Le texte de l'encadré « Porté en note de chambre »
+  /// du ticket de vente (`pos/comptant.blade.php`, `text-amber-800 bg-amber-50
+  /// border-amber-200`).
+  static const Color ambre800 = Color(0xFF92400E);
 
   /// `#F3F4F6` — le fond de repli d'une pastille dont la valeur n'est
   /// **prevue par aucune couleur** de la configuration (`crud-engine.js`

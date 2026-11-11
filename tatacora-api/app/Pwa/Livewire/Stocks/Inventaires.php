@@ -62,7 +62,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * @see RG-19 Export PDF/CSV
  * @see docs/DIRECTIVE_CONFORMITE_100.md Articles 4.5, 4.6, 6, 7, 8
  */
-#[Title('Inventaires & Fiches de stock — TATACORA AFRIQUE')]
+#[Title('Inventaires & Fiches de stock — LogiReStock — TATACORA AFRIQUE')]
 class Inventaires extends PageMetier
 {
     use FormulaireModal;

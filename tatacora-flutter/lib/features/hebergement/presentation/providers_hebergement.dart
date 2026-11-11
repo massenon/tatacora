@@ -15,6 +15,7 @@ import '../../crm/domain/entities/client.dart';
 import '../../facturation/data/facture_dao.dart';
 import '../../parametres/data/parametres_dao.dart';
 import '../../pos/data/panier_dao.dart';
+import '../data/canaux_reservation_dao.dart';
 import '../data/catalogue_services_dao.dart';
 import '../data/parc_dao.dart';
 import '../data/reservation_dao.dart';
@@ -24,6 +25,7 @@ import '../domain/annulation_reservation.dart';
 import '../domain/entities/carte_reservation.dart';
 import '../domain/entities/categorie_hebergement.dart';
 import '../domain/entities/disponibilite.dart';
+import '../domain/entities/fiche_reservation.dart' show CanalReservation;
 import '../domain/entities/etat_du_jour.dart';
 import '../domain/entities/periode_sejour.dart';
 import '../domain/entities/reservation.dart';
@@ -64,6 +66,29 @@ import '../domain/usecases/modifier_reservation.dart';
 /// un second poste apparaissait, **plus rien ne les départagerait** : c'est la
 /// contrepartie exacte de la décision, et elle est structurelle.
 
+/// Le seul écrivain des canaux de réservation (Paramètres › « Canaux de
+/// réservation »), qui pose aussi le jeu initial d'un poste vierge.
+final canauxReservationDaoProvider = Provider<CanauxReservationDao>(
+  (ref) => CanauxReservationDao(ref.watch(baseLocaleProvider)),
+);
+
+/// TOUS les canaux de réservation — désactivés compris, dans leur ordre : le
+/// tableau de Paramètres et le filtre de l'écran Réservations les lisent.
+/// `autoDispose` : revenir sur l'écran relit la table, il ne réaffiche pas ce
+/// qu'on avait vu ; l'onglet l'invalide après chaque geste.
+final canauxReservationProvider =
+    FutureProvider.autoDispose<List<CanalReservation>>(
+      (ref) => ref.watch(canauxReservationDaoProvider).tous(),
+    );
+
+/// Le nombre de réservations de chaque canal (identifiant → nombre) — la colonne
+/// « Réservations » du tableau, et le compte de la confirmation de
+/// désactivation.
+final reservationsParCanalProvider =
+    FutureProvider.autoDispose<Map<String, int>>(
+      (ref) => ref.watch(canauxReservationDaoProvider).reservationsParCanal(),
+    );
+
 /// Le DAO des réservations, BRANCHÉ sur le moteur comptable : un acompte encaissé
 /// et un remboursement d'annulation passent leur pièce dans la même transaction
 /// que le geste (règle du PO du 31/08/2026). Le moteur arrive par un résolveur —
@@ -90,6 +115,15 @@ final tauxAnnulationParDefautProvider = FutureProvider.autoDispose<String>((
 ) async {
   final valeurs = await ParametresDao(ref.watch(baseLocaleProvider)).lireTout();
   return tauxParDefaut(valeurs);
+});
+
+/// La grille d'annulation par délai (seuil d'heures, taux sous le seuil, taux
+/// au-delà) — paramétrable, lue à chaque ouverture sans cache.
+final grilleAnnulationProvider = FutureProvider.autoDispose<GrilleAnnulation>((
+  ref,
+) async {
+  final valeurs = await ParametresDao(ref.watch(baseLocaleProvider)).lireTout();
+  return grilleAnnulation(valeurs);
 });
 
 /// Le dépôt réellement utilisé par l'application — **local, et seul**.
@@ -338,6 +372,15 @@ final categoriesParcProvider = FutureProvider<List<CategorieHebergement>>(
 /// invoquer — le module est local — et c'est écrit plutôt que sous-entendu.
 final peutEcrireHebergementProvider = Provider<bool>(
   (ref) => ref.watch(droitsProvider).peutEcrire(ModuleTatacora.m1Hebergement),
+);
+
+/// Qui peut ANNULER une réservation sur ce poste (09/11/2026) : l'écriture sur M1 ET le droit
+/// local `ANNULATIONS` de l'utilisateur CONNECTÉ. C'est le SEUL contrôle : le serveur ne juge plus
+/// le compte d'appairage sur les opérations d'un poste (décision du PO : « aucune opération ne doit
+/// bloquer la synchronisation »), et la règle « la réservation d'un autre poste ne s'annule que par
+/// l'administration ou le comptable » a disparu du poste comme du serveur.
+final peutAnnulerReservationProvider = Provider<bool>(
+  (ref) => ref.watch(peutAnnulerProvider(ModuleTatacora.m1Hebergement)),
 );
 
 /// Le terme de recherche de la barre d'outils du plan.

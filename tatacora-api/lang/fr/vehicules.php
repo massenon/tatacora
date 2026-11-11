@@ -185,6 +185,24 @@ return [
         'contrat_annule' => 'Annulé',
         'solde' => 'Soldé',
         'annuler_contrat' => 'Annuler',
+
+        // --- Reçu de location (PDF, web + poste, 28/10/2026) ------------
+        'recu' => 'Reçu',
+        'recu_titre' => 'REÇU DE LOCATION',
+        'recu_fichier' => 'recu_location',
+        'recu_mention' => 'Ce document atteste un contrat de location. Il ne vaut pas facture : la facture normalisée est émise à l\'encaissement.',
+        'recu_annule_bandeau' => 'ANNULÉ',
+        'recu_annule_mention' => 'Ce contrat est annulé : aucun montant n\'est dû au titre de ce contrat.',
+        'recu_numero' => 'N° du contrat',
+        'recu_duree' => 'Durée',
+        'recu_jours' => ':jours jour(s)',
+        'recu_tarif' => 'Tarif journalier',
+        'recu_montant' => 'Montant total',
+        'recu_acompte' => 'Acompte versé',
+        'recu_reste' => 'Reste dû',
+        'recu_statut' => 'Statut',
+        'recu_emis_le' => 'Émis le',
+        'recu_emis_par' => 'Émis par',
         'total_contrats' => 'TOTAL — :nombre contrat(s) actif(s)',
 
         // --- Onglet Planning -------------------------------------------
@@ -207,7 +225,7 @@ return [
 
         // --- Modale « Nouveau contrat de location » --------------------
         'modale_contrat_titre' => 'Nouveau contrat de location',
-        'modale_contrat_sous_titre' => 'RG-08 : le véhicule est verrouillé sur la période avant écriture.',
+        'modale_contrat_sous_titre' => 'Le véhicule est verrouillé sur la période avant l\'écriture du contrat.',
         'champ_vehicule' => 'Véhicule',
         'champ_depart' => 'Départ',
         'champ_restitution' => 'Restitution',
@@ -228,11 +246,11 @@ return [
         'info_permis_exige' => 'permis exigé',
         // Article 8 (02/09/2026) : la reference RG-09 vit ici, jamais a l'ecran.
         'info_permis_dispense' => 'dispensé de permis',
-        'client_aucun' => 'Aucun client au référentiel M3 — créez-le d\'abord depuis « Clients & Créances ».',
+        'client_aucun' => 'Aucun client au référentiel — créez-le d\'abord depuis « Clients & Créances ».',
 
         // --- Modale « Immobiliser un véhicule » ------------------------
         'modale_immo_titre' => 'Immobiliser un véhicule',
-        'modale_immo_sous_titre' => 'Entretien ou carburation — EF-M8-05.',
+        'modale_immo_sous_titre' => 'Entretien ou carburation.',
         'champ_motif' => 'Motif',
         'champ_date' => 'Du',
         'champ_cout' => 'Coût (FCFA)',
@@ -241,7 +259,7 @@ return [
         // --- Modale « Véhicule » (hors maitre, addition assumee) -------
         'modale_vehicule_titre_creation' => 'Nouveau véhicule au parc',
         'modale_vehicule_titre_edition' => 'Éditer le véhicule',
-        'modale_vehicule_sous_titre' => 'Référentiel du parc — EF-M8-01.',
+        'modale_vehicule_sous_titre' => 'Référentiel du parc.',
         'champ_immatriculation' => 'Immatriculation',
         'invite_immatriculation' => 'Ex. AB 1234 RB',
         'champ_annee' => 'Année',
@@ -263,10 +281,5 @@ return [
         'contrat_etabli' => 'Contrat :numero établi — :montant pour :jours jour(s).',
         'vehicule_enregistre' => 'Véhicule :immatriculation enregistré.',
         'immobilisation_enregistree' => 'Véhicule :immatriculation immobilisé le :date.',
-        'refus_lever_immobilisation' => 'Aucune action « Lever » n\'est proposée sur une immobilisation : '
-            . '`entretiens_vehicule` n\'a ni `statut` ni date de fin, et la suppression est interdite sur '
-            . 'une table transactionnelle (`BasePolicy::delete()` rend `false`). Un bouton qui effacerait '
-            . 'la ligne ferait disparaître l\'entretien du journal du parc. La remise en service se fait '
-            . 'sur le VÉHICULE, où le statut existe. Vérifié le 31/08/2026.',
     ],
 ];

@@ -25,6 +25,7 @@ import '../../../../shared_widgets/bouton_standard.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
 import '../../../restaurant/presentation/widgets/textes_modale_restaurant.dart';
 import '../../data/roles_dao.dart';
+import '../../domain/champs_profil.dart';
 import '../../domain/roles_du_poste.dart';
 
 /// Les textes des modales (`pwa.roles.*`, `pwa.modale.*`,
@@ -39,9 +40,13 @@ abstract final class TextesModalesRoles {
   static const String modifierDroitsSousTitre =
       'C = accès complet, L = lecture seule, — = aucun accès.';
   static const String verrouAdministrateur =
-      "Verrouillé : un administrateur ne peut pas se retirer l'accès à "
-      '« Rôles & Permissions ».';
+      "Verrouillé : un administrateur ne peut pas se retirer l'accès à « Rôles & Permissions ».";
   static const String toutRetirer = 'Tout retirer';
+
+  /// Section « Profil » (`pwa.roles.section_profil`, `profil_autorise`, `profil_refuse`).
+  static const String sectionProfil = 'Profil';
+  static const String profilAutorise = 'Autorisé';
+  static const String profilRefuse = 'Non autorisé';
   static const String retablirTitre = 'Rétablir le socle du CdCF';
   static const String retablirTexte =
       'Chaque rôle du socle (onze rôles métier) retrouvera exactement la '
@@ -237,7 +242,10 @@ class _ModaleNouveauRoleState extends State<_ModaleNouveauRole> {
 Future<bool?> ouvrirModaleDroits(
   BuildContext context, {
   required RoleDuPoste role,
-  required Future<void> Function(Map<ModuleTatacora, NiveauAcces> niveaux)
+  required Future<void> Function(
+    Map<ModuleTatacora, NiveauAcces> niveaux,
+    Map<String, bool> droitsProfil,
+  )
   enregistrer,
 }) => showDialog<bool>(
   context: context,
@@ -248,7 +256,10 @@ class _ModaleDroits extends StatefulWidget {
   const _ModaleDroits({required this.role, required this.enregistrer});
 
   final RoleDuPoste role;
-  final Future<void> Function(Map<ModuleTatacora, NiveauAcces> niveaux)
+  final Future<void> Function(
+    Map<ModuleTatacora, NiveauAcces> niveaux,
+    Map<String, bool> droitsProfil,
+  )
   enregistrer;
 
   @override
@@ -260,6 +271,11 @@ class _ModaleDroitsState extends State<_ModaleDroits> {
   late final Map<ModuleTatacora, NiveauAcces> _niveaux = {
     for (final m in libellesModulesMatrice.keys)
       m: widget.role.droits.niveau(m),
+  };
+
+  /// Les trois droits de « Mon profil » : binaires (accordé / non).
+  late final Map<String, bool> _profil = {
+    for (final code in codesDroitsProfil) code: widget.role.droitProfil(code),
   };
   String? _refus;
   bool _enCours = false;
@@ -275,6 +291,9 @@ class _ModaleDroitsState extends State<_ModaleDroits> {
       if (_verrouille(m)) continue;
       _niveaux[m] = NiveauAcces.aucun;
     }
+    for (final code in _profil.keys) {
+      _profil[code] = false;
+    }
   });
 
   Future<void> _valider() async {
@@ -283,7 +302,7 @@ class _ModaleDroitsState extends State<_ModaleDroits> {
       _refus = null;
     });
     try {
-      await widget.enregistrer(Map.of(_niveaux));
+      await widget.enregistrer(Map.of(_niveaux), Map.of(_profil));
       if (mounted) Navigator.of(context).pop(true);
     } on RefusRoles catch (refus) {
       if (mounted) {
@@ -374,6 +393,43 @@ class _ModaleDroitsState extends State<_ModaleDroits> {
                         ],
                       ),
                     ),
+                  // Section « Profil » (03/11/2026) : trois interrupteurs binaires.
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        top: AppSpacing.sm,
+                        bottom: AppSpacing.unit,
+                      ),
+                      child: Text(
+                        TextesModalesRoles.sectionProfil.toUpperCase(),
+                        key: const Key('roles-section-profil'),
+                        style: TextesModaleRestaurant.etiquette.copyWith(
+                          color: Ardoise.c400,
+                        ),
+                      ),
+                    ),
+                  ),
+                  for (final c in ChampProfil.values)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.xs,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(c.libelleDroit, style: libelleModule),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          _ChoixProfil(
+                            cle: Key('roles-profil-${c.droit}'),
+                            valeur: _profil[c.droit]!,
+                            onChoix: (v) =>
+                                setState(() => _profil[c.droit] = v),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -452,6 +508,49 @@ class _ChoixNiveau extends StatelessWidget {
       ],
       onChanged: (n) {
         if (n != null) onChoix(n);
+      },
+    ),
+  );
+}
+
+/// Le `<select>` binaire d'un droit de profil : Autorisé (`C`) / Non autorisé (`-`).
+class _ChoixProfil extends StatelessWidget {
+  const _ChoixProfil({
+    required Key cle,
+    required this.valeur,
+    required this.onChoix,
+  }) : super(key: cle);
+
+  final bool valeur;
+  final ValueChanged<bool> onChoix;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.xsPlus,
+      vertical: AppSpacing.xxs,
+    ),
+    decoration: BoxDecoration(
+      border: Border.all(color: Ardoise.c300),
+      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+    ),
+    child: DropdownButton<bool>(
+      value: valeur,
+      isDense: true,
+      underline: const SizedBox.shrink(),
+      style: _saisie,
+      items: const [
+        DropdownMenuItem(
+          value: true,
+          child: Text(TextesModalesRoles.profilAutorise),
+        ),
+        DropdownMenuItem(
+          value: false,
+          child: Text(TextesModalesRoles.profilRefuse),
+        ),
+      ],
+      onChanged: (v) {
+        if (v != null) onChoix(v);
       },
     ),
   );

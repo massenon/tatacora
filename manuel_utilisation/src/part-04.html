@@ -1,0 +1,336 @@
+<!-- ============================ CHAPITRE 3 ============================ -->
+<section class="chapitre" id="ch3">
+  <h1 class="chapitre"><span class="numero">Chapitre 3</span>Tableau de bord et pilotage</h1>
+
+  <p class="chapeau">
+    Le tableau de bord est l'écran d'accueil de la direction. Il agrège les modules
+    d'exploitation sur la période que vous choisissez. Aucun chiffre n'y est saisi : tout est
+    calculé depuis les pièces enregistrées dans les autres écrans.
+  </p>
+
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Tableau de bord
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Les indicateurs, le résultat et les alertes ne sont montrés qu'aux profils qui ont le droit sur le
+    module Tableau de bord (M11). Sans ce droit, l'écran d'accueil se limite à la consultation des écrans
+    auxquels votre rôle donne accès.
+  </span>
+
+  <h2>3.1 Choisir la période et exporter</h2>
+  <ol class="etapes">
+    <li>Ouvrez la liste déroulante de période, en haut à droite, et choisissez : <strong>Aujourd'hui</strong>, <strong>Cette semaine</strong>, <strong>Ce mois</strong>, <strong>Ce trimestre</strong>, <strong>Ce semestre</strong>, <strong>Cette année</strong> ou <strong>Période personnalisée</strong>. Avec cette dernière, deux champs de date <strong>Du</strong> et <strong>Au</strong> apparaissent.</li>
+    <li>Les indicateurs se recalculent immédiatement. La période retenue est rappelée sous les onglets, au format <em>du 01/08/2026 au 25/08/2026</em>. Par défaut, l'écran s'ouvre sur <strong>Ce mois</strong>.</li>
+    <li>Le bouton à l'icône de flèches circulaires <strong>relit</strong> les chiffres à l'instant.</li>
+    <li>Cliquez sur <strong>Exporter</strong>, puis choisissez le format dans la fenêtre « Exporter le tableau de bord » : <strong>PDF Officiel A4 Imprimable</strong> ou <strong>Tableur Excel (.xlsx / .csv)</strong>, puis <strong>Générer &amp; Télécharger</strong>. Le document reprend la vue affichée, période comprise.</li>
+  </ol>
+
+  <figure>
+    <img src="../captures/a-tableau-de-bord.png" alt="Tableau de bord annoté">
+    <figcaption><b>Figure 3.1</b> — Le tableau de bord, onglet Vue d'exploitation.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>Sélecteur de <strong>période</strong>.</li>
+      <li><span class="n">2</span>Le bouton <strong>Exporter</strong> — le choix du format vient ensuite.</li>
+      <li><span class="n">3</span>La rangée des <strong>actions rapides</strong> de la journée.</li>
+    </ul>
+  </figure>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    La rangée d'<strong>actions rapides</strong> — Nouvelle réservation, Ajouter un client, Stocks critiques,
+    Générer un rapport, Nouvelle dépense — évite de passer par le menu pour les cinq gestes les plus
+    fréquents de la journée. Un bouton absent signale un geste que votre rôle ne permet pas depuis cet écran.
+  </span>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Les chiffres comptables du tableau (résultat, bilan, marges) suivent l'<strong>exercice</strong> choisi dans la barre
+    supérieure, pas seulement la période : « Exercice 2026 » est rappelé sous le résultat. Une année déjà clôturée se
+    consulte, mais ne se modifie pas. Voir le chapitre 2 pour le sélecteur d'exercice.
+  </span>
+
+  <h2>3.2 Les trois onglets</h2>
+  <table>
+    <thead><tr><th>Onglet</th><th>Ce qu'il montre</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Vue d'exploitation</strong></td><td>Une bande de <strong>huit indicateurs</strong> : chiffre d'affaires encaissé, taux d'occupation hôtel, trésorerie (caisse), dépenses cumulées, réservations en attente, factures non soldées, valeur du stock, employés actifs. Dessous : le <em>récapitulatif de la journée</em> (arrivées, départs, nouvelles réservations, encaissé du jour), le bandeau rouge des <em>alertes critiques de stock</em>, les <em>réservations du jour</em> avec leurs boutons <strong>Check-in</strong>, <strong>Check-out</strong> et <strong>Payer</strong>, deux graphiques (chiffre d'affaires contre dépenses sur 3 mois, 6 mois ou 1 an ; réservations par activité), les statistiques de ventes par activité et la liste des <em>chambres disponibles</em> avec un bouton <strong>Effectuer Check-in</strong>.</td></tr>
+      <tr><td><strong>Pilotage consolidé</strong></td><td>La lecture de direction : six cartes (chiffre d'affaires encaissé, résultat net, trésorerie, créances clients, valeur du stock, masse salariale), le bloc <strong>À traiter</strong>, le bloc <strong>Ce que ces chiffres ne disent pas</strong>, la marge sur coûts directs par activité, les créances par ancienneté, l'occupation et les meilleures ventes (plats, boissons, circuits, véhicules), puis <strong>un bloc par module</strong> : réservations et hébergement, point de vente du jour, stocks, location de véhicules, tourisme et circuits, personnel et paie, clients et créances, comptabilité, dépense courante.</td></tr>
+      <tr><td><strong>Tableau croisé dynamique</strong></td><td>Un croisement libre de vos données pour répondre à une question que le tableau standard ne couvre pas : vous choisissez les <strong>Sources</strong> (Ventes, Dépenses, Réservations), les <strong>Lignes</strong> et les <strong>Colonnes</strong> (source, module, activité, produit, point de vente ou canal, mode de paiement, jour, mois) et la <strong>Mesure</strong> (montant, encaissé, quantité, nombre de lignes). Les factures en sont volontairement absentes : elles doubleraient chaque montant. Une dépense compte en négatif, donc le total est un solde. Pour une réservation, le montant retenu est son acompte. Exports PDF et Excel de la grille.</td></tr>
+    </tbody>
+  </table>
+
+  <figure>
+    <img src="../captures/m11-pilotage.png" alt="L'onglet Pilotage consolidé : un bloc par module.">
+    <figcaption><b>Figure 3.2</b> — L'onglet <b>Pilotage consolidé</b> : un bloc par module.</figcaption>
+  </figure>
+
+  <h2>3.3 Le bloc « À traiter »</h2>
+  <p>
+    Il rassemble les alertes opérationnelles, tous modules confondus, <strong>dans la limite des modules que votre rôle a
+    le droit de lire</strong> : l'écran précise combien de sources ont été consultées sur le total. Les alertes possibles sont :
+    comptabilité déséquilibrée, écritures en brouillon (elles n'entrent dans aucun état et bloqueront la clôture),
+    montant des créances clients, factures non soldées, réservations en attente, articles sous le seuil de réapprovisionnement.
+    Chaque ligne dit <strong>ce qu'il faut faire</strong> et porte un bouton qui ouvre l'écran concerné.
+    Si une source n'a pas pu être lue, l'écran n'affirme rien, ni dans un sens ni dans l'autre.
+  </p>
+
+  <h2>3.4 Le bloc « Ce que ces chiffres ne disent pas »</h2>
+  <p>
+    C'est la particularité de LogiRestock, et elle mérite d'être comprise avant toute décision
+    prise sur ces chiffres. Le logiciel y déclare lui-même les limites de ses propres calculs :
+  </p>
+  <ul class="puces">
+    <li><strong>résultat affiché avant impôt</strong> — le taux d'impôt sur les sociétés applicable au Gîte n'est pas arrêté ; le résultat réel sera inférieur ;</li>
+    <li><strong>charges de structure non réparties</strong> — « Dépenses cumulées » est le total des charges validées, il n'est ventilé par activité nulle part ; les marges par activité sont des marges sur coûts directs, pas des résultats nets ;</li>
+    <li><strong>recouvrements partiels non enregistrés</strong> — les encaissements partiels ne sont pas enregistrés : le montant dû affiché est un maximum ;</li>
+    <li><strong>valeur du stock non comparable</strong> — c'est une photographie à l'instant ; elle ne se compare pas à la période précédente.</li>
+  </ul>
+  <p>
+    D'autres réserves se lisent directement dans les blocs concernés : le <strong>coût employeur</strong> est donné en
+    fourchette (« X à Y »), faute de taux confirmé pour les risques professionnels ; le point de vente du jour signale les
+    ventes qui <strong>ne décrémentent aucun stock</strong> ; le chiffre « masse salariale » dit « Aucun bulletin établi ce mois-ci » plutôt
+    que d'afficher zéro.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Ne présentez jamais le chiffre <strong>Résultat net</strong> comme un résultat après impôt, ni le
+    <strong>Coût employeur</strong> comme un montant définitif. Les deux sont annoncés incomplets à l'écran.
+    Reprenez la mention telle qu'elle est écrite quand vous transmettez ces chiffres à un tiers.
+  </span>
+
+  <h2>3.5 Sur le poste Windows</h2>
+  <p>
+    Le poste calcule son tableau de bord <strong>à partir de sa propre base</strong>, avec les mêmes onglets, les mêmes
+    périodes et les mêmes exports (PDF, ou tableur au format CSV). Il fonctionne donc sans internet. Ce qu'il affiche est ce que
+    <em>ce poste</em> connaît : ses ventes, ses dépenses et sa caisse, plus le catalogue, les clients et les réservations reçus
+    des autres postes. Les ventes et les caisses des autres postes se consultent sur le serveur (web).
+    Pour relire la base après une synchronisation, faites un clic droit puis <strong>Actualiser</strong>.
+  </p>
+</section>
+
+<!-- ============================ CHAPITRE 4 ============================ -->
+<section class="chapitre" id="ch4">
+  <h1 class="chapitre"><span class="numero">Chapitre 4</span>Réservations et hébergement</h1>
+
+  <p class="chapeau">
+    Une réservation au Gîte n'est pas seulement une chambre : elle peut combiner
+    <strong>Hébergement, Restauration, Bar, Tourisme et Location de véhicule</strong> sur une même fiche client.
+    Ce chapitre décrit la prise de réservation, son suivi, son annulation et le plan d'hébergement.
+  </p>
+
+  <h2>4.1 Créer une réservation</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Réservations <span class="fleche">➔</span> Nouvelle réservation
+  </span>
+
+  <ol class="etapes">
+    <li>Cliquez sur <strong>Nouvelle réservation</strong>, en haut à droite de l'écran.</li>
+    <li>Choisissez le <strong>Client</strong> dans la liste. Si le client est nouveau, utilisez d'abord le bouton
+      <strong>Ajouter client</strong> : nom complet, téléphone et type de client, puis <strong>Ajouter le client</strong>. Le client créé est
+      aussitôt sélectionné. Créer une fiche client demande, en plus du droit sur l'hébergement, le droit d'écriture sur les clients.</li>
+    <li>Choisissez le <strong>Type de client</strong> — Particulier, Groupe, Agence partenaire ou Structure —
+      et le <strong>Canal de réservation</strong> : Physique, Téléphone, WhatsApp, Booking.com, Site web, Facebook, Agence partenaire
+      (la liste est tenue par l'administrateur).</li>
+    <li>Choisissez l'<strong>Unité d'hébergement</strong> puis renseignez la <strong>Date d'arrivée</strong> et la <strong>Date de départ</strong>.
+      Le nombre de nuits se calcule seul et ne se saisit pas : arrivée le 10, départ le 12 font <strong>2 nuits</strong>.</li>
+    <li>Cochez les <strong>Services inclus dans cette réservation</strong>. Au moins un service est obligatoire.
+      Pour chaque service coché, cliquez sur <strong>+ Ajouter</strong> et choisissez la ligne correspondante dans le catalogue —
+      une chambre, un plat, une boisson, un circuit, un véhicule — avec sa quantité (nuits, personnes, participants, jours).</li>
+    <li>Complétez le <strong>Récapitulatif</strong> : <strong>Remise</strong> (Aucune, <strong>%</strong> ou <strong>FCFA</strong>),
+      <strong>Acompte versé (FCFA)</strong> et <strong>Mode de paiement</strong> (Espèces, Mobile Money, Virement, Chèque ou Crédit).
+      Le sous-total, le <strong>Total à payer</strong> et le <strong>Reste à payer</strong> se recalculent à chaque frappe.</li>
+    <li><strong>Une réservation, une ou plusieurs chambres.</strong> Pour un groupe ou une famille, cliquez sur
+      <strong>+ Ajouter une chambre</strong> dans le bloc Hébergement : chaque chambre a sa ligne, ses nuits (calculées)
+      et son montant ; le total les additionne. Une même chambre ne peut figurer qu'une fois. Si l'une des chambres est déjà
+      retenue sur la période, l'enregistrement est refusé et le message <strong>nomme la chambre en cause</strong>. L'arrivée
+      occupe toutes les chambres, le départ les passe toutes au ménage, l'annulation les libère toutes, et la facture du séjour
+      les porte toutes.</li>
+    <li>Cliquez sur <strong>Enregistrer la réservation</strong>.</li>
+  </ol>
+
+  <figure>
+    <img src="../captures/a-reservation-modale.png" alt="Fenêtre Nouvelle réservation annotée">
+    <figcaption><b>Figure 4.1</b> — La fenêtre <b>Nouvelle réservation</b>.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>Champ <strong>Client</strong> — recherche dans le fichier client existant.</li>
+      <li><span class="n">2</span><strong>Date d'arrivée</strong>.</li>
+      <li><span class="n">3</span><strong>Date de départ</strong>.</li>
+      <li><span class="n">4</span><strong>Services inclus</strong> — un au minimum, cinq possibles.</li>
+      <li><span class="n">5</span><strong>Acompte versé</strong> — ce qui a été encaissé à la réservation.</li>
+      <li><span class="n">6</span><strong>Enregistrer la réservation</strong>.</li>
+    </ul>
+  </figure>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>Le double-booking est refusé.</strong> Si la chambre choisie est déjà retenue sur tout ou partie
+    de la période, l'enregistrement est bloqué et la ligne affiche <em>indisponible, déjà retenu</em>.
+    Ne contournez pas le refus en changeant les dates « pour que ça passe » : proposez une autre unité
+    ou une autre période au client.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Une chambre rendue le 12 est <strong>relouable le 12</strong>. Le logiciel raisonne en nuitées, pas en journées :
+    deux séjours qui se succèdent le même jour ne sont pas un conflit.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Prix toutes taxes comprises</span>
+    Le tarif de la chambre et les prix des lignes sont des prix TTC : le total que vous annoncez au client est celui que
+    l'écran affiche (voir le chapitre 1).
+  </span>
+
+  <h2>4.2 Imprimer la confirmation du séjour</h2>
+  <p>
+    Après l'enregistrement, la fenêtre <strong>Réservation enregistrée</strong> demande
+    <em>« Voulez-vous imprimer la facture de cette réservation ? »</em> et propose deux boutons :
+    <strong>Imprimer la facture</strong> ouvre le document du séjour, prêt à imprimer ou à enregistrer
+    en PDF ; <strong>Plus tard</strong> ferme simplement la fenêtre. Ce même document s'imprime à tout moment depuis
+    l'icône d'imprimante de la carte de la réservation.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Malgré le libellé du bouton, le papier porte le titre <strong>« CONFIRMATION DE RÉSERVATION »</strong> et la mention
+    <em>« Ce document ne vaut pas facture »</em> : il ne porte ni numéro fiscal ni cachet. La vraie facture du séjour est émise
+    à la clôture du panier du client hébergé (chapitre 6). Si vous voulez remettre au client un devis avant son arrivée, utilisez la
+    <strong>facture proforma</strong> : le bouton <strong>Proforma</strong> de la carte de la réservation ouvre l'écran des proformas
+    déjà prérempli (voir le chapitre consacré à la facture proforma).
+  </span>
+
+  <h2>4.3 Suivre les réservations</h2>
+  <p>
+    L'écran <strong>Réservations</strong> a deux onglets, <strong>Réservations</strong> et <strong>Annulations</strong>, un champ
+    <em>Rechercher un client…</em> et un bouton <strong>Historique</strong>. Il présente une carte par séjour. Chaque carte porte
+    le type de client, le canal, les dates, le nombre de nuits, une pastille d'état, les services retenus en pastilles de couleur,
+    l'unité occupée, puis <strong>quatre lignes de montants</strong> :
+  </p>
+  <ul class="puces">
+    <li><strong>Séjour</strong> — l'hébergement et les prestations retenues à la réservation ;</li>
+    <li><strong>Consommations</strong> — ce que le client a consommé au bar et au restaurant depuis son arrivée, tant que son panier est ouvert (sur le web, cette ligne affiche toujours « — » : le panier est tenu au poste de vente) ;</li>
+    <li><strong>Acompte versé</strong> — ce qui a déjà été encaissé ;</li>
+    <li><strong>Reste à payer</strong>.</li>
+  </ul>
+  <p>
+    Les icônes en haut de la carte ouvrent, dans l'ordre : le <strong>Détail</strong> (référence interne, statut enregistré, état du jour
+    déduit des dates, date de création), <strong>Modifier</strong> (la fenêtre « Modifier la réservation »), <strong>Proforma</strong>,
+    l'impression de la confirmation et <strong>l'annulation</strong> (voir 4.6). Une icône absente signale un droit qui manque.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Deux lignes de montants distinctes plutôt qu'un total unique, c'est délibéré : « Séjour 108 000 F » puis
+    « Consommations 22 100 F » dit ce qui s'est réellement passé. Un montant unique laisserait croire
+    que la nuitée a changé de prix.
+  </span>
+  <figure>
+    <img src="../captures/reservations.png" alt="L'écran Réservations : une carte par séjour.">
+    <figcaption><b>Figure 4.2</b> — L'écran <b>Réservations</b> : une carte par séjour.</figcaption>
+  </figure>
+
+
+  <h2>4.4 L'historique des réservations</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Réservations <span class="fleche">➔</span> Historique
+  </span>
+  <p>
+    Le panneau <strong>Historique des réservations</strong> filtre par recherche (client, canal ou numéro), par période et par état
+    (<em>Tous les états</em>, À venir, En cours, Terminées, Annulées), avec un bouton <strong>Réinitialiser</strong>. Il affiche les indicateurs
+    correspondants — réservations, à venir, en cours, nuitées, chiffre d'affaires, reste à encaisser — puis un tableau
+    (client, séjour, nuits, unités, services, total, reste dû, état). La liste est limitée aux 200 premières lignes : affinez
+    les filtres au besoin. Le bouton <strong>Exporter</strong> produit <strong>exactement la liste affichée</strong>, filtres compris.
+  </p>
+  <p>L'état d'un séjour n'est pas saisi : il se déduit des dates, à la date du jour.</p>
+  <table>
+    <thead><tr><th>État</th><th>Comment il est obtenu</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille or">À venir</span></td><td>La date d'arrivée est postérieure à aujourd'hui.</td></tr>
+      <tr><td><span class="pastille vert">En cours</span></td><td>Aujourd'hui est compris entre l'arrivée et le départ.</td></tr>
+      <tr><td><span class="pastille gris">Terminée</span></td><td>La date de départ est passée.</td></tr>
+      <tr><td><span class="pastille rouge">Annulée</span></td><td>Seul état réellement enregistré : quelqu'un a annulé la réservation.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4.5 Le plan d'hébergement</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Hébergement
+  </span>
+  <p>
+    L'écran s'intitule <strong>Hébergement &amp; Réservations</strong> et compte quatre onglets, avec en tête une recherche
+    (<em>Rechercher bungalow, chambre ou tente…</em>), un filtre par catégorie et les boutons <strong>Actualiser</strong>,
+    <strong>Ajouter hébergement</strong> (pour les profils qui ont le droit d'écrire) et <strong>Nouvelle réservation</strong>.
+  </p>
+  <ul class="puces">
+    <li><strong>Plan d'Hébergement</strong> — une carte par unité (bungalow, chambre, tente) avec son code, sa pastille d'état, sa description et son tarif de base par nuit. Les pastilles sont <em>Libre</em>, <em>Réservée</em>, <em>Occupée</em>, <em>Nettoyage</em> et <em>Hors service</em>. Le bouton de la carte suit l'état : <strong>Réserver cette unité</strong>, <strong>Effectuer Check-In Client</strong> (seulement si une arrivée est attendue aujourd'hui), <strong>Effectuer Check-Out</strong> puis <strong>Marquer Nettoyé &amp; Prêt</strong> — après un check-out, l'unité passe en nettoyage et n'est reproposée qu'une fois marquée prête. Les cartes permettent aussi <strong>Modifier</strong> et, si l'administrateur a ouvert la suppression, de retirer l'unité du parc ; <strong>Réintégrer au parc</strong> la remet en service.</li>
+    <li><strong>Réservations en cours</strong> — la liste des séjours actifs (client, unités réservées, arrivée, départ, statut), avec la même déduction d'état qu'à l'historique.</li>
+    <li><strong>Calendrier d'Occupation</strong> — la vue mensuelle du parc, unité par unité, avec le taux d'occupation <strong>estimé</strong> de chaque jour (légende Faible, Moyen, Fort).</li>
+    <li><strong>Disponibilités</strong> — choisissez une arrivée et un départ : chaque unité du parc est listée, <em>Libre</em> ou <em>Indisponible</em>, avec son motif (réservée du … au …, hors service, en nettoyage), sa capacité, le montant du séjour et un bouton <strong>Réserver</strong> qui ouvre la réservation avec ces dates. Le jour du départ est exclu : la nuit du départ reste libre.</li>
+  </ul>
+  <p>
+    Le bouton <strong>Nouvelle réservation</strong> de cet écran ouvre la <strong>Réservation rapide</strong> : client, arrivée, départ,
+    nombre de nuits et montant de l'hébergement, puis <strong>Enregistrer et compléter plus tard</strong>. La réservation est créée
+    avec l'hébergement seul ; la restauration, le bar, le tourisme et le véhicule s'ajoutent ensuite dans l'écran Réservations.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Le taux d'occupation du calendrier est présenté comme <strong>estimé</strong>, et il faut le lire ainsi.
+    Ne l'utilisez pas pour décider d'une sur-réservation : c'est le <strong>plan d'hébergement</strong>, unité par
+    unité, qui fait foi sur la disponibilité réelle.
+  </span>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    Le statut d'une unité n'est jamais saisi : il est recalculé depuis les réservations. Si une chambre
+    apparaît <em>Réservée</em> à tort, la correction se fait sur la <strong>réservation</strong> qui la bloque,
+    jamais sur la fiche de l'unité.
+  </span>
+  <figure>
+    <img src="../captures/m1-hebergement.png" alt="Le Plan d'Hébergement : une carte par unité, avec son statut du jour.">
+    <figcaption><b>Figure 4.3</b> — Le <b>Plan d'Hébergement</b> : une carte par unité, avec son statut du jour.</figcaption>
+  </figure>
+
+  <h2>4.6 Annuler une réservation</h2>
+  <p>
+    Une réservation ne s'efface jamais : elle s'<strong>annule</strong>, et elle reste consultable. Cliquez sur la croix rouge de sa carte
+    (ou sur <strong>Annuler la réservation</strong> dans sa fiche). La fenêtre <strong>Annuler cette réservation</strong> montre le montant total, l'acompte déjà encaissé
+    et le délai avant la prestation, puis vous demande :
+  </p>
+  <ul class="puces">
+    <li>le <strong>taux d'annulation</strong> — la commission retenue sur le montant total. Il est prérempli depuis le réglage du système (Paramètres ➔ Exploitation) ; pour une annulation à moins de 24 heures de la prestation, la valeur de référence est de 50 % ; vous pouvez le modifier pour cette annulation ;</li>
+    <li>le <strong>montant remboursé au client</strong>, saisi en pourcentage de l'acompte ou en FCFA (l'autre valeur se déduit). Il ne peut <strong>jamais dépasser l'acompte réellement encaissé</strong> ; si aucun acompte n'a été encaissé, il n'y a rien à rembourser.</li>
+  </ul>
+  <p>
+    Cliquez sur <strong>Annuler la réservation</strong> pour confirmer : l'unité redevient disponible immédiatement. L'onglet
+    <strong>Annulations</strong> garde la trace de chacune — total, taux, commission retenue, montant remboursé, date et auteur.
+    Une réservation déjà annulée ne peut pas l'être une seconde fois.
+  </p>
+
+  <h2>4.7 Sur le poste Windows</h2>
+  <p>
+    Le poste offre les mêmes gestes, hors ligne : créer, modifier et annuler une réservation, check-in, check-out, réservation rapide,
+    disponibilités, imprimer la confirmation. La réservation saisie sur un poste est envoyée au serveur à la synchronisation, puis
+    redescend sur les autres postes ; une petite pastille sur la carte dit si votre saisie est déjà partie ou si le serveur l'a refusée,
+    avec le motif. Le double-booking est contrôlé sur ce que le poste connaît : après une longue coupure, synchronisez avant de
+    promettre une chambre à un client, afin de voir les réservations prises sur les autres postes.
+  </p>
+</section>

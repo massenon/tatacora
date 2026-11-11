@@ -99,7 +99,8 @@ EtatDuJour etatDuJourDe(
   // disponible immédiatement, et c'est tout l'intérêt de conserver la ligne
   // plutôt que de la supprimer.
   for (final reservation in reservations) {
-    if (reservation.uniteId != unite.id) continue;
+    // Multi-chambres (10/11/2026) : la réservation retient chacune de ses chambres.
+    if (!reservation.uniteIds.contains(unite.id)) continue;
     if (reservation.statut == StatutReservation.annulee) continue;
     if (!reservation.periode.contient(aujourdHui)) continue;
 
@@ -125,7 +126,9 @@ Map<String, EtatDuJour> etatsDuJour(
   // lit que les siennes.
   final parUnite = <String, List<Reservation>>{};
   for (final r in reservations) {
-    (parUnite[r.uniteId] ??= []).add(r);
+    for (final uniteId in r.uniteIds) {
+      (parUnite[uniteId] ??= []).add(r);
+    }
   }
 
   return {

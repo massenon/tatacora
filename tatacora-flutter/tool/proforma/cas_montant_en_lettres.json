@@ -1,0 +1,142 @@
+[
+ {
+  "montant": 0,
+  "lettres": "ZÉRO FRANC CFA"
+ },
+ {
+  "montant": 1,
+  "lettres": "UN FRANC CFA"
+ },
+ {
+  "montant": 2,
+  "lettres": "DEUX FRANCS CFA"
+ },
+ {
+  "montant": 16,
+  "lettres": "SEIZE FRANCS CFA"
+ },
+ {
+  "montant": 17,
+  "lettres": "DIX-SEPT FRANCS CFA"
+ },
+ {
+  "montant": 21,
+  "lettres": "VINGT ET UN FRANCS CFA"
+ },
+ {
+  "montant": 22,
+  "lettres": "VINGT-DEUX FRANCS CFA"
+ },
+ {
+  "montant": 70,
+  "lettres": "SOIXANTE-DIX FRANCS CFA"
+ },
+ {
+  "montant": 71,
+  "lettres": "SOIXANTE ET ONZE FRANCS CFA"
+ },
+ {
+  "montant": 77,
+  "lettres": "SOIXANTE-DIX-SEPT FRANCS CFA"
+ },
+ {
+  "montant": 80,
+  "lettres": "QUATRE-VINGTS FRANCS CFA"
+ },
+ {
+  "montant": 81,
+  "lettres": "QUATRE-VINGT-UN FRANCS CFA"
+ },
+ {
+  "montant": 91,
+  "lettres": "QUATRE-VINGT-ONZE FRANCS CFA"
+ },
+ {
+  "montant": 99,
+  "lettres": "QUATRE-VINGT-DIX-NEUF FRANCS CFA"
+ },
+ {
+  "montant": 100,
+  "lettres": "CENT FRANCS CFA"
+ },
+ {
+  "montant": 101,
+  "lettres": "CENT UN FRANCS CFA"
+ },
+ {
+  "montant": 180,
+  "lettres": "CENT QUATRE-VINGTS FRANCS CFA"
+ },
+ {
+  "montant": 200,
+  "lettres": "DEUX CENTS FRANCS CFA"
+ },
+ {
+  "montant": 201,
+  "lettres": "DEUX CENT UN FRANCS CFA"
+ },
+ {
+  "montant": 999,
+  "lettres": "NEUF CENT QUATRE-VINGT-DIX-NEUF FRANCS CFA"
+ },
+ {
+  "montant": 1000,
+  "lettres": "MILLE FRANCS CFA"
+ },
+ {
+  "montant": 1001,
+  "lettres": "MILLE UN FRANCS CFA"
+ },
+ {
+  "montant": 2000,
+  "lettres": "DEUX MILLE FRANCS CFA"
+ },
+ {
+  "montant": 21000,
+  "lettres": "VINGT ET UN MILLE FRANCS CFA"
+ },
+ {
+  "montant": 80000,
+  "lettres": "QUATRE-VINGT MILLE FRANCS CFA"
+ },
+ {
+  "montant": 100000,
+  "lettres": "CENT MILLE FRANCS CFA"
+ },
+ {
+  "montant": 200000,
+  "lettres": "DEUX CENT MILLE FRANCS CFA"
+ },
+ {
+  "montant": 400000,
+  "lettres": "QUATRE CENT MILLE FRANCS CFA"
+ },
+ {
+  "montant": 1000000,
+  "lettres": "UN MILLION DE FRANCS CFA"
+ },
+ {
+  "montant": 1000001,
+  "lettres": "UN MILLION UN FRANCS CFA"
+ },
+ {
+  "montant": 2500000,
+  "lettres": "DEUX MILLIONS CINQ CENT MILLE FRANCS CFA"
+ },
+ {
+  "montant": 80000000,
+  "lettres": "QUATRE-VINGTS MILLIONS DE FRANCS CFA"
+ },
+ {
+  "montant": 200000000,
+  "lettres": "DEUX CENTS MILLIONS DE FRANCS CFA"
+ },
+ {
+  "montant": 1000000000,
+  "lettres": "UN MILLIARD DE FRANCS CFA"
+ },
+ {
+  "montant": 1234567,
+  "lettres": "UN MILLION DEUX CENT TRENTE-QUATRE MILLE CINQ CENT SOIXANTE-SEPT FRANCS CFA"
+ }
+]

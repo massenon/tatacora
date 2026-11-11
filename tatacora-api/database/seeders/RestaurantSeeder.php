@@ -596,12 +596,12 @@ class RestaurantSeeder extends Seeder
             $ingredients = $recettesParPlat[$libelle] ?? null;
 
             if ($ingredients === null || $ingredients === []) {
-                // Une fiche vide REFUSE la vente : la laisser passer
-                // rebloquerait le point de vente sur ce plat, sans un mot.
+                // Une fiche vide ne REFUSE plus la vente (decision du PO du 30/10/2026),
+                // mais le referentiel de demonstration doit decrementer le stock de
+                // chaque plat : la laisser passer vendrait ce plat sans sortie de stock.
                 throw new RuntimeException(
-                    'RestaurantSeeder : aucune fiche technique pour « '.$libelle.' ». Toute vente '
-                    .'de ce plat serait refusee au comptoir (RecetteManquanteException). Completer '
-                    .'compositions().',
+                    'RestaurantSeeder : aucune fiche technique pour « '.$libelle.' ». La vente '
+                    .'de ce plat ne decrementerait aucun stock. Completer compositions().',
                 );
             }
 

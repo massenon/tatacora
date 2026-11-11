@@ -100,6 +100,9 @@
                      `App\Pwa\Support\DerogationsMaquette`
                      (export_bouton_unique).
                      Jeton : maitre-refuse:m2-facturation.html#page --}}
+                {{-- Factures proforma (PO, 07/11/2026) : écran propre, document non fiscal. --}}
+                <a href="{{ route('pwa.facturation.proformas') }}" wire:navigate
+                   class="text-[13px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('proforma.ui.proformas_lien') }}</a>
                 <button type="button" wire:click="ouvrirExport"
                         class="text-[13px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.export.bouton') }}</button>
               </div>
@@ -123,9 +126,13 @@
                   Aujourd'hui elle rend exactement la phrase du maître, parce
                   que c'est la vérité.
               --}}
-              @if ($certifiees === 0)
+              {{-- Décision du PO du 07/11/2026 : en mode DÉSACTIVÉ (facturation simple), AUCUNE mention
+                   de certification ni de démonstration. Dans les modes e-MECeF et boîtier, le décompte
+                   dit ce qui est réellement normalisé. --}}
+              @if ($modeFacturation === \App\Domain\Facturation\Services\ModeFacturation::Desactive)
+              @elseif ($certifiees === 0)
                 <span class="text-amber-700">
-                  {!! __('pwa.facturation.mecef_aucune') !!}
+                  {!! __('facturation_pwa.mecef_aucune_normalisee') !!}
                 </span>
               @else
                 <span class="text-emerald-700">
@@ -166,7 +173,7 @@
                 </tr></thead>
                 <tbody id="corps-fac">
                   @forelse ($factures as $facture)
-                    @php($habillage = Facturation::STATUTS[$facture->statut] ?? null)
+                    @php($habillage = \App\Pwa\Support\EtiquetteFacture::pour($facture, $modeFacturation))
                     @php($activites = $facture->lignes->pluck('source_module')->unique()->map(fn (string $m): string => Facturation::ACTIVITES[$m] ?? $m)->implode(', '))
                     <tr class="border-t border-slate-100" wire:key="facture-{{ $facture->id }}">
                       <td class="px-4 py-2.5 no-print">
@@ -176,13 +183,13 @@
                       {{-- Article 7 : « — » quand la donnée n'existe pas.
                            `numero_mecef` est `nullable` — « null tant que non
                            certifiée », dit la migration elle-même. --}}
-                      <td class="px-4 py-2.5 font-mono-tatacora text-[12px]">{{ $facture->numero_mecef ?? MontantFcfa::TIRET }}</td>
+                      @php($numeroRegistre = \App\Pwa\Support\NumeroRegistre::pour($facture))
+                      <td class="px-4 py-2.5 font-mono-tatacora text-[12px] whitespace-nowrap">{{ $numeroRegistre['valeur'] }}@if ($numeroRegistre['interne']) <span class="ml-1 font-sans text-[10px] text-slate-400" title="{{ __('pwa.facturation.numero_interne') }}">{{ __('pwa.facturation.numero_interne') }}</span>@endif</td>
                       <td class="px-4 py-2.5 text-slate-500">{{ $facture->date_emission->format('d/m/Y') }}</td>
                       @php($client = $clients->get($facture->client_id))
                       <td class="px-4 py-2.5">{{ $client === null ? MontantFcfa::TIRET : trim(($client->prenom ?? '').' '.$client->nom) }}</td>
-                      {{-- Colonne « Origine » : aucune colonne au schéma, et
-                           l'activité ne la dit pas. Voir le bloc de refus. --}}
-                      <td class="px-4 py-2.5 text-slate-300">{{ MontantFcfa::TIRET }}</td>
+                      {{-- Colonne « Origine » : `factures.origine`, envoyée par le poste. --}}
+                      <td class="px-4 py-2.5 text-slate-500">{{ \App\Pwa\Support\OrigineEtModeFacture::origine($facture) }}</td>
                       <td class="px-4 py-2.5 text-slate-500">{{ $activites !== '' ? $activites : MontantFcfa::TIRET }}</td>
                       <td class="px-4 py-2.5 text-right font-semibold">{{ MontantFcfa::format((string) $facture->montant_ttc) }}</td>
                       {{-- Article 7 : « — » quand la donnée n'existe pas. Le
@@ -190,7 +197,7 @@
                            serveur ; en déduire un d'un statut de certification
                            l'inventerait sur l'écran même où l'on rapproche la
                            caisse. --}}
-                      <td class="px-4 py-2.5 text-slate-300">{{ MontantFcfa::TIRET }}</td>
+                      <td class="px-4 py-2.5 text-slate-500">{{ \App\Pwa\Support\OrigineEtModeFacture::mode($facture) }}</td>
                       <td class="px-4 py-2.5">
                         @if ($habillage !== null)
                           <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:{{ $habillage['fond'] }};color:{{ $habillage['texte'] }}">{{ $habillage['libelle'] }}</span>
@@ -214,6 +221,12 @@
                           class="text-[11px] font-semibold px-2 py-0.5 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">{{ __('facturation_pwa.document_action') }}</button>
                         <button type="button" wire:click="ouvrirFormulaireAvoir('{{ $facture->id }}')"
                           class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--navy)] text-white ml-1">{{ __('facturation_pwa.avoir_action') }}</button>
+                        {{-- « Normaliser » : e-MECeF seulement, jamais automatique. Le boîtier se pilote
+                             depuis le poste de la réception ; désactivé, il n'y a rien à normaliser. --}}
+                        @if ($modeFacturation === \App\Domain\Facturation\Services\ModeFacturation::Emecef && ! $facture->estNormalisee())
+                          <button type="button" wire:click="normaliser('{{ $facture->id }}')"
+                            class="text-[11px] font-semibold px-2 py-0.5 rounded border border-[var(--navy)] text-[var(--navy)] ml-1">{{ __('facturation_pwa.normaliser_action') }}</button>
+                        @endif
                       </td>
                     </tr>
                   @empty
@@ -229,6 +242,14 @@
                         {{ __('facturation_pwa.aucun_resultat_detail') }}
                         @unless ($filtreApplique)
                           <br>{{ __('pwa.facturation.registre_vide') }}
+                          {{-- Écart daté du PO (09/11/2026) : une réservation ne crée pas de facture ; on le dit, avec le
+                               chemin vers les proformas. Mêmes mots au poste. --}}
+                          <br><span id="registre-vide-aide">{{ __('pwa.facturation.registre_vide_aide') }}</span>
+                          <br><a href="{{ route('pwa.facturation.proformas') }}" wire:navigate id="registre-vide-proformas"
+                                 class="inline-block mt-2 text-[13px] px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">{{ __('pwa.facturation.registre_vide_lien') }}</a>
+                          @if ($horsExercice > 0)
+                            <br><span id="registre-hors-exercice" class="text-amber-700">{{ __('pwa.facturation.registre_hors_exercice', ['nombre' => $horsExercice, 'annee' => $exerciceAnnee]) }}</span>
+                          @endif
                         @endunless
                       </td>
                     </tr>
@@ -252,7 +273,7 @@
               <table class="w-full text-[12px]">
                 <thead>
                   <tr class="text-left text-[11px] font-semibold text-slate-500 uppercase border-b-2 border-slate-400">
-                    <th class="text-left px-2 py-1.5">{{ __('facturation_pwa.registre_col_numero_mecef') }}</th>
+                    <th class="text-left px-2 py-1.5">{{ __('pwa.facturation.col_numero') }}</th>
                     <th class="text-left px-2 py-1.5">{{ __('pwa.facturation.col_client') }}</th>
                     <th class="text-left px-2 py-1.5">{{ __('facturation_pwa.registre_col_services') }}</th>
                     <th class="text-left px-2 py-1.5">{{ __('pwa.facturation.col_date') }}</th>
@@ -263,18 +284,17 @@
                 </thead>
                 <tbody>
                   @forelse ($factures as $facture)
-                    @php($habillageDoc = Facturation::STATUTS[$facture->statut] ?? null)
+                    @php($habillageDoc = \App\Pwa\Support\EtiquetteFacture::pour($facture, $modeFacturation))
                     @php($activitesDoc = $facture->lignes->pluck('source_module')->unique()->map(fn (string $m): string => Facturation::ACTIVITES[$m] ?? $m)->implode(', '))
                     @php($clientDoc = $clients->get($facture->client_id))
                     <tr class="border-b border-slate-200" wire:key="doc-facture-{{ $facture->id }}">
-                      <td class="px-2 py-1.5 font-mono-tatacora text-[11px]">{{ $facture->numero_mecef ?? MontantFcfa::TIRET }}</td>
+                      <td class="px-2 py-1.5 font-mono-tatacora text-[11px]">{{ \App\Pwa\Support\NumeroRegistre::valeur($facture) }}</td>
                       <td class="px-2 py-1.5">{{ $clientDoc === null ? MontantFcfa::TIRET : trim(($clientDoc->prenom ?? '').' '.$clientDoc->nom) }}</td>
                       <td class="px-2 py-1.5">{{ $activitesDoc !== '' ? $activitesDoc : MontantFcfa::TIRET }}</td>
                       <td class="px-2 py-1.5">{{ $facture->date_emission->format('d/m/Y') }}</td>
                       <td class="px-2 py-1.5 text-right font-semibold tabular-nums">{{ MontantFcfa::format((string) $facture->montant_ttc) }}</td>
-                      {{-- Article 7 : « — » quand la donnée n'existe pas —
-                           même refus que la colonne du tableau d'écran. --}}
-                      <td class="px-2 py-1.5">{{ MontantFcfa::TIRET }}</td>
+                      {{-- Article 7 : « — » quand la donnée n'existe pas. --}}
+                      <td class="px-2 py-1.5">{{ \App\Pwa\Support\OrigineEtModeFacture::mode($facture) }}</td>
                       <td class="px-2 py-1.5">{{ $habillageDoc !== null ? $habillageDoc['libelle'] : $facture->statut }}</td>
                     </tr>
                   @empty
@@ -329,7 +349,7 @@
       <form wire:submit.prevent="enregistrerAvoir" class="space-y-4">
         <div class="rounded-lg bg-slate-50 px-3 py-2 text-[13px] text-slate-600">
           <span class="font-semibold">{{ __('facturation_pwa.avoir_facture') }}</span>
-          <span class="font-mono-tatacora">{{ $avoirFacture->numero_mecef ?? MontantFcfa::TIRET }}</span>
+          <span class="font-mono-tatacora">{{ \App\Pwa\Support\NumeroRegistre::valeur($avoirFacture) }}</span>
           — {{ MontantFcfa::format((string) $avoirFacture->montant_ttc) }}
         </div>
 

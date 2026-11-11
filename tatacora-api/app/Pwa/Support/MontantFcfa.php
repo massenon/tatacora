@@ -47,6 +47,28 @@ final class MontantFcfa
     /**
      * Rend le montant formaté ou un tiret si le montant vaut zéro.
      */
+    /**
+     * Un montant DÛ, au centime près quand il n'est pas un franc entier (« 29 999,99 FCFA »).
+     *
+     * `format()` arrondit au franc : un reste dû de 29 999,99 s'affichait « 30 000 FCFA » et le refus de
+     * l'encaissement (« dépasse le reste dû (29999.99) ») paraissait absurde (PO, 10/11/2026). Un solde,
+     * une créance ou un reste dû ne cache jamais un centime ; un franc entier garde la forme habituelle.
+     */
+    public static function formatExact(string $montant): string
+    {
+        $net = bcadd($montant, '0', 2);
+
+        if (bccomp(bcadd($net, '0', 0), $net, 2) === 0) {
+            return self::format($net);
+        }
+
+        $negatif = bccomp($net, '0', 2) < 0;
+        $absolu = ltrim($net, '-');
+        [$entier, $decimales] = explode('.', $absolu);
+
+        return ($negatif ? '-' : '') . self::groupe($entier) . ',' . $decimales . ' ' . self::SUFFIXE;
+    }
+
     public static function formatOuTiret(string $montant): string
     {
         $arrondi = self::arrondi($montant);

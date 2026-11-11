@@ -9,6 +9,9 @@ declare(strict_types=1);
 return [
     // Article 8 (02/09/2026) : la reference RG-01 vit ici, jamais a l'ecran.
     'chevauchement' => 'Cette unité est déjà réservée sur cette période.',
+    // Réservation multi-chambres (10/11/2026) : le refus dit QUELLE chambre est prise / répétée.
+    'chambre_occupee' => 'La chambre :unite est déjà réservée sur cette période.',
+    'chambre_en_double' => 'La chambre :unite figure deux fois dans la réservation : une chambre ne se réserve qu\'une fois.',
 
     // PA-115, portée serveur : rouvrir une réservation annulée la ferait
     // revivre sans que son statut change.

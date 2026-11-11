@@ -25,7 +25,11 @@ class RelanceClientService
     private const PRECISION = 2;
 
     /**
-     * @param  array{client_id: string, canal: string, montant_reclame: string, promesse?: string|null, commentaire?: string|null, date_relance?: string}  $donnees
+     * `id` (facultatif) : l'identifiant né sur un poste hors connexion
+     * (`GestionnaireRelancesClients`) — la relance le garde, ce qui rend son
+     * rejeu idempotent.
+     *
+     * @param  array{id?: string, client_id: string, canal: string, montant_reclame: string, promesse?: string|null, commentaire?: string|null, date_relance?: string}  $donnees
      *
      * @throws RuntimeException canal hors registre, client inconnu ou montant invalide
      */
@@ -46,6 +50,7 @@ class RelanceClientService
         }
 
         return RelanceClient::create([
+            ...(isset($donnees['id']) && $donnees['id'] !== '' ? ['id' => (string) $donnees['id']] : []),
             'client_id' => (string) $donnees['client_id'],
             'date_relance' => (string) ($donnees['date_relance'] ?? now()->toDateString()),
             'canal' => (string) $donnees['canal'],

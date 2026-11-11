@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LengthLimitingTextInputFormatter;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/di/providers.dart' show sessionProvider;
+import '../../../../core/di/providers.dart'
+    show droitsProvider, sessionProvider;
+import '../../../../core/rbac/garde_acces.dart' show ModuleTatacora;
 import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -12,18 +15,29 @@ import '../../../caisse/domain/messages_caisse.dart';
 import '../../../caisse/domain/regles_caisse.dart' show RefusCaisse;
 import '../../../caisse/presentation/providers_caisse.dart'
     show sessionDuBarProvider;
+import '../../../facturation/domain/entities/piece_facturation.dart'
+    show PieceFacturation;
 import '../../../facturation/presentation/ecran_facturation.dart'
     show afficherTicket;
+import '../../../facturation/domain/acheteur_facture.dart';
 import '../../../facturation/presentation/providers_facturation.dart';
+import '../../../facturation/presentation/widgets/champs_acheteur_facture.dart'
+    show ModaleAcheteurFacture;
 import '../../../comptabilite/domain/calcul_tva.dart' show RefusTva;
 import '../../../comptabilite/domain/refus_comptable.dart' show RefusComptable;
 import '../../domain/entities/mode_reglement.dart';
 import '../../domain/entities/panier.dart';
 import '../../domain/entities/table_pos.dart' show RayonSalle;
-import '../../domain/messages_ventes.dart' show RefusVente;
+import '../../domain/mention_client.dart';
+import '../../domain/messages_ventes.dart' show MessagesVentes, RefusVente;
+import '../../../hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
+import '../../domain/remise_panier.dart' show centiemesDepuisSaisie;
 import '../../domain/repositories/panier_repository.dart';
 import '../providers_pos.dart';
+import '../rupture_comptoir.dart';
 import '../vocabulaire_pos.dart';
+import 'modales_comptant.dart';
 
 /// Le panier — **l'argent**.
 ///
@@ -90,33 +104,15 @@ class VuePanier extends ConsumerWidget {
         children: [
           EnTetePanierComptant(
             nombreArticles: panier.lignes.length,
-            // Deux gestes distincts, et le maitre les pose cote a cote dans
-            // cet ordre (`pos.html:84-85`) : « Vider » retire les lignes et
+            // Deux gestes distincts, que la vue pose côte à côte dans cet ordre
+            // (`comptant.blade.php` l.322-325) : « Vider » retire les lignes et
             // laisse le panier OUVERT ; « Abandonner » ferme le panier et
-            // LIBERE la table. Les confondre en un seul bouton perdrait le
+            // LIBÈRE la table. Les confondre en un seul bouton perdrait le
             // premier — et sans le second, une table ouverte par erreur
-            // restait bloquee pour toujours, le moteur refusant de cloturer
+            // restait bloquée pour toujours, le moteur refusant de clôturer
             // un panier vide.
             actions: [
-              if (panier.estOuvert) ...[
-                if (vocabulaire.retirerLignes != null)
-                  _BoutonEnTete(
-                    cle: const Key('pos-vider-panier'),
-                    libelle: vocabulaire.retirerLignes!,
-                    // Inerte sur un panier deja vide : le geste n'aurait aucun
-                    // effet, et un bouton actif qui ne fait rien se presse
-                    // deux fois.
-                    onPressed: panier.lignes.isEmpty
-                        ? null
-                        : () => _vider(context, ref),
-                  ),
-                _BoutonEnTete(
-                  cle: const Key('pos-annuler-panier'),
-                  libelle: vocabulaire.fermerPanier,
-                  danger: true,
-                  onPressed: () => _annuler(context, ref),
-                ),
-              ],
+              BoutonsPanierComptant(panier: panier, vocabulaire: vocabulaire),
             ],
           ),
           ContextePanierComptant(
@@ -138,76 +134,6 @@ class VuePanier extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  /// « Vider » — retire les lignes, garde le panier ouvert.
-  ///
-  /// **Sans confirmation, comme le maître** (`pos.html:1012`). Ce n'est pas un
-  /// oubli : le geste est réversible en rescannant les articles, et une
-  /// question posée à chaque correction de commande au comptoir se ferait
-  /// valider machinalement — la confirmation perdrait alors tout son sens là
-  /// où elle compte, sur l'annulation du panier, qui elle est irréversible.
-  Future<void> _vider(BuildContext context, WidgetRef ref) async {
-    try {
-      await ref.read(depotPanierProvider).vider(panier.id);
-      rafraichirPaniers(ref);
-    } on Object catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
-      }
-    }
-  }
-
-  Future<void> _annuler(BuildContext context, WidgetRef ref) async {
-    final controleur = TextEditingController();
-    final motif = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Annuler ce panier'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Les consommations déjà saisies sont conservées : la question '
-              '« qu’a-t-il consommé ? » doit rester répondable après coup.',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              key: const Key('pos-motif-annulation'),
-              controller: controleur,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Motif de l’annulation',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Renoncer'),
-          ),
-          FilledButton(
-            key: const Key('pos-confirmer-annulation'),
-            onPressed: () => Navigator.of(context).pop(controleur.text),
-            child: const Text('Annuler le panier'),
-          ),
-        ],
-      ),
-    );
-
-    if (motif == null) return;
-    try {
-      await ref.read(gererPanierProvider).annuler(panier.id, motif);
-      ref.read(panierActifProvider.notifier).definir(null);
-      rafraichirPaniers(ref);
-    } on ArgumentError catch (e) {
-      if (context.mounted) _signaler(context, '${e.message}');
-    }
   }
 }
 
@@ -432,7 +358,7 @@ class _Pied extends ConsumerWidget {
               Flexible(
                 child: Text(
                   key: const Key('pos-total'),
-                  formaterFcfa(panier.total),
+                  formaterFcfa(panier.net),
                   textAlign: TextAlign.right,
                   style: styleContenuCarte(
                     TaillesContenu.xxl,
@@ -445,8 +371,8 @@ class _Pied extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.unit),
           if (panier.estOuvert) ...[
-            // La ligne « Remise » (l.397-408) : ce poste n'en porte aucune.
-            LigneRemiseComptant(etiquette: etiquette),
+            // La ligne « Remise » (l.398-417), posée sur le panier.
+            LigneRemiseComptant(panier: panier, etiquette: etiquette),
             const SizedBox(height: AppSpacing.xs),
           ],
           // Le maitre pose le reglement ENTRE le total et le bouton
@@ -507,12 +433,16 @@ class _Pied extends ConsumerWidget {
                     children: [
                       Text(TextesPanierComptant.client, style: etiquette),
                       const SizedBox(height: AppSpacing.unit),
-                      const ChampClientComptant(),
+                      ChampClientComptant(panier: panier),
                     ],
                   ),
                 ),
               ],
             ),
+            // « IFU du client » (décision du PO du 07/11/2026, point 2) : facultatif, ouvre le
+            // dialogue « Facture » ; l'encaissement n'en dépend jamais.
+            if (panier.typeVente == TypeVente.comptant)
+              const BoutonAcheteurComptant(),
             const SizedBox(height: AppSpacing.sm),
           ],
           if (panier.estOuvert)
@@ -572,7 +502,22 @@ class _Pied extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref, {
     required bool anticipe,
+    bool forcerRupture = false,
   }) async {
+    // RG-06 — la rupture est ASSUMÉE par l'opérateur, jamais subie en silence :
+    // au comptoir, une sortie qui dépasserait le stock du bar pose la question
+    // « Stock insuffisant » AVANT d'écrire quoi que ce soit, le panier restant
+    // intact. Un panier de séjour n'y passe pas (aucune sortie du bar au
+    // comptoir des clients hébergés n'est estimée ici).
+    if (!forcerRupture && panier.typeVente == TypeVente.comptant) {
+      final rupture = await ref.read(constaterRuptureComptoirProvider)(panier);
+      if (rupture != null) {
+        if (!context.mounted) return;
+        final vendre = await ouvrirModaleRupture(context, rupture.message);
+        if (vendre != true || !context.mounted) return;
+      }
+    }
+    if (!context.mounted) return;
     try {
       // Le mode CHOISI, plus une constante. Ecrire « especes » en dur faisait
       // entrer en caisse un argent que personne n'avait recu, et rendait
@@ -654,12 +599,44 @@ class _Pied extends ConsumerWidget {
 Future<void> facturerPanier(
   BuildContext context,
   WidgetRef ref,
-  Panier cloture,
-) async {
+  Panier cloture, {
+  bool payerSeparement = false,
+  AcheteurFacture? acheteur,
+}) async {
+  PieceFacturation? emise;
+  // L'ACHETEUR (décision du PO du 07/11/2026) : celui de la modale de clôture d'un séjour, ou
+  // celui saisi au comptoir (« IFU du client »), remis à zéro après l'émission.
+  final AcheteurFacture saisi = acheteur ?? ref.read(acheteurFactureProvider);
   try {
-    final piece = await ref.read(emettrePourPanierProvider)(cloture);
+    // « Payer séparément » (séjour seulement) : la facture ne porte que les
+    // consommations, l'hébergement reste dû sur la fiche du client.
+    emise = payerSeparement && cloture.typeVente == TypeVente.surSejour
+        ? await ref.read(emettreConsommationsPourPanierProvider)(
+            cloture,
+            acheteur: saisi,
+          )
+        : await ref.read(emettrePourPanierProvider)(cloture, acheteur: saisi);
+    ref.read(acheteurFactureProvider.notifier).reinitialiser();
     rafraichirFacturation(ref);
-    if (context.mounted) await afficherTicket(context, piece);
+    // « Normaliser maintenant » : jamais automatique, jamais bloquant — la facture reste
+    // émise, « en attente », rejouable ; la phrase dit où en est la normalisation.
+    if (saisi.normaliserMaintenant) {
+      final phrase = await normaliserMaintenant(ref, emise);
+      rafraichirFacturation(ref);
+      if (phrase != null && context.mounted) _signaler(context, phrase);
+    }
+    // Un séjour présente le ticket de sa facture de départ ; le comptoir, lui,
+    // ouvre « Vente encaissée » ci-dessous.
+    if (cloture.typeVente != TypeVente.comptant && context.mounted) {
+      // `heberges.facture_emise_consommations` / `heberges.facture_emise`.
+      _signaler(
+        context,
+        payerSeparement
+            ? "Consommations facturées pour ${emise.clientNom}. L'hébergement reste dû sur la fiche du client."
+            : 'Séjour facturé. Panier clôturé et facture émise pour ${emise.clientNom}.',
+      );
+      await afficherTicket(context, emise);
+    }
   } on Object catch (e) {
     if (context.mounted) {
       _signaler(
@@ -668,6 +645,13 @@ Future<void> facturerPanier(
         '${cloture.montantCloture} FCFA ; la facture reste à émettre.',
       );
     }
+  }
+
+  // La modale « Vente encaissée » (`pos/comptant.blade.php` l.431-492) : la
+  // vente est encaissée même si l'émission de la facture a échoué — son bouton
+  // « Facture » la rattrape alors.
+  if (cloture.typeVente == TypeVente.comptant && context.mounted) {
+    await ouvrirVenteEncaissee(context, ref, cloture: cloture, piece: emise);
   }
 }
 
@@ -742,6 +726,12 @@ abstract final class TextesPanierComptant {
   /// `pos_pwa.comptant.panier_sur_ce_poste`, « de navigateur » remplacé par
   /// « la fermeture de l'application » : ce client n'a pas de navigateur (même
   /// écart que le panier de séjour, `PanierHeberges.surCePoste`).
+  ///
+  /// ÉCART NOMMÉ — la vue écrit (l.349) :
+  /// « Enregistré sur ce poste : le panier reste ouvert après un changement d’équipe ou de navigateur. Il ne part vers aucun autre poste. »
+  /// « de navigateur » est faux ici (aucun navigateur) et remplacé ; cette
+  /// citation intégrale est un gain de MESURE, la phrase affichée est
+  /// [surCePoste].
   static const String surCePoste =
       'Enregistré sur ce poste : le panier reste ouvert après un changement '
       'd’équipe ou la fermeture de l’application. Il ne part vers aucun '
@@ -762,6 +752,11 @@ abstract final class TextesPanierComptant {
   /// `pos_pwa.commun.remise_aucune`.
   static const String remiseAucune = 'Aucune';
 
+  /// `pos_pwa.commun.remise_appliquee` — la ligne que la vue pose sous la
+  /// remise quand elle est POSITIVE (l.412-416) : « Sur un total de :brut » à
+  /// gauche, « - :remise » à droite. [brut] est le total des lignes, formaté.
+  static String remiseAppliquee(String brut) => 'Sur un total de $brut';
+
   /// `pos_pwa.commun.remise_valeur` (l'`aria-label` du champ).
   static const String remiseValeur = 'Valeur de la remise';
 
@@ -771,21 +766,6 @@ abstract final class TextesPanierComptant {
   /// `pos_pwa.comptant.client_mention_aide` (le `placeholder`).
   static const String clientAide =
       'Nom à imprimer sur le ticket — aucun compte client n\'est créé.';
-
-  /// Ce que dit la ligne « Remise » quand on la touche : le panier du poste
-  /// ne porte AUCUNE remise (`PanierDao`, « Aucune remise »), une valeur
-  /// saisie n'aurait aucun effet sur le total encaissé. Jamais un champ qui
-  /// accepterait une valeur sans effet (Article 3.3).
-  static const String remiseNonDisponible =
-      'La remise ne s’applique pas sur ce poste : le panier ne porte aucune '
-      'remise, donc le montant encaissé reste le total des lignes. Rien n’a '
-      'été enregistré.';
-
-  /// Ce que dit le champ « Client » quand on le touche : la mention n'est
-  /// conservée nulle part sur ce poste et ne s'imprime pas sur le ticket.
-  static const String clientNonDisponible =
-      'La mention client n’est pas encore enregistrée sur ce poste : elle ne '
-      's’imprimerait pas sur le ticket. Rien n’a été enregistré.';
 }
 
 /// `px-4 py-3 border-b border-slate-200 flex items-center justify-between`
@@ -844,6 +824,98 @@ class EnTetePanierComptant extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Les deux boutons de l'en-tête du panneau Panier — « Vider » et
+/// « Abandonner » (`comptant.blade.php` l.321-326).
+///
+/// ## Toujours là, comme dans la vue
+///
+/// La vue les pose dans l'en-tête sans aucune condition : ni panier ouvert, ni
+/// lignes à vider. Ce poste les masquait quand aucun panier n'était ouvert, puis
+/// grisait « Vider » sur un panier vide — le caissier cherchait deux boutons qui
+/// n'étaient plus là. Ils sont désormais toujours rendus.
+///
+/// ## Les gestes sont ceux de `PosComptant`
+///
+/// - « Vider » (`viderPanier`) : le panier OUVERT perd toutes ses lignes et
+///   reste ouvert ; sans panier ouvert, le geste ne fait rien (la vue rend
+///   la main sans message). **Aucune confirmation** : la vue n'en pose pas.
+/// - « Abandonner » (`abandonnerPanier`) : le panier ouvert est fermé sans
+///   vente, sans motif demandé, ses lignes gardées ; l'écran revient au
+///   comptoir et dit « Panier abandonné. » — même sans panier ouvert, comme la
+///   vue.
+///
+/// Un refus (panier déjà fermé ailleurs) est dit à la phrase du serveur. Le droit
+/// est celui de la vue (`exigerEcriture`, module M5) : sans lui, les deux
+/// boutons restent affichés mais INERTES — la vue répond 403.
+class BoutonsPanierComptant extends ConsumerWidget {
+  const BoutonsPanierComptant({
+    required this.panier,
+    required this.vocabulaire,
+    super.key,
+  });
+
+  /// Le panier OUVERT affiché, ou `null` quand aucun n'est ouvert.
+  final Panier? panier;
+
+  final VocabulairePos vocabulaire;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final peutVendre = ref
+        .watch(droitsProvider)
+        .peutEcrire(ModuleTatacora.m5Bar);
+    final libelleVider = vocabulaire.retirerLignes;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (libelleVider != null) ...[
+          _BoutonEnTete(
+            cle: const Key('pos-vider-panier'),
+            libelle: libelleVider,
+            onPressed: peutVendre ? () => _vider(context, ref) : null,
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+        ],
+        _BoutonEnTete(
+          cle: const Key('pos-abandonner-panier'),
+          libelle: vocabulaire.fermerPanier,
+          danger: true,
+          onPressed: peutVendre ? () => _abandonner(context, ref) : null,
+        ),
+      ],
+    );
+  }
+
+  /// `PosComptant::viderPanier`.
+  Future<void> _vider(BuildContext context, WidgetRef ref) async {
+    final courant = panier;
+    if (courant == null) return;
+    try {
+      await ref.read(gererPanierProvider).vider(courant.id);
+      rafraichirPaniers(ref);
+    } on PanierNonModifiable catch (e) {
+      if (context.mounted) _signaler(context, '$e');
+    }
+  }
+
+  /// `PosComptant::abandonnerPanier`.
+  Future<void> _abandonner(BuildContext context, WidgetRef ref) async {
+    final courant = panier;
+    if (courant != null) {
+      try {
+        await ref.read(gererPanierProvider).abandonner(courant.id);
+      } on PanierNonModifiable catch (e) {
+        if (context.mounted) _signaler(context, '$e');
+        return;
+      }
+    }
+    ref.read(panierActifProvider.notifier).definir(null);
+    rafraichirPaniers(ref);
+    if (context.mounted) _signaler(context, MessagesVentes.panierAbandonne);
   }
 }
 
@@ -987,111 +1059,277 @@ class PanierVideComptant extends StatelessWidget {
   }
 }
 
-/// La ligne « Remise » (l.397-408) : étiquette, `<select>` « Aucune »,
-/// valeur. Touchés, les deux champs DISENT que la remise n'existe pas sur ce
-/// poste — jamais un champ qui accepterait une valeur sans effet.
-class LigneRemiseComptant extends StatelessWidget {
-  const LigneRemiseComptant({required this.etiquette, super.key});
+/// La ligne « Remise » (l.398-417) : étiquette, `<select>` « Aucune » / « % » /
+/// « FCFA », valeur — et, quand la remise est POSITIVE, « Sur un total de
+/// :brut » à gauche et « - :remise » à droite.
+///
+/// Le TYPE et la VALEUR sont posés sur le panier (`PanierDao.appliquerRemise`),
+/// jamais un montant : celui-ci se DÉRIVE du panier (`Panier.remiseCentimes`,
+/// réplique de `Panier::remiseSur`). Un changement de type s'applique aussitôt
+/// (`wire:change`) ; la valeur, quand le champ perd le focus ou à « Entrée »
+/// (l'événement `change`, pas chaque frappe). Un refus du serveur s'affiche SOUS
+/// la ligne, avec sa phrase (`text-[11px] text-red-600`).
+class LigneRemiseComptant extends ConsumerStatefulWidget {
+  const LigneRemiseComptant({
+    required this.panier,
+    required this.etiquette,
+    super.key,
+  });
 
+  final Panier panier;
   final TextStyle etiquette;
 
   @override
+  ConsumerState<LigneRemiseComptant> createState() =>
+      _EtatLigneRemiseComptant();
+}
+
+class _EtatLigneRemiseComptant extends ConsumerState<LigneRemiseComptant> {
+  late TypeRemise _type = widget.panier.remiseType;
+  late final TextEditingController _valeur = TextEditingController(
+    text: _texteDe(widget.panier),
+  );
+  final FocusNode _focus = FocusNode();
+  String? _erreur;
+
+  /// La valeur du panier telle qu'on la retape : « 10 », « 12.5 », « 500 ».
+  static String _texteDe(Panier p) {
+    if (p.remiseType == TypeRemise.aucune) return '';
+    final c = p.remiseValeurCentiemes;
+    final entier = c ~/ 100;
+    final decimales = c % 100;
+    if (decimales == 0) return '$entier';
+    final d = decimales.toString().padLeft(2, '0');
+    return '$entier.${d.endsWith('0') ? d.substring(0, 1) : d}';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus) _appliquer();
+    });
+  }
+
+  @override
+  void didUpdateWidget(LigneRemiseComptant ancien) {
+    super.didUpdateWidget(ancien);
+    // Un autre panier (ou une valeur refusée relue) : le champ suit la base.
+    if (ancien.panier.id != widget.panier.id) {
+      _type = widget.panier.remiseType;
+      _valeur.text = _texteDe(widget.panier);
+      _erreur = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _valeur.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _appliquer() async {
+    // Rien à dire tant que rien n'a changé (type « Aucune » inclus).
+    final p = widget.panier;
+    final saisie = _valeur.text;
+    final lue = centiemesDepuisSaisie(saisie) ?? -1;
+    if (_type == p.remiseType &&
+        (_type == TypeRemise.aucune ||
+            (lue == p.remiseValeurCentiemes && _erreur == null))) {
+      return;
+    }
+    try {
+      await ref.read(gererPanierProvider).appliquerRemise(p.id, _type, saisie);
+      if (!mounted) return;
+      setState(() => _erreur = null);
+    } on RefusVente catch (e) {
+      if (!mounted) return;
+      setState(() => _erreur = e.message);
+    }
+    if (mounted) rafraichirPaniers(ref);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    void dire() => ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(TextesPanierComptant.remiseNonDisponible)),
-    );
-    return Row(
+    final p = widget.panier;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(TextesPanierComptant.remise, style: etiquette),
-        const SizedBox(width: AppSpacing.xs),
-        _ChampDisant(
-          cle: const Key('pos-remise-type'),
-          texte: TextesPanierComptant.remiseAucune,
-          taille: TaillesContenu.t12,
-          onTap: dire,
+        Row(
+          children: [
+            Text(TextesPanierComptant.remise, style: widget.etiquette),
+            const SizedBox(width: AppSpacing.xs),
+            DropdownButton<TypeRemise>(
+              key: const Key('pos-remise-type'),
+              value: _type,
+              isDense: true,
+              underline: const SizedBox.shrink(),
+              style: styleContenuCarte(
+                TaillesContenu.t12,
+                couleur: AppColors.anthracite,
+              ),
+              items: [
+                for (final t in TypeRemise.values)
+                  DropdownMenuItem(
+                    value: t,
+                    child: Text(
+                      t == TypeRemise.aucune
+                          ? TextesPanierComptant.remiseAucune
+                          : t.libelle,
+                    ),
+                  ),
+              ],
+              onChanged: (t) {
+                if (t == null) return;
+                setState(() => _type = t);
+                _appliquer();
+              },
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Semantics(
+                label: TextesPanierComptant.remiseValeur,
+                child: TextField(
+                  key: const Key('pos-remise-valeur'),
+                  controller: _valeur,
+                  focusNode: _focus,
+                  keyboardType: TextInputType.number,
+                  style: styleContenuCarte(
+                    TaillesContenu.t12,
+                    couleur: AppColors.anthracite,
+                  ),
+                  decoration: _decorationChamp(),
+                  onSubmitted: (_) => _appliquer(),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Semantics(
-            label: TextesPanierComptant.remiseValeur,
-            child: _ChampDisant(
-              cle: const Key('pos-remise-valeur'),
-              texte: '',
-              taille: TaillesContenu.t12,
-              onTap: dire,
+        if (_erreur != null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.unit),
+            child: Text(
+              _erreur!,
+              key: const Key('pos-remise-erreur'),
+              style: styleContenuCarte(
+                TaillesContenu.t11,
+                couleur: PaletteMaitre.rouge600,
+              ),
             ),
           ),
-        ),
+        // « Sur un total de :brut » / « - :remise » : seulement si la remise est
+        // positive (`bccomp($remisePanier, '0.00', 2) > 0`).
+        if (p.aUneRemise)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.unit),
+            child: Row(
+              key: const Key('pos-remise-appliquee'),
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    TextesPanierComptant.remiseAppliquee(formaterFcfa(p.total)),
+                    style: styleContenuCarte(
+                      TaillesContenu.t11_5,
+                      couleur: Ardoise.c500,
+                    ),
+                  ),
+                ),
+                Text(
+                  '- ${formaterFcfa(p.remiseFrancs)}',
+                  style: styleContenuCarte(
+                    TaillesContenu.t11_5,
+                    couleur: Ardoise.c500,
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
 }
 
-/// Le champ « Client (facultatif) » (l.448-451) : son `placeholder`, et,
-/// touché, la raison pour laquelle rien n'y est saisi sur ce poste.
-class ChampClientComptant extends StatelessWidget {
-  const ChampClientComptant({super.key});
+/// Le champ « Client (facultatif) » (l.444-448) : un `<input type="text"
+/// wire:model="clientMention" placeholder=… maxlength="255">`. Une MENTION
+/// imprimée sur le ticket, jamais une fiche client : elle est posée sur le
+/// panier ouvert (`PanierDao.definirMentionClient`, normalisée comme le serveur)
+/// à chaque frappe — le panier est la seule copie, une fenêtre fermée en pleine
+/// saisie ne la perd pas — puis suit la vente (ticket, synchronisation). Un
+/// autre panier (autre client, panier clôturé ou abandonné) repart d'un champ
+/// vide : la mention appartient à la vente, pas à l'écran.
+class ChampClientComptant extends ConsumerStatefulWidget {
+  const ChampClientComptant({required this.panier, super.key});
+
+  final Panier panier;
 
   @override
-  Widget build(BuildContext context) {
-    return _ChampDisant(
-      cle: const Key('pos-client-mention'),
-      texte: TextesPanierComptant.clientAide,
-      taille: TaillesContenu.t13,
-      indication: true,
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(TextesPanierComptant.clientNonDisponible)),
-      ),
-    );
-  }
+  ConsumerState<ChampClientComptant> createState() =>
+      _EtatChampClientComptant();
 }
 
-/// Le gabarit d'un `<select>` / `<input>` de la vue (`border border-slate-300
-/// rounded-lg bg-white`) qui, touché, DIT pourquoi il n'agit pas.
-class _ChampDisant extends StatelessWidget {
-  const _ChampDisant({
-    required this.cle,
-    required this.texte,
-    required this.taille,
-    required this.onTap,
-    this.indication = false,
-  });
+class _EtatChampClientComptant extends ConsumerState<ChampClientComptant> {
+  late final TextEditingController _texte = TextEditingController(
+    text: widget.panier.clientNom ?? '',
+  );
+  final FocusNode _focus = FocusNode();
 
-  final Key cle;
-  final String texte;
-  final double taille;
-  final VoidCallback onTap;
+  @override
+  void initState() {
+    super.initState();
+    // Comme la remise : l'écran relit le panier quand le champ perd le focus.
+    _focus.addListener(() {
+      if (!_focus.hasFocus && mounted) rafraichirPaniers(ref);
+    });
+  }
 
-  /// Vrai : [texte] est un `placeholder` (gris), pas une valeur.
-  final bool indication;
+  @override
+  void didUpdateWidget(ChampClientComptant ancien) {
+    super.didUpdateWidget(ancien);
+    if (ancien.panier.id != widget.panier.id) {
+      _texte.text = widget.panier.clientNom ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _texte.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _poser(String saisie) async {
+    try {
+      await ref
+          .read(gererPanierProvider)
+          .definirMentionClient(widget.panier.id, saisie);
+    } on PanierNonModifiable {
+      // Le panier a été clôturé ou abandonné pendant la frappe : la mention
+      // part avec lui, il n'y a plus rien à poser.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      key: cle,
-      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minWidth: LargeursPos.montantLigne),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: AppSpacing.xxs,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.neutre0,
-          border: Border.all(color: Ardoise.c300),
-          borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-        ),
-        child: Text(
-          texte,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: styleContenuCarte(
-            taille,
-            couleur: indication ? Ardoise.c400 : AppColors.anthracite,
-          ),
-        ),
+    return TextField(
+      key: const Key('pos-client-mention'),
+      controller: _texte,
+      focusNode: _focus,
+      maxLines: 1,
+      inputFormatters: [
+        LengthLimitingTextInputFormatter(MentionClient.longueurMax),
+      ],
+      style: styleContenuCarte(
+        TaillesContenu.t13,
+        couleur: AppColors.anthracite,
       ),
+      decoration: _decorationChamp().copyWith(
+        hintText: TextesPanierComptant.clientAide,
+        hintMaxLines: 1,
+        hintStyle: styleContenuCarte(TaillesContenu.t13, couleur: Ardoise.c400),
+      ),
+      onChanged: _poser,
     );
   }
 }
@@ -1140,3 +1378,48 @@ final ButtonStyle styleBoutonEncaisser = FilledButton.styleFrom(
   ),
   textStyle: styleContenuCarte(TaillesContenu.t14, poids: FontWeight.bold),
 );
+
+/// « IFU du client » au comptoir (décision du PO du 07/11/2026, point 2) : FACULTATIF, il ouvre
+/// le dialogue « Facture » (IFU de 13 chiffres s'il est rempli, nom, « Retenir pour ce
+/// client », « Normaliser maintenant » quand ce poste normalise). Le choix est gardé pour le
+/// PROCHAIN encaissement, qui n'en dépend jamais : vide, c'est un client sans IFU.
+class BoutonAcheteurComptant extends ConsumerWidget {
+  const BoutonAcheteurComptant({super.key});
+
+  static const String libelle = 'IFU du client';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final acheteur = ref.watch(acheteurFactureProvider);
+    final resume = acheteur.ifuNet;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton(
+        key: const Key('pos-ifu-client'),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.unit),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        onPressed: () async {
+          final choisi = await showDialog<AcheteurFacture>(
+            context: context,
+            barrierColor: AppColors.voileModale,
+            builder: (_) => ModaleAcheteurFacture(initial: acheteur),
+          );
+          if (choisi != null) {
+            ref.read(acheteurFactureProvider.notifier).poser(choisi);
+          }
+        },
+        child: Text(
+          resume == null ? libelle : '$libelle : $resume',
+          style: styleContenuCarte(
+            TaillesContenu.t12,
+            couleur: AppColors.navy,
+            poids: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -99,7 +99,7 @@
     @include('pwa.partials.menu-lateral')
 
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1600px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         {{-- EN-TETE — maitre l.33-49 --}}
         <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -894,6 +894,14 @@
           </select>
           @error('serviceSaisi') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
         </div>
+      </div>
+
+      {{-- E-mail FACULTATIF (28/10/2026) : destinataire des notifications e-mail du salarié. --}}
+      <div>
+        <label class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.email') }}</label>
+        <input type="email" wire:model="emailSaisi" autocomplete="off"
+               class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5">
+        @error('emailSaisi') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
       </div>
 
       <div class="grid grid-cols-3 gap-3">

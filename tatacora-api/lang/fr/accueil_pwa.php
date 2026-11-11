@@ -28,7 +28,7 @@ declare(strict_types=1);
 return [
 
     'titre' => 'Tableau de bord',
-    'titre_page' => 'Tableau de bord — TATACORA AFRIQUE',
+    'titre_page' => 'Tableau de bord — LogiReStock — TATACORA AFRIQUE',
     'tiret' => '—',
     /*
      * Les colonnes du RAPPORT de synthèse — celles du maître, au mot près
@@ -200,8 +200,6 @@ return [
         'departs' => 'Départs prévus',
         'nouvelles' => 'Nouvelles réservations',
         'encaisse' => 'Encaissé aujourd\'hui',
-        'encaisse_note' => 'Ventes encaissées du jour — les acomptes de réservation ne portent '
-            . 'aucune date de règlement au schéma.',
     ],
 
     /*

@@ -135,33 +135,46 @@ class VueSalle extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
-                    // `grid grid-cols-3 gap-1.5`.
-                    LayoutBuilder(
-                      builder: (context, contraintes) {
-                        const n = LargeursPos.colonnesTables;
-                        final largeur =
-                            (contraintes.maxWidth - AppSpacing.xxs * (n - 1)) /
-                            n;
-                        return Wrap(
-                          spacing: AppSpacing.xxs,
-                          runSpacing: AppSpacing.xxs,
-                          children: [
-                            for (final c in rayon.cases)
-                              SizedBox(
-                                width: largeur,
-                                child: _CaseTable(
-                                  cas: c,
-                                  panier: c.panierOuvertId == null
-                                      ? null
-                                      : paniers[c.panierOuvertId],
-                                  selectionnee: c.table.id == tableActive,
-                                  onTap: () => onChoisirTable(c.table),
+                    if (rayon.cases.isEmpty)
+                      // `@if (empty($tables))` : un espace sans table le DIT
+                      // (`pos_pwa.comptant.espace_vide`), il ne reste pas muet.
+                      Text(
+                        'Aucune table dans cet espace.',
+                        key: Key('pos-espace-vide-${rayon.espace.code}'),
+                        style: styleContenuCarte(
+                          TaillesContenu.t12,
+                          couleur: Ardoise.c400,
+                        ),
+                      )
+                    else
+                      // `grid grid-cols-3 gap-1.5`.
+                      LayoutBuilder(
+                        builder: (context, contraintes) {
+                          const n = LargeursPos.colonnesTables;
+                          final largeur =
+                              (contraintes.maxWidth -
+                                  AppSpacing.xxs * (n - 1)) /
+                              n;
+                          return Wrap(
+                            spacing: AppSpacing.xxs,
+                            runSpacing: AppSpacing.xxs,
+                            children: [
+                              for (final c in rayon.cases)
+                                SizedBox(
+                                  width: largeur,
+                                  child: _CaseTable(
+                                    cas: c,
+                                    panier: c.panierOuvertId == null
+                                        ? null
+                                        : paniers[c.panierOuvertId],
+                                    selectionnee: c.table.id == tableActive,
+                                    onTap: () => onChoisirTable(c.table),
+                                  ),
                                 ),
-                              ),
-                          ],
-                        );
-                      },
-                    ),
+                            ],
+                          );
+                        },
+                      ),
                   ],
                 ],
               ),

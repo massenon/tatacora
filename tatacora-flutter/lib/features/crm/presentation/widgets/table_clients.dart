@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
+import '../../../../shared_widgets/tableau_tatacora.dart' show PastilleStatut;
+import '../../../achats/presentation/widgets/composants_crud_achats.dart'
+    show BoutonLigneAchats;
+import '../../../caisse/domain/montant_caisse.dart' show formaterCentimesExact;
 import '../../domain/entities/registre_clients.dart';
 
 /// Le tableau de la vue — `pwa/crm/clients-creances.blade.php`, onglet « Liste des
@@ -18,15 +21,23 @@ import '../../domain/entities/registre_clients.dart';
 /// grandeur que le solde du serveur, et sont retirées avec elle (voir
 /// `LigneClient`).
 ///
-/// ## La colonne d'actions : un seul bouton rendu, et pourquoi
+/// ## La colonne d'actions
 ///
-/// La vue pose « Historique », « Recouvrement » et « Archiver ». Seul
-/// **« Recouvrement »** est rendu : il a un écran (la modale d'encaissement) et
-/// une source. « Historique » (modale du relevé) et l'archivage d'un client n'ont
-/// pas d'écran sur ce poste : un bouton qui n'ouvre rien empêche de savoir si la
-/// fonction manque ou si l'écran est cassé (PA-112). Le bouton n'existe que si
-/// le client doit quelque chose ET que le rôle écrit sur M3 et M2 — la condition
-/// de la vue (`$ligne->solde !== '0.00' && $peutEncaisser`).
+/// La vue pose « Historique », « Recouvrement » et « Supprimer » (l'archivage
+/// d'un client). « Historique » ouvre la modale du relevé du client
+/// (`ModaleHistoriqueClient`, toujours offerte : lire n'écrit rien) ;
+/// « Recouvrement » ouvre la modale d'encaissement et n'existe que si le client
+/// doit quelque chose ET que le rôle écrit sur M3 et M2 — la condition de la vue
+/// (`$ligne->solde !== '0.00' && $peutEncaisser`).
+///
+/// ## L'archivage (21/10/2026)
+///
+/// Un client ARCHIVÉ reste dans la liste, marqué « Archivé » : le masquer le
+/// rendrait indiscernable d'une fiche inexistante. Sa ligne offre « Restaurer »
+/// (à qui écrit sur M3 : fermer la bascule ne doit jamais l'enfermer aux
+/// archives) ; un client actif offre « Supprimer » — qui ARCHIVE — et une case
+/// de sélection, tous deux à qui `peutArchiver` seulement (la règle UNIQUE de
+/// `regle_archivage.dart`, REÇUE : le tableau ne la recalcule jamais).
 ///
 /// - **Ligne « Aucune fiche CRM — à créer »** : le maître réunit les noms des
 ///   clients et ceux portés par les créances, parce que ses notes de chambre
@@ -38,7 +49,14 @@ class TableClients extends StatelessWidget {
     required this.lignes,
     required this.maintenant,
     this.peutEncaisser = false,
+    this.peutArchiver = false,
+    this.peutRestaurer = false,
+    this.selection = const {},
+    this.onBasculerSelection,
+    this.onSupprimer,
+    this.onRestaurer,
     this.onRecouvrement,
+    this.onHistorique,
   });
 
   final List<LigneClient> lignes;
@@ -50,8 +68,29 @@ class TableClients extends StatelessWidget {
   /// `$peutEncaisser` de la vue : le droit d'écrire sur M3 ET sur M2.
   final bool peutEncaisser;
 
+  /// `$peutArchiver` de la vue : la case de sélection et « Supprimer ».
+  final bool peutArchiver;
+
+  /// `$peutEcrireClient` de la vue : « Restaurer » une fiche archivée.
+  final bool peutRestaurer;
+
+  /// Les clients cochés.
+  final Set<String> selection;
+
+  /// Cocher ou décocher la case d'une ligne.
+  final void Function(LigneClient ligne)? onBasculerSelection;
+
+  /// « Supprimer » d'une ligne : ouvre la confirmation d'ARCHIVAGE.
+  final void Function(LigneClient ligne)? onSupprimer;
+
+  /// « Restaurer » d'une ligne archivée.
+  final void Function(LigneClient ligne)? onRestaurer;
+
   /// Le geste « Recouvrement » d'une ligne.
   final void Function(LigneClient ligne)? onRecouvrement;
+
+  /// Le geste « Historique » d'une ligne (`ouvrirHistoriqueClient`).
+  final void Function(LigneClient ligne)? onHistorique;
 
   /// Les colonnes, dans l'ordre de la vue. La dernière, vide, porte les actions.
   /// Les parts sont les largeurs relevées dans le navigateur
@@ -129,7 +168,14 @@ class TableClients extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                 child: _Rangee(
                   cellules: [
-                    _Nom(ligne: l),
+                    _Nom(
+                      ligne: l,
+                      avecCase: peutArchiver && l.client.actif,
+                      cochee: selection.contains(l.client.id),
+                      onBasculer: onBasculerSelection == null
+                          ? null
+                          : () => onBasculerSelection!(l),
+                    ),
                     Text(l.client.telephone, style: _style(TaillesContenu.t13)),
                     Text(
                       l.client.type.libelle,
@@ -151,15 +197,41 @@ class TableClients extends StatelessWidget {
                       style: _style(TaillesContenu.t13),
                     ),
                     _Anciennete(jours: l.ancienneteJours(maintenant), ligne: l),
-                    if (l.estDebiteur &&
-                        peutEncaisser &&
-                        onRecouvrement != null)
-                      _BoutonRecouvrement(
-                        cle: Key('clients-recouvrement-${l.client.id}'),
-                        onTap: () => onRecouvrement!(l),
-                      )
-                    else
-                      const SizedBox.shrink(),
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: AppSpacing.unit,
+                      children: [
+                        if (onHistorique != null)
+                          _BoutonHistorique(
+                            cle: Key('clients-historique-${l.client.id}'),
+                            onTap: () => onHistorique!(l),
+                          ),
+                        if (l.estDebiteur &&
+                            peutEncaisser &&
+                            onRecouvrement != null)
+                          _BoutonRecouvrement(
+                            cle: Key('clients-recouvrement-${l.client.id}'),
+                            onTap: () => onRecouvrement!(l),
+                          ),
+                        // « Supprimer » du maître, rendu comme ARCHIVAGE : le
+                        // mot du bouton est celui que le client a validé, le
+                        // geste pose `actif = false`.
+                        if (!l.client.actif) ...[
+                          if (peutRestaurer && onRestaurer != null)
+                            BoutonLigneAchats(
+                              cle: Key('clients-restaurer-${l.client.id}'),
+                              libelle: 'Restaurer',
+                              onTap: () => onRestaurer!(l),
+                            ),
+                        ] else if (peutArchiver && onSupprimer != null)
+                          BoutonLigneAchats(
+                            cle: Key('clients-supprimer-${l.client.id}'),
+                            libelle: 'Supprimer',
+                            danger: true,
+                            onTap: () => onSupprimer!(l),
+                          ),
+                      ],
+                    ),
                   ],
                   aDroite: droite,
                 ),
@@ -186,7 +258,7 @@ class TableClients extends StatelessWidget {
   /// Le tiret de la vue : un zéro se lit comme un montant calculé à zéro, le
   /// tiret dit qu'il n'y a rien à devoir (`MontantFcfa::TIRET`).
   static String _montant(int centimes) =>
-      centimes > 0 ? formaterCentimesEnFcfa(centimes) : '—';
+      centimes > 0 ? formaterCentimesExact(centimes) : '—';
 }
 
 /// L'ancienneté de la plus ancienne facture impayée : « 45 j », rouge au-delà de
@@ -212,6 +284,44 @@ class _Anciennete extends StatelessWidget {
         TaillesContenu.t13,
         poids: j != null && j > 90 ? FontWeight.w600 : null,
         couleur: couleur,
+      ),
+    );
+  }
+}
+
+/// `text-[12px] px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-white` :
+/// « Historique » — le bouton de lecture de la ligne.
+class _BoutonHistorique extends StatelessWidget {
+  const _BoutonHistorique({required Key cle, required this.onTap})
+    : super(key: cle);
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.neutre0,
+      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xsPlus,
+            vertical: AppSpacing.unit,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+            border: Border.all(color: AppColors.neutre300),
+          ),
+          child: Text(
+            'Historique',
+            style: TableClients._style(
+              TaillesContenu.t12,
+              couleur: AppColors.neutre700,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -280,9 +390,20 @@ class _Rangee extends StatelessWidget {
 }
 
 class _Nom extends StatelessWidget {
-  const _Nom({required this.ligne});
+  const _Nom({
+    required this.ligne,
+    required this.avecCase,
+    required this.cochee,
+    required this.onBasculer,
+  });
 
   final LigneClient ligne;
+
+  /// La case de sélection : à qui peut archiver, sur un client ACTIF (une case
+  /// sans action serait un contrôle qui n'ouvre rien).
+  final bool avecCase;
+  final bool cochee;
+  final VoidCallback? onBasculer;
 
   @override
   Widget build(BuildContext context) {
@@ -290,14 +411,46 @@ class _Nom extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          ligne.client.nomComplet,
-          key: Key('clients-ligne-${ligne.client.id}'),
-          style: TableClients._style(
-            TaillesContenu.t13,
-            poids: FontWeight.w600,
-            couleur: AppColors.neutre800,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (avecCase) ...[
+              // `w-4 h-4 rounded`, libellé accessible « Sélectionner ce client ».
+              Semantics(
+                label: 'Sélectionner ce client',
+                child: SizedBox(
+                  width: AppSpacing.md,
+                  height: AppSpacing.md,
+                  child: Checkbox(
+                    key: Key('clients-case-${ligne.client.id}'),
+                    value: cochee,
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    onChanged: onBasculer == null ? null : (_) => onBasculer!(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs), // gap-2
+            ],
+            Text(
+              ligne.client.nomComplet,
+              key: Key('clients-ligne-${ligne.client.id}'),
+              style: TableClients._style(
+                TaillesContenu.t13,
+                poids: FontWeight.w600,
+                couleur: AppColors.neutre800,
+              ),
+            ),
+            if (!ligne.client.actif) ...[
+              const SizedBox(width: AppSpacing.xs),
+              PastilleStatut(
+                'Archivé',
+                key: Key('clients-archive-${ligne.client.id}'),
+                fond: AppColors.badgeGrisFond,
+                texte: JetonsCssMaitre.neutre600,
+              ),
+            ],
+          ],
         ),
         // Les clients partent RÉELLEMENT au serveur : ce badge dit quelque
         // chose de vrai, à la différence d'un panier, qui ne part jamais et

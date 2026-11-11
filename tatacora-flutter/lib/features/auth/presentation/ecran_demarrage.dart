@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/navigation/coquille_vue.dart';
 import '../../../core/theme/app_assets.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_durations.dart';
@@ -210,20 +211,29 @@ class _EtatEcranDemarrage extends ConsumerState<EcranDemarrage>
                           ),
                         ),
                       ),
-                      Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.rounded2xl,
+                      // `alt="{{ __('pwa.alt_logo') }}"` : le texte de
+                      // remplacement du logo, rendu en sémantique.
+                      Semantics(
+                        label: LibellesCoquille.altLogo,
+                        image: true,
+                        child: Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.rounded2xl,
+                            ),
+                            border: Border.all(
+                              color: AppColors.gold.withValues(alpha: 0.60),
+                              width: 4, // ring-4
+                            ),
                           ),
-                          border: Border.all(
-                            color: AppColors.gold.withValues(alpha: 0.60),
-                            width: 4, // ring-4
+                          clipBehavior: Clip.antiAlias,
+                          child: Image.asset(
+                            AppAssets.logo,
+                            fit: BoxFit.contain,
                           ),
                         ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Image.asset(AppAssets.logo, fit: BoxFit.contain),
                       ),
                     ],
                   ),
@@ -341,6 +351,9 @@ class _EtatEcranDemarrage extends ConsumerState<EcranDemarrage>
   }
 }
 
+/// `pwa.demarrage.cadre` — la ligne au-dessus des sceaux PAEB et FAGUEZ SARL.
+const String _cadre = 'Réalisé dans le cadre du';
+
 /// `<div class="anim-4 absolute bottom-8 …">` — `splash.html` l.39-46.
 class _BandeauInstitutionnel extends StatelessWidget {
   const _BandeauInstitutionnel();
@@ -351,8 +364,11 @@ class _BandeauInstitutionnel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // `text-white/30 text-[12px] uppercase tracking-widest`
+        // `pwa.demarrage.cadre` (« Réalisé dans le cadre du »), que la vue met
+        // en capitales par `uppercase` : la phrase est UN littéral, la casse
+        // vient de la mise en forme, comme dans la feuille de style.
         Text(
-          'RÉALISÉ DANS LE CADRE DU',
+          _cadre.toUpperCase(),
           style: TextStyle(
             color: AppColors.neutre0.withValues(alpha: 0.30),
             fontFamily: AppTextStyles.police,

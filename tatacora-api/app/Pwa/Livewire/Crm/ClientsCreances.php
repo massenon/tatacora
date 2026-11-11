@@ -96,7 +96,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see LARAVEL_PWA.md §1, §3
  * @see docs/PLAN_ACTION_SEQUENCE_POST_AUDIT.md PA-20, PA-21, PA-65, PA-121, PA-126, PA-165
  */
-#[Title('Clients & Créances — TATACORA AFRIQUE')]
+#[Title('Clients & Créances — LogiReStock — TATACORA AFRIQUE')]
 class ClientsCreances extends PageMetier
 {
     use AutoriseArchivage;
@@ -1026,11 +1026,18 @@ class ClientsCreances extends PageMetier
     }
 
     /**
-     * @return array{relances: \Illuminate\Support\Collection<int, RelanceClient>, paiements: \Illuminate\Support\Collection<int, Paiement>}
+     * @return array{relances: \Illuminate\Support\Collection<int, RelanceClient>, paiements: \Illuminate\Support\Collection<int, Paiement>, factures: \Illuminate\Support\Collection<int, Facture>}
      */
     private function historiqueClient(string $clientId): array
     {
         return [
+            // 10/11/2026 (PO : « l'historique de DOSSOU Nice, 30 000 dus, est VIDE ») : une facture
+            // émise est un MOUVEMENT du client (le débit), au même titre que son encaissement.
+            'factures' => Facture::query()
+                ->where('client_id', $clientId)
+                ->where('statut', 'certifiee')
+                ->orderByDesc('date_emission')
+                ->get(),
             'relances' => RelanceClient::query()
                 ->where('client_id', $clientId)
                 ->orderByDesc('date_relance')

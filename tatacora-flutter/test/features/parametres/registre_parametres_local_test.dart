@@ -4,6 +4,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/features/comptabilite/domain/regle_numero_compte.dart';
 import 'package:tatacora_flutter/features/parametres/domain/entities/parametre.dart';
 import 'package:tatacora_flutter/features/parametres/domain/regles_parametres.dart';
 import 'package:tatacora_flutter/features/parametres/domain/registre_parametres_local.dart';
@@ -37,9 +38,24 @@ const Map<String, Set<String>> _nommeesSansLecture = {
     'tva_active',
     'taux_tva',
     'convention_prix',
+    // 09/11/2026 : le jugement du mode de facturation et de la forme juridique
+    // (`verifierFacturationNormalisee`, `ClesFacturation`) NOMME le mode, l'adresse
+    // de l'API, l'opérateur, l'IFU et la forme pour juger l'état RÉSULTANT d'un
+    // enregistrement — comme `etatTva` nomme `tva_active` : une règle d'écriture de
+    // Paramètres, aucun module n'y lit la valeur (leurs lecteurs restent déclarés).
+    'facturation_mode',
+    'mecef_api_url',
+    'mecef_operateur_id',
+    'mecef_operateur_nom',
+    'entreprise_ifu',
+    'forme_juridique',
   },
   // L'écran CLASSE ces clés par onglet (`_clesLegales`, `_clesCommunication`,
-  // `_cleAdresse`) : il les nomme pour les placer, il ne les lit pas.
+  // `_cleAdresse`) : il les nomme pour les placer, il ne les lit pas. Il
+  // nomme aussi deux bascules (21/10/2026) pour leur poser la pastille de
+  // RISQUE de la vue (`_risqueDe`) : un habillage, aucun module n'y lit la
+  // valeur — l'état d'une bascule passe par `OptionsSysteme.actif`, le lecteur
+  // commun.
   'lib/features/parametres/presentation/ecran_parametres.dart': {
     'entreprise_ifu',
     'entreprise_rccm',
@@ -47,6 +63,8 @@ const Map<String, Set<String>> _nommeesSansLecture = {
     'communication_whatsapp',
     'entreprise_site_web',
     'entreprise_adresse',
+    'activation_suppression',
+    'activation_alertes_ouverture',
   },
 };
 
@@ -81,12 +99,21 @@ void main() {
   final serveur = RegistreServeur.charger();
   final locales = RegistreParametresLocal.definitions;
 
-  test('le balayage n’est pas vide : 31 définitions côté serveur', () {
-    // 31 = 10 identité + 4 fiscalité + 5 social + 5 exploitation + 4 email
-    // + 3 activation. Le compte est écrit pour que le test échoue si la
-    // lecture de PHP rendait une liste vide ou tronquée.
-    expect(serveur.definitions.length, 31);
-    expect(locales.length, 31);
+  test('le balayage n’est pas vide : 68 définitions côté serveur', () {
+    // 59 = (50 + 9 réglages des documents commerciaux, 07/11/2026) 10 identité + 4 facturation normalisée (07/11/2026 : mode, adresse
+    // de l'API, deux champs de l'opérateur) + 4 fiscalité + 5 social + 5
+    // exploitation + 4 email + 3 activation + 15 correspondance des comptes
+    // (26/10/2026, une clé `compte_<rôle>` par rôle). Le compte est écrit
+    // pour que le test échoue si la lecture de PHP rendait une liste vide ou
+    // tronquée.
+    // + 5 rôles de l'affectation du résultat (09/11/2026) : 64 ; + la forme juridique
+    // et le rôle du compte de l'exploitant (09/11/2026) : 66.
+    expect(serveur.definitions.length, 68);
+    expect(locales.length, 68);
+    expect(
+      serveur.definitions.where((d) => d['groupe'] == 'comptes'),
+      hasLength(21),
+    );
   });
 
   test('mêmes clés, dans le même ordre, ni plus ni moins', () {
@@ -107,6 +134,27 @@ void main() {
         reason: l.cle,
       );
     }
+  });
+
+  test('les LIBELLÉS des choix sont ceux du serveur, clé par clé — le mode se '
+      'dit « Boîtier CC300 (poste) », jamais « boitier »', () {
+    var avecLibelles = 0;
+    for (final d in serveur.definitions) {
+      final l = RegistreParametresLocal.parCle(d['cle'] as String)!;
+      // PHP encode une carte vide en `[]` : c'est « aucun libellé ».
+      final brut = d['choix_libelles'];
+      final attendu = brut is Map
+          ? brut.map((k, v) => MapEntry('$k', '$v'))
+          : <String, String>{};
+      expect(l.choixLibelles, attendu, reason: l.cle);
+      if (attendu.isNotEmpty) avecLibelles++;
+    }
+    // Forme juridique, mode, convention des prix, régime fiscal, sécurité SMTP.
+    expect(avecLibelles, 5);
+    final mode = RegistreParametresLocal.parCle('facturation_mode')!;
+    expect(mode.libelleDuChoix('boitier'), 'Boîtier CC300 (poste)');
+    expect(mode.libelleDuChoix('emecef'), 'e-MECeF (en ligne)');
+    expect(mode.libelleDuChoix('desactive'), 'Désactivé');
   });
 
   test('bornes et formats déduits des règles du serveur, clé par clé', () {
@@ -135,7 +183,17 @@ void main() {
       );
       expect(
         l.format,
-        regles.any((r) => r.startsWith('regex:'))
+        // LA règle du numéro de compte (`NUMERO_COMPTE_FORMAT`), confrontée à
+        // celle de `RegleNumeroCompte` : une seule règle des deux côtés.
+        regles.contains('regex:/${RegleNumeroCompte.format.pattern}/')
+            ? FormatTexte.numeroCompte
+            : regles.contains(r'regex:/^[0-9]{13}$/')
+            ? FormatTexte.ifu
+            : regles.any((r) => r.startsWith(r'regex:/^https:'))
+            ? FormatTexte.urlHttps
+            : regles.contains(r'regex:/^[A-Za-z0-9]+$/')
+            ? FormatTexte.alphanumerique
+            : regles.any((r) => r.startsWith('regex:'))
             ? FormatTexte.telephone
             : regles.any((r) => r.startsWith('email'))
             ? FormatTexte.courriel
@@ -144,10 +202,10 @@ void main() {
       );
       if (l.minimum != null) bornes++;
     }
-    // Les bornes ne sont pas vides : 12 champs numériques ont un `min:`
+    // Les bornes ne sont pas vides : 13 champs numériques ont un `min:`
     // (taux de TVA, cinq taux de la paie, tolérance, annulation, préavis,
-    // couverture, rétention, port SMTP).
-    expect(bornes, 12);
+    // couverture, rétention, port SMTP) + la durée de validité d'une proforma (13).
+    expect(bornes, 15);
   });
 
   test('l’aide est celle du serveur, MOT POUR MOT — ce que ce poste ajoute '
@@ -158,91 +216,23 @@ void main() {
     }
   });
 
-  test('trois clés voisines d’un secret portent la phrase de refus, et elles '
-      'seules', () {
-    final avecNote = [
-      for (final s in RegistreParametresLocal.definitions)
-        if (s.note != null) s.cle,
-    ];
-    // Dans l'ordre du registre.
-    expect(avecNote, [
-      'communication_whatsapp',
-      'entreprise_numero_mecef',
-      'email_smtp_utilisateur',
-    ]);
-    expect(
-      RegistreParametresLocal.parCle('entreprise_numero_mecef')!.note,
-      'Sur ce poste, aucune clé d’API MECeF n’est enregistrable : un secret '
-      'n’entre jamais dans cette base.',
-    );
-    expect(
-      RegistreParametresLocal.parCle('communication_whatsapp')!.note,
-      'Sur ce poste, aucune clé d’API WhatsApp n’est enregistrable : un secret '
-      'n’entre jamais dans cette base.',
-    );
-    // Lot J2 (14/10/2026) : l'envoi SMTP à l'éditeur est porté ; le mot de
-    // passe reste HORS base, et la note dit OÙ il se pose.
-    expect(
-      RegistreParametresLocal.parCle('email_smtp_utilisateur')!.note,
-      'Sur ce poste, aucun mot de passe SMTP n’est enregistrable : un secret '
-      'n’entre jamais dans cette base. Il se pose dans le fichier '
-      r'%APPDATA%\TATACORA\poste.json du poste.',
-    );
-  });
-
-  test('cinq clés dont l’aide du serveur affirme un fait FAUX sur ce poste '
-      'portent une correction visible, et elles seules', () {
-    // Lot J1 (3/4, 14/10/2026) : l'en-tête A4 des documents est LU des
-    // paramètres (`entete_etablissement.dart`) — la correction « aucun
-    // document n'imprime encore cette valeur » serait désormais FAUSSE sur
-    // ses cinq clés, et ne doit plus être dite.
+  test('aucune clé ne porte de note ni de correction de conception : seule '
+      'l’aide du serveur est affichée', () {
+    for (final cle in RegistreParametresLocal.cles) {
+      expect(RegistreParametresLocal.parCle(cle)!.aide, isA<String?>());
+    }
     for (final cle in const [
+      'tva_active',
+      'duree_retention_audit_jours',
+      'email_smtp_hote',
+      'activation_suppression',
+      'activation_alertes_ouverture',
       'entreprise_promoteur',
       'communication_whatsapp',
       'entreprise_ifu',
       'entreprise_rccm',
       'fiscalite_regime',
     ]) {
-      expect(
-        RegistreParametresLocal.parCle(cle)!.correction,
-        isNull,
-        reason: cle,
-      );
-      expect(
-        RegistreParametresLocal.parCle(cle)!.lecteur,
-        'lib/core/impression/entete_etablissement.dart',
-        reason: cle,
-      );
-    }
-    final attendu = {
-      'tva_active':
-          'Sur ce poste : HT/TVA ventilés dans la pièce des ventes ; sans taux, '
-          'la vente est refusée.',
-      'duree_retention_audit_jours':
-          'Sur ce poste, aucune purge n’a lieu : pas de journal d’audit.',
-      // Lot J2 (14/10/2026) : l'hôte SMTP est lu par « Contactez l'éditeur ».
-      'email_smtp_hote':
-          'Sur ce poste : lu par « Contactez l’éditeur » ; vide, aucun message '
-          'ne part (il reste en attente).',
-      // L'aide du serveur dit « tous les modules » : seuls les fournisseurs
-      // M7 honorent la bascule (la Paie garde sa règle, D272).
-      'activation_suppression':
-          'Sur ce poste : seuls les fournisseurs (M7) et les unités '
-          'd’hébergement (M1) honorent cette bascule ; la Paie garde sa règle.',
-      // Lue par la cloche depuis le lot B (14/10/2026) ; les fenêtres
-      // d'alertes à la connexion de la vue ne sont pas portées.
-      'activation_alertes_ouverture':
-          'Sur ce poste : seule la cloche de la barre supérieure honore cette '
-          "bascule ; les fenêtres d'alertes à la connexion ne sont pas portées.",
-    };
-    final reel = {
-      for (final s in RegistreParametresLocal.definitions)
-        if (s.correction != null) s.cle: s.correction!,
-    };
-    expect(reel, attendu);
-    // Chaque correction répond à une aide qui existe : on ne corrige pas le
-    // silence.
-    for (final cle in attendu.keys) {
       expect(RegistreParametresLocal.parCle(cle)!.aide, isNotNull, reason: cle);
     }
   });
@@ -297,6 +287,20 @@ void main() {
         // (`OptionsSysteme.cleSuppression`), jamais par le littéral : le lecteur
         // déclaré doit contenir l'un OU l'autre.
         final source = f.readAsStringSync();
+        // Une clé `compte_<rôle>` (26/10/2026) n'est jamais écrite en littéral :
+        // elle se DÉRIVE du rôle (`RoleCompte.cle`), et son lecteur est
+        // `ComptabiliteDao.compteDuRole`, qui lit celle du rôle demandé. Le
+        // comportement de chaque rôle est prouvé par les tests de parité.
+        if (s.groupe == 'comptes') {
+          expect(source, contains('compteDuRole'), reason: s.cle);
+          expect(
+            source,
+            contains('RolesCorrespondance.parCode'),
+            reason: s.cle,
+          );
+          verifies++;
+          continue;
+        }
         final constante = _constanteDeCle[s.cle];
         expect(
           source.contains("'${s.cle}'") ||
@@ -318,11 +322,20 @@ void main() {
       // contacts, IFU, RCCM, régime fiscal — lues par
       // `entete_etablissement.dart`, lot J1 3/4 du 14/10/2026) ; les QUATRE
       // clés SMTP (lues par `envoi_messages_editeur.dart`, lot J2 du
-      // 14/10/2026). 13 + 10 + 4 = 27.
-      expect(verifies, 27);
+      // 14/10/2026) ; les DEUX réglages de RG-14, préavis et couverture (lus
+      // par `conges_plannings_dao.dart` depuis le 21/10/2026). 13 + 10 + 4 +
+      // 2 = 29.
+      // 13 + 10 + 4 + 2 = 29, plus les DOUZE rôles de la correspondance des
+      // comptes que le moteur de ce poste lit (26/10/2026) : 41.
+      // + les NEUF réglages des documents commerciaux (07/11/2026, lus par
+      // `reglages_documents.dart`) : 53.
+      // + les CINQ rôles de l'affectation du résultat (09/11/2026) : 58.
+      // + la FORME JURIDIQUE (`forme_juridique.dart`) et le rôle du compte de
+      // l'exploitant (09/11/2026) : 60.
+      expect(verifies, 62);
     });
 
-    test('4 clés n’ont AUCUN lecteur sur ce poste, et c’est dit', () {
+    test('5 clés n’ont AUCUN lecteur sur ce poste, et c’est dit', () {
       final sansLecteur = [
         for (final s in RegistreParametresLocal.definitions)
           if (s.lecteur == null) s.cle,
@@ -330,12 +343,21 @@ void main() {
       // 20 → 19 le 14/10/2026 : `activation_alertes_ouverture` (cloche) ;
       // 19 → 18 le même jour : `reinitialisation_seeders` (D429) ; 18 → 8 :
       // les dix clés de l'en-tête A4 (lot J1 3/4) ; 8 → 4 : les quatre clés
-      // SMTP (lot J2). Les quatre restantes, NOMMÉES :
+      // SMTP (lot J2) ; 4 → 2 le 21/10/2026 : le préavis et la couverture des
+      // congés (RG-14, `conges_plannings_dao.dart`). Les deux restantes,
+      // NOMMÉES :
+      // Les trois derniers sont des rôles de la correspondance des comptes que
+      // le SERVEUR seul lit (déclaration de TVA, clôture de l'exercice) : leur
+      // écran le dit (`TextesCorrespondancePoste.serveurSeul`).
       expect(sansLecteur, [
         'entreprise_numero_mecef',
-        'delai_preavis_conge_jours',
-        'couverture_minimale_par_service',
+        // Seul le SERVEUR appelle l'API de la DGI (07/11/2026) : aucun module de
+        // ce poste ne lit son adresse.
+        'mecef_api_url',
         'duree_retention_audit_jours',
+        'compte_tva_recuperable_achats',
+        'compte_resultat_benefice',
+        'compte_resultat_perte',
       ]);
       expect(sansLecteur, isNot(contains('reinitialisation_seeders')));
       expect(sansLecteur, isNot(contains('tolerance_reception_pct')));
@@ -384,7 +406,7 @@ void main() {
         );
         balayees++;
       }
-      expect(balayees, 27, reason: 'balayage non vide');
+      expect(balayees, 62, reason: 'balayage non vide');
     });
 
     test('chaque exemption NOMME réellement sa clé : une exemption périmée '
@@ -402,7 +424,7 @@ void main() {
           exemptions++;
         }
       }
-      expect(exemptions, 10);
+      expect(exemptions, 18);
     });
   });
 

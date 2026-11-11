@@ -12,13 +12,29 @@ import '../config/environnement.dart';
 import 'tables/achats_tables.dart';
 import 'tables/alertes_vues_tables.dart';
 import 'tables/bar_tables.dart';
+import 'tables/boite_envoi_emails_tables.dart';
 import 'tables/caisse_tables.dart';
+import 'auteur_ecriture.dart';
 import 'declencheurs_comptables.dart';
+import 'droits_ouverts_a_tous_migration.dart';
+import 'droits_profil_migration.dart';
+import 'reconcilier_schema.dart';
 import 'emplacement_base.dart';
 import 'tables/clients_table.dart';
+import 'tables/clotures_exercices_tables.dart';
+import 'elargir_types_operations_sync.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
+import 'tables/historique_prix_carte_tables.dart';
+import 'tables/journal_securite_tables.dart';
+import 'tables/pieces_saisie_tables.dart';
+import 'tables/journal_reception_tables.dart';
+import 'tables/indisponibilites_carte_tables.dart';
+import 'tables/conges_plannings_tables.dart';
+import 'tables/complements_v35_tables.dart';
+import 'tables/ecritures_serveur_tables.dart';
+import 'tables/entretiens_vehicule_tables.dart';
 import 'tables/occupations_tables_tables.dart';
 import 'tables/origines_documents_tables.dart';
 import 'tables/facturation_tables.dart';
@@ -29,6 +45,8 @@ import 'tables/operations_sync_tables.dart';
 import 'tables/paiements_facture_tables.dart';
 import 'tables/panier_tables.dart';
 import 'tables/parametres_tables.dart';
+import 'tables/affectations_resultat_tables.dart';
+import 'tables/proformas_tables.dart';
 import 'tables/registre_facturation_tables.dart';
 import 'tables/reglements_fournisseur_tables.dart';
 import 'tables/restaurant_tables.dart';
@@ -93,6 +111,12 @@ part 'app_database.g.dart';
     PiecesFacturationLocal,
     LignesPieceFacturationLocal,
     SequencesFactureLocal,
+    // v52 (07/11/2026) : la facture proforma (non fiscale), hors ligne.
+    ProformasLocal,
+    LignesProformaLocal,
+    SequencesProformaLocal,
+    // v53 (09/11/2026) : les affectations du résultat reçues du serveur (lecture).
+    AffectationsResultatLocal,
     TablesLocal,
 
     // Les quatre modules d'exploitation portés en LOCAL PUR le 14/09/2026
@@ -203,6 +227,42 @@ part 'app_database.g.dart';
     // v29 (18/10/2026, lot F6) : l'occupation des tables par les AUTRES
     // postes. Qui écrit, qui lit : `tables/occupations_tables_tables.dart`.
     OccupationsTablesLocal,
+    // v31 (21/10/2026) : les retraits de la carte du jour (boissons, plats).
+    IndisponibilitesCarteLocal,
+    // v32 (21/10/2026) : entretiens et carburations des véhicules.
+    EntretiensVehiculeLocal,
+    PlanningsLocal,
+    CongesLocal,
+    EcrituresServeurLocal,
+    ImmobilisationsLocal,
+    RelancesClientsLocal,
+    InventairesLocal,
+    LignesInventaireLocal,
+    CanauxReservationLocal,
+    // v37 (26/10/2026) : le journal de réception du poste (chaque élément
+    // reçu du serveur, son issue et sa cause). Seul auteur :
+    // `JournalReceptionDao` (voir `tables/journal_reception_tables.dart`).
+    JournalReceptionLocal,
+    // v38 (26/10/2026) : l'historique des prix de la carte (bar et restaurant).
+    // Seul auteur : `HistoriquePrixCarteDao` (voir
+    // `tables/historique_prix_carte_tables.dart`).
+    HistoriquePrixCarteLocal,
+    // v39 (26/10/2026) : la boîte d'envoi des e-mails du poste (notifications
+    // M12). Seul auteur : `BoiteEnvoiEmailsDao` (voir
+    // `tables/boite_envoi_emails_tables.dart`).
+    BoiteEnvoiEmailsLocal,
+    // v40 (26/10/2026) : les clôtures d'exercice du poste (pièces CL et AN,
+    // résultat, archive légale et son empreinte, réouverture). Seul auteur :
+    // `ClotureExerciceLocale` (voir `tables/clotures_exercices_tables.dart`).
+    CloturesExercicesLocal,
+    // v44 (28/10/2026) : les pièces saisies à la main sur le poste, partagées
+    // avec le serveur (D246 rouvert). Seul auteur : `MoteurComptable.saisirPiece`
+    // (voir `tables/pieces_saisie_tables.dart`).
+    PiecesSaisieLocal,
+    // v46 (29/10/2026) : le journal de sécurité du poste (réinitialisations de
+    // mot de passe, code de secours). Seul auteur : `JournalSecuriteDao` (voir
+    // `tables/journal_securite_tables.dart`). LOCAL : ne part jamais au serveur.
+    JournalSecuriteLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -243,6 +303,16 @@ class AppDatabase extends _$AppDatabase {
   /// rendant `null`. `main_demo.dart` le pose EXPLICITEMENT, en plus du défaut
   /// lié au flavor.
   final bool fileSynchronisationActive;
+
+  /// QUI écrit et depuis quel poste, relu À CHAQUE écriture qui le consigne
+  /// (l'enfilement dans la file d'envoi, la trace d'un changement de prix) —
+  /// voir `auteur_ecriture.dart`. Posé par `baseLocaleProvider` ; sans lui,
+  /// l'auteur est inconnu et l'écran dit « — ».
+  AuteurEcriture Function() auteurEcriture = () => aucunAuteurEcriture;
+
+  /// Où la migration écrit ce qu'elle fait (`demarrage.log`, PRD réinstallation
+  /// R1/R2). Posé par le démarrage avant la première ouverture ; `null` en test.
+  void Function(String ligne)? journalDemarrage;
 
   /// v2 (18/08/2026) — M1 Hébergement : `reference`, `tarifNuit`, `motifRejet`
   /// et `motifAnnulation` ajoutés à `ReservationsLocal`, et `statutSync`
@@ -371,8 +441,178 @@ class AppDatabase extends _$AppDatabase {
   /// « il faut le créer ») : une table neuve (`occupations_tables_local`,
   /// 61 -> 62 tables), aucune colonne ajoutée. Une table occupée sur un autre
   /// poste (ou à la PWA) l'est aussi ici.
+  ///
+  /// v31 (21/10/2026) — LES RETRAITS DE LA CARTE DU JOUR : une table neuve
+  /// (`indisponibilites_carte_local`, 62 -> 63 tables), aucune colonne ajoutée.
+  /// Le poste retire et remet boissons et plats, et reçoit ceux des autres
+  /// postes et de la PWA.
+  ///
+  /// v32 (21/10/2026) — LES ENTRETIENS DE VÉHICULES : une table neuve
+  /// (`entretiens_vehicule_local`, 63 -> 64 tables), aucune colonne ajoutée.
+  ///
+  /// v36 (21/10/2026) — LE LIEN DIRECT PLAT -> ARTICLE : deux colonnes
+  /// nullables sur `plats_local` (`article_id`, `unites_vendables`), aucune
+  /// table.
+  ///
+  /// v37 (26/10/2026) — LE JOURNAL DE RÉCEPTION : une table neuve
+  /// (`journal_reception_local`, 72 -> 73 tables), aucune colonne ajoutée. Elle
+  /// se remplit à la prochaine descente ; aucune ligne n'est fabriquée.
+  ///
+  /// v38 (26/10/2026) — « LE POSTE FAIT CE QUE LE WEB FAIT » (décision du PO) :
+  /// une table neuve (`historique_prix_carte_local`, 73 -> 74 tables) et six
+  /// colonnes NULLABLES AJOUTÉES, jamais une table recréée : `contrats_location_local.statut`
+  /// (l'annulation d'un contrat), `operations_sync_local.auteur_login` et
+  /// `.poste_nom` (l'utilisateur et le poste du journal d'audit),
+  /// `paniers_local.numero_vente` et `.auteur_login` (le numéro `V-` du serveur
+  /// et l'auteur d'une vente). Aucune valeur n'est fabriquée pour l'existant :
+  /// une ligne d'avant la v38 garde « — ».
+  ///
+  /// v39 (26/10/2026) — L'ENVOI RÉEL D'E-MAILS (décision du PO) : une table
+  /// neuve (`boite_envoi_emails_local`, la boîte d'envoi des e-mails de
+  /// notification : statuts, tentatives, repli, cause d'échec, clé
+  /// d'idempotence), aucune colonne ajoutée. Elle apparaît VIDE : aucune ligne
+  /// n'est fabriquée pour les messages d'avant (leur adresse n'a jamais été
+  /// lue ; « Envoyer » la résout à la demande).
+  ///
+  /// v40 (26/10/2026) — LA CLÔTURE ANNUELLE SYSCOHADA SUR LE POSTE (décision du
+  /// PO) : une table neuve (`clotures_exercices_local`, l'historique des
+  /// clôtures du poste : pièces CL et AN, résultat, empreinte de l'archive,
+  /// réouverture), aucune colonne ajoutée. Elle apparaît VIDE : un exercice
+  /// déjà « clôturé » d'avant (statut descendu du serveur) n'a pas de clôture
+  /// locale et son ouverture reste « inconnue » — aucune ligne n'est fabriquée.
+  ///
+  /// v41 (27/10/2026) — LES CHAMPS QUE LE WEB SAISIT ET QUE LE POSTE NE PORTAIT PAS
+  /// (décisions D1 et D2 du PO : « convertir en CRUD, même logique que le web ») :
+  /// aucune table neuve, DIX colonnes NULLABLES — `vehicules_local` (annee,
+  /// capacite, transmission), `contrats_location_local` (numero, remise, acompte,
+  /// montant FIGÉ à la signature), `plats_local` (categorie, les dix valeurs de la
+  /// carte), `guides_local` (certification, tarif_jour). Rien n'est fabriqué pour
+  /// l'existant : « — » à l'écran, et le montant d'un ancien contrat n'est PAS
+  /// recalculé au tarif courant. Le curseur de descente est oublié : le catalogue
+  /// redescend avec ces champs.
+  ///
+  /// v42 (27/10/2026) — LE REÇU EN IMAGE D'UNE DÉPENSE (lot L4, décision D4 du
+  /// PO : un transport de fichier dans la synchronisation) : aucune table neuve,
+  /// SIX colonnes NULLABLES sur `depenses_local` (`recu_nom`, `recu_sha256`,
+  /// `recu_taille`, `recu_type`, `recu_statut`, `recu_cause`). Le fichier reste
+  /// hors de la base (`recus_depenses/` à côté de `poste.json`). Rien n'est
+  /// fabriqué pour l'existant : « sans reçu ». Le curseur de descente est oublié :
+  /// les dépenses déjà au serveur redescendent avec la référence de leur reçu.
+  ///
+  /// v43 (28/10/2026) — A5 « PURGER » : la file d'envoi (`operations_sync_local`)
+  /// accepte le type `suppression` (la purge définitive d'une unité d'hébergement
+  /// ou d'un véhicule archivé). Aucune colonne, aucune table : la contrainte
+  /// `CHECK` du type est élargie, ce qu'SQLite n'autorise que par une table
+  /// RECRÉE — `elargirTypesOperationsSync`, conditionnel, copie intégrale avant
+  /// tout abandon, `seq` conservé. Aucune ligne n'est fabriquée.
+  ///
+  /// v44 (28/10/2026) — D246 ROUVERT PAR LE PO (« le poste fait ce que le web fait
+  /// + synchronisation ») : les comptes du plan et les pièces saisies à la main
+  /// sont partagés. UNE table neuve, `pieces_saisie_local` (l'identifiant d'origine
+  /// de chaque pièce de saisie manuelle), et UNE colonne NULLABLE,
+  /// `ecritures_serveur_local.piece_origine_id` (l'origine d'une pièce redescendue).
+  /// Rien n'est fabriqué : les pièces saisies avant la v44 ne sont ni marquées ni
+  /// envoyées (le serveur ne les a jamais reçues et n'a pas de moyen sûr de les
+  /// distinguer de celles d'un module). Le curseur de descente est oublié : le
+  /// plan comptable du serveur et l'origine des pièces redescendent.
+  ///
+  /// v45 (28/10/2026) — L'E-MAIL FACULTATIF d'un employé et d'un compte (décision du
+  /// PO) : DEUX colonnes NULLABLES, `employes_local.email` et
+  /// `utilisateurs_local.email`, aucune table. Rien n'est déduit : les lignes d'avant
+  /// n'ont pas d'adresse. Celle de l'employé part au serveur (charge `employes`) et
+  /// redescend ; celle du compte reste LOCALE (les comptes ne se synchronisent pas).
+  /// Le curseur de descente est oublié : les adresses des employés déjà au serveur
+  /// redescendent.
+  ///
+  /// v46 (29/10/2026) — MOT DE PASSE PERDU SANS E-MAIL (décision du PO, option A) :
+  /// ONZE colonnes ADDITIVES sur `utilisateurs_local` (indicateur « changement
+  /// obligatoire », expiration du temporaire, dérivé de l'ancien mot de passe, dérivé
+  /// du code de secours, compteur et horodatage des échecs) et UNE table locale neuve,
+  /// `journal_securite_local`. Aucune ligne fabriquée : un compte d'avant la v46
+  /// fonctionne sans changement et n'a pas de code de secours. Rien ne se
+  /// synchronise : les comptes restent LOCAUX et aucun hash ne part.
+  ///
+  /// v47 (30/10/2026) — LA DESCRIPTION FACULTATIVE d'un plat (décision du PO) : UNE
+  /// colonne NULLABLE, `plats_local.description`, aucune table. Rien n'est déduit :
+  /// les plats d'avant n'ont pas de description. Elle part au serveur avec le plat
+  /// (charge `plats`) et redescend. Le curseur de descente est oublié : les
+  /// descriptions des plats déjà au serveur redescendent.
+  ///
+  /// v48 (03/11/2026) — SUPPRIMER UN COMPTE UTILISATEUR (décision du PO, qui lève pour
+  /// la seule suppression la règle « un compte ne se supprime jamais ») : UNE colonne
+  /// NULLABLE, `utilisateurs_local.supprime_le`, aucune table. Suppression LOGIQUE :
+  /// rien n'est supprimé par la migration, aucune date n'est fabriquée. Le compte
+  /// supprimé voyage par le LOGIN, jamais avec un mot de passe ni un dérivé. Le
+  /// curseur de descente est oublié : les comptes déjà supprimés au serveur
+  /// redescendent.
+  ///
+  /// v49 (03/11/2026) — « MON PROFIL » MODIFIABLE SOUS DROIT (décision du PO) : DEUX
+  /// colonnes NULLABLES sur `utilisateurs_local` (`telephone`, `intitule_de_poste`),
+  /// aucune table, locales. Le nom complet reste `nom`. Les trois droits `PROFIL_NOM`,
+  /// `PROFIL_TELEPHONE`, `PROFIL_INTITULE` entrent dans la matrice : la migration les
+  /// pose dans `roles_local.droits_json` et `utilisateurs_local.droits_json` SEULEMENT
+  /// là où la clé manque (nom et téléphone : tous ; intitulé : rôles d'administration),
+  /// et ne réécrit JAMAIS un réglage déjà fait.
+  ///
+  /// v50 (07/11/2026) — FACTURATION NORMALISÉE (boîtier CC300, e-MECeF ; décision du PO) :
+  /// HUIT colonnes NULLABLES sur `pieces_facturation_local` (statut, motif, mode,
+  /// compteur, compteur avant l'envoi, code MECeF, QR code fiscal, date de
+  /// normalisation), aucune table. Rien n'est déduit : une pièce d'avant n'est ni
+  /// « normalisée » ni « en attente » (NULL), aucune pièce n'est rejouée. Une pièce
+  /// déjà NORMALISÉE n'est jamais écrasée (garde du DAO). Le curseur de descente est
+  /// oublié : les normalisations déjà faites au serveur redescendent.
+  ///
+  /// v52 (07/11/2026) — FACTURE PROFORMA (document non fiscal, décision du PO) : TROIS
+  /// tables NEUVES (`proformas_local`, `lignes_proforma_local`, `sequences_proforma_local`),
+  /// aucune colonne ajoutée à une table existante, aucune ligne fabriquée. Ajout
+  /// CONDITIONNEL (piège 3) : une fixture ramenée en arrière depuis la définition courante
+  /// peut les porter déjà. Le curseur de descente est oublié : les proformas déjà au serveur
+  /// (autres postes, web) redescendent.
+  ///
+  /// v59 (10/11/2026) — LE CMP DU SERVEUR COMME RÉFÉRENCE (PO : postes A et B en « — » pour la
+  /// Valeur d'achat, le CMP et la Valeur stock alors que le web les affiche) : UNE colonne
+  /// NULLABLE, `articles_local.cmp_reference` (dix-millièmes), aucune table, aucune valeur
+  /// fabriquée. Ajout CONDITIONNEL (piège 3). Le curseur de descente est oublié : les articles
+  /// déjà reçus redescendent avec leur `prix_achat` et leur `cout_moyen_pondere`.
+  ///
+  /// v58 (09/11/2026) — L'AUTEUR D'UNE ANNULATION REÇUE (PO : « Robert ISSA » annulée par un
+  /// autre poste s'affichait avec « — » partout) : UNE colonne NULLABLE,
+  /// `reservations_local.auteur_annulation_login` (le login que le serveur rend sous `par` ;
+  /// `utilisateur_annulation_id` est une clé étrangère vers les comptes de CE poste, que
+  /// l'auteur n'a pas forcément ici). Aucune table, aucune valeur fabriquée. Ajout
+  /// CONDITIONNEL (piège 3). Le curseur de descente est oublié : les annulations déjà au
+  /// serveur redescendent COMPLÈTES (taux, montants, date, auteur).
+  ///
+  /// v57 (09/11/2026) — LA VALEUR D'ACHAT DE RÉFÉRENCE D'UN ARTICLE (PO : colonnes « Point
+  /// Stock », « Seuil », « Valeur d'achat » des modèles d'import m4/m5/m6) : UNE colonne
+  /// NULLABLE, `articles_local.prix_achat_reference` (dix-millièmes), aucune table, aucune
+  /// valeur fabriquée (`null` = « — »). Ajout CONDITIONNEL (piège 3). Le curseur de descente
+  /// est oublié : la valeur d'achat que le serveur porte déjà redescend (sans jamais effacer
+  /// une valeur locale). Elle n'est NI un mouvement NI le CMP.
+  ///
+  /// v56 (09/11/2026) — LE COÛT DES ENTRÉES DE STOCK DESCEND (bug du PO : un second poste
+  /// voyait « — » en Valeur d'achat, CMP et Valeur stock) : AUCUNE table, AUCUNE colonne
+  /// (`mouvements_stock_local.cout_unitaire_dix_milliemes` existe depuis la v12). Seule la
+  /// DESCENTE change : `mouvements_stock` porte désormais `cout_unitaire`, que l'aligneur écrit
+  /// (et qu'il complète sur une ligne déjà reçue sans coût). Le curseur de descente est OUBLIÉ :
+  /// les mouvements déjà passés par un curseur redescendent une fois, avec leur coût. (v55 est
+  /// réservée à un autre chantier.)
+  ///
+  /// v54 (09/11/2026) — TROIS DROITS TRANSVERSES OUVERTS À TOUS (PO : « Synchronisation »,
+  /// « Appairage Postes » et « Import & Export » au menu de TOUS les rôles par défaut) :
+  /// AUCUNE table, AUCUNE colonne — la migration pose `SYNCHRO`, `APPAIRAGE` et
+  /// `IMPORT_EXPORT` dans `roles_local.droits_json` et `utilisateurs_local.droits_json`
+  /// SEULEMENT là où la clé manque (`L` ; `C` pour l'administration), sans jamais
+  /// réécrire un réglage ni retirer un droit. Voir `droits_ouverts_a_tous_migration.dart`.
+  ///
+  /// v53 (09/11/2026) — AFFECTATIONS DU RÉSULTAT REÇUES du serveur (PO : « une affectation
+  /// passée au web DOIT apparaître sur le poste ») : UNE table NEUVE
+  /// (`affectations_resultat_local`, 81 -> 82), aucune colonne ajoutée, aucune ligne
+  /// fabriquée. Ajout CONDITIONNEL (piège 3). Le curseur de descente est oublié : les
+  /// affectations déjà passées au serveur (web, autres postes) redescendent. Voir
+  /// `tables/affectations_resultat_tables.dart`.
   @override
-  int get schemaVersion => 29;
+  int get schemaVersion => 59;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1033,9 +1273,724 @@ class AppDatabase extends _$AppDatabase {
         // n'est touché, aucune ligne n'est fabriquée (la descente la remplit).
         await m.createTable(occupationsTablesLocal);
       }
+      if (from < 31) {
+        // LES RETRAITS DE LA CARTE DU JOUR (21/10/2026). Une table NEUVE, sans
+        // index ni clé étrangère : rien d'existant n'est touché, aucune ligne
+        // n'est fabriquée (la descente la remplit). Le curseur est oublié pour
+        // que les retraits déjà au serveur descendent.
+        await m.createTable(indisponibilitesCarteLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 32) {
+        // LES ENTRETIENS DE VÉHICULES (21/10/2026). Une table NEUVE, sans index
+        // ni clé étrangère ; aucune ligne fabriquée. Le curseur est oublié :
+        // les entretiens déjà au serveur redescendent.
+        await m.createTable(entretiensVehiculeLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 34) {
+        // LES ÉCRITURES VALIDÉES DU SERVEUR (21/10/2026), en miroir de lecture
+        // seule pour les états financiers. Une table NEUVE, sans clé étrangère ;
+        // aucune ligne fabriquée. Le curseur est oublié : les écritures déjà au
+        // serveur descendent.
+        await m.createTable(ecrituresServeurLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+
+      if (from < 35) {
+        // LES COMPLÉMENTS DE LA PWA (21/10/2026, « tout au complet ») : quatre
+        // tables NEUVES et cinq colonnes AJOUTÉES (jamais une table recréée : les
+        // saisies hors ligne sont la seule copie). Défauts = faits : tout
+        // article et tout client d'avant est actif, aucune composition n'est
+        // provisoire, aucun panier n'a de remise. Rien n'est déduit.
+        // ⚠ Ajouts CONDITIONNELS (piège 3).
+        Future<Set<String>> colonnesDe(String t) async => {
+          for (final c
+              in await m.database.customSelect('PRAGMA table_info($t)').get())
+            c.data['name'] as String,
+        };
+        if (!(await colonnesDe('articles_local')).contains('actif')) {
+          await m.addColumn(articlesLocal, articlesLocal.actif);
+        }
+        if (!(await colonnesDe('clients_local')).contains('actif')) {
+          await m.addColumn(clientsLocal, clientsLocal.actif);
+        }
+        if (!(await colonnesDe(
+          'recettes_local',
+        )).contains('composition_provisoire')) {
+          await m.addColumn(recettesLocal, recettesLocal.compositionProvisoire);
+        }
+        final paniers = await colonnesDe('paniers_local');
+        if (!paniers.contains('remise_type')) {
+          await m.addColumn(paniersLocal, paniersLocal.remiseType);
+        }
+        if (!paniers.contains('remise_valeur_centiemes')) {
+          await m.addColumn(paniersLocal, paniersLocal.remiseValeurCentiemes);
+        }
+        await m.createTable(immobilisationsLocal);
+        await m.createTable(relancesClientsLocal);
+        await m.createTable(inventairesLocal);
+        await m.createTable(lignesInventaireLocal);
+        await m.createTable(canauxReservationLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 36) {
+        // LE LIEN DIRECT PLAT -> ARTICLE DE STOCK (21/10/2026, « Lier au
+        // stock » du restaurant). Deux colonnes NULLABLES AJOUTÉES à
+        // `plats_local`, jamais une table recréée : aucune valeur fabriquée
+        // (un plat d'avant n'a pas de lien). Le curseur est oublié : le
+        // catalogue redescend une fois et l'aligneur remplit les colonnes.
+        // ⚠ Ajouts CONDITIONNELS (piège 3).
+        final colonnes = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(plats_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (!colonnes.contains('article_id')) {
+          await m.addColumn(platsLocal, platsLocal.articleId);
+        }
+        if (!colonnes.contains('unites_vendables')) {
+          await m.addColumn(platsLocal, platsLocal.unitesVendables);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 37) {
+        // LE JOURNAL DE RÉCEPTION (26/10/2026). Une table NEUVE, sans index ni
+        // clé étrangère ; aucune ligne fabriquée (la descente la remplit).
+        // Ajout CONDITIONNEL (piège 3) : une fixture ramenée en arrière
+        // depuis la définition courante peut la porter déjà.
+        final existe = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'journal_reception_local'",
+            )
+            .get();
+        if (existe.isEmpty) await m.createTable(journalReceptionLocal);
+      }
+      if (from < 38) {
+        // « LE POSTE FAIT CE QUE LE WEB FAIT » (26/10/2026) : l'historique des
+        // prix de la carte (table NEUVE) et six colonnes NULLABLES. Jamais une
+        // table recréée ; aucune valeur fabriquée (l'auteur, le statut, le
+        // numéro d'une ligne d'avant restent inconnus : « — »). Le curseur est
+        // oublié : l'historique et les statuts déjà au serveur redescendent.
+        // ⚠ Ajouts CONDITIONNELS (piège 3) : une fixture ramenée en arrière
+        // depuis la définition courante porte déjà tout cela.
+        Future<Set<String>> colonnesDe(String t) async => {
+          for (final c
+              in await m.database.customSelect('PRAGMA table_info($t)').get())
+            c.data['name'] as String,
+        };
+        final existe = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'historique_prix_carte_local'",
+            )
+            .get();
+        if (existe.isEmpty) await m.createTable(historiquePrixCarteLocal);
+        if (!(await colonnesDe('contrats_location_local')).contains('statut')) {
+          await m.addColumn(
+            contratsLocationLocal,
+            contratsLocationLocal.statut,
+          );
+        }
+        final operations = await colonnesDe('operations_sync_local');
+        if (!operations.contains('auteur_login')) {
+          await m.addColumn(
+            operationsSyncLocal,
+            operationsSyncLocal.auteurLogin,
+          );
+        }
+        if (!operations.contains('poste_nom')) {
+          await m.addColumn(operationsSyncLocal, operationsSyncLocal.posteNom);
+        }
+        final paniers = await colonnesDe('paniers_local');
+        if (!paniers.contains('numero_vente')) {
+          await m.addColumn(paniersLocal, paniersLocal.numeroVente);
+        }
+        if (!paniers.contains('auteur_login')) {
+          await m.addColumn(paniersLocal, paniersLocal.auteurLogin);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 39) {
+        // LA BOÎTE D'ENVOI DES E-MAILS (26/10/2026). Une table NEUVE, sans clé
+        // étrangère ; aucune ligne fabriquée. Ajout CONDITIONNEL (piège 3) :
+        // une fixture ramenée en arrière depuis la définition courante peut la
+        // porter déjà.
+        final existe = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'boite_envoi_emails_local'",
+            )
+            .get();
+        if (existe.isEmpty) await m.createTable(boiteEnvoiEmailsLocal);
+      }
+      if (from < 40) {
+        // LES CLÔTURES D'EXERCICE DU POSTE (26/10/2026). Une table NEUVE ; aucune
+        // ligne fabriquée (un exercice déjà clôturé n'a pas de clôture locale).
+        // Ajout CONDITIONNEL (piège 3) : une fixture ramenée en arrière depuis
+        // la définition courante peut la porter déjà.
+        final existe = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'clotures_exercices_local'",
+            )
+            .get();
+        if (existe.isEmpty) await m.createTable(cloturesExercicesLocal);
+      }
+      if (from < 41) {
+        // LES CHAMPS DU WEB QUE LE POSTE NE PORTAIT PAS (27/10/2026) : dix colonnes
+        // NULLABLES, aucune table, aucune valeur fabriquée (un ancien contrat garde
+        // montant, acompte et N° nuls : « — »). Ajouts CONDITIONNELS (piège 3) : une
+        // fixture ramenée en arrière depuis la définition courante les porte déjà,
+        // et un fichier déjà à la forme v41 mais marqué v40 doit se rejouer. Le
+        // curseur est oublié : plats, véhicules, contrats et guides déjà au serveur
+        // redescendent avec leurs nouveaux champs.
+        Future<Set<String>> colonnesDe(String t) async => {
+          for (final c
+              in await m.database.customSelect('PRAGMA table_info($t)').get())
+            c.data['name'] as String,
+        };
+        final vehicules = await colonnesDe('vehicules_local');
+        if (!vehicules.contains('annee')) {
+          await m.addColumn(vehiculesLocal, vehiculesLocal.annee);
+        }
+        if (!vehicules.contains('capacite')) {
+          await m.addColumn(vehiculesLocal, vehiculesLocal.capacite);
+        }
+        if (!vehicules.contains('transmission')) {
+          await m.addColumn(vehiculesLocal, vehiculesLocal.transmission);
+        }
+        final contrats = await colonnesDe('contrats_location_local');
+        if (!contrats.contains('numero')) {
+          await m.addColumn(
+            contratsLocationLocal,
+            contratsLocationLocal.numero,
+          );
+        }
+        if (!contrats.contains('remise')) {
+          await m.addColumn(
+            contratsLocationLocal,
+            contratsLocationLocal.remise,
+          );
+        }
+        if (!contrats.contains('acompte')) {
+          await m.addColumn(
+            contratsLocationLocal,
+            contratsLocationLocal.acompte,
+          );
+        }
+        if (!contrats.contains('montant')) {
+          await m.addColumn(
+            contratsLocationLocal,
+            contratsLocationLocal.montant,
+          );
+        }
+        if (!(await colonnesDe('plats_local')).contains('categorie')) {
+          await m.addColumn(platsLocal, platsLocal.categorie);
+        }
+        final guides = await colonnesDe('guides_local');
+        if (!guides.contains('certification')) {
+          await m.addColumn(guidesLocal, guidesLocal.certification);
+        }
+        if (!guides.contains('tarif_jour')) {
+          await m.addColumn(guidesLocal, guidesLocal.tarifJour);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 42) {
+        // LE REÇU EN IMAGE D'UNE DÉPENSE (27/10/2026) : six colonnes NULLABLES,
+        // aucune table, aucune valeur fabriquée. Ajouts CONDITIONNELS (piège 3) :
+        // une fixture ramenée en arrière depuis la définition courante les porte
+        // déjà, et un fichier à la forme v42 marqué v41 doit se rejouer. Le curseur
+        // est oublié : les dépenses déjà au serveur redescendent avec la référence
+        // de leur reçu.
+        final depenses = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(depenses_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (!depenses.contains('recu_nom')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuNom);
+        }
+        if (!depenses.contains('recu_sha256')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuSha256);
+        }
+        if (!depenses.contains('recu_taille')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuTaille);
+        }
+        if (!depenses.contains('recu_type')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuType);
+        }
+        if (!depenses.contains('recu_statut')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuStatut);
+        }
+        if (!depenses.contains('recu_cause')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuCause);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 43) {
+        // A5 « PURGER » (28/10/2026) : la file d'envoi accepte le type
+        // `suppression`. Le CHECK d'une table ne se modifie pas : la table est
+        // RECRÉE par `elargirTypesOperationsSync` (conditionnel, copie intégrale
+        // avant tout abandon, `seq` conservé). Aucune ligne n'est fabriquée.
+        await elargirTypesOperationsSync(m, operationsSyncLocal);
+      }
+      if (from < 44) {
+        // D246 ROUVERT (28/10/2026) : une table NEUVE et une colonne NULLABLE, aucune
+        // ligne fabriquée. Ajouts CONDITIONNELS (piège 3) : une fixture ramenée en
+        // arrière depuis la définition courante les porte déjà, et un fichier déjà
+        // à la forme v44 mais marqué v42 ou v43 doit se rejouer. Le curseur est
+        // oublié : le plan du serveur et l'origine des pièces redescendent.
+        final tables = {
+          for (final t
+              in await m.database
+                  .customSelect(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'",
+                  )
+                  .get())
+            t.data['name'] as String,
+        };
+        if (!tables.contains('pieces_saisie_local')) {
+          await m.createTable(piecesSaisieLocal);
+        }
+        final miroir = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(ecritures_serveur_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (!miroir.contains('piece_origine_id')) {
+          await m.addColumn(
+            ecrituresServeurLocal,
+            ecrituresServeurLocal.pieceOrigineId,
+          );
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 45) {
+        // L'E-MAIL FACULTATIF d'un employé et d'un compte (28/10/2026) : DEUX colonnes
+        // NULLABLES, aucune table, aucune adresse déduite. Ajouts CONDITIONNELS
+        // (piège 3) : une fixture ramenée en arrière depuis la définition courante les
+        // porte déjà, et un fichier à la forme v45 marqué v44 doit se rejouer. Une table
+        // absente (jeu de colonnes vide) n'est pas touchée ici : la réconciliation finale
+        // la complète. Le curseur est oublié : les e-mails des employés déjà au serveur
+        // redescendent.
+        Future<Set<String>> colonnes(String table) async => {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info($table)')
+                  .get())
+            c.data['name'] as String,
+        };
+        final employes = await colonnes('employes_local');
+        if (employes.isNotEmpty && !employes.contains('email')) {
+          await m.addColumn(employesLocal, employesLocal.email);
+        }
+        final comptes = await colonnes('utilisateurs_local');
+        if (comptes.isNotEmpty && !comptes.contains('email')) {
+          await m.addColumn(utilisateursLocal, utilisateursLocal.email);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 46) {
+        // MOT DE PASSE PERDU SANS E-MAIL (29/10/2026) : colonnes ADDITIVES sur les
+        // comptes et UNE table locale. Ajouts CONDITIONNELS (piège 3) : une fixture
+        // ramenée en arrière depuis la définition courante porte déjà les colonnes
+        // des comptes (`retour_arriere_schema.dart`), et un fichier à la forme v46
+        // marqué v45 doit se rejouer. Une table absente (jeu de colonnes vide) n'est
+        // pas touchée ici : la réconciliation finale la complète. Aucune ligne n'est
+        // fabriquée, aucun code de secours posé.
+        final comptes = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(utilisateurs_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (comptes.isNotEmpty) {
+          final ajouts = <(String, GeneratedColumn<Object>)>[
+            ('changement_obligatoire', utilisateursLocal.changementObligatoire),
+            (
+              'mdp_temporaire_expire_le',
+              utilisateursLocal.mdpTemporaireExpireLe,
+            ),
+            ('sel_precedent', utilisateursLocal.selPrecedent),
+            ('empreinte_precedente', utilisateursLocal.empreintePrecedente),
+            ('iterations_precedentes', utilisateursLocal.iterationsPrecedentes),
+            ('code_secours_sel', utilisateursLocal.codeSecoursSel),
+            ('code_secours_empreinte', utilisateursLocal.codeSecoursEmpreinte),
+            (
+              'code_secours_iterations',
+              utilisateursLocal.codeSecoursIterations,
+            ),
+            ('code_secours_genere_le', utilisateursLocal.codeSecoursGenereLe),
+            ('code_secours_echecs', utilisateursLocal.codeSecoursEchecs),
+            (
+              'code_secours_dernier_echec_le',
+              utilisateursLocal.codeSecoursDernierEchecLe,
+            ),
+          ];
+          for (final (nom, colonne) in ajouts) {
+            if (!comptes.contains(nom)) {
+              await m.addColumn(utilisateursLocal, colonne);
+            }
+          }
+        }
+        final tables = {
+          for (final t
+              in await m.database
+                  .customSelect(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'",
+                  )
+                  .get())
+            t.data['name'] as String,
+        };
+        if (!tables.contains('journal_securite_local')) {
+          await m.createTable(journalSecuriteLocal);
+        }
+      }
+      if (from < 53) {
+        // AFFECTATIONS DU RÉSULTAT REÇUES (09/11/2026) : UNE table neuve, aucune colonne,
+        // aucune ligne. Conditionnelle : une fixture ramenée en arrière depuis la définition
+        // courante peut la porter déjà (piège 3). Le curseur est oublié : les affectations
+        // déjà au serveur redescendent.
+        final deja53 = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'affectations_resultat_local'",
+            )
+            .get();
+        if (deja53.isEmpty) {
+          await m.createTable(affectationsResultatLocal);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 52) {
+        Future<bool> tableExiste(String nom) async =>
+            (await m.database
+                    .customSelect(
+                      "SELECT name FROM sqlite_master WHERE type = 'table' "
+                      "AND name = '$nom'",
+                    )
+                    .get())
+                .isNotEmpty;
+        if (!await tableExiste('proformas_local')) {
+          await m.createTable(proformasLocal);
+        }
+        if (!await tableExiste('lignes_proforma_local')) {
+          await m.createTable(lignesProformaLocal);
+        }
+        if (!await tableExiste('sequences_proforma_local')) {
+          await m.createTable(sequencesProformaLocal);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 51) {
+        // IFU DU CLIENT (07/11/2026) : TROIS colonnes NULLABLES, aucune table, aucune valeur
+        // fabriquée — `pieces_facturation_local.acheteur_ifu` et `.acheteur_nom` (ce qui a été
+        // saisi pour la facture), `clients_local.ifu` (descendu du serveur). Ajout CONDITIONNEL
+        // (piège 3). Le curseur de descente est oublié : les IFU des fiches déjà au serveur
+        // redescendent. Une table absente n'est pas touchée (réconciliation finale).
+        Future<Set<String>> colonnes(String table) async => {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info($table)')
+                  .get())
+            c.data['name'] as String,
+        };
+        final pieces51 = await colonnes('pieces_facturation_local');
+        if (pieces51.isNotEmpty) {
+          if (!pieces51.contains('acheteur_ifu')) {
+            await m.addColumn(
+              piecesFacturationLocal,
+              piecesFacturationLocal.acheteurIfu,
+            );
+          }
+          if (!pieces51.contains('acheteur_nom')) {
+            await m.addColumn(
+              piecesFacturationLocal,
+              piecesFacturationLocal.acheteurNom,
+            );
+          }
+        }
+        final clients51 = await colonnes('clients_local');
+        if (clients51.isNotEmpty && !clients51.contains('ifu')) {
+          await m.addColumn(clientsLocal, clientsLocal.ifu);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 50) {
+        // FACTURATION NORMALISÉE (07/11/2026) : huit colonnes NULLABLES, aucune table,
+        // aucune valeur fabriquée. Ajout CONDITIONNEL (piège 3) : une fixture ramenée en
+        // arrière depuis la définition courante les porte déjà, et un fichier à la
+        // forme v50 marqué v49 doit se rejouer. Une table absente (jeu de colonnes
+        // vide) n'est pas touchée ici : la réconciliation finale la complète. Le
+        // curseur est oublié : les normalisations déjà faites au serveur redescendent.
+        final pieces = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(pieces_facturation_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (pieces.isNotEmpty) {
+          final ajouts = <(String, GeneratedColumn<Object>)>[
+            (
+              'normalisation_statut',
+              piecesFacturationLocal.normalisationStatut,
+            ),
+            ('normalisation_motif', piecesFacturationLocal.normalisationMotif),
+            ('normalisation_mode', piecesFacturationLocal.normalisationMode),
+            (
+              'normalisation_compteur',
+              piecesFacturationLocal.normalisationCompteur,
+            ),
+            (
+              'normalisation_compteur_avant',
+              piecesFacturationLocal.normalisationCompteurAvant,
+            ),
+            ('code_mecef', piecesFacturationLocal.codeMecef),
+            ('qr_code_fiscal', piecesFacturationLocal.qrCodeFiscal),
+            ('normalisee_le', piecesFacturationLocal.normaliseeLe),
+          ];
+          for (final (nom, colonne) in ajouts) {
+            if (!pieces.contains(nom)) {
+              await m.addColumn(piecesFacturationLocal, colonne);
+            }
+          }
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 49) {
+        // « MON PROFIL » SOUS DROIT (03/11/2026) : deux colonnes NULLABLES, aucune
+        // table, aucune valeur fabriquée. Ajout CONDITIONNEL (piège 3) : une
+        // fixture ramenée en arrière depuis la définition courante les porte déjà,
+        // et un fichier à la forme v49 marqué v48 doit se rejouer. Puis les trois
+        // droits de profil, additivement : une clé DÉJÀ présente n'est jamais
+        // réécrite (un réglage d'écran prime).
+        final comptes = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(utilisateurs_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (comptes.isNotEmpty) {
+          if (!comptes.contains('telephone')) {
+            await m.addColumn(utilisateursLocal, utilisateursLocal.telephone);
+          }
+          if (!comptes.contains('intitule_de_poste')) {
+            await m.addColumn(
+              utilisateursLocal,
+              utilisateursLocal.intituleDePoste,
+            );
+          }
+        }
+        await poserDroitsProfil(m.database);
+      }
+      if (from < 48) {
+        // SUPPRIMER UN COMPTE (03/11/2026) : UNE colonne NULLABLE, aucune table, aucun
+        // compte supprimé par la migration. Ajout CONDITIONNEL (piège 3) : une fixture
+        // ramenée en arrière depuis la définition courante la porte déjà
+        // (`retour_arriere_schema.dart`), et un fichier à la forme v48 marqué v47 doit se
+        // rejouer. Une table absente (jeu de colonnes vide) n'est pas touchée ici : la
+        // réconciliation finale la complète. Le curseur est oublié : les comptes déjà
+        // supprimés au serveur redescendent.
+        final comptes = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(utilisateurs_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (comptes.isNotEmpty && !comptes.contains('supprime_le')) {
+          await m.addColumn(utilisateursLocal, utilisateursLocal.supprimeLe);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 47) {
+        // LA DESCRIPTION FACULTATIVE d'un plat (30/10/2026) : UNE colonne NULLABLE, aucune
+        // table, aucune description déduite. Ajout CONDITIONNEL (piège 3) : une fixture
+        // ramenée en arrière depuis la définition courante la porte déjà
+        // (`retour_arriere_schema.dart`), et un fichier à la forme v47 marqué v46 doit se
+        // rejouer. Une table absente (jeu de colonnes vide) n'est pas touchée ici : la
+        // réconciliation finale la complète. Le curseur est oublié : les descriptions des
+        // plats déjà au serveur redescendent.
+        final plats = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(plats_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (plats.isNotEmpty && !plats.contains('description')) {
+          await m.addColumn(platsLocal, platsLocal.description);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 33) {
+        // LES PLANNINGS ET LES CONGÉS (21/10/2026). Deux tables NEUVES, sans
+        // index ni clé étrangère ; aucune ligne fabriquée. Le curseur est oublié :
+        // les créneaux et les demandes déjà au serveur redescendent.
+        await m.createTable(planningsLocal);
+        await m.createTable(congesLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 30) {
+        // LE FACTEUR DE CONVERSION DES BOISSONS (21/10/2026, stock estimé hors
+        // ligne). Une colonne AJOUTÉE à `cartes_boisson_local`, jamais une
+        // table recréée. NULLABLE : aucune valeur n'est fabriquée pour les
+        // boissons d'avant (un défaut de 1 serait faux pour un casier de 24).
+        // Le curseur de descente est OUBLIÉ : le catalogue redescend une fois,
+        // et l'aligneur — idempotent — remplit la colonne.
+        //
+        // ⚠ Ajout CONDITIONNEL (piège 3) : une fixture ramenée en arrière
+        // depuis la définition courante porte déjà la colonne.
+        final colonnes = await m.database
+            .customSelect('PRAGMA table_info(cartes_boisson_local)')
+            .get();
+        final noms = {for (final c in colonnes) c.data['name'] as String};
+        if (!noms.contains('unites_vendables')) {
+          await m.addColumn(
+            cartesBoissonLocal,
+            cartesBoissonLocal.unitesVendables,
+          );
+        }
+        await m.database.customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+
+      if (from < 54) {
+        // TROIS DROITS OUVERTS À TOUS (09/11/2026) : `SYNCHRO`, `APPAIRAGE`, `IMPORT_EXPORT`,
+        // posés dans les matrices DÉJÀ stockées là où la clé manque (`L` ; `C` pour
+        // l'administration), jamais réécrits, jamais retirés. Aucune table, aucune colonne.
+        await poserDroitsOuvertsATous(m.database);
+      }
+      if (from < 56) {
+        // LE COÛT DES ENTRÉES DE STOCK DESCEND (09/11/2026) : aucune table, aucune colonne,
+        // aucune ligne fabriquée. Les mouvements déjà reçus sans coût (curseur passé) ne
+        // redescendraient jamais : le curseur est oublié, l'aligneur — idempotent —
+        // complète le coût de chaque ligne déjà présente.
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 57) {
+        // VALEUR D'ACHAT DE RÉFÉRENCE (09/11/2026) : UNE colonne nullable, aucune valeur
+        // fabriquée. Conditionnel (piège 3) ; une table absente n'est pas touchée.
+        final articles57 = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(articles_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (articles57.isNotEmpty &&
+            !articles57.contains('prix_achat_reference')) {
+          await m.addColumn(articlesLocal, articlesLocal.prixAchatReference);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 59) {
+        // LE CMP DU SERVEUR COMME RÉFÉRENCE (10/11/2026) : UNE colonne nullable, aucune valeur
+        // fabriquée. Conditionnel (piège 3) ; une table absente n'est pas touchée.
+        final articles59 = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(articles_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (articles59.isNotEmpty && !articles59.contains('cmp_reference')) {
+          await m.addColumn(articlesLocal, articlesLocal.cmpReference);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 58) {
+        // L'AUTEUR D'UNE ANNULATION REÇUE (09/11/2026) : UNE colonne nullable, aucune valeur
+        // fabriquée. Conditionnel (piège 3) ; une table absente n'est pas touchée.
+        final reservations58 = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(reservations_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (reservations58.isNotEmpty &&
+            !reservations58.contains('auteur_annulation_login')) {
+          await m.addColumn(
+            reservationsLocal,
+            reservationsLocal.auteurAnnulationLogin,
+          );
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      // Filet final (PRD réinstallation R2) : ce que les paliers n'ont pas posé
+      // (palier sauté, branche parallèle) est complété, jamais retiré.
+      await reconcilierSchema(this);
     },
 
     beforeOpen: (details) async {
+      journalDemarrage?.call(
+        'Base ouverte : schéma v${details.versionNow}'
+        '${details.hadUpgrade ? ' (migrée depuis v${details.versionBefore})' : ''}'
+        '${details.wasCreated ? ' (créée)' : ''}',
+      );
+      // Version courante mais schéma incomplet : réparée AVANT d'activer les
+      // clés étrangères (un `ADD COLUMN ... REFERENCES` les refuserait).
+      if (!details.wasCreated &&
+          !details.hadUpgrade &&
+          await ecartRapide(this)) {
+        await reconcilierSchema(this);
+      }
       // Les clés étrangères ne sont PAS actives par défaut sous SQLite.
       // Sans cette ligne, une ligne de facture peut survivre à sa facture,
       // et l'incohérence ne se voit qu'à la synchronisation.
@@ -1059,16 +2014,20 @@ class AppDatabase extends _$AppDatabase {
 /// Conserver un paquet no-op parce qu'un document l'énumère serait pire qu'une
 /// divergence signalée : personne ne saurait, dans six mois, s'il est encore
 /// nécessaire.
+Future<Directory> dossierDonneesDuPoste() async {
+  final windows = Platform.isWindows
+      ? dossierBaseWindows(Platform.environment)
+      : null;
+  return windows != null
+      ? Directory(windows)
+      : Directory(
+          p.join((await getApplicationSupportDirectory()).path, 'donnees'),
+        );
+}
+
 LazyDatabase _ouvrir() {
   return LazyDatabase(() async {
-    final windows = Platform.isWindows
-        ? dossierBaseWindows(Platform.environment)
-        : null;
-    final neuf = windows != null
-        ? Directory(windows)
-        : Directory(
-            p.join((await getApplicationSupportDirectory()).path, 'donnees'),
-          );
+    final neuf = await dossierDonneesDuPoste();
     final emplacement = await preparerEmplacementBase(
       dossierNeuf: neuf,
       dossierAncien: await getApplicationDocumentsDirectory(),

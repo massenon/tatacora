@@ -31,7 +31,13 @@ class FactureObserver
      *
      * @var list<string>
      */
-    private const CHAMPS_DE_CERTIFICATION = ['numero_mecef', 'qr_code_fiscal', 'statut'];
+    private const CHAMPS_DE_CERTIFICATION = [
+        'numero_mecef', 'qr_code_fiscal', 'statut',
+        // Facturation normalisée (07/11/2026) : écrits par la normalisation elle-même.
+        'normalisation_statut', 'normalisation_motif', 'normalisation_mode',
+        'normalisation_compteur', 'code_mecef', 'normalisee_le',
+        'emecef_uid', 'emecef_uid_le', 'emecef_prochain_essai_le',
+    ];
 
     public function updating(Facture $facture): void
     {
@@ -40,7 +46,26 @@ class FactureObserver
         }
 
         $champsModifies = array_keys($facture->getDirty());
-        $interdits = array_diff($champsModifies, self::CHAMPS_DE_CERTIFICATION, ['updated_at']);
+        $tolerees = self::CHAMPS_DE_CERTIFICATION;
+
+        // L'ACHETEUR (IFU et nom saisis, 07/11/2026) reste complétable tant que la facture
+        // n'est PAS normalisée : la facture simple attend sa normalisation. Une facture
+        // normalisée est figée, acheteur compris.
+        if ($facture->getOriginal('normalisation_statut') !== 'normalisee') {
+            $tolerees = [...$tolerees, 'acheteur_ifu', 'acheteur_nom'];
+        }
+
+        // Le LIEN vers la proforma dont la facture est issue (07/11/2026) : métadonnée de rattachement, posée UNE
+        // fois (jamais réécrite), qui ne change rien au document fiscal — la conversion au poste lie une facture déjà figée.
+        if ($facture->getOriginal('proforma_id') === null) {
+            $tolerees = [...$tolerees, 'proforma_id'];
+        }
+
+        // `date_modification` et `utilisateur_modification_id` : le bornage d'audit que `Auditable`
+        // pose à CHAQUE mise à jour. Sans eux, toute écriture sur une facture figée est refusée dès
+        // que l'horloge a avancé (les tests figeaient l'heure : le défaut ne se voyait pas, et une
+        // facture SIMPLE, figée à l'émission, n'aurait jamais pu être normalisée ensuite).
+        $interdits = array_diff($champsModifies, $tolerees, ['updated_at', 'date_modification', 'utilisateur_modification_id']);
 
         if ($interdits !== []) {
             throw new FactureImmuableException($facture->id, $interdits);
@@ -49,8 +74,25 @@ class FactureObserver
         // Même sur les champs de certification : une facture déjà certifiée ne
         // se re-certifie pas. Autoriser un second passage permettrait d'écraser
         // un NIM réel par un NIM de démonstration.
+        //
+        // Une seule exception, et dans le SENS qui ne trompe personne : un numéro de
+        // DÉMONSTRATION (`MECEF-DEMO-`, sans valeur fiscale) peut être remplacé par
+        // une vraie normalisation — le mode a changé depuis. Jamais l'inverse, et
+        // jamais un numéro réel remplacé.
         if (in_array('numero_mecef', $champsModifies, true)) {
-            throw new FactureImmuableException($facture->id, ['numero_mecef']);
+            // Sans numéro (facture SIMPLE, 07/11/2026) ou de démonstration (sans valeur fiscale) :
+            // seule une vraie normalisation prend la place.
+            $avant = (string) $facture->getOriginal('numero_mecef');
+            $etaitDemo = $avant === '' || str_starts_with($avant, 'MECEF-DEMO-');
+            // « Réel » = écrit PAR une normalisation (statut posé dans la même écriture) et de la
+            // forme « NIM-compteur » : une valeur quelconque ne remplace jamais une démonstration.
+            $devientReel = $facture->normalisation_statut === 'normalisee'
+                && in_array('normalisation_statut', $champsModifies, true)
+                && preg_match('/^[A-Za-z0-9]+-[0-9]+$/', (string) $facture->numero_mecef) === 1;
+
+            if (! ($etaitDemo && $devientReel)) {
+                throw new FactureImmuableException($facture->id, ['numero_mecef']);
+            }
         }
     }
 

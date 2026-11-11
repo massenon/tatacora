@@ -27,7 +27,7 @@ use Livewire\Attributes\Url;
  *   maitre-refuse:aide-a-propos.html#alertes
  *   maitre-refuse:aide-a-propos.html#modeles-import
  */
-#[Title('Aide & À propos — TATACORA AFRIQUE')]
+#[Title('Aide & À propos — LogiReStock — TATACORA AFRIQUE')]
 class AideAPropos extends PageTransverse
 {
     public const MODULES = [
@@ -98,7 +98,7 @@ class AideAPropos extends PageTransverse
             'cartes' => $cartes,
             'accessibles' => count(array_filter($cartes, static fn (array $c): bool => $c['niveau'] !== '-')),
             'faq' => $this->faq(),
-        ]))->layout('layouts.pwa', ['title' => 'Aide & À propos — TATACORA AFRIQUE']);
+        ]))->layout('layouts.pwa', ['title' => 'Aide & À propos — LogiReStock — TATACORA AFRIQUE']);
     }
 
     /** @return array<string, list<array{categorie: string, question: string, reponse: string}>> */

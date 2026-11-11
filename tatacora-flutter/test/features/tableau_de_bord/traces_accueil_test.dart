@@ -20,6 +20,7 @@ void main() {
   );
 
   const traces = {
+    'titre': TracesAccueil.titre,
     'actualiser': TracesAccueil.actualiser,
     'document': TracesAccueil.document,
     'alerte': TracesAccueil.alerte,
@@ -37,7 +38,7 @@ void main() {
   };
 
   test('chaque tracé figure TEL QUEL dans la vue, et se lit', () {
-    expect(traces, hasLength(14), reason: 'balayage non vide');
+    expect(traces, hasLength(15), reason: 'balayage non vide');
     for (final e in traces.entries) {
       expect(vue.contains(e.value), isTrue, reason: e.key);
       // Lisible par le peintre de la coquille : un tracé mal lu lève.

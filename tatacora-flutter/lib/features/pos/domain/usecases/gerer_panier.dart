@@ -1,3 +1,5 @@
+import '../../../hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
 import '../entities/article_vendable.dart';
 import '../entities/panier.dart';
 import '../repositories/panier_repository.dart';
@@ -104,6 +106,19 @@ final class GererPanier {
     int quantite,
   ) => _depot.modifierQuantite(panierId, ligneId, quantite);
 
+  /// Pose la remise du panier (type + valeur saisie) — voir
+  /// [PanierRepository.appliquerRemise].
+  Future<Panier> appliquerRemise(
+    String panierId,
+    TypeRemise type,
+    String valeurSaisie,
+  ) => _depot.appliquerRemise(panierId, type, valeurSaisie);
+
+  /// Pose la mention client du panier — voir
+  /// [PanierRepository.definirMentionClient].
+  Future<Panier> definirMentionClient(String panierId, String? saisie) =>
+      _depot.definirMentionClient(panierId, saisie);
+
   /// Diminue d'une unité, ou retire la ligne si elle tombe à zéro.
   ///
   /// Le geste du comptoir est « moins » ; à une unité, il vaut « retirer ».
@@ -137,6 +152,20 @@ final class GererPanier {
 
   Future<Panier> annuler(String panierId, String motif) =>
       _depot.annuler(panierId, motif);
+
+  /// « Abandonner » du comptoir — voir `PanierRepository.abandonner`.
+  Future<Panier> abandonner(String panierId) => _depot.abandonner(panierId);
+
+  /// « Vider » — retire toutes les lignes, le panier reste ouvert.
+  Future<Panier> vider(String panierId) => _depot.vider(panierId);
+
+  /// Annule une vente ENCAISSÉE — le geste du journal du jour et du détail
+  /// d'une vente (`VenteService::annuler`). Voir `PanierRepository.annulerVente`.
+  Future<Panier> annulerVente(
+    String panierId,
+    String motif, {
+    required String auteurId,
+  }) => _depot.annulerVente(panierId, motif, auteurId: auteurId);
 }
 
 /// Les indicateurs de l'en-tête du point de vente.

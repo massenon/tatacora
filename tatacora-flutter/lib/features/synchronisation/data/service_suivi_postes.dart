@@ -12,6 +12,10 @@ final class EtatPosteServeur {
     required this.demandeSuivie,
     this.appaire = false,
     this.jetonUtiliseLe,
+    this.appaireLe,
+    this.expireLe,
+    this.dernierControle,
+    this.etat = EtatAppairage.nonAppaire,
   });
 
   final String posteId;
@@ -24,6 +28,36 @@ final class EtatPosteServeur {
   /// Un jeton du nom de ce poste existe au serveur (19/10/2026).
   final bool appaire;
   final DateTime? jetonUtiliseLe;
+
+  /// « Postes & Appairage » (21/10/2026) : le premier jeton, l'expiration du
+  /// plus durable (`null` = sans expiration), le dernier passage sur le
+  /// contrôle de cohérence, et l'état dit par le serveur.
+  final DateTime? appaireLe;
+  final DateTime? expireLe;
+  final DateTime? dernierControle;
+  final EtatAppairage etat;
+}
+
+/// L'état d'appairage d'un poste, tel que le serveur le calcule
+/// (`SuiviPostesService::etats()`) : registre fermé.
+enum EtatAppairage {
+  actif('actif'),
+  silencieux('silencieux'),
+  expire('expire'),
+  nonAppaire('non_appaire');
+
+  const EtatAppairage(this.code);
+
+  final String code;
+
+  /// Un code inconnu se lit « non appairé » : on n'affirme jamais « actif » sur
+  /// ce qu'on ne reconnaît pas.
+  static EtatAppairage depuisCode(Object? code) {
+    for (final e in values) {
+      if (e.code == code) return e;
+    }
+    return nonAppaire;
+  }
 }
 
 /// L'état des postes et la dernière demande, ou la raison de leur absence.
@@ -71,10 +105,16 @@ class ServiceSuiviPostes {
   static const String horsReseau =
       'Le serveur ne répond pas : l’état des postes et la demande de '
       'synchronisation exigent une connexion au serveur.';
+  static const String desactivee =
+      'La synchronisation est désactivée sur ce poste : aucune connexion au '
+      'serveur n’est tentée. Activez-la pour lire l’état des postes.';
   static const String nonAppaire =
       'Ce poste n’est pas appairé à un serveur : rien à lire ni à demander.';
 
   Future<IssueSuiviPostes> lire() async {
+    if (!await _lecteur.synchronisationActivee()) {
+      return const SuiviPostesIndisponible(desactivee);
+    }
     final appairage = await _appairage();
     if (appairage == null) return const SuiviPostesIndisponible(nonAppaire);
     final issue = await _transport.get(
@@ -99,6 +139,10 @@ class ServiceSuiviPostes {
               demandeSuivie: p['demande_suivie'] == true,
               appaire: p['appaire'] == true,
               jetonUtiliseLe: _date(p['jeton_utilise_le']),
+              appaireLe: _date(p['appaire_le']),
+              expireLe: _date(p['expire_le']),
+              dernierControle: _date(p['dernier_controle']),
+              etat: EtatAppairage.depuisCode(p['etat']),
             ),
       ],
     );
@@ -107,6 +151,7 @@ class ServiceSuiviPostes {
   /// Enregistre la demande au serveur ; rend son heure, ou `null` hors
   /// réseau.
   Future<DateTime?> demander() async {
+    if (!await _lecteur.synchronisationActivee()) return null;
     final appairage = await _appairage();
     if (appairage == null) return null;
     final issue = await _transport.post(
@@ -121,6 +166,7 @@ class ServiceSuiviPostes {
   /// ses jetons sont supprimés au serveur, le poste révoqué reçoit 401 et
   /// garde sa file intacte. Rend la phrase à dire.
   Future<String> revoquer(String posteId) async {
+    if (!await _lecteur.synchronisationActivee()) return desactivee;
     final appairage = await _appairage();
     if (appairage == null) return nonAppaire;
     final issue = await _transport.post(

@@ -38,7 +38,7 @@ final class SynchroniserRequest extends FormRequest
             // metier : les confondre casserait l'idempotence (§2.1).
             'operations.*.uuid_operation' => ['required', 'uuid'],
             'operations.*.table' => ['required', 'string'],
-            'operations.*.type' => ['required', Rule::in(['creation', 'modification'])],
+            'operations.*.type' => ['required', Rule::in(['creation', 'modification', 'suppression'])],
             'operations.*.entite_id' => ['required', 'uuid'],
             'operations.*.payload' => ['required', 'array'],
 

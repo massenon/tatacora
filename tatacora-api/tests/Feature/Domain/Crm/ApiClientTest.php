@@ -58,8 +58,13 @@ final class ApiClientTest extends TestCase
             ->assertJsonPath('data.nom_complet', 'Awa KORA');
 
         $this->assertStringContainsString(
+            'Une fiche existante pourrait correspondre',
+            (string) $reponse->json('meta.avertissement_doublon'),
+        );
+        $this->assertStringNotContainsString(
             'RG-18',
             (string) $reponse->json('meta.avertissement_doublon'),
+            'un code interne n\'a pas sa place dans un message affiché',
         );
         $this->assertSame(2, Client::count());
     }
@@ -185,7 +190,7 @@ final class ApiClientTest extends TestCase
     #[Test]
     public function rg16_un_comptable_consulte_mais_ne_cree_pas(): void
     {
-        Sanctum::actingAs($this->utilisateur('comptable'));
+        Sanctum::actingAs($this->utilisateur('lecteur'));
 
         $this->getJson('/api/v1/crm/clients')->assertOk();
 

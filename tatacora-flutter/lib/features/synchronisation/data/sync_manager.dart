@@ -1,15 +1,23 @@
 import 'dart:convert';
 
+import '../../comptabilite/data/immobilisations_dao.dart';
 import '../../facturation/data/facture_dao.dart';
+import '../../facturation/data/proforma_dao.dart';
+import '../../pos/data/panier_dao.dart';
 import '../../rh/data/employe_dao.dart';
 import '../../rh/data/paie_dao.dart';
 import '../../transverse/data/configuration_poste.dart';
+import '../../hebergement/data/reservation_dao.dart';
+import '../../vehicules/data/vehicule_dao.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
 import '../domain/operation_sync.dart';
 import 'descente_catalogue.dart';
 import 'descente_catalogue_dao.dart';
+import 'envoi_recus_depenses.dart';
+import 'telechargement_images_document.dart';
 import 'operations_sync_dao.dart';
+import 'relance_anciens_refus.dart';
 import 'transport_synchronisation.dart';
 
 /// Le MOTEUR D'ENVOI de la file (lot F2a, 15/10/2026) — `POST /api/v1/sync`.
@@ -47,7 +55,13 @@ import 'transport_synchronisation.dart';
 ///  * tout autre 4xx → les opérations du lot sont `rejete` avec ce code, état
 ///    [EtatSynchronisation.alerte], arrêt ;
 ///  * 200 → chaque résultat est consigné tel quel
-///    ([OperationsSyncDao.marquerResultat]).
+///    ([OperationsSyncDao.marquerResultat]) — sauf un rejet que le serveur dit
+///    DIFFÉRÉ (`dependance_manquante` : l'élément cité n'est pas encore connu ;
+///    `erreur_serveur` : erreur imprévue sur CETTE opération) : l'opération
+///    redevient `en_attente` avec un repli et ne bloque RIEN d'autre, ni le lot
+///    ni la file (décision du PO du 09/11/2026), jusqu'à [maxTentativesDifferees]
+///    essais, après quoi elle est rejetée lisiblement (« À traiter »,
+///    renvoyable par tous).
 ///
 /// Rien n'est jamais supprimé de la file.
 ///
@@ -78,6 +92,8 @@ class SyncManager {
     this.bail = const Duration(minutes: 5),
     this._surBilan,
     this._descente,
+    this._recus,
+    this._images,
   }) : _url = urlServeur,
        _lecteur = lecteur ?? LecteurConfigurationPoste(),
        _ecrivain = ecrivain ?? EcrivainConfigurationPoste(),
@@ -94,6 +110,16 @@ class SyncManager {
 
   /// La descente du catalogue (lot F2b) ; `null` : envoi seul.
   final DescenteCatalogue? _descente;
+
+  /// L'envoi des reçus de dépenses (lot L4, 27/10/2026) ; `null` : aucun reçu
+  /// ne part. Il suit l'envoi de la file (un reçu ne précède jamais sa dépense)
+  /// et précède la descente ; il passe par le MÊME interrupteur, la même
+  /// génération et les mêmes refus 401/403.
+  final EnvoiRecusDepenses? _recus;
+
+  /// La descente de la signature et du cachet des documents A4 (07/11/2026) ; `null` : aucune.
+  /// Après la descente du catalogue, jamais bloquante.
+  final TelechargementImagesDocument? _images;
 
   /// La taille d'un lot — 50, le plafond de `SynchroniserRequest`.
   final int tailleLot;
@@ -142,10 +168,14 @@ class SyncManager {
     try {
       final url = _url;
       if (_demonstration || url == null) return false;
+      // L'interrupteur éteint : aucune requête, pas même la lecture de la
+      // demande du serveur.
+      if (!await _lecteur.synchronisationActivee()) return false;
       final appairage = await _lecteur.appairage();
       if (appairage == null ||
           appairage.refus != null ||
-          _normaliser(appairage.serveur) != _normaliser(url)) {
+          (!await _lecteur.adresseServeurChoisie() &&
+              _normaliser(appairage.serveur) != _normaliser(url))) {
         return false;
       }
       if (await _etat.reinitialisationServeur() != null) return false;
@@ -168,20 +198,74 @@ class SyncManager {
       await _etat.retenirAnnoncesServeur(issue.entetes);
       final data = issue.corps?['data'];
       final demande = data is Map ? data['demandee_le'] : null;
-      if (demande is! String || demande == _demandeSuivie) return false;
-      _demandeSuivie = demande;
-      await _descente?.leverRepli();
-      await synchroniserMaintenant();
-      return true;
+      final epoque = data is Map && data['epoque'] is String
+          ? data['epoque'] as String
+          : null;
+      if (demande is String && demande != _demandeSuivie) {
+        _demandeSuivie = demande;
+        await _descente?.leverRepli();
+        await synchroniserMaintenant();
+        // Le passage complet vient de descendre tout ce que le serveur détenait :
+        // l'époque lue avec cette demande est vue (si l'envoi et la descente ont
+        // abouti, la prochaine variation sera une vraie nouveauté).
+        if (epoque != null) _epoqueVue = epoque;
+        return true;
+      }
+      return await _suivreEpoque(epoque);
     } on Object {
       return false;
     }
   }
 
-  Future<BilanSynchronisation> _executerSansLever() async {
+  /// La dernière ÉPOQUE du serveur dont ce poste a descendu les changements (en
+  /// mémoire : au redémarrage, la première lue déclenche une descente — « une de
+  /// plus, jamais une de moins », comme pour la demande).
+  String? _epoqueVue;
+
+  /// L'ÉPOQUE (décision du PO du 03/11/2026 : « les données envoyées par un poste
+  /// reviennent aux autres postes », sans WebSocket). Le serveur tient un compteur
+  /// de changements, incrémenté quand l'opération d'un poste est ACCEPTÉE, et le
+  /// rend dans la réponse du battement léger de 30 s. Différente de la dernière
+  /// époque vue, ce poste lance une DESCENTE — pas un envoi superflu, pas un
+  /// passage complet — puis ne retient l'époque QUE si la descente a abouti
+  /// (« à jour ») : un échec, un repli non échu ou une synchronisation déjà en
+  /// cours la laissent à rejouer au battement suivant.
+  ///
+  /// L'époque n'est jamais bloquante : absente de la réponse (serveur d'avant),
+  /// elle ne fait rien ; le poste fonctionne sans elle, et le cycle de 5 minutes
+  /// reste le filet. L'interrupteur, l'appairage, le refus et la génération ont
+  /// déjà été contrôlés par l'appelant. Le repli de la descente n'est PAS levé ici
+  /// (contrairement à une demande « Synchroniser » explicite) : un serveur en
+  /// difficulté n'est pas martelé toutes les 30 s.
+  Future<bool> _suivreEpoque(String? epoque) async {
+    if (epoque == null || epoque == _epoqueVue) return false;
+    if (_enCours != null) return false;
+    final bilan = await synchroniserDescenteSeule();
+    if (bilan.descente?.etat == EtatDescente.aJour) {
+      _epoqueVue = epoque;
+    }
+    return true;
+  }
+
+  /// Une DESCENTE seule — ni envoi de la file, ni reçus : les contrôles du passage
+  /// complet (interrupteur, appairage, refus, génération), puis la descente depuis
+  /// le curseur du poste. Même exclusion que [synchroniserMaintenant] : jamais deux
+  /// passages en même temps. Ne lève jamais.
+  Future<BilanSynchronisation> synchroniserDescenteSeule() {
+    final enCours = _enCours;
+    if (enCours != null) return enCours;
+    final nouveau = _executerSansLever(descenteSeule: true);
+    _enCours = nouveau;
+    nouveau.whenComplete(() => _enCours = null).ignore();
+    return nouveau;
+  }
+
+  Future<BilanSynchronisation> _executerSansLever({
+    bool descenteSeule = false,
+  }) async {
     BilanSynchronisation bilan;
     try {
-      bilan = await _executer();
+      bilan = await _executer(descenteSeule: descenteSeule);
     } on Object catch (e) {
       // Une base fermée pendant l'arrêt, un fichier verrouillé : rien ne
       // remonte jusqu'à un geste. Les opérations réclamées retrouveront la
@@ -199,12 +283,18 @@ class SyncManager {
     return bilan;
   }
 
-  Future<BilanSynchronisation> _executer() async {
+  Future<BilanSynchronisation> _executer({bool descenteSeule = false}) async {
     final url = _url;
     if (_demonstration || url == null) {
       return const BilanSynchronisation(
         etat: EtatSynchronisation.demonstration,
       );
+    }
+    // L'INTERRUPTEUR « Synchronisation activée » (Paramètres du poste), relu
+    // à chaque passage : éteint, ni l'envoi, ni la descente du catalogue ne
+    // touchent le réseau. La file, elle, continue de se remplir.
+    if (!await _lecteur.synchronisationActivee()) {
+      return const BilanSynchronisation(etat: EtatSynchronisation.desactivee);
     }
     final appairage = await _lecteur.appairage();
     if (appairage == null) {
@@ -219,7 +309,10 @@ class SyncManager {
         codeHttp: refus.codeHttp,
       );
     }
-    if (_normaliser(appairage.serveur) != _normaliser(url)) {
+    // Une adresse CHOISIE à l'écran (29/10/2026) est le choix de l'opérateur :
+    // la garde ne vaut que pour un appairage recopié d'un autre build.
+    if (!await _lecteur.adresseServeurChoisie() &&
+        _normaliser(appairage.serveur) != _normaliser(url)) {
       return const BilanSynchronisation(etat: EtatSynchronisation.autreServeur);
     }
     // Le serveur a été réinitialisé depuis (19/10/2026) : aucune requête
@@ -231,8 +324,72 @@ class SyncManager {
       );
     }
 
-    await _dao.libererBauxExpires();
-    final envoi = await _envoyerFile(appairage);
+    // Une descente SEULE (l'époque du serveur a changé) ne touche ni aux baux ni à
+    // la file : le passage complet, lui, envoie d'abord.
+    if (!descenteSeule) await _dao.libererBauxExpires();
+    // Les badges de réservation d'aplomb avec la file, et le rattrapage des lignes
+    // modifiées par une version qui n'enfilait que le déplacement (jamais bloquant).
+    if (!descenteSeule) {
+      try {
+        // Les annulations refusées avant le 09/11/2026 par l'ancienne règle « document d'un autre
+        // poste » (ventes, factures, paiements, règlements fournisseur) repartent d'elles-mêmes ;
+        // les réservations sont reprises par `reconcilierTout`.
+        await RelanceDesAnciensRefus(_dao.attachedDatabase).relancer(
+          tables: {
+            TableSynchronisee.ventes,
+            TableSynchronisee.factures,
+            TableSynchronisee.paiements,
+            TableSynchronisee.reglementsFournisseur,
+          },
+        );
+      } on Object {
+        // Jamais bloquant : la file passe d'abord.
+      }
+      try {
+        await ReservationDao(_dao.attachedDatabase).reconcilierTout();
+      } on Object {
+        // Un badge de travers ne doit pas empêcher l'envoi : la file passe d'abord.
+      }
+    }
+    var envoi = descenteSeule
+        ? const BilanSynchronisation(etat: EtatSynchronisation.termine)
+        : await _envoyerFile(appairage);
+
+    // Les REÇUS en image des dépenses acceptées (lot L4) : après la file, avant
+    // la descente. Un refus du jeton ou du poste vaut pour tout le passage.
+    final recus = descenteSeule ? null : _recus;
+    if (recus != null &&
+        (envoi.etat == EtatSynchronisation.termine ||
+            envoi.etat == EtatSynchronisation.alerte)) {
+      final bilanRecus = await recus.envoyer(
+        appairage,
+        generation: await _etat.generation(),
+      );
+      switch (bilanRecus.arret) {
+        case ArretEnvoiRecus.jetonRefuse:
+          await _consignerRefus(401);
+          return envoi.copierAvec(
+            etat: EtatSynchronisation.jetonRefuse,
+            codeHttp: 401,
+          );
+        case ArretEnvoiRecus.posteNonReconnu:
+          await _consignerRefus(403);
+          return envoi.copierAvec(
+            etat: EtatSynchronisation.posteNonReconnu,
+            codeHttp: 403,
+          );
+        case ArretEnvoiRecus.serveurReinitialise:
+          await _etat.consignerReinitialisationServeur(
+            bilanRecus.reinitialiseLe ?? _maintenant(),
+          );
+          return envoi.copierAvec(
+            etat: EtatSynchronisation.serveurReinitialise,
+            codeHttp: 409,
+          );
+        case ArretEnvoiRecus.serveurIndisponible || null:
+          break;
+      }
+    }
 
     final descente = _descente;
     if (descente == null ||
@@ -261,6 +418,19 @@ class SyncManager {
         codeHttp: bilanDescente.codeHttp,
         descente: bilanDescente,
       );
+    }
+    final images = _images;
+    if (images != null) {
+      try {
+        await images.rafraichir(
+          serveur: appairage.serveur,
+          posteId: appairage.posteId,
+          jeton: appairage.jetonApi,
+          generation: await _etat.generation(),
+        );
+      } on Object {
+        // Jamais bloquant : les images actuelles restent, le prochain passage reprend.
+      }
     }
     return envoi.copierAvec(descente: bilanDescente);
   }
@@ -477,6 +647,38 @@ class SyncManager {
     Set<String> lot = const {},
   }) async {
     final statut = resultat['statut'];
+    if (statut == 'rejete' && estRejetDiffere(resultat, o.tentatives)) {
+      // L'opération n'est PAS refusée : elle attend. Les opérations suivantes du même
+      // élément, pas encore parties, attendent derrière elle (même ordre qu'un rejet,
+      // sans blocage) ; tout le reste de la file et du lot passe.
+      final suivantes = [
+        for (final s in c.reclames)
+          if (s.seq > o.seq &&
+              s.table == o.table &&
+              s.entiteId == o.entiteId &&
+              !c.traites.contains(s.uuidOperation) &&
+              !lot.contains(s.uuidOperation))
+            s.uuidOperation,
+      ];
+      await _dao.rendreEnAttente(suivantes);
+      c.traites.addAll(suivantes);
+      final motif = resultat['motif'];
+      final delai = delaiDeRepli(o.tentatives);
+      await _dao.marquerEchecTransitoire(
+        o.uuidOperation,
+        erreur: motif is String ? motif : 'Opération différée par le serveur.',
+        codeHttp: codeHttp,
+        delai: delai,
+      );
+      final echeance = _maintenant().add(delai);
+      final prochaine = c.prochaineTentative;
+      if (prochaine == null || echeance.isBefore(prochaine)) {
+        c.prochaineTentative = echeance;
+      }
+      c.traites.add(o.uuidOperation);
+      c.differees++;
+      return;
+    }
     if (statut == 'rejete') {
       final suivantes = [
         for (final s in c.reclames)
@@ -498,6 +700,15 @@ class SyncManager {
     if (statut == 'synchronise' && o.table == TableSynchronisee.factures) {
       await _regulariserFacture(o, resultat);
     }
+    // 09/11/2026 : le BADGE d'une réservation dit la vérité de la file — « Synchronisée »
+    // à l'accusé (plus aucune opération de cette ligne en attente), « Refusée » au rejet
+    // (motif du serveur). Avant, rien ne le posait en production : la ligne restait « En
+    // attente d'envoi » à vie.
+    if (o.table == TableSynchronisee.reservations) {
+      await ReservationDao(
+        _dao.attachedDatabase,
+      ).reconcilierStatutSync(o.entiteId);
+    }
     // Audit de couverture (18/10/2026) : le matricule et le numéro de
     // bulletin attribués par le serveur remplacent ceux du poste.
     final matricule = resultat['matricule'];
@@ -507,6 +718,54 @@ class SyncManager {
       await EmployeDao(
         _dao.attachedDatabase,
       ).regulariserMatricule(o.entiteId, matricule);
+    }
+    // 21/10/2026 : le code `IMMO-AAAA-NNNNN` du serveur remplace celui du poste.
+    final codeImmobilisation = resultat['code'];
+    if (statut == 'synchronise' &&
+        o.table == TableSynchronisee.immobilisations &&
+        resultat['fusionne_avec'] == null &&
+        codeImmobilisation is String) {
+      await ImmobilisationsDao(
+        _dao.attachedDatabase,
+      ).regulariserCode(o.entiteId, codeImmobilisation);
+    }
+    // 26/10/2026 : le numéro `V-` de la vente est celui du serveur (séquence
+    // continue) — il ne se pose qu'à l'accusé, le poste n'en invente aucun.
+    final numeroVente = resultat['numero'];
+    if (statut == 'synchronise' &&
+        o.table == TableSynchronisee.ventes &&
+        o.type == TypeOperationSync.creation &&
+        numeroVente is String) {
+      await PanierDao(
+        _dao.attachedDatabase,
+      ).regulariserNumeroVente(o.entiteId, numeroVente);
+    }
+    // 27/10/2026 (v41) : le N° `LOC-…` du contrat est celui du serveur (séquence
+    // continue) — posé à l'accusé de la création, jamais inventé ici.
+    final numeroContrat = resultat['numero'];
+    if (statut == 'synchronise' &&
+        o.table == TableSynchronisee.contratsLocation &&
+        o.type == TypeOperationSync.creation &&
+        resultat['fusionne_avec'] == null &&
+        numeroContrat is String) {
+      await VehiculeDao(
+        _dao.attachedDatabase,
+      ).regulariserNumero(o.entiteId, numeroContrat);
+    }
+    // 07/11/2026 : le numéro `N°0045 FP-GCN/2026` d'une proforma est celui du serveur (séquence
+    // continue par année), rendu à l'émission (création OU modification) : il remplace le
+    // provisoire `PROV-FP-…`. Un doublon définitif est une incohérence : la descente reprend.
+    final numeroProforma = resultat['numero'];
+    if (statut == 'synchronise' &&
+        o.table == TableSynchronisee.proformas &&
+        numeroProforma is String) {
+      try {
+        await ProformaDao(
+          _dao.attachedDatabase,
+        ).regulariserNumero(o.entiteId, numeroProforma);
+      } on StateError {
+        // Voir la doc de `regulariserNumero` : la descente de la proforma reprend.
+      }
     }
     final numeroBulletin = resultat['numero'];
     if (statut == 'synchronise' &&
@@ -540,8 +799,20 @@ class SyncManager {
   ) async {
     final numero = resultat['numero'];
     final numeroAvoir = resultat['numero_avoir'];
+    // Un avoir PARTIEL est né sous l'identifiant du poste : son numéro se pose
+    // sur CET avoir (pas sur « le premier avoir » de la facture).
+    final avoirId = resultat['avoir_id'];
+    final factures = FactureDao(_dao.attachedDatabase);
     try {
-      await FactureDao(_dao.attachedDatabase).regulariserNumeros(
+      if (avoirId is String && numeroAvoir is String) {
+        await factures.regulariserNumeros(
+          o.entiteId,
+          numero: numero is String ? numero : null,
+        );
+        await factures.regulariserAvoir(avoirId, numeroAvoir);
+        return;
+      }
+      await factures.regulariserNumeros(
         o.entiteId,
         numero: numero is String ? numero : null,
         numeroAvoir: numeroAvoir is String ? numeroAvoir : null,
@@ -656,6 +927,10 @@ final class _Contexte {
   int synchronisees = 0;
   int rejetees = 0;
   int conflits = 0;
+
+  /// Les opérations que le serveur a DIFFÉRÉES (dépendance pas encore reçue, erreur
+  /// imprévue sur elles) : remises en file avec un repli, jamais rejetées.
+  int differees = 0;
   DateTime? prochaineTentative;
 
   /// Le lot réclamé en cours.
@@ -681,6 +956,7 @@ final class _Contexte {
     synchronisees: synchronisees,
     rejetees: rejetees,
     conflits: conflits,
+    differees: differees,
     codeHttp: codeHttp,
     detail: detail,
     prochaineTentative: prochaineTentative,

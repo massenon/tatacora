@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/crm/clients-creances.blade.php
 /// Les mots de l'encaissement de facture — ceux de `lang/fr/facturation.php`
 /// (`encaissement_*`, `paiement_*`), de `lang/fr/pwa.php` (`clients.*`) et de
 /// `lang/fr/validation.php`, RELUS par PHP dans
@@ -57,7 +58,7 @@ abstract final class MessagesEncaissement {
   /// `auth.module_refuse` — le serveur répond 403 avant toute validation, et le
   /// droit exigé est celui de DEUX modules : M3 (l'écran) puis M2 (l'écriture
   /// d'un encaissement de facture).
-  static const String refusDroit = 'Vous n avez pas acces a ce module.';
+  static const String refusDroit = "Vous n'avez pas accès à ce module.";
 
   /// `pwa.clients.recouvrement_aucune_creance`.
   static const String aucuneCreance = 'Ce client n\'a aucune créance en cours.';
@@ -135,8 +136,8 @@ abstract final class MessagesEncaissement {
   /// L'auteur est inconnu : `Auth::id()` n'est jamais nul au serveur (la route
   /// est authentifiée). Même phrase que l'ouverture de caisse.
   static const String auteurInconnu =
-      'L\'auteur est inconnu : aucun encaissement n\'est enregistré, et un '
-      'encaissement sans nom de qui l\'a reçu romprait RG-15.';
+      'L\'auteur est inconnu : aucun encaissement n\'est enregistré, car '
+      'chaque encaissement doit nommer qui l\'a reçu.';
 
   /// Le serveur ne contrôle pas qu'un encaissement annulé existe avant de
   /// l'annuler (le modèle est déjà chargé) ; ici l'identifiant peut être inconnu.

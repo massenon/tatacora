@@ -131,6 +131,22 @@
             {
                 "type": "td",
                 "texte": "Aucune vente ne correspond à ces critères."
+            },
+            {
+                "type": "p",
+                "texte": "Affichage de sur"
+            },
+            {
+                "type": "button",
+                "texte": "← Précédent"
+            },
+            {
+                "type": "span",
+                "texte": "Page 1 / 1"
+            },
+            {
+                "type": "button",
+                "texte": "Suivant →"
             }
         ]
     }

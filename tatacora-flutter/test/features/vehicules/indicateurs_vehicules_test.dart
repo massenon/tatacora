@@ -257,39 +257,88 @@ void main() {
       expect(k.tauxOccupation, isNull);
     });
 
-    test(
-      'les annulations et le reste à encaisser sont TOUJOURS null (PA-50)',
-      () {
-        // Ce n'est pas « il n'y en a pas » : c'est « la colonne n'existe pas ».
-        // `contrats_location_local` n'a ni statut ni acompte. Un « 0 » ici
-        // annoncerait « aucune annulation » et « tout est soldé » — deux bonnes
-        // nouvelles que personne n'a vérifiées, sur l'écran où l'on décide de
-        // relancer un client.
-        final k = calculerIndicateurs(
-          parc: parc,
-          contrats: contrats,
-          debut: '2026-08-01',
-          fin: '2026-08-31',
-          joursPeriode: 30,
-        );
+    test('le reste à encaisser est TOUJOURS null : aucune colonne d’acompte', () {
+      // Ce n'est pas « il n'y en a pas » : c'est « la colonne n'existe pas ».
+      // `contrats_location_local` n'a pas d'acompte. Un « 0 » ici annoncerait
+      // « tout est soldé » — une bonne nouvelle que personne n'a vérifiée, sur
+      // l'écran où l'on décide de relancer un client.
+      final k = calculerIndicateurs(
+        parc: parc,
+        contrats: contrats,
+        debut: '2026-08-01',
+        fin: '2026-08-31',
+        joursPeriode: 30,
+      );
 
-        expect(k.contratsAnnules, isNull);
-        expect(k.resteAEncaisser, isNull);
+      expect(k.resteAEncaisser, isNull);
+      expect(
+        IndicateursVehicules.raisons['reste_a_encaisser'],
+        contains('acompte'),
+      );
+      // Les annulations, elles, existent depuis la v38 : plus de raison d'absence.
+      expect(IndicateursVehicules.raisons, isNot(contains('contrats_annules')));
+    });
 
-        // Et les deux raisons sont écrites quelque part, à un seul endroit :
-        // la carte les lit, elle ne réécrit pas la phrase.
-        // La raison est dite en clair, sans référence interne (consigne du
-        // PO, 14/10/2026).
-        expect(
-          IndicateursVehicules.raisons['contrats_annules'],
-          allOf(contains('ne peut pas être annulé'), isNot(contains('PA-50'))),
-        );
-        expect(
-          IndicateursVehicules.raisons['reste_a_encaisser'],
-          contains('acompte'),
-        );
-      },
-    );
+    group('les contrats ANNULÉS (v38) — la formule de la vue', () {
+      // `ParcVehiculeService::agregerContratsActifs` : « actif » = statut !==
+      // 'annule' ; nombre, jours loués ET chiffre d'affaires ne comptent que les
+      // actifs. `contratsAnnules` = contrats de l'ENSEMBLE FILTRÉ - actifs.
+      ContratLocation avecStatut(String id, String? statut, String montant) =>
+          ContratLocation(
+            id: id,
+            immatriculation: 'AB-1-BJ',
+            clientId: 'cli-1',
+            debut: '2026-08-10',
+            fin: '2026-08-12',
+            nombreJours: 2,
+            montant: montant,
+            packageAvecGuide: false,
+            statut: statut,
+          );
+
+      final jeu = [
+        avecStatut('a', 'actif', '50000.00'),
+        avecStatut('b', null, '30000.00'),
+        avecStatut('c', 'annule', '70000.00'),
+      ];
+
+      IndicateursVehicules calcul(String statut) => calculerIndicateurs(
+        parc: parc,
+        contrats: jeu,
+        debut: '2026-08-01',
+        fin: '2026-08-31',
+        joursPeriode: 30,
+        statut: statut,
+      );
+
+      test(
+        '« Tous » : le contrat annulé est compté ANNULÉ et rien d’autre',
+        () {
+          final k = calcul('');
+          expect(k.contratsSurPeriode, 2);
+          expect(k.contratsAnnules, 1);
+          expect(k.chiffreAffaires, '80000.00');
+          expect(k.joursLoues, 4);
+        },
+      );
+
+      test('le filtre par défaut « Contrats actifs » dit 0 annulé(s), comme '
+          'la vue', () {
+        final k = calcul('actif');
+        expect(k.contratsSurPeriode, 2);
+        expect(k.contratsAnnules, 0);
+        expect(k.chiffreAffaires, '80000.00');
+      });
+
+      test('« Annulés » : aucun actif, un annulé, rien dans le chiffre', () {
+        final k = calcul('annule');
+        expect(k.contratsSurPeriode, 0);
+        expect(k.contratsAnnules, 1);
+        expect(k.chiffreAffaires, '0.00');
+        expect(k.joursLoues, 0);
+        expect(k.tauxOccupation, 0);
+      });
+    });
   });
 
   /* ================================================================== */

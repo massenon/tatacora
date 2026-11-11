@@ -91,16 +91,6 @@
   </div>
 @endif
 
-{{-- L'encadré gris du maître (l.148-152), mot pour mot. --}}
-<div class="rounded-xl p-3.5 mb-4" style="background:#F8FAFC;border:1px solid #E2E8F0">
-  <p class="text-[13px]" style="color:#334155">
-    <strong>Deux traitements que la lecture littérale du plan manquerait :</strong>
-    <strong>amortissements et dépréciations en soustraction de l'actif</strong> (présentation brut / amort. / net),
-    et <strong>reclassement des classes 4 et 5 selon le sens réel du solde</strong> — un compte 521 créditeur est un découvert,
-    donc une trésorerie-passif, pas un actif négatif.
-  </p>
-</div>
-
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
   <div>
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-3">
@@ -159,6 +149,19 @@
                   <td class="px-3 py-2 text-right text-slate-500">{{ MontantFcfa::formatOuTiret($netsPrecedents[$poste->section.'|'.$poste->code] ?? '0.00') }}</td>
                 @endif
               </tr>
+              @if ($poste->code === 'passif_circulant')
+                {{-- Le compte 465 (associés, dividendes à payer) est une dette du
+                     passif circulant, « autres dettes » : son montant est DÉJÀ dans
+                     la ligne ci-dessus, ce « dont » ne s'additionne pas. --}}
+                <tr class="border-t border-slate-100">
+                  <td class="px-3 py-1.5"></td>
+                  <td class="px-3 py-1.5 text-left text-[12px] text-slate-500">{{ __('comptabilite_pwa.bilan_dont_dividendes_a_payer') }}</td>
+                  <td class="px-3 py-1.5 text-right text-[12px] text-slate-500">{{ MontantFcfa::formatOuTiret($bilan->dividendesAPayer) }}</td>
+                  @if ($bilanPrecedent !== null)
+                    <td class="px-3 py-1.5 text-right text-[12px] text-slate-500">{{ MontantFcfa::formatOuTiret($bilanPrecedent->dividendesAPayer) }}</td>
+                  @endif
+                </tr>
+              @endif
             @endforeach
             <tr style="{{ $styleSoldeFinal }}">
               <td class="px-3 py-2.5" colspan="2">TOTAL PASSIF</td>

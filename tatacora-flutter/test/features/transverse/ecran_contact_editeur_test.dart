@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart';
@@ -8,16 +9,21 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/parametres/data/parametres_dao.dart';
+import 'package:tatacora_flutter/features/transverse/data/captures_editeur.dart';
 import 'package:tatacora_flutter/features/transverse/data/configuration_poste.dart';
 import 'package:tatacora_flutter/features/transverse/data/envoi_messages_editeur.dart';
 import 'package:tatacora_flutter/features/transverse/data/messages_editeur_dao.dart';
 import 'package:tatacora_flutter/features/transverse/domain/messages_editeur.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_contact_editeur.dart';
+import 'package:tatacora_flutter/features/transverse/presentation/widgets/modales_contact_editeur.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/providers_contact_editeur.dart';
+
+import '../../support/selecteur_essai.dart';
 
 /// Un `poste.json` lu sans entrée-sortie réelle (le temps d'un test de widget
 /// est simulé) — le cas « fichier absent » passe, lui, par le vrai lecteur.
@@ -78,6 +84,7 @@ void main() {
   Future<void> monter(
     WidgetTester tester, {
     LecteurConfigurationPoste? configuration,
+    FichierLu? capture,
   }) async {
     tester.view
       ..physicalSize = const Size(1600, 2400)
@@ -87,6 +94,11 @@ void main() {
       dao: MessagesEditeurDao(db),
       parametres: ParametresDao(db),
       configuration: configuration ?? _MotDePasseConnu(),
+      // Un dossier sans capture, sans entrée-sortie asynchrone : le temps d'un
+      // test de widget est simulé.
+      captures: CapturesEditeur(
+        cheminConfiguration: () async => '/inexistant/poste.json',
+      ),
       transport: transport,
       maintenant: () => DateTime(2026, 10, 15, 9, 30),
       envoiAutorise: true,
@@ -96,6 +108,9 @@ void main() {
         overrides: [
           baseLocaleProvider.overrideWithValue(db),
           serviceMessagesEditeurProvider.overrideWithValue(service),
+          selecteurFichiersProvider.overrideWithValue(
+            SelecteurEssai(lu: capture),
+          ),
           sessionProvider.overrideWithBuild(
             (ref, notifier) => Session(
               utilisateurId: 'u1',
@@ -192,6 +207,50 @@ void main() {
       courriels.single.subject,
       objetCourrielEditeur(sujetBug(modulesContactEditeur[1])),
     );
+  });
+
+  testWidgets('capture d’écran : le champ de la vue, sa consigne, le nom '
+      'choisi', (tester) async {
+    await monter(
+      tester,
+      capture: FichierLu(
+        nom: 'ecran.png',
+        octets: Uint8List.fromList([1, 2, 3]),
+      ),
+    );
+    await tester.tap(cle('contact-signaler-bug'));
+    await tester.pumpAndSettle();
+    expect(find.text(TextesModalesContact.bugCapture), findsOneWidget);
+    expect(find.text(TextesModalesContact.bugCaptureInvite), findsOneWidget);
+    expect(
+      texte(tester, 'contact-capture-nom'),
+      TextesModalesContact.captureAucune,
+    );
+    await tester.tap(cle('contact-capture-choisir'));
+    await tester.pumpAndSettle();
+    expect(texte(tester, 'contact-capture-nom'), 'ecran.png');
+  });
+
+  testWidgets('capture refusée : la phrase du serveur, rien n’est écrit', (
+    tester,
+  ) async {
+    await monter(
+      tester,
+      capture: FichierLu(nom: 'ecran.gif', octets: Uint8List.fromList([1])),
+    );
+    await tester.tap(cle('contact-signaler-bug'));
+    await tester.pumpAndSettle();
+    await tester.tap(cle('contact-capture-choisir'));
+    await tester.pumpAndSettle();
+    await tester.tap(cle('contact-saisie-module'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(modulesContactEditeur[1]).last);
+    await tester.pumpAndSettle();
+    await tester.enterText(cle('contact-saisie-corps'), 'Le total est faux');
+    await tester.tap(cle('contact-modale-envoyer'));
+    await tester.pumpAndSettle();
+    expect(texte(tester, 'contact-erreur-capture'), TextesCapture.nonImage);
+    expect(await boite(), isEmpty);
   });
 
   testWidgets('hors connexion : « enregistré, partira », la file compte 1 et '

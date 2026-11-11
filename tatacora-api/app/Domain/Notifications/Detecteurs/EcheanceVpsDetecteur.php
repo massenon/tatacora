@@ -7,6 +7,7 @@ namespace App\Domain\Notifications\Detecteurs;
 use App\Domain\Notifications\Contracts\DetecteurDeclencheurInterface;
 use App\Domain\Notifications\Support\MontantNotification;
 use App\Domain\Rh\Services\LivreDePaieService;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 
 /**
@@ -26,7 +27,7 @@ final class EcheanceVpsDetecteur implements DetecteurDeclencheurInterface
     }
 
     /**
-     * @return list<array{reference: string, destinataire: string, variables: array<string, string>}>
+     * @return list<array{reference: string, destinataire: string, email?: string|null, variables: array<string, string>}>
      */
     public function detecter(): array
     {
@@ -46,11 +47,29 @@ final class EcheanceVpsDetecteur implements DetecteurDeclencheurInterface
         return [[
             'reference' => 'vps-' . $periode,
             'destinataire' => 'Comptable',
+            // E-mail FACULTATIF du compte « comptable » (28/10/2026) : le premier compte ACTIF, par
+            // identifiant, qui a renseigné une adresse. Aucun : le message est composé mais ne part
+            // pas — jamais une erreur. Une occurrence = un seul destinataire (le message est unique
+            // par période).
+            'email' => $this->emailDuComptable(),
             'variables' => [
                 'periode' => $periode,
                 'montant' => MontantNotification::format($totaux['vps']),
                 'echeance' => $echeance,
             ],
         ]];
+    }
+
+    private function emailDuComptable(): ?string
+    {
+        $email = User::query()
+            ->where('statut', 'actif')
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->whereHas('role', static fn ($requete) => $requete->where('libelle', 'comptable'))
+            ->orderBy('login')
+            ->value('email');
+
+        return filled($email) ? (string) $email : null;
     }
 }

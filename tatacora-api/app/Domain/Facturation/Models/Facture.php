@@ -6,6 +6,7 @@ namespace App\Domain\Facturation\Models;
 
 use App\Domain\Crm\Models\Client;
 use App\Domain\Facturation\Observers\FactureObserver;
+use App\Domain\Facturation\Services\StatutNormalisation;
 use App\Domain\Numerotation\Services\SequenceDocumentService;
 use App\Shared\Audit\Traits\Auditable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -55,6 +56,21 @@ class Facture extends Model
         'montant_ttc',
         'statut',
         'qr_code_fiscal',
+        // Acheteur saisi pour CETTE facture (IFU 13 chiffres ou NULL, nom) — figé avec elle.
+        'acheteur_ifu',
+        'acheteur_nom',
+        // Facturation normalisée (07/11/2026) : le résultat de la normalisation.
+        'normalisation_statut',
+        'normalisation_motif',
+        'normalisation_mode',
+        'normalisation_compteur',
+        'code_mecef',
+        'normalisee_le',
+        'emecef_uid',
+        'emecef_uid_le',
+        'emecef_prochain_essai_le',
+        // Proforma convertie en cette facture (PO, 07/11/2026).
+        'proforma_id',
     ];
 
     protected function casts(): array
@@ -68,6 +84,9 @@ class Facture extends Model
             'montant_ttc' => 'decimal:2',
             'date_creation' => 'datetime',
             'date_modification' => 'datetime',
+            'normalisee_le' => 'datetime',
+            'emecef_uid_le' => 'datetime',
+            'emecef_prochain_essai_le' => 'datetime',
         ];
     }
 
@@ -107,6 +126,19 @@ class Facture extends Model
     }
 
     /**
+     * La facture est-elle RÉELLEMENT normalisée (boîtier ou e-MECeF) ? Le statut
+     * de normalisation ET un numéro fiscal qui n'est pas de démonstration : un
+     * indicateur se dérive de ce qui est en place, jamais d'une intention.
+     */
+    public function estNormalisee(): bool
+    {
+        return $this->normalisation_statut === StatutNormalisation::Normalisee->value
+            && filled($this->numero_mecef)
+            && ! $this->estCertificationDemonstration()
+            && filled($this->qr_code_fiscal);
+    }
+
+    /**
      * La facture porte-t-elle une certification fiscale RÉELLE ?
      *
      * **Ce prédicat rendait `true` en mode démonstration jusqu'au 20/08/2026**,
@@ -128,7 +160,19 @@ class Facture extends Model
      */
     public function estCertifiee(): bool
     {
-        return $this->estFigee() && ! $this->estCertificationDemonstration();
+        // Facture SIMPLE (mode désactivé, 07/11/2026) : figée, mais sans numéro MECeF
+        // — elle n'est PAS certifiée. Un numéro réel est exigé.
+        return $this->estFigee() && filled($this->numero_mecef) && ! $this->estCertificationDemonstration();
+    }
+
+    /**
+     * Facture SIMPLE : émise (figée), sans numéro MECeF ni QR — le résultat du mode
+     * « désactivé », ou d'une facture normalisable pas encore normalisée. Elle ne porte
+     * aucune valeur fiscale et ne l'affirme jamais.
+     */
+    public function estSimple(): bool
+    {
+        return ! $this->estNormalisee() && ! $this->estCertificationDemonstration();
     }
 
     /**

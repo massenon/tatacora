@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:tatacora_flutter/core/navigation/trace_svg.dart';
+import 'package:tatacora_flutter/core/navigation/traces_titres.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -174,6 +176,14 @@ void main() {
       await monter(tester);
 
       expect(find.text('Dépense courante'), findsOneWidget);
+      // L'icône du titre (tracé de la vue, directive du PO du 26/10/2026).
+      final icone = find.byKey(const Key('depenses-icone-titre'));
+      expect(icone, findsOneWidget);
+      expect(tester.widget<IconeTrace>(icone).trace, TraceIconesTitre.depenses);
+      expect(
+        tester.getTopLeft(icone).dx,
+        lessThan(tester.getTopLeft(find.text('Dépense courante')).dx),
+      );
       expect(find.byKey(const Key('depenses-nouvelle')), findsOneWidget);
       expect(find.text('Nouvelle Dépense'), findsOneWidget);
 
@@ -353,8 +363,8 @@ void main() {
     });
 
     testWidgets(
-      '« sans reçu » : l’infobulle dit que c’est vrai pour toutes les '
-      'lignes',
+      '« sans reçu » : une dépense qui ne porte aucun reçu, et son infobulle '
+      'le dit',
       (tester) async {
         await semer();
         await monter(tester);
@@ -366,13 +376,8 @@ void main() {
               .ancestor(of: pastille.first, matching: find.byType(Tooltip))
               .first,
         );
-        expect(
-          infobulle.message,
-          'Aucun reçu ne peut être joint sur ce poste : aucun sélecteur de '
-          'fichier n’est embarqué dans ce client. La pastille est donc vraie '
-          'pour toutes les lignes, ce n’est pas un état parmi deux.',
-        );
-        // Aucun lien « reçu » (aucun fichier joignable), et rien « non
+        expect(infobulle.message, 'Aucun reçu n’a été joint à cette dépense.');
+        // Aucun lien « reçu » (aucune de ces dépenses n'en porte), et rien « non
         // comptabilisée » : les deux dépenses semées ont leur pièce.
         expect(find.text('reçu'), findsNothing);
         expect(find.text('non comptabilisée'), findsNothing);
@@ -380,27 +385,29 @@ void main() {
       },
     );
 
-    testWidgets('le champ « Reçu / facture (photo) » dit pourquoi il est '
-        'absent', (tester) async {
-      await monter(tester);
-      await tester.tap(find.byKey(const Key('depenses-nouvelle')));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'le champ « Reçu / facture (photo) » existe : libellé de la '
+      'vue, bouton, aide de la vue + ce que fait le poste (400 Ko), aucun fichier choisi',
+      (tester) async {
+        await monter(tester);
+        await tester.tap(find.byKey(const Key('depenses-nouvelle')));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Reçu / facture (photo)'), findsOneWidget);
-      expect(
-        tester
-            .widget<Text>(
-              find.descendant(
-                of: find.byKey(const Key('depense-recu-absent')),
-                matching: find.byType(Text),
-              ),
-            )
-            .data,
-        'Aucun reçu ne peut être joint sur ce poste : ce client n\'embarque '
-        'pas de sélecteur de fichier. Conservez la pièce papier — la '
-        'dépense reste enregistrée sans elle.',
-      );
-    });
+        expect(find.text('Reçu / facture (photo)'), findsOneWidget);
+        expect(find.byKey(const Key('depense-recu-choisir')), findsOneWidget);
+        expect(
+          tester.widget<Text>(find.byKey(const Key('depense-recu-nom'))).data,
+          'Aucun fichier choisi',
+        );
+        expect(
+          tester.widget<Text>(find.byKey(const Key('depense-recu-aide'))).data,
+          'L\'image est réduite automatiquement avant enregistrement si elle pèse '
+          'plus de 400 Ko. Elle est rangée sur ce poste (JPG, PNG, GIF, BMP ou '
+          'WEBP), puis envoyée au serveur à la synchronisation.',
+        );
+        expect(find.byKey(const Key('depense-recu-absent')), findsNothing);
+      },
+    );
 
     testWidgets('le total de la modale tombe sous la TROISIÈME colonne, comme '
         'la vue', (tester) async {

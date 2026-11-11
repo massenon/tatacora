@@ -151,7 +151,9 @@ class _EcranApprovisionnementState
 
     final format = await choisirFormatExport(
       context,
-      titre: 'Exporter — ${liste.titre}',
+      // `achats_pwa.export.titre_appro` : la vue donne UN titre à la page, quel
+      // que soit l'onglet (le tableau exporté, lui, se nomme dans le fichier).
+      titre: 'Exporter — Approvisionnement',
       sousTitre: 'Le fichier porte sur ce qui est affiché, filtre compris.',
     );
     if (format == null || !context.mounted) return;
@@ -225,8 +227,7 @@ class _EnTete extends StatelessWidget {
                   children: const [
                     TextSpan(
                       text:
-                          'Commandes fournisseurs, réceptions et dettes — la '
-                          'réception génère l’entrée de stock, ',
+                          "Commandes fournisseurs, réceptions et dettes — la réception génère l'entrée de stock, ",
                     ),
                     TextSpan(
                       text: 'jamais une double saisie',
@@ -325,7 +326,7 @@ class _BandeIndicateurs extends ConsumerWidget {
         // commander ».
         valeur: kpis?.articlesSousSeuil?.toString(),
         raisonAbsence: kpis?.articlesSousSeuil == null
-            ? 'Le droit de consulter les stocks manque (M6).'
+            ? 'Le droit de consulter les stocks manque.'
             : null,
         accent: AppColors.erreur,
       ),
@@ -334,7 +335,7 @@ class _BandeIndicateurs extends ConsumerWidget {
         libelle: 'Commandes en attente',
         valeur: kpis?.commandesEnAttente?.toString(),
         raisonAbsence: kpis?.commandesEnAttente == null
-            ? 'Le droit de consulter les achats manque (M7).'
+            ? 'Le droit de consulter les achats manque.'
             : null,
       ),
       CarteKpiAchats(
@@ -342,7 +343,7 @@ class _BandeIndicateurs extends ConsumerWidget {
         libelle: 'Réceptions partielles',
         valeur: kpis?.receptionsPartielles?.toString(),
         raisonAbsence: kpis?.receptionsPartielles == null
-            ? 'Le droit de consulter les achats manque (M7).'
+            ? 'Le droit de consulter les achats manque.'
             : null,
         accent: AppColors.gold,
       ),
@@ -353,7 +354,7 @@ class _BandeIndicateurs extends ConsumerWidget {
         libelle: MessagesReglement.kpiAPayer,
         valeur: kpis?.fournisseursAPayer?.toString(),
         raisonAbsence: kpis?.fournisseursAPayer == null
-            ? 'Le droit de consulter les achats manque (M7).'
+            ? 'Le droit de consulter les achats manque.'
             : null,
         accent: (kpis?.fournisseursAPayer ?? 0) > 0
             ? PaletteMaitre.ambre600
@@ -366,7 +367,7 @@ class _BandeIndicateurs extends ConsumerWidget {
             ? null
             : formaterCentimesEnFcfa(kpis!.totalDuCentimes!),
         raisonAbsence: kpis?.totalDuCentimes == null
-            ? 'Le droit de consulter les achats manque (M7).'
+            ? 'Le droit de consulter les achats manque.'
             : null,
         accent: (kpis?.totalDuCentimes ?? 0) > 0
             ? PaletteMaitre.rouge600

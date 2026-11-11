@@ -25,6 +25,7 @@ import '../../../core/impression/export_etat_a4.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart';
 import '../../comptabilite/domain/refus_comptable.dart';
 import '../../comptabilite/presentation/providers_comptabilite.dart';
+import '../../synchronisation/presentation/providers_synchronisation.dart';
 import '../data/depense_dao.dart';
 import '../domain/categories_depense.dart';
 import '../domain/entities/depense.dart';
@@ -48,6 +49,8 @@ final depotDepensesProvider = Provider<DepensesRepository>(
   (ref) => DepenseDao(
     ref.watch(baseLocaleProvider),
     moteur: () => ref.read(moteurComptableProvider.future),
+    // Le rangement des reçus en image (lot L4) : hors de la base.
+    recus: ref.watch(recusDepensesLocauxProvider),
   ),
 );
 

@@ -67,15 +67,21 @@ List<List<String>> lireCsv(String contenu, {String separateur = ';'}) {
   return lignes;
 }
 
-/// Le séparateur d'un CSV : le point-virgule OU la virgule, celui des deux que
-/// la PREMIÈRE ligne emploie le plus — à égalité, le point-virgule
-/// (`ControleImportService::analyserCsv` du serveur).
+/// Le séparateur d'un CSV : le point-virgule, la virgule OU la tabulation,
+/// celui des trois que la première ligne non vide emploie le plus, hors
+/// guillemets — à égalité, dans cet ordre (`TableurService::separateurDe` du
+/// serveur).
 String separateurDe(String contenu) {
   var texte = contenu;
   if (texte.startsWith(bomUtf8)) texte = texte.substring(1);
-  final fin = texte.indexOf(RegExp('[\r\n]'));
-  final premiere = fin < 0 ? texte : texte.substring(0, fin);
-  final pointsVirgules = ';'.allMatches(premiere).length;
-  final virgules = ','.allMatches(premiere).length;
-  return pointsVirgules >= virgules ? ';' : ',';
+  for (final ligne in texte.split(RegExp('\r\n|\r|\n'))) {
+    if (ligne.trim().isEmpty) continue;
+    final hors = ligne.replaceAll(RegExp('"[^"]*"'), '');
+    final points = ';'.allMatches(hors).length;
+    final virgules = ','.allMatches(hors).length;
+    final tabs = '\t'.allMatches(hors).length;
+    if (points >= virgules && points >= tabs) return ';';
+    return virgules >= tabs ? ',' : '\t';
+  }
+  return ';';
 }

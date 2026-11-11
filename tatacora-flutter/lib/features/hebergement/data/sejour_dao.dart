@@ -130,6 +130,85 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
     ];
   }
 
+  /// Les séjours arrivés À ÉCHÉANCE — `AlertesOuverture::departsAEcheance()` :
+  /// arrivée réelle renseignée, départ réel absent, départ prévu AUJOURD'HUI ou
+  /// avant (comparé au JOUR), le plus ancien d'abord. Jointures INTERNES du
+  /// serveur : un séjour dont la réservation, le client ou l'unité a disparu
+  /// n'est pas listé. Un séjour déjà clos n'appelle aucune action.
+  Future<
+    List<
+      ({
+        String sejourId,
+        String reservationId,
+        DateTime dateDepart,
+        String? clientPrenom,
+        String clientNom,
+        String uniteNumero,
+      })
+    >
+  >
+  departsAEcheance(DateTime maintenant) async {
+    final demain = DateTime(
+      maintenant.year,
+      maintenant.month,
+      maintenant.day + 1,
+    );
+    final ouverts =
+        await (select(_sejours)..where(
+              (s) =>
+                  s.dateCheckinReel.isNotNull() & s.dateCheckoutReel.isNull(),
+            ))
+            .get();
+    if (ouverts.isEmpty) return const [];
+
+    final reservations = {
+      for (final r
+          in await (select(_reservations)..where(
+                (r) =>
+                    r.id.isIn(ouverts.map((s) => s.reservationId)) &
+                    r.dateDepart.isSmallerThanValue(demain),
+              ))
+              .get())
+        r.id: r,
+    };
+    final clients = {
+      for (final c
+          in await (select(attachedDatabase.clientsLocal)..where(
+                (c) => c.id.isIn(reservations.values.map((r) => r.clientId)),
+              ))
+              .get())
+        c.id: c,
+    };
+    final unites = {
+      for (final u
+          in await (select(_unites)..where(
+                (u) => u.id.isIn(reservations.values.map((r) => r.uniteId)),
+              ))
+              .get())
+        u.id: u,
+    };
+
+    final lignes =
+        [
+          for (final s in ouverts)
+            if (reservations[s.reservationId] case final r?)
+              if (clients[r.clientId] case final c?)
+                if (unites[r.uniteId] case final u?)
+                  (
+                    sejourId: s.id,
+                    reservationId: r.id,
+                    dateDepart: r.dateDepart,
+                    clientPrenom: c.prenom,
+                    clientNom: c.nom,
+                    uniteNumero: u.numero,
+                  ),
+        ]..sort((a, b) {
+          final parDate = a.dateDepart.compareTo(b.dateDepart);
+          return parDate != 0 ? parDate : a.sejourId.compareTo(b.sejourId);
+        });
+    return lignes;
+  }
+
   /// La réservation à pointer sur une UNITÉ — `Hebergement::reservationDuJour`
   /// du plan d'hébergement : même unité, non annulée, arrivée au plus
   /// aujourd'hui, départ après aujourd'hui, la plus ancienne arrivée d'abord.
@@ -144,7 +223,27 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
         (await (select(_reservations)
                   ..where(
                     (r) =>
-                        r.uniteId.equals(uniteId) &
+                        (r.uniteId.equals(uniteId) |
+                            r.id.isInQuery(
+                              selectOnly(
+                                  attachedDatabase.lignesReservationLocal,
+                                )
+                                ..addColumns([
+                                  attachedDatabase
+                                      .lignesReservationLocal
+                                      .reservationId,
+                                ])
+                                ..where(
+                                  attachedDatabase
+                                          .lignesReservationLocal
+                                          .service
+                                          .equals('hebergement') &
+                                      attachedDatabase
+                                          .lignesReservationLocal
+                                          .itemId
+                                          .equals(uniteId),
+                                ),
+                            )) &
                         r.statut.equals('annulee').not(),
                   )
                   ..orderBy([
@@ -179,10 +278,20 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
       _sejours,
     )..where((s) => s.dateCheckoutReel.isNull())).get();
     if (ouverts.isEmpty) return null;
+    final commeSupplementaire =
+        selectOnly(attachedDatabase.lignesReservationLocal)
+          ..addColumns([attachedDatabase.lignesReservationLocal.reservationId])
+          ..where(
+            attachedDatabase.lignesReservationLocal.service.equals(
+                  'hebergement',
+                ) &
+                attachedDatabase.lignesReservationLocal.itemId.equals(uniteId),
+          );
     final reservations =
         await (select(_reservations)..where(
               (r) =>
-                  r.uniteId.equals(uniteId) &
+                  (r.uniteId.equals(uniteId) |
+                      r.id.isInQuery(commeSupplementaire)) &
                   r.id.isIn(ouverts.map((s) => s.reservationId)),
             ))
             .get();
@@ -195,6 +304,28 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
   /* ================================================================== */
   /* Écritures                                                           */
   /* ================================================================== */
+
+  /// Le check-out d'UN SÉJOUR par son identifiant — le geste inline des modales
+  /// d'ouverture de session (`AlertesOuvertureModales::effectuerCheckOutOuverture`
+  /// : `Sejour::find($id)` puis `SejourService::checkout($sejour)`). Un séjour
+  /// introuvable DIT « Ce séjour n'existe plus : rien n'a été modifié. » ; un
+  /// séjour déjà clos refuse avec la phrase du service, DATE comprise (le
+  /// composant de l'accueil, lui, la rend vide : [checkout]).
+  ///
+  /// @throws RefusSejour séjour introuvable, déjà clos, ou refus de [checkout]
+  Future<void> checkoutDuSejour(String sejourId) async {
+    final sejour = await (select(
+      _sejours,
+    )..where((s) => s.id.equals(sejourId))).getSingleOrNull();
+    if (sejour == null) {
+      throw const RefusSejour(MessagesSejour.sejourIntrouvable);
+    }
+    final clos = sejour.dateCheckoutReel;
+    if (clos != null) {
+      throw RefusSejour(MessagesSejour.dejaParti(dateHeureCommeServeur(clos)));
+    }
+    await checkout(sejour.reservationId);
+  }
 
   /// Enregistre l'arrivée réelle — `SejourService::checkin`.
   ///
@@ -246,7 +377,10 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
     await (update(_reservations)..where((r) => r.id.equals(reservationId)))
         .write(const ReservationsLocalCompanion(statut: Value('en_cours')));
 
-    await _changerStatutUnite(reservation.uniteId, StatutUniteLocal.occupee);
+    // Multi-chambres (10/11/2026) : l'arrivée occupe TOUTES les chambres de la réservation.
+    for (final uniteId in await _chambresDe(reservation)) {
+      await _changerStatutUnite(uniteId, StatutUniteLocal.occupee);
+    }
 
     // Lot F5 : l'arrivée part au serveur (`SejourService::checkin`), à
     // l'heure réelle du poste.
@@ -300,7 +434,10 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
     await (update(_reservations)..where((r) => r.id.equals(reservationId)))
         .write(const ReservationsLocalCompanion(statut: Value('terminee')));
 
-    await _changerStatutUnite(reservation.uniteId, StatutUniteLocal.nettoyage);
+    // Le départ passe TOUTES les chambres au ménage.
+    for (final uniteId in await _chambresDe(reservation)) {
+      await _changerStatutUnite(uniteId, StatutUniteLocal.nettoyage);
+    }
 
     // Lot F5 : le départ part au serveur (`SejourService::checkout`).
     await OperationsSyncDao(attachedDatabase).enfiler(
@@ -314,6 +451,22 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
 
   /// `SejourService::changerStatutUnite` — une unité hors service n'est
   /// JAMAIS touchée : la maintenance prime, et le refus emporte la transaction.
+  /// Les unités de la réservation : la principale, puis les chambres SUPPLÉMENTAIRES (lignes
+  /// d'hébergement dont l'unité diffère) — multi-chambres, 10/11/2026.
+  Future<List<String>> _chambresDe(ReservationsLocalData reservation) async {
+    final supplementaires =
+        await (select(attachedDatabase.lignesReservationLocal)..where(
+              (l) =>
+                  l.reservationId.equals(reservation.id) &
+                  l.service.equals('hebergement'),
+            ))
+            .get();
+    return {
+      reservation.uniteId,
+      ...supplementaires.map((l) => l.itemId),
+    }.toList();
+  }
+
   Future<void> _changerStatutUnite(String uniteId, String statut) async {
     final unite = await (select(
       _unites,

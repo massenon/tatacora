@@ -112,6 +112,15 @@ final class SessionSansDonneeMetierTest extends TestCase
             // tables sous RBAC.
             'alertes_ouverture_en_attente' => 'drapeau d affichage des modales '
                 . 'd ouverture, une fois par connexion — aucune donnee metier',
+
+            // L'empreinte (HMAC) du mot de passe de chaque compte vu par cette
+            // session (29/10/2026, mot de passe perdu SANS e-mail) : un etat de
+            // SECURITE de la session, pose par `EmpreinteMotDePasseEnSession`.
+            // Il sert a fermer la session d'un compte dont un administrateur a
+            // reinitialise le mot de passe. Sa perte ne coute rien : la session
+            // le repose a sa requete suivante ; il ne decrit rien du monde reel.
+            'empreintes_mots_de_passe' => 'empreinte (HMAC) du mot de passe, pour '
+                . 'fermer les sessions d un compte reinitialise — aucune donnee metier',
         ];
     }
 

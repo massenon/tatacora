@@ -165,7 +165,10 @@ void main() {
     );
 
     final tout = fichiers.map((f) => f.readAsStringSync()).join('\n');
-    return _normaliser(tout.replaceAll(RegExp(r"'\s*\n\s*'"), ''));
+    // Les littéraux adjacents sont recollés, quelle que soit la quote.
+    return _normaliser(
+      tout.replaceAll(RegExp(r'''(?:'|")\s*[\r\n]+\s*(?:'|")'''), ''),
+    );
   }
 
   /* ================================================================== */
@@ -447,34 +450,19 @@ void main() {
       expect(AchatsApi.cleTolerance, cle);
     });
 
-    test('le message de langue du serveur PORTE bien cette clé', () {
-      // La reconnaissance se fait sur le texte du message : si le fichier de
-      // langue cessait de l'interpoler, le client ne reconnaîtrait plus rien.
+    test('le message du serveur existe et ne nomme PAS la clé technique', () {
+      // Depuis le 26/10/2026 le message affiché n'interpole plus la clé
+      // (`tolerance_reception_pct`) : c'est un identifiant technique, pas un mot
+      // de l'utilisateur. Le client ne reconnaît plus ce refus par le texte ;
+      // il lit la clé de ses Paramètres (`AchatsDao.cleTolerance`), confrontée
+      // au serveur par le test précédent.
       final langue = fichier(
         '${VueBlade.racine}/lang/fr/achats.php',
-        'C’est le message que ce client reconnaît pour distinguer le refus de '
-            'RG-10 d’une erreur de saisie.',
+        'Le message de tolérance absente reste présent, sans clé technique.',
       );
 
-      final ligne = RegExp(
-        r"'tolerance_absente' => (.*?)\n\s*\.\s*(.*?),\n",
-        dotAll: true,
-      ).firstMatch(langue);
-
-      expect(
-        ligne,
-        isNotNull,
-        reason:
-            'le message `tolerance_absente` a disparu du fichier de langue : '
-            'ce test ne mesure plus rien',
-      );
-      expect(
-        ligne!.group(0),
-        contains(AchatsApi.cleTolerance),
-        reason:
-            'le message ne nomme plus la clé de tolérance : le client ne peut '
-            'plus distinguer ce refus d’une erreur de saisie',
-      );
+      expect(langue, contains("'tolerance_absente'"));
+      expect(langue, isNot(contains(AchatsApi.cleTolerance)));
     });
   });
 
@@ -538,9 +526,12 @@ void main() {
             'porte sur TOUT le référentiel, jamais sur les seules lignes '
             'affichées : la recherche masque des lignes, elle ne réduit pas '
             "ce qu'il y a à commander.",
-        // Le sous-titre de l'onglet Réceptions n'est PLUS attendu ici : la vue
-        // affirme un recalcul du coût moyen pondéré que le serveur exécuté ne
-        // fait pas (D266). Écart nommé, testé à part ci-dessous (D276).
+        // Le sous-titre de l'onglet Réceptions : la vue a été corrigée le
+        // 09/11/2026 (elle affirmait un recalcul du coût moyen pondéré que le
+        // serveur exécuté ne fait pas, D266) ; il est de nouveau au MOT PRÈS,
+        // des deux côtés. Les phrases fausses sont gardées à part (D276).
+        'Chaque réception a généré une entrée de stock, non valorisée : le '
+            "coût moyen pondéré de l'article n'est pas recalculé à la réception.",
         // La barre d'outils et ses deux exports.
         'Export Excel',
         'Export PDF',
@@ -566,17 +557,14 @@ void main() {
       ]);
     });
 
-    test('D276 — trois phrases FAUSSES de la vue sont remplacées par la vraie, '
-        'et l’écart est nommé', () {
-      final vue = _normaliser(maitreApprovisionnement());
-      // Le code RENDU : les lignes de commentaire sont retirées. Les écarts
-      // nommés citent la phrase fausse de la vue, par définition ; seul le code
-      // qui l'afficherait compte.
+    test('D276 soldé — les phrases sur le coût moyen pondéré sont VRAIES, '
+        'au mot, côté web ET côté poste', () {
+      // Le code RENDU : les lignes de commentaire sont retirées (un commentaire
+      // peut citer l'ancienne phrase fausse, il ne l'affiche pas).
       //
       // R-G (D285) : TOUT `lib/`, plus le seul module des achats. La même
       // affirmation fausse posée ailleurs — le stock, le tableau de bord, un
-      // état — serait le même mensonge sur de l'argent, et la garde ne le
-      // voyait pas.
+      // état — serait le même mensonge sur de l'argent.
       final fichiersDart = Directory('lib')
           .listSync(recursive: true)
           .whereType<File>()
@@ -602,62 +590,27 @@ void main() {
             .replaceAll(RegExp(r'''(?:'|")\s*[\r\n]+\s*(?:'|")'''), ''),
       );
 
-      // 1. La vue porte bien les deux phrases fausses (sinon cet écart n'a plus
-      //    d'objet : la vue a été corrigée, il faut le retirer).
-      final fausseSousTitre = _normaliser(
-        'Chaque réception a généré une entrée de stock valorisée au prix de '
-        'la commande, qui a recalculé le coût moyen pondéré de l’article.',
-      );
-      final fausseAide = _normaliser(
-        'met à jour le coût moyen pondéré au prix de cette commande',
-      );
-      // La phrase du sous-titre et celle de l'aide sont des clés de langue :
-      // la vue ne porte que la clé, le texte est dans le fichier de langue.
+      // Les textes que la PWA affiche réellement : les fichiers de langue, car
+      // la vue ne porte que les clés.
       final langue = _normaliser(
-        fichier(
-          '${VueBlade.racine}/lang/fr/achats_pwa.php',
-          'C’est le texte que la PWA affiche réellement.',
-        ),
-      );
-      expect(
-        vue.contains(fausseSousTitre) || langue.contains(fausseSousTitre),
-        isTrue,
-        reason:
-            'la vue ne porte plus la phrase fausse du sous-titre : '
-            'retirer l’écart D276',
-      );
-      expect(
-        vue.contains(fausseAide) || langue.contains(fausseAide),
-        isTrue,
-        reason:
-            'la vue ne porte plus la phrase fausse de l’aide : '
-            'retirer l’écart D276',
-      );
-      expect(
-        langue,
-        contains(_normaliser('ni aucun coût moyen pondéré mis à jour')),
-        reason: 'le serveur a changé `prix_obligatoire` : retirer l’écart D276',
+        [
+              for (final f in const ['achats_pwa', 'pwa', 'achats'])
+                fichier(
+                  '${VueBlade.racine}/lang/fr/$f.php',
+                  'C’est le texte que la PWA affiche réellement.',
+                ),
+            ]
+            .join('\n')
+            .split('\n')
+            .where((l) => !l.trimLeft().startsWith('//'))
+            .join('\n')
+            // Les commentaires PHP, qui citent l'ancienne phrase, ne sont pas
+            // du texte affiché ; les concaténations (`'…' . '…'`) sont recollées.
+            .replaceAll(RegExp(r"'\s*\n\s*\.\s*'"), ''),
       );
 
-      // 2. Aucune des trois affirmations fausses n'est rendue par le poste,
-      //    ni en ligne de code ni en phrase.
-      for (final fausse in [
-        'valorisée au prix de la commande',
-        'recalculé le coût moyen pondéré',
-        'met à jour le coût moyen pondéré au prix',
-        'ni aucun coût moyen pondéré mis à jour',
-        'stock et coût moyen pondéré mis à jour',
-      ]) {
-        expect(
-          dartNormalise.contains(_normaliser(fausse)),
-          isFalse,
-          reason:
-              '« $fausse » est une affirmation FAUSSE sur de l’argent : '
-              'le poste ne doit pas l’afficher',
-        );
-      }
-
-      // 3. La phrase VRAIE est celle du poste.
+      // 1. Les trois phrases VRAIES (+ la fin retirée de `prix_obligatoire`) :
+      //    présentes à l'identique dans la langue du web ET dans le code du poste.
       for (final vraie in [
         'Chaque réception a généré une entrée de stock, non valorisée : le '
             "coût moyen pondéré de l'article n'est pas recalculé à la "
@@ -667,10 +620,44 @@ void main() {
         'Le prix unitaire est obligatoire et strictement positif : sans lui '
             'aucun montant de commande ne peut être calculé.',
       ]) {
+        final attendue = _normaliser(vraie);
+        expect(
+          langue,
+          contains(attendue),
+          reason: 'la PWA ne dit plus la phrase vraie : $vraie',
+        );
         expect(
           dartNormalise,
-          contains(_normaliser(vraie)),
-          reason: 'la phrase vraie a disparu : $vraie',
+          contains(attendue),
+          reason: 'la phrase vraie a disparu du poste : $vraie',
+        );
+      }
+
+      // 2. Aucune affirmation fausse — « la réception met à jour / recalcule
+      //    le coût moyen pondéré » — ni dans la langue du web (corrigée le
+      //    09/11/2026), ni dans le code rendu du poste. Si le web la
+      //    réintroduit, ce test rougit à la source.
+      for (final fausse in [
+        'valorisée au prix de la commande',
+        'recalculé le coût moyen pondéré',
+        'met à jour le coût moyen pondéré au prix',
+        'ni aucun coût moyen pondéré mis à jour',
+        'stock et coût moyen pondéré mis à jour',
+      ]) {
+        final interdite = _normaliser(fausse);
+        expect(
+          langue.contains(interdite),
+          isFalse,
+          reason:
+              '« $fausse » est une affirmation FAUSSE sur de l’argent : le '
+              'web l’a de nouveau (D265 : la réception ne touche pas au coût)',
+        );
+        expect(
+          dartNormalise.contains(interdite),
+          isFalse,
+          reason:
+              '« $fausse » est une affirmation FAUSSE sur de l’argent : '
+              'le poste ne doit pas l’afficher',
         );
       }
     });

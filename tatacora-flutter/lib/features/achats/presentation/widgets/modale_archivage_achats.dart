@@ -6,6 +6,17 @@
 // (`@props 'message'`). Une seule modale Flutter pour les deux vues
 // (09/10/2026) — ce n'est ni un refus ni un contournement, le fichier sert
 // réellement la seconde vue.
+// Et une TROISIÈME : pwa/restaurant/restauration.blade.php (l.866-875) l'invoque
+// pour « Retirer de la carte » un plat, avec ses propres `titre`, `message` et
+// `libelleConfirmer` (21/10/2026) ; les modales se mesurent dans les fichiers
+// qui CITENT la vue, d'où cette mention.
+// Et une QUATRIÈME : pwa/stocks/stocks.blade.php (l.782-787) l'invoque pour
+// archiver un ou plusieurs articles de stock (`archiverArticles`, 21/10/2026) ;
+// c'est ici que se rendent « Confirmer la suppression », « Archivage impossible »
+// et « Supprimer définitivement » de cette vue.
+// Et une CINQUIÈME : pwa/crm/clients-creances.blade.php (l.792-798) l'invoque pour
+// archiver un ou plusieurs clients (`archiverClients`, 21/10/2026) ; c'est ici
+// que se rendent les mots du composant pour cette vue.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -52,6 +63,8 @@ Future<bool?> ouvrirArchivageAchats(
   bool bloque = false,
   int conserves = 0,
   String? message,
+  String? titre,
+  String? libelleConfirmer,
 }) {
   assert(
     element != null || nombre != null || message != null,
@@ -68,6 +81,8 @@ Future<bool?> ouvrirArchivageAchats(
       bloque: bloque,
       conserves: conserves,
       message: message,
+      titre: titre,
+      libelleConfirmer: libelleConfirmer,
     ),
   );
 }
@@ -81,7 +96,15 @@ class ModaleArchivageAchats extends StatelessWidget {
     this.bloque = false,
     this.conserves = 0,
     this.message,
+    this.titre,
+    this.libelleConfirmer,
   });
+
+  /// Les props `titre` et `libelleConfirmer` du composant de la vue : la carte
+  /// du restaurant écrit « Retirer « plat » de la carte ? » et « Retirer de la
+  /// carte ». Absents, ce sont les mots du maître (défauts du composant).
+  final String? titre;
+  final String? libelleConfirmer;
 
   /// La question en TEXTE, qui remplace celle construite sur [element] ou
   /// [nombre] — la prop `message` du composant de la vue.
@@ -150,10 +173,10 @@ class ModaleArchivageAchats extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.md), // mb-4
-                        const Text(
-                          'Confirmer la suppression',
+                        Text(
+                          titre ?? 'Confirmer la suppression',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontFamily: AppTextStyles.police,
                             fontSize: Tailles.t16,
                             fontWeight: FontWeight.bold,
@@ -192,7 +215,9 @@ class ModaleArchivageAchats extends StatelessWidget {
                               backgroundColor: AppColors.erreur,
                             ),
                             onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text('Supprimer définitivement'),
+                            child: Text(
+                              libelleConfirmer ?? 'Supprimer définitivement',
+                            ),
                           ),
                       ],
                     ),

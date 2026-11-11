@@ -22,7 +22,7 @@
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[900px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         @include('pwa.comptabilite.partials.en-tete', [
             'tailleRetour' => 'text-[13px]',
@@ -56,6 +56,12 @@
                         <span class="text-slate-600">{{ $poste['libelle'] }}</span>
                         <span class="font-mono-tatacora text-slate-700">{{ MontantFcfa::format($poste['montant']) }}</span>
                       </div>
+                      @if (isset($poste['ouverture']))
+                        <div class="flex justify-between text-[12px] text-slate-400 pl-4">
+                          <span>{{ __('pwa.comptabilite.note_ouverture_variation') }}</span>
+                          <span class="font-mono-tatacora">{{ MontantFcfa::format($poste['ouverture']) }} · {{ MontantFcfa::format($poste['variation']) }}</span>
+                        </div>
+                      @endif
                     @endforeach
                   </div>
                 @endif

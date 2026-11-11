@@ -159,6 +159,35 @@ void main() {
   });
 
   group('Les libellés propres à l’aperçu', () {
+    test('état « Locations » : la case, la colonne et les phrases des annulés '
+        'sont celles du serveur', () {
+      expect(
+        colonneStatutLocations,
+        serveur.langue('etats_m14.locations.col_statut'),
+      );
+      expect(
+        annulesExclusLocations,
+        serveur.langue('etats_m14.locations.annules_exclus'),
+      );
+      expect(
+        annulesInclusLocations,
+        serveur.langue('etats_m14.locations.annules_inclus'),
+      );
+      expect(
+        statutActifLocations,
+        serveur.langue('vehicules.pwa.contrat_actif'),
+      );
+      expect(
+        statutAnnuleLocations,
+        serveur.langue('vehicules.pwa.contrat_annule'),
+      );
+      // La case, au mot de la vue (`pwa.etats.inclure_annules`).
+      expect(
+        serveur.pwaEtats['inclure_annules'],
+        'Inclure les contrats annulés',
+      );
+    });
+
     test('les huit indicateurs du tableau de bord, clé par clé', () {
       var n = 0;
       for (final e in libellesIndicateursTableau.entries) {

@@ -357,13 +357,17 @@ class GraphiqueRepartition extends StatelessWidget {
   }
 }
 
+/// Le libellé de la série du graphique — `accueil_pwa.activite.col_montant`.
+const String _serieMontantFacture = 'Montant facturé';
+
 /// La carte **« 📊 Statistiques de ventes par activité »** (l.708-722) —
 /// barres horizontales (`indexAxis: 'y'`), même mesure et même source que
 /// l'anneau : deux TRACÉS d'une seule mesure (PA-121).
 ///
-/// ÉCART — le canevas de la vue n'écrit les montants qu'au survol (infobulle
-/// Chart.js) ; ce poste n'a pas d'infobulle de graphique et les écrit en bout
-/// de barre, pour que le chiffre reste lisible.
+/// Le canevas de la vue n'écrit les montants qu'au survol (infobulle Chart.js,
+/// « Montant facturé : … ») : l'infobulle est rendue (21/10/2026) ET le montant
+/// reste écrit en bout de barre (ÉCART conservé : le chiffre reste lisible sans
+/// survol).
 class GraphiqueActivites extends StatelessWidget {
   const GraphiqueActivites({required this.parts, super.key});
 
@@ -433,10 +437,17 @@ class GraphiqueActivites extends StatelessWidget {
                       ),
                     ),
                     Expanded(
-                      child: _Barre(
-                        valeur: double.tryParse(part.montant) ?? 0,
-                        maximum: maximum,
-                        couleur: couleurActivite(part.module),
+                      // L'infobulle de Chart.js de la vue : « <série> : <valeur> »,
+                      // avec la série `accueil_pwa.activite.col_montant`.
+                      child: Tooltip(
+                        key: Key('tdb-infobulle-${part.module}'),
+                        message:
+                            '$_serieMontantFacture : ${formaterFcfa((double.tryParse(part.montant) ?? 0).round())}',
+                        child: _Barre(
+                          valeur: double.tryParse(part.montant) ?? 0,
+                          maximum: maximum,
+                          couleur: couleurActivite(part.module),
+                        ),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.xs),

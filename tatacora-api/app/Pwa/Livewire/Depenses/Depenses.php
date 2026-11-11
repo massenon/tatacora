@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Pwa\Livewire\Depenses;
 
 use App\Domain\Comptabilite\Services\PlanComptableService;
+use App\Domain\Depenses\Exceptions\RefusRecuDepense;
 use App\Domain\Depenses\Models\Depense;
 use App\Domain\Depenses\Models\LigneDepense;
 use App\Domain\Depenses\Services\DepenseService;
+use App\Domain\Depenses\Services\RecuDepenseService;
 use App\Exports\DepensesExport;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\PageMetier;
@@ -18,6 +20,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -116,7 +120,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see LARAVEL_PWA.md §3, §5
  * @see DIRECTIVE_CONFORMITE_100.md Articles 1, 4, 6, 7, 8
  */
-#[Title('Dépense courante — TATACORA AFRIQUE')]
+#[Title('Dépense courante — LogiReStock — TATACORA AFRIQUE')]
 class Depenses extends PageMetier
 {
     use FormulaireModal;
@@ -160,8 +164,14 @@ class Depenses extends PageMetier
         'Marché' => ['Oignon', 'Tomate', 'Piment', 'Viande', 'Poisson', 'Igname', 'Riz'],
     ];
 
-    /** Taille maximale du reçu, en kilo-octets — `depenses-engine.js` l.46. */
-    public const RECU_MAX_KO = 400;
+    /**
+     * Taille maximale du reçu RANGÉ, en kilo-octets — `depenses-engine.js`
+     * l.46. Une seule valeur, celle du service : le poste la dépose par la
+     * synchronisation sous la même borne (lot L4, 27/10/2026). Ce n'est plus un
+     * motif de refus à la saisie : au-delà, l'image est RÉDUITE jusqu'à cette
+     * borne (`RecuDepenseService::preparer`, PO, 28/10/2026).
+     */
+    public const RECU_MAX_KO = RecuDepenseService::TAILLE_MAX_KO;
 
     // --- Filtres (maître l.58-64) ----------------------------------------
 
@@ -378,7 +388,10 @@ class Depenses extends PageMetier
             // Tomate, Viande et Transport — trois lignes, trois categories,
             // une seule piece.
             'lignes.*.nature' => ['required', 'string', 'in:'.implode(',', $this->naturesProposables())],
-            'photoRecu' => ['nullable', 'image', 'max:'.self::RECU_MAX_KO],
+            // Pas de `max` : une image trop lourde est RÉDUITE (jusqu'à 400 Ko)
+            // par `RecuDepenseService::preparer`, jamais refusée pour son poids
+            // (PO, 28/10/2026). Reste refusé : ce qui n'est pas une image.
+            'photoRecu' => ['nullable', 'image'],
 
             // La ventilation, LIGNE PAR LIGNE. Le joker fait porter le refus
             // sur `lignes.2.montant` et non sur le formulaire en bloc : une
@@ -397,10 +410,30 @@ class Depenses extends PageMetier
         ]);
 
         $recu = null;
+        $empreinte = [];
 
         if ($this->photoRecu !== null) {
-            $chemin = $this->photoRecu->store('recus_depenses', 'public');
-            $recu = is_string($chemin) ? $chemin : null;
+            // Le fichier est PRÉPARÉ avant d'être rangé : gardé tel quel s'il
+            // tient en 400 Ko, réduit en JPEG sinon, refusé s'il est illisible.
+            // L'empreinte, la taille et le type sont ceux du fichier RANGÉ (lot
+            // L4) : ce sont elles que les autres postes reçoivent pour vérifier
+            // ce qu'ils téléchargent — relues de ce qu'on écrit, jamais supposées.
+            try {
+                $prepare = app(RecuDepenseService::class)->preparer((string) $this->photoRecu->get());
+            } catch (RefusRecuDepense $refus) {
+                $this->addError('photoRecu', $refus->getMessage());
+
+                return;
+            }
+
+            $chemin = RecuDepenseService::DOSSIER.'/'.Str::uuid()->toString().'.'.$prepare['extension'];
+            Storage::disk('public')->put($chemin, $prepare['octets']);
+            $recu = $chemin;
+            $empreinte = [
+                'recu_sha256' => $prepare['sha256'],
+                'recu_taille' => strlen($prepare['octets']),
+                'recu_type' => $prepare['type'],
+            ];
         }
 
         $libelleDepense = trim((string) $valide['libelle']);
@@ -443,6 +476,7 @@ class Depenses extends PageMetier
                 'centre_id' => ($valide['centreId'] ?? '') !== '' ? (string) $valide['centreId'] : null,
                 'libelle' => $libelleDepense,
                 'recu_path' => $recu,
+                ...$empreinte,
                 'lignes' => $lignes,
             ], Auth::user());
         } catch (RuntimeException $refus) {

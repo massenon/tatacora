@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Depenses\Services;
 
 use App\Domain\Comptabilite\Models\EcritureComptable;
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
 use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use App\Domain\Depenses\Models\Depense;
@@ -77,6 +78,12 @@ class DepenseService
      * réglementaire : un compte de trésorerie non-espèces se tient au journal
      * de banque. Il se change ici, à un seul endroit.
      *
+     * ## Les numéros sont les DÉFAUTS (26/10/2026)
+     *
+     * Le compte qu'une pièce utilise est celui de la correspondance
+     * ({@see CorrespondanceComptesService::compteDeTresorerie()}), modifiable
+     * par l'administrateur ; le journal, lui, reste ici.
+     *
      * @var array<string, array{compte: string, journal: string}>
      */
     public const TRESORERIES = [
@@ -88,6 +95,7 @@ class DepenseService
     public function __construct(
         private readonly PasserEcritureService $ecritures,
         private readonly SequenceDocumentService $sequences,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -111,7 +119,7 @@ class DepenseService
      *   numéro de SON exercice : la synchronisation passe l'année de
      *   `date_transaction`.
      *
-     * @param  array{id?: string, date_transaction?: string, tresorerie?: string, centre_id?: string|null, libelle?: string, recu_path?: string|null, lignes?: list<array{compte_charge: string, montant: string|float, libelle?: string|null, nature?: string, famille?: string, centre_id?: string}>}  $donnees
+     * @param  array{id?: string, date_transaction?: string, tresorerie?: string, centre_id?: string|null, libelle?: string, recu_path?: string|null, recu_sha256?: string|null, recu_taille?: int|null, recu_type?: string|null, lignes?: list<array{compte_charge: string, montant: string|float, libelle?: string|null, nature?: string, famille?: string, centre_id?: string}>}  $donnees
      *
      * @throws RuntimeException trésorerie inconnue, aucune ligne, montant nul,
      *                          ou pièce comptable refusée (compte, journal, exercice, centre)
@@ -136,7 +144,10 @@ class DepenseService
             throw new RuntimeException(__('depenses.tresorerie_inconnue', ['code' => $tresorerieCode]));
         }
 
+        // Le compte de la trésorerie est celui de la CORRESPONDANCE au moment de
+        // passer la pièce (26/10/2026) ; `TRESORERIES` n'en porte que le défaut.
         $tresorerie = self::TRESORERIES[$tresorerieCode];
+        $tresorerie['compte'] = $this->comptes->compteDeTresorerie($tresorerieCode);
         $date = (string) ($donnees['date_transaction'] ?? now()->toDateString());
         $libelle = (string) ($donnees['libelle'] ?? __('depenses.libelle_par_defaut'));
 
@@ -173,7 +184,7 @@ class DepenseService
                 'journal' => $tresorerie['journal'],
                 'date' => $date,
                 'libelle' => __('depenses.libelle_ecriture', ['libelle' => $libelle]),
-                'lignes' => $this->lignesDeLaPiece($lignes, $tresorerie['compte'], $libelle, $montantTotal, isset($donnees['centre_id']) ? (string) $donnees['centre_id'] : null),
+                'lignes' => $this->lignesDeLaPiece($lignes, $tresorerie['compte'], $libelle, $montantTotal, isset($donnees['centre_id']) ? (string) $donnees['centre_id'] : null, CorrespondanceComptesService::roleDeTresorerie($tresorerieCode)),
             ]);
 
             $depense = Depense::create([
@@ -185,6 +196,14 @@ class DepenseService
                 'montant_total' => $montantTotal,
                 'libelle' => $libelle,
                 'recu_path' => $donnees['recu_path'] ?? null,
+                // L'empreinte du reçu (lot L4) : posée avec le fichier, jamais
+                // devinée — et seulement quand il y en a une (une dépense sans
+                // reçu n'écrit rien de plus qu'avant).
+                ...array_filter([
+                    'recu_sha256' => $donnees['recu_sha256'] ?? null,
+                    'recu_taille' => $donnees['recu_taille'] ?? null,
+                    'recu_type' => $donnees['recu_type'] ?? null,
+                ], static fn ($valeur): bool => $valeur !== null),
                 'ecriture_id' => $this->ligneDeTresorerie($piece, $tresorerie['compte']),
                 'ecriture_refus' => null,
                 'utilisateur_id' => $utilisateur !== null ? $utilisateur->id : auth()->id(),
@@ -238,6 +257,8 @@ class DepenseService
             throw new RuntimeException(__('depenses.tresorerie_inconnue', ['code' => $depense->tresorerie]));
         }
 
+        $tresorerie['compte'] = $this->comptes->compteDeTresorerie($depense->tresorerie);
+
         $lignes = $depense->lignes()->get()
             ->map(fn (LigneDepense $ligne): array => [
                 'compte_charge' => $ligne->compte_charge,
@@ -264,6 +285,7 @@ class DepenseService
                         $depense->libelle,
                         (string) $depense->montant_total,
                         $centreId,
+                        CorrespondanceComptesService::roleDeTresorerie($depense->tresorerie),
                     ),
                 ]);
 
@@ -346,6 +368,7 @@ class DepenseService
         string $libelle,
         string $montantTotal,
         ?string $centreId = null,
+        ?string $roleTresorerie = null,
     ): array {
         $piece = [];
 
@@ -363,6 +386,7 @@ class DepenseService
 
         $piece[] = [
             'compte' => $compteTresorerie,
+            'role' => $roleTresorerie,
             'libelle' => $libelle,
             'debit' => '0.00',
             'credit' => $montantTotal,

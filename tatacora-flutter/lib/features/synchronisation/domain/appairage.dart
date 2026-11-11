@@ -98,6 +98,9 @@ abstract final class TextesAppairage {
   static String reponseInattendue(int code) =>
       'Réponse inattendue du serveur (code $code) : l’appairage n’a pas été '
       'enregistré.';
+  static const desactivee =
+      'La synchronisation est désactivée sur ce poste : aucune connexion au '
+      'serveur n’est tentée. Activez-la pour appairer ou tester la connexion.';
   static const demonstration =
       'La démonstration ne se synchronise jamais : aucun appairage possible.';
   static const champsObligatoires =

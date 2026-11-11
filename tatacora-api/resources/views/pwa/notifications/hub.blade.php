@@ -87,7 +87,7 @@
     @include('pwa.partials.menu-lateral')
 
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1500px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         {{-- EN-TETE — maitre l.36-49 --}}
         <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -282,7 +282,7 @@
                             <span class="text-[11px] px-2 py-1 rounded bg-red-50 text-red-700">{{ __('notifications_pwa.file_sans_configuration') }}</span>
                           @else
                             <button type="button" wire:click="envoyerMessage('{{ $message->id }}')" wire:loading.attr="disabled"
-                                    class="text-[11px] px-2 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50">{{ __('notifications_pwa.file_envoyer') }}</button>
+                                    class="text-[11px] px-2 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50">{{ $message->tentatives > 0 ? __('notifications_pwa.file_renvoyer') : __('notifications_pwa.file_envoyer') }}</button>
                           @endif
                         @else
                           <span class="text-[11px] px-2 py-1 rounded bg-slate-100 text-slate-400">{{ __('notifications_pwa.file_a_parametrer') }}</span>
@@ -298,12 +298,25 @@
                     <p class="text-[12px] font-semibold text-slate-600 mb-1">{{ __('notifications_pwa.file_objet', ['objet' => $message->objet]) }}</p>
                   @endif
                   <div class="rounded-xl border px-3 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap max-w-[520px] {{ $classeBulle($message->canal) }}">{{ $message->contenu }}</div>
+                  @if ($message->tentatives > 0)
+                    {{-- L'etat VRAI de l'envoi : tentatives reelles, cause lisible
+                         du dernier echec, relances epuisees (26/10/2026). --}}
+                    <p class="text-[11px] mt-1.5 text-red-700">
+                      {{ __('notifications_pwa.file_tentatives', ['n' => $message->tentatives]) }}
+                      @if ($message->derniere_erreur)
+                        · {{ __('notifications_pwa.file_derniere_erreur', ['erreur' => $message->derniere_erreur]) }}
+                      @endif
+                      @if ($message->enEchec())
+                        · {{ __('notifications_pwa.file_en_echec') }}
+                      @endif
+                    </p>
+                  @endif
                   <p class="text-[10.5px] text-slate-400 mt-1.5">
                     @php($limite = RegistreCanaux::existe($message->canal) ? RegistreCanaux::canal($message->canal)['limite'] : null)
                     {{ __('notifications_pwa.file_meta', [
                         'longueur' => $message->longueur,
                         'limite' => $limite === null ? '' : __('notifications_pwa.file_meta_avec_limite', ['limite' => $limite]),
-                        'date' => $message->date_creation?->format('d/m/Y H:i'),
+                        'date' => \App\Shared\Support\HeureLocale::formater($message->date_creation, 'd/m/Y H:i'),
                         'reference' => $message->reference,
                     ]) }}
                   </p>
@@ -450,7 +463,7 @@
                 <tbody>
                   @foreach ($journalTraitement as $traite)
                     <tr class="border-t border-slate-100">
-                      <td class="px-3 py-2.5 text-left text-slate-600 whitespace-nowrap">{{ $traite->date_modification?->format('d/m/Y H:i') }}</td>
+                      <td class="px-3 py-2.5 text-left text-slate-600 whitespace-nowrap">{{ \App\Shared\Support\HeureLocale::formater($traite->date_modification, 'd/m/Y H:i') }}</td>
                       <td class="px-3 py-2.5 text-left font-semibold text-slate-800">{{ $traite->destinataire }}</td>
                       <td class="px-3 py-2.5 text-left text-slate-600">{{ $traite->modele->evenement ?? '' }}</td>
                       <td class="px-3 py-2.5 text-right text-slate-600">{{ RegistreCanaux::existe($traite->canal) ? RegistreCanaux::canal($traite->canal)['libelle'] : $traite->canal }}</td>
@@ -462,13 +475,13 @@
                         @endif
                       </td>
                       <td class="px-3 py-2.5 text-right"><span class="text-[11px] px-2 py-0.5 rounded" style="background:#FEF2F2;color:#7F1D1D">non</span></td>
-                      <td class="px-3 py-2.5 text-right text-[12px] text-slate-500">{{ $traite->traitePar?->login ?? '—' }}</td>
+                      <td class="px-3 py-2.5 text-right text-[12px] text-slate-500">{{ $traite->traitePar?->libelleAuteur() ?? '—' }}</td>
                       <td class="px-3 py-2.5 text-right text-[12px] text-slate-500">{{ $traite->commentaire ?? $traite->motif_abandon ?? '—' }}</td>
                     </tr>
                   @endforeach
                   @forelse ($journal as $envoi)
                     <tr class="border-t border-slate-100">
-                      <td class="px-3 py-2.5 text-left text-slate-600 whitespace-nowrap">{{ $envoi->date_envoi->format('d/m/Y H:i') }}</td>
+                      <td class="px-3 py-2.5 text-left text-slate-600 whitespace-nowrap">{{ \App\Shared\Support\HeureLocale::formater($envoi->date_envoi, 'd/m/Y H:i') }}</td>
                       <td class="px-3 py-2.5 text-left font-semibold text-slate-800">{{ $envoi->destinataire }}</td>
                       <td class="px-3 py-2.5 text-left text-slate-600">{{ $envoi->modele->evenement ?? '' }}</td>
                       <td class="px-3 py-2.5 text-right text-slate-600">{{ $envoi->modele->canal ?? '' }}</td>
@@ -536,13 +549,6 @@
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <div class="rounded-xl p-4" style="background:#F8FAFC;border:1px solid #E2E8F0">
-            <p class="text-[13px] text-slate-700">
-              <strong>{{ __('notifications_pwa.canaux_ordre_titre') }}</strong> {{ __('notifications_pwa.canaux_ordre_texte') }}
-            </p>
-            <p class="text-[13px] text-slate-700 mt-2">{{ __('notifications_pwa.canaux_ordre_suite') }}</p>
           </div>
         </div>
 

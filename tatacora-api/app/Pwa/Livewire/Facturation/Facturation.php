@@ -8,6 +8,7 @@ use App\Domain\Crm\Models\Client;
 use App\Domain\Facturation\Models\Avoir;
 use App\Domain\Facturation\Models\Facture;
 use App\Domain\Facturation\Services\EmissionFactureService;
+use App\Domain\Facturation\Services\ModeFacturation;
 use App\Domain\Ventes\Services\VenteService;
 use App\Exports\FacturationExport;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
@@ -185,7 +186,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see LARAVEL_PWA.md §1, §3
  * @see DIRECTIVE_CONFORMITE_100.md Articles 4, 6, 7, 8
  */
-#[Title('Facturation & Caisse MECeF — TATACORA AFRIQUE')]
+#[Title('Facturation & Caisse MECeF — LogiReStock — TATACORA AFRIQUE')]
 class Facturation extends PageMetier
 {
     use FormulaireModal;
@@ -385,8 +386,43 @@ class Facturation extends PageMetier
 
         $this->terminerFormulaire(__('facturation_pwa.avoir_emis', [
             'montant' => MontantFcfa::format($montant),
-            'numero' => (string) ($facture->numero_mecef ?? MontantFcfa::TIRET),
+            'numero' => (string) ($facture->numero ?? MontantFcfa::TIRET),
         ]));
+    }
+
+    /**
+     * Le BOUTON « Normaliser » (e-MECeF) : demande immédiate au serveur, qui normalise par l'API
+     * de la DGI. JAMAIS automatique à l'émission (point 1). Un échec ne perd rien : la facture
+     * reste émise, « en attente » avec son motif, rejouable. Boîtier : le web n'appelle jamais le
+     * boîtier (le poste le fait) ; désactivé : rien à normaliser.
+     */
+    public function normaliser(string $facture, EmissionFactureService $emission): void
+    {
+        $this->exigerEcriture(self::MODULE);
+
+        $piece = Facture::query()->find($facture);
+
+        if ($piece === null) {
+            $this->notifier(__('facturation_pwa.avoir_introuvable'), 'error');
+
+            return;
+        }
+
+        try {
+            $resultat = $emission->normaliserLaFacture($piece);
+        } catch (\RuntimeException $refus) {
+            $this->notifier($refus->getMessage(), 'error');
+
+            return;
+        }
+
+        if ($resultat->estNormalisee()) {
+            $this->notifier(__('facturation.mode.normalisee', ['numero' => (string) $resultat->numero]), 'success');
+
+            return;
+        }
+
+        $this->notifier(__('facturation.mode.normalisation_en_attente', ['motif' => (string) $resultat->normalisation_motif]), 'error');
     }
 
     /**
@@ -482,7 +518,7 @@ class Facturation extends PageMetier
         // un `Client::find()` dans la boucle ferait une requete par facture.
         // L'absence de relation est signalee au rapport, pas comblee ici —
         // `app/Domain/**` est hors du perimetre de ce lot.
-        $requete = Facture::query()->with(['lignes', 'avoirs']);
+        $requete = Facture::query()->with(['lignes', 'avoirs', 'paiements']);
         // Sélecteur d'exercice global (PO, 20/10/2026) : le registre porte sur
         // les factures ÉMISES dans l'exercice consulté.
         ExerciceConsulte::borner($requete, 'date_emission');
@@ -501,8 +537,11 @@ class Facturation extends PageMetier
                 ->orWhere('prenom', 'like', '%' . $terme . '%')
                 ->pluck('id');
 
+            // Le numéro de la facture (`F-AAAA-NNNNN`, celui que le client cite et que le poste affiche) ET le
+            // numéro fiscal : une facture non normalisée n'a que le premier, et ne doit pas se perdre à la recherche.
             $requete->where(function ($sous) use ($terme, $clientsTrouves): void {
                 $sous->where('numero_mecef', 'like', '%' . $terme . '%')
+                    ->orWhere('numero', 'like', '%' . $terme . '%')
                     ->orWhereIn('client_id', $clientsTrouves);
             });
         }
@@ -657,7 +696,13 @@ class Facturation extends PageMetier
             'montant' => $montant,
         ] = $this->facturesEtClients();
 
+        // Registre vide SANS filtre : combien de factures existent hors de l'exercice consulté ? (elles ne sont pas
+        // perdues : le sélecteur d'exercice les borne, et l'écran doit le dire plutôt que taire.)
+        $horsExercice = ($total < 1 && $terme === '' && $activite === '') ? Facture::query()->count() : 0;
+
         return view('pwa.facturation.facturation', array_merge($this->socle(), [
+            'horsExercice' => $horsExercice,
+            'exerciceAnnee' => (string) (ExerciceConsulte::exercice()?->annee ?? ''),
             'clients' => $clients,
             'factures' => $factures,
             'total' => $total,
@@ -667,7 +712,8 @@ class Facturation extends PageMetier
             // ferait croire que le filtre n'a rien ecarte (PA-119).
             'avoirs' => Avoir::query()->whereIn('facture_id', $factures->getCollection()->pluck('id')->all())->count(),
             // DERIVE des pieces, jamais fige (PA-119, PA-61, PA-100).
-            'certifiees' => $factures->getCollection()->filter(fn (Facture $f): bool => $f->estCertifiee())->count(),
+            'certifiees' => $factures->getCollection()->filter(fn (Facture $f): bool => $f->estNormalisee())->count(),
+            'modeFacturation' => ModeFacturation::courant(),
             'activiteAppliquee' => $activite,
             // La facture visee par la modale d'avoir : son TTC est le plafond
             // annonce a l'ecran AVANT la saisie. `null` tant qu'aucune modale

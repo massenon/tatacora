@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/clients_table.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
@@ -161,6 +162,50 @@ class ClientDao extends DatabaseAccessor<AppDatabase> with _$ClientDaoMixin {
     return ecrits;
   }
 
+  /// Le serveur doit connaître le client avant tout geste qui le CITE ou le
+  /// MODIFIE (une relance, un archivage) : sans cela, le serveur répondrait
+  /// « client inconnu » à chaque tentative. Un client d'avant la
+  /// synchronisation (v26) n'a jamais été envoyé : sa CRÉATION s'enfile alors,
+  /// avec ses valeurs courantes (et son archivage, s'il est archivé), AVANT le
+  /// geste — `seq` fait l'ordre. À appeler DANS la transaction du geste
+  /// (`enfiler` lève sinon). Inconnu de ce poste : rien.
+  Future<void> assurerConnuDuServeur(String id) async {
+    final c = await (select(
+      clientsLocal,
+    )..where((x) => x.id.equals(id))).getSingleOrNull();
+    if (c == null) return;
+    // Connu : descendu (origine retenue), ou créé ici et sa création est dans
+    // la file, ou écrit par la descente avant la v35 (`statut_sync` =
+    // `synchronise` — les saisies de ce poste, elles, valent `local`).
+    if (c.statutSync == 'synchronise' ||
+        await DocumentsAutresPostes(
+          attachedDatabase,
+        ).connuDuServeur(TableSynchronisee.clients, id)) {
+      return;
+    }
+    final file = OperationsSyncDao(attachedDatabase);
+    await file.enfiler(
+      table: TableSynchronisee.clients,
+      entiteId: id,
+      type: TypeOperationSync.creation,
+      payload: chargeClient(
+        nom: c.nom,
+        prenom: c.prenom,
+        telephone: c.telephone,
+        email: c.email,
+        typeClient: c.typeClient,
+      ),
+    );
+    if (c.actif == false) {
+      await file.enfiler(
+        table: TableSynchronisee.clients,
+        entiteId: id,
+        type: TypeOperationSync.modification,
+        payload: chargeArchivageClient(actif: false),
+      );
+    }
+  }
+
   Client _versEntite(ClientsLocalData d) => Client(
     id: d.id,
     nom: d.nom,
@@ -170,5 +215,6 @@ class ClientDao extends DatabaseAccessor<AppDatabase> with _$ClientDaoMixin {
     type: TypeClientReferentiel.parCode(d.typeClient),
     solde: d.solde,
     statutSync: d.statutSync,
+    actif: d.actif != false,
   );
 }

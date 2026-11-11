@@ -167,7 +167,9 @@ final class CatalogueRestaurantSynchronisationTest extends TestCase
         $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Riz gras']);
 
         $this->pousser([
-            // La catégorie d'un plat EST le type de son menu (PA-23).
+            // Lot L3-S (27/10/2026, D1) : la catégorie du plat est portée comme au web,
+            // mais dans le registre FERMÉ des dix catégories de la carte ; « Plats »
+            // n'en est pas une (la clé est `plats`).
             $this->creation('plats', $this->uuid(), [
                 'libelle' => 'Riz gras', 'menu_id' => $menu->id, 'recette_id' => $fiche->id,
                 'prix_vente' => '2500', 'categorie' => 'Plats',
@@ -184,7 +186,7 @@ final class CatalogueRestaurantSynchronisationTest extends TestCase
                 'libelle' => 'Sans menu', 'menu_id' => $this->uuid(), 'recette_id' => $fiche->id, 'prix_vente' => '100',
             ]),
         ], $this->cuisinier)
-            ->assertJsonPath('resultats.0.motif', __('restaurant.validation.categorie_du_menu'))
+            ->assertJsonPath('resultats.0.motif', __('validation.in', ['attribute' => __('carte_pwa.restauration.label_categorie')]))
             ->assertJsonPath('resultats.1.motif', __('restaurant.validation.ingredient_en_double'))
             ->assertJsonPath('resultats.2.motif', __('restaurant.validation.cout_matiere_calcule'))
             ->assertJsonPath('resultats.3.motif', __('restaurant.validation.menu_inexistant'));
@@ -194,35 +196,206 @@ final class CatalogueRestaurantSynchronisationTest extends TestCase
     }
 
     /**
+     * Lot L3-S (27/10/2026, décision D1 du PO) : le poste porte la catégorie d'un
+     * plat comme le web. Les dix valeurs de la carte passent, à la création et à la
+     * modification, et l'API garde son refus (`CHAMPS_REFUSES`) : seul le chemin de
+     * synchronisation l'accepte, les autres validations restant celles de l'API.
+     */
+    #[Test]
+    public function la_categorie_d_un_plat_se_synchronise_dans_les_dix_valeurs_du_web(): void
+    {
+        $this->assertContains('categorie', \App\Domain\Restaurant\Http\Requests\EnregistrerPlatRequest::CHAMPS_REFUSES);
+        $this->assertCount(10, \App\Pwa\Livewire\Restaurant\CarteRestaurant::CATEGORIES);
+
+        $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
+        $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Riz gras']);
+
+        foreach (array_keys(\App\Pwa\Livewire\Restaurant\CarteRestaurant::CATEGORIES) as $rang => $categorie) {
+            $id = $this->uuid();
+            $this->pousser([$this->creation('plats', $id, [
+                'libelle' => 'Plat ' . $rang, 'menu_id' => $menu->id, 'recette_id' => $fiche->id,
+                'prix_vente' => '1000', 'categorie' => $categorie,
+            ])], $this->cuisinier)->assertJsonPath('resultats.0.statut', 'synchronise');
+            $this->assertSame($categorie, Plat::findOrFail($id)->categorie);
+        }
+
+        $id = Plat::query()->where('libelle', 'Plat 0')->value('id');
+        $this->pousser([$this->operation('plats', 'modification', $id, ['categorie' => 'pizzas'])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('pizzas', Plat::findOrFail($id)->categorie);
+
+        // Hors registre, vide ou nulle : refusée avec la phrase de la vue, rien n'est écrit.
+        $phrase = __('validation.in', ['attribute' => __('carte_pwa.restauration.label_categorie')]);
+        $this->pousser([$this->operation('plats', 'modification', $id, ['categorie' => 'Plats'])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', $phrase);
+        $this->pousser([$this->operation('plats', 'modification', $id, ['categorie' => null])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'rejete');
+        $this->assertSame('pizzas', Plat::findOrFail($id)->categorie);
+
+        // Un poste d'avant la v41 n'en envoie pas : plat sans catégorie, comme avant.
+        $ancien = $this->uuid();
+        $this->pousser([$this->creation('plats', $ancien, [
+            'libelle' => 'Ancien', 'menu_id' => $menu->id, 'recette_id' => $fiche->id, 'prix_vente' => '500',
+        ])], $this->cuisinier)->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertNull(Plat::findOrFail($ancien)->categorie);
+
+        // Les autres validations de l'API restent tenues avec une catégorie valide.
+        $this->pousser([$this->creation('plats', $this->uuid(), [
+            'libelle' => 'Sans menu', 'menu_id' => $this->uuid(), 'recette_id' => $fiche->id,
+            'prix_vente' => '100', 'categorie' => 'plats',
+        ])], $this->cuisinier)->assertJsonPath('resultats.0.motif', __('restaurant.validation.menu_inexistant'));
+    }
+
+    /**
+     * La description facultative d'un plat (30/10/2026, poste v47) monte avec le plat :
+     * normalisée (trim, vide = NULL) par le service, refusée au-delà de 500 caractères avec
+     * la phrase de l'API, conservée par une modification qui ne la nomme pas.
+     */
+    #[Test]
+    public function la_description_d_un_plat_se_synchronise_normalisee_et_bornee(): void
+    {
+        $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
+        $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Riz gras']);
+        $base = ['menu_id' => $menu->id, 'recette_id' => $fiche->id, 'prix_vente' => '1000', 'categorie' => 'plats'];
+
+        $id = $this->uuid();
+        $this->pousser([$this->creation('plats', $id, [...$base, 'libelle' => 'Décrit', 'description' => "  Riz, sauce\n  "])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('Riz, sauce', Plat::findOrFail($id)->description);
+
+        $sans = $this->uuid();
+        $this->pousser([$this->creation('plats', $sans, [...$base, 'libelle' => 'Sans', 'description' => '   '])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertNull(Plat::findOrFail($sans)->description);
+
+        // Une modification sans la clé la laisse en place ; avec `null`, elle l'efface.
+        $this->pousser([$this->operation('plats', 'modification', $id, ['prix_vente' => '1200'])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('Riz, sauce', Plat::findOrFail($id)->description);
+        $this->pousser([$this->operation('plats', 'modification', $id, ['description' => null])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertNull(Plat::findOrFail($id)->description);
+
+        $this->pousser([$this->creation('plats', $this->uuid(), [...$base, 'libelle' => 'Trop long', 'description' => str_repeat('x', 501)])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('restaurant.validation.description_trop_longue', ['max' => 500]));
+        $this->assertNull(Plat::where('libelle', 'Trop long')->first());
+    }
+
+    /**
      * Adapté le 15/10/2026 (décision PO « offline-first total ») : sans le
      * droit d'écriture sur M4, création ET modification restent refusées ;
      * avec lui, la modification d'un menu est désormais appliquée.
      */
     #[Test]
-    public function sans_ecriture_sur_m4_rien_n_est_cree_ni_modifie(): void
+    public function le_restaurant_ne_juge_pas_le_module_du_compte_d_appairage(): void
     {
         $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
 
-        // `barman` : M4 = '-' ; `receptionniste` : M4 = 'L'.
+        // `barman` : M4 = '-' ; `receptionniste` : M4 = 'L'. Décision du PO du 09/11/2026 : le
+        // droit se juge au poste, plus sur le compte du jeton — les trois opérations passent.
         foreach (['barman', 'receptionniste'] as $role) {
             $this->pousser([
                 $this->creation('menus', $this->uuid(), ['libelle' => 'Menu ' . $role, 'type' => 'local']),
                 $this->creation('recettes', $this->uuid(), ['libelle' => 'Fiche ' . $role]),
                 $this->operation('menus', 'modification', $menu->id, ['libelle' => 'Renommé ' . $role]),
             ], $this->creerUtilisateur($role))
-                ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'))
-                ->assertJsonPath('resultats.1.motif', __('auth.module_refuse'))
-                ->assertJsonPath('resultats.2.motif', __('auth.module_refuse'));
+                ->assertJsonPath('resultats.0.statut', 'synchronise')
+                ->assertJsonPath('resultats.1.statut', 'synchronise')
+                ->assertJsonPath('resultats.2.statut', 'synchronise');
         }
 
-        $this->assertSame(['Carte'], Menu::pluck('libelle')->all());
-        $this->assertSame(0, Recette::count());
+        $this->assertContains('Menu barman', Menu::pluck('libelle')->all());
+        $this->assertSame(2, Recette::count());
 
         // Avec le droit : la modification est appliquée par le service.
         $this->pousser([$this->operation('menus', 'modification', $menu->id, ['libelle' => 'Renommé'])], $this->cuisinier)
             ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertSame(['Renommé'], Menu::pluck('libelle')->all());
+        $this->assertSame('Renommé', $menu->fresh()->libelle);
         $this->assertSame('local', $menu->fresh()->type);
+    }
+
+    /**
+     * « Lier au stock » du poste (v36) : la modification du plat porte l'article
+     * ET son conditionnement ; le retrait les remet à null ENSEMBLE. Sans ce
+     * gestionnaire, `validated()` jetait les deux champs en silence.
+     */
+    #[Test]
+    public function un_plat_se_lie_au_stock_puis_se_delie_par_la_modification(): void
+    {
+        $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
+        $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Eau']);
+        $plat = app(CartePlatMenuService::class)->creerPlat([
+            'libelle' => 'Eau 50 cl', 'menu_id' => $menu->id, 'recette_id' => $fiche->id, 'prix_vente' => '500',
+        ]);
+
+        $this->pousser([
+            $this->operation('plats', 'modification', $plat->id, [
+                'article_id' => $this->poulet->id, 'unites_vendables_par_unite_stock' => '24.0000',
+            ]),
+        ], $this->cuisinier)->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $lie = $plat->fresh();
+        $this->assertSame($this->poulet->id, $lie->article_id);
+        $this->assertSame('24.0000', (string) $lie->unites_vendables_par_unite_stock);
+        $this->assertTrue($lie->aUnLienDirectAuStock());
+
+        $this->pousser([
+            $this->operation('plats', 'modification', $plat->id, [
+                'article_id' => null, 'unites_vendables_par_unite_stock' => null,
+            ]),
+        ], $this->cuisinier)->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $delie = $plat->fresh();
+        $this->assertNull($delie->article_id);
+        $this->assertNull($delie->unites_vendables_par_unite_stock);
+    }
+
+    #[Test]
+    public function un_lien_incomplet_ou_inconnu_est_refuse_et_rien_n_est_ecrit(): void
+    {
+        $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
+        $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Eau']);
+        $plat = app(CartePlatMenuService::class)->creerPlat([
+            'libelle' => 'Eau 50 cl', 'menu_id' => $menu->id, 'recette_id' => $fiche->id, 'prix_vente' => '500',
+        ]);
+
+        $this->pousser([
+            // Un article sans conditionnement : la phrase du service.
+            $this->operation('plats', 'modification', $plat->id, ['article_id' => $this->poulet->id]),
+            // Un conditionnement nul.
+            $this->operation('plats', 'modification', $plat->id, [
+                'article_id' => $this->poulet->id, 'unites_vendables_par_unite_stock' => '0',
+            ]),
+            // Un article inconnu.
+            $this->operation('plats', 'modification', $plat->id, [
+                'article_id' => $this->uuid(), 'unites_vendables_par_unite_stock' => '24',
+            ]),
+        ], $this->cuisinier)
+            ->assertJsonPath('resultats.0.motif', __('carte.conversion_requise_avec_lien', ['article' => 'Eau 50 cl']))
+            ->assertJsonPath('resultats.1.statut', 'rejete')
+            ->assertJsonPath('resultats.2.statut', 'rejete');
+
+        $this->assertNull($plat->fresh()->article_id);
+    }
+
+    /** Un plat créé AVEC son lien (poste hors connexion) l'a au serveur. */
+    #[Test]
+    public function un_plat_cree_avec_son_lien_le_garde(): void
+    {
+        $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
+        $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Eau']);
+        $id = $this->uuid();
+
+        $this->pousser([
+            $this->creation('plats', $id, [
+                'libelle' => 'Eau 1,5 l', 'menu_id' => $menu->id, 'recette_id' => $fiche->id, 'prix_vente' => '700',
+                'article_id' => $this->oignon->id, 'unites_vendables_par_unite_stock' => '6',
+            ]),
+        ], $this->cuisinier)->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $this->assertSame($this->oignon->id, Plat::findOrFail($id)->article_id);
     }
 }

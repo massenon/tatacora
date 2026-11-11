@@ -145,3 +145,18 @@ String formaterCentimesEnFcfa(int centimes) {
   // mort que aucune mutation ne pourrait tuer).
   return formaterFcfa((centimes < 0 ? -1 : 1) * unites);
 }
+
+/// Un montant DÛ en centimes, au centime près quand il n'est pas un franc entier (« 29 999,99 FCFA »).
+///
+/// [formaterCentimesEnFcfa] arrondit au franc, comme `MontantFcfa::format` du web : sur un reste dû
+/// de 29 999,99 elle affichait « 30 000 FCFA » et le refus du serveur (« dépasse le reste dû
+/// (29999.99) ») paraissait absurde (constat du PO, 10/11/2026). Ici, un solde, une créance ou un reste
+/// dû ne cache JAMAIS un centime ; un franc entier garde la forme habituelle. Les centimes sont séparés
+/// par une virgule, comme `MontantFcfa::formatExact`.
+String formaterCentimesExact(int centimes) {
+  if (centimes % 100 == 0) return formaterCentimesEnFcfa(centimes);
+  final absolu = centimes.abs();
+  final entier = formaterFcfa(absolu ~/ 100).replaceAll(' FCFA', '');
+  final decimales = (absolu % 100).toString().padLeft(2, '0');
+  return '${centimes < 0 ? '-' : ''}$entier,$decimales FCFA';
+}

@@ -19,16 +19,28 @@ return [
     'conflit_financier' => 'Modification concurrente sur une donnée financière : '
         // Article 8 (02/09/2026) : la reference RG-17 vit ici, jamais a l'ecran.
         . 'la résolution automatique est interdite. Un responsable doit trancher.',
-    'conflit_horodatage' => 'Une saisie plus récente existe déjà côté serveur : '
+    'conflit_horodatage' => 'Une saisie plus récente existe déjà sur le serveur : '
         . 'votre modification hors connexion a été écartée.',
     'rejet_metier' => 'Opération refusée par une règle de gestion : :raison',
     'poste_non_reconnu' => 'Le poste déclaré ne correspond pas à celui de la session. Reconnectez-vous depuis ce poste.',
+
+    // 09/11/2026 : aucune opération ne bloque la synchronisation. Une opération qui cite un
+    // élément pas ENCORE reçu, ou qui rencontre une erreur imprévue, est DIFFÉRÉE : le poste
+    // la remet en file avec un repli, les autres opérations du lot passent.
+    'operation_differee' => 'En attente : une opération précédente du même élément n\'a pas encore abouti. '
+        . 'Elle repartira automatiquement, dans l\'ordre.',
+    'erreur_serveur_operation' => 'Le serveur a rencontré une erreur imprévue en traitant cette opération. '
+        . 'Elle n\'est pas perdue : le poste la renverra automatiquement, et les autres opérations ne sont pas bloquées.',
 
     // Registre de gestionnaires (décision PO du 15/10/2026) — le TYPE annoncé
     // doit correspondre à l'état serveur, et une table qui ne synchronise pas
     // ses modifications le dit, plutôt que d'écrire en brut.
     'modification_non_synchronisable' => 'Modification non synchronisable : cet enregistrement ne se modifie pas '
         . 'hors connexion. Faites la modification depuis l\'écran en ligne.',
+    'suppression_non_synchronisable' => 'Suppression non synchronisable : seules la purge d\'une unité d\'hébergement '
+        . 'ou d\'un véhicule archivé et la suppression d\'un compte se rejouent depuis un poste.',
+    'suppression_reservee' => 'Purge refusée : seul le super administrateur purge définitivement un élément, '
+        . 'et il lui faut le droit d\'écrire dans ce module.',
     'modification_entite_inconnue' => 'Modification impossible : l\'enregistrement visé n\'existe pas sur le serveur. '
         . 'Sa création n\'a peut-être pas encore été synchronisée, ou a été refusée.',
     // Décision PO du 15/10/2026 : une modification dont la cible est inconnue
@@ -58,13 +70,20 @@ return [
     'factures' => [
         'reservation_inconnue' => 'Facture refusée : la réservation n\'est pas connue du serveur (pas encore reçue, ou refusée).',
         'motif_absent' => 'Annulation saisie sur un poste',
+        'avoir_motif_absent' => 'Avoir saisi sur un poste',
+        'avoir_montant_invalide' => 'Avoir refusé : le montant doit être un nombre entier de francs supérieur à zéro.',
+        'facture_inconnue' => 'Conversion refusée : la facture n\'est pas connue du serveur (pas encore reçue, ou refusée).',
+        'avoir_inconnu' => 'Normalisation refusée : l\'avoir n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+    ],
+    'crm' => [
+        'client_inconnu_relance' => 'Relance refusée : le client n\'est pas connu du serveur (pas encore reçu, ou refusé).',
     ],
     'annulation_autre_poste' => 'Annulation refusée : ce document a été saisi sur un autre poste (ou au serveur). '
         . 'Seuls l\'administration et le comptable peuvent l\'annuler.',
     'reservations' => [
-        'champ_non_modifiable' => 'Une réservation ne se modifie que par son annulation (avec ses conditions) ou par son '
-            . 'déplacement (chambre, dates) — champ(s) refusé(s) : :champs.',
-        'annulee' => 'Déplacement refusé : la réservation est annulée.',
+        'champ_non_modifiable' => 'Une réservation ne se modifie que par son annulation (avec ses conditions) ou par sa '
+            . 'fiche (chambre, dates, client, tarif, acompte, remise, mode de paiement, canal, services) — champ(s) refusé(s) : :champs.',
+        'annulee' => 'Modification refusée : la réservation est annulée.',
     ],
     'ventes_modification' => [
         'champ_non_modifiable' => 'Une vente ne se modifie que par son annulation (statut annulee + motif).',
@@ -80,17 +99,31 @@ return [
         'occupee' => 'Table :libelle déjà occupée par un autre poste (ou à la PWA) : encaissez ou libérez '
             . 'la table là-bas avant de l\'ouvrir ici.',
     ],
+    'carte' => [
+        'champ_non_modifiable' => 'Une indisponibilité ne se modifie que par sa remise à la carte '
+            . '(champ(s) refusé(s) : :champs).',
+        'un_seul_article' => 'Indisponibilité refusée : une boisson OU un plat, pas les deux ni aucun.',
+        'article_inconnu' => 'Indisponibilité refusée : l\'article n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+    ],
     'reglements' => [
         'commande_inconnue' => 'Règlement refusé : la commande n\'est pas connue du serveur (pas encore reçue, ou refusée).',
     ],
     'vehicules' => [
-        'champ_non_modifiable' => 'Un véhicule ne se modifie que par sa catégorie, son immatriculation, son tarif '
-            . 'et son statut (champ(s) refusé(s) : :champs).',
+        'champ_non_modifiable' => 'Un véhicule ne se modifie que par sa catégorie, son immatriculation, son tarif, '
+            . 'son année, ses places, sa transmission et son statut (champ(s) refusé(s) : :champs).',
         'statut_non_synchronisable' => 'Statut « :statut » refusé : « loué » se déduit des contrats.',
         'inconnu' => 'Contrat refusé : le véhicule n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'contrat_champ_non_modifiable' => 'Un contrat de location ne se modifie que par son annulation (champ(s) refusé(s) : :champs).',
+        'contrat_statut_refuse' => 'Statut « :statut » refusé : un contrat de location ne peut qu\'être annulé.',
         'client_inconnu' => 'Contrat refusé : le client n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'inconnu_entretien' => 'Entretien refusé : le véhicule n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'chauffeur_inconnu' => 'Entretien refusé : le chauffeur n\'est pas connu du serveur (pas encore reçu, ou refusé).',
     ],
     'rh' => [
+        'employe_inconnu_planning' => 'Planning refusé : l\'employé n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'service_inconnu_planning' => 'Planning refusé : le service n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'employe_inconnu_conge' => 'Congé refusé : l\'employé n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'conge_champ_non_modifiable' => 'Un congé ne se décide que par son statut de validation (champ(s) refusé(s) : :champs).',
         'service_inconnu' => 'Employé refusé : le service « :libelle » n\'existe pas au serveur.',
         'employe_inconnu' => 'Bulletin refusé : l\'employé n\'est pas connu du serveur (pas encore reçu, ou refusé).',
         'champ_non_modifiable' => 'Champ(s) d\'employé non synchronisable(s) : :champs.',
@@ -100,6 +133,10 @@ return [
     ],
     'stocks' => [
         'reference_inconnue' => 'Mouvement refusé : l\'article ou le point de stockage n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'inventaire_point_inconnu' => 'Inventaire refusé : le point de stockage n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'inventaire_article_inconnu' => 'Inventaire refusé : l\'article « :article » n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'inventaire_ecart_incoherent' => 'Inventaire refusé : l\'écart de l\'article « :article » n\'est pas la différence entre le compté et le théorique.',
+        'inventaire_article_double' => 'Inventaire refusé : l\'article « :article » est compté deux fois.',
     ],
     'parametres' => [
         'valeur_non_scalaire' => 'Paramètres refusés : valeur illisible pour :cles.',
@@ -124,7 +161,7 @@ return [
     ],
     'depenses' => [
         'centre_introuvable' => 'Le centre de coût « :centre » est introuvable sur le serveur. La dépense n\'est pas '
-            . 'enregistrée : l\'imputer à un autre centre fausserait l\'analytique (RG-12). Mettez à jour le référentiel du poste.',
+            . 'enregistrée : l\'imputer à un autre centre fausserait l\'analytique. Mettez à jour le référentiel du poste.',
     ],
     'receptions' => [
         'commande_inconnue' => 'La commande de ce bon de réception est inconnue du serveur : synchronisez la commande '
@@ -139,16 +176,26 @@ return [
         'modification_non_declaree' => 'La table « :table » ne synchronise aucune modification : le moteur n\'aurait pas dû appeler modifier().',
     ],
 
+    // Suppression d'un COMPTE annoncée par un poste (décision du PO du 03/11/2026).
+    // Les phrases sont reprises à l'identique par le poste (`MessagesComptes`).
+    'comptes' => [
+        'suppression_reservee' => 'Suppression de compte refusée : seul un super administrateur supprime un compte, '
+            . 'et le compte qui a appairé ce poste n\'en est pas un. Le compte reste supprimé ici, sur le poste.',
+        'creation_non_synchronisable' => 'Un compte ne se crée pas par la synchronisation : aucun mot de passe ne '
+            . 'quitte un poste. Créez le compte sur le serveur.',
+        'login_manquant' => 'Suppression de compte impossible : l\'identifiant du compte est absent.',
+    ],
+
     // Révocation de l'appairage d'un poste (19/10/2026).
     'postes' => [
         'revocation_reservee' => 'Seul un Administrateur peut révoquer l\'appairage d\'un poste.',
         'poste_non_appaire' => 'Le poste « :poste » n\'a aucun appairage actif sur le serveur.',
         'revocation_soi_meme' => 'Ce poste ne révoque pas son propre appairage : utilisez « Dissocier » '
-            . '(Paramètres → Synchronisation).',
+            . '(menu Appairage Postes).',
     ],
 
     // Génération des données (19/10/2026).
     'generation_perimee' => 'Le serveur a été réinitialisé le :date : ce poste travaille avec les données d\'avant. '
         . 'Plus rien ne part ni n\'arrive tant qu\'il n\'a pas été réinitialisé à son tour '
-        . '(Import & Export → Réinitialiser comme neuf).',
+        . '(Paramètres › Activation & Sécurité → Réinitialiser les données de test).',
 ];

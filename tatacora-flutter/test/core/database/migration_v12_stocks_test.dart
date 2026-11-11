@@ -161,6 +161,11 @@ void main() {
         'seuil_alerte',
         'suivi',
         'point_stockage_id',
+        // v35 : l'archivage d'un article (ajoutée en dernier).
+        'actif',
+        // v57 (09/11/2026) : la valeur d'achat de référence (ajoutée en dernier).
+        'prix_achat_reference',
+        'cmp_reference',
       ]);
       expect(await colonnes(apres, 'mouvements_stock_local'), [
         'id',
@@ -187,7 +192,9 @@ void main() {
       // à la v25 (boîte d'envoi de l'éditeur), 58 à la v26 (file d'envoi du
       // poste), 60 à la v27 (descente du catalogue). Les 35 premières sont
       // celles que cette migration a laissées.
-      expect(apres.allTables.length, 62);
+      // 81 à la v52 (facture proforma : trois tables neuves, 07/11/2026).
+      // 82 à la v53 (affectations du résultat reçues : une table neuve, 09/11/2026).
+      expect(apres.allTables.length, 82);
       await apres.close();
     });
 

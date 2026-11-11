@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Sync;
 
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Models\User;
 use App\Shared\Parametres\Models\ParametreSysteme;
 use App\Shared\Parametres\Services\EnregistrerParametreService;
 use App\Shared\Rbac\Models\Role;
 use App\Shared\Rbac\Services\RolePermissionService;
+use Database\Seeders\ComptabiliteReferentielSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -99,12 +101,55 @@ final class ParametresRolesSynchronisationTest extends TestCase
         $this->assertSame('5', ParametreSysteme::where('cle', 'tolerance_reception_pct')->value('valeur'));
     }
 
+    /**
+     * La correspondance des comptes (26/10/2026) : un changement fait SUR UN
+     * POSTE monte comme un paramètre, passe par la MÊME validation que l'écran
+     * du web (`EnregistrerParametreService`) — format, plan, classe du rôle —,
+     * est lu par les pièces du serveur, et DESCEND vers les autres postes.
+     */
     #[Test]
-    public function seul_un_compte_au_droit_param_enregistre(): void
+    public function la_correspondance_des_comptes_d_un_poste_passe_par_la_validation_de_l_ecran_et_redescend(): void
     {
+        $this->seed(ComptabiliteReferentielSeeder::class);
+        $comptes = app(CorrespondanceComptesService::class);
+
+        $this->pousser([$this->enregistrement(['compte_produit_locations' => '7078', 'compte_caisse' => '5712'])], $this->admin)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.cles_modifiees', ['compte_produit_locations', 'compte_caisse']);
+        $this->assertSame('7078', $comptes->compte('PRODUIT_LOCATIONS'));
+        $this->assertSame('5712', $comptes->compte('CAISSE'));
+
+        // Les trois refus du serveur valent pour le poste : le lot ENTIER est
+        // rejeté, la clé valide du même lot n'est pas écrite.
+        foreach (['7999' => 'compte_absent', '6011' => 'compte_incoherent', '70' => 'division'] as $numero => $motif) {
+            $this->pousser([$this->enregistrement(['compte_produit_circuits' => $numero, 'compte_banque' => '5212'])], $this->admin)
+                ->assertJsonPath('resultats.0.statut', 'rejete');
+            $this->assertSame('7061', $comptes->compte('PRODUIT_CIRCUITS'), $motif);
+            $this->assertSame('5211', $comptes->compte('BANQUE'), $motif);
+        }
+
+        // Vider revient au défaut.
+        $this->pousser([$this->enregistrement(['compte_caisse' => null])], $this->admin)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('5711', $comptes->compte('CAISSE'));
+
+        // La valeur DESCEND : un autre poste la reçoit comme tout paramètre.
+        $flux = collect($this->flux($this->creerUtilisateur('gerant')))
+            ->where('table', 'parametres_systeme')
+            ->mapWithKeys(static fn (array $e): array => [$e['donnees']['cle'] => $e['donnees']['valeur']]);
+        $this->assertSame('7078', $flux['compte_produit_locations']);
+    }
+
+    #[Test]
+    public function un_reglage_ordinaire_n_est_pas_juge_sur_le_droit_param_du_compte_d_appairage(): void
+    {
+        // Décision du PO du 09/11/2026 : `barman` (PARAM = '-') voit un réglage ordinaire accepté ;
+        // qui peut régler le poste, c'est le RBAC LOCAL. Seules les clés réservées à
+        // l'administrateur (MECeF, forme juridique) restent jugées, et elles sont rejetées seules
+        // (`ReglagesFacturationPosteSynchronisationTest`).
         $this->pousser([$this->enregistrement(['tolerance_reception_pct' => '9'])], $this->creerUtilisateur('barman'))
-            ->assertJsonPath('resultats.0.statut', 'rejete');
-        $this->assertNull(ParametreSysteme::where('cle', 'tolerance_reception_pct')->value('valeur'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('9', ParametreSysteme::where('cle', 'tolerance_reception_pct')->value('valeur'));
     }
 
     #[Test]

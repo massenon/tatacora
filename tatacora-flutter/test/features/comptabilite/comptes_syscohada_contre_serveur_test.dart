@@ -12,8 +12,10 @@ import 'support/outils_comptabilite.dart';
 /// La table de correspondance rôle -> compte, CONFRONTÉE à `ComptesSyscohada.php`
 /// par réflexion (PHP exécuté) — jamais deux listes qui divergent.
 ///
-/// La table est « à valider par le comptable » au serveur ; la répliquer ne la
-/// valide pas, elle garantit seulement que le poste ne dérive pas.
+/// Ces numéros sont les VALEURS PAR DÉFAUT de la correspondance (modifiable
+/// depuis le 26/10/2026) ; les comptes 7073, 7061 et 4432 sont validés par le PO
+/// le 26/10/2026. Répliquer la table ne la valide pas : elle garantit que le
+/// poste ne dérive pas.
 void main() {
   late Map<String, dynamic> serveur;
   late Set<String> plan;
@@ -23,9 +25,9 @@ void main() {
     plan = lirePlanComptable(lirePlanEmbarque()).map((c) => c.numero).toSet();
   });
 
-  test('18 rôles relus de la classe du serveur — export non vide', () {
-    expect(serveur['comptes'], hasLength(18));
-    expect(ComptesSyscohada.tous, hasLength(18));
+  test('26 rôles relus de la classe du serveur — export non vide', () {
+    expect(serveur['comptes'], hasLength(26));
+    expect(ComptesSyscohada.tous, hasLength(26));
   });
 
   test(
@@ -41,7 +43,7 @@ void main() {
   );
 
   test('les constantes Dart nommées sont celles de la table `tous`', () {
-    // Les 18 constantes sont lues UNE à UNE : `tous` pourrait en omettre une
+    // Les 26 constantes sont lues UNE à UNE : `tous` pourrait en omettre une
     // sans qu'aucun test précédent ne le voie.
     expect(ComptesSyscohada.tous.values.toSet(), {
       ComptesSyscohada.clients,
@@ -55,6 +57,7 @@ void main() {
       ComptesSyscohada.mobileMoney,
       ComptesSyscohada.produitPrestations,
       ComptesSyscohada.produitMarchandises,
+      ComptesSyscohada.produitLocations,
       ComptesSyscohada.achatsMarchandises,
       ComptesSyscohada.electricite,
       ComptesSyscohada.eau,
@@ -62,6 +65,14 @@ void main() {
       ComptesSyscohada.telephoneInternet,
       ComptesSyscohada.resultatBenefice,
       ComptesSyscohada.resultatPerte,
+      // Affectation du résultat (09/11/2026).
+      ComptesSyscohada.reserveLegale,
+      ComptesSyscohada.autresReserves,
+      ComptesSyscohada.dividendesAPayer,
+      ComptesSyscohada.reportANouveauCrediteur,
+      ComptesSyscohada.reportANouveauDebiteur,
+      // Entreprise individuelle (09/11/2026).
+      ComptesSyscohada.compteExploitant,
     });
   });
 
@@ -156,7 +167,7 @@ void main() {
       }
 
       // Non vide : le balayage a réellement vu les comptes du module — au
-      // moins les 18 rôles et les 11 centres par défaut.
+      // moins les 19 rôles et les 11 centres par défaut.
       expect(trouves.length, greaterThanOrEqualTo(29));
       expect(fautifs, isEmpty, reason: 'compte absent du plan : $fautifs');
     });

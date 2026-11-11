@@ -134,7 +134,7 @@ class DepensesExport implements FromCollection, ShouldAutoSize, WithColumnFormat
 
         $sheet->setCellValue('A1', __('pwa.marque'));
         $sheet->setCellValue('A2', __('depenses_pwa.export_document'));
-        $sheet->setCellValue('A3', __('depenses_pwa.export_titre').' — '.$this->filtre.' — '.date('d/m/Y H:i'));
+        $sheet->setCellValue('A3', __('depenses_pwa.export_titre').' — '.$this->filtre.' — '.\App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i'));
 
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new Color('14213D'));
         $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(11)->setColor(new Color('B8891E'));

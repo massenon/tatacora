@@ -1,4 +1,7 @@
 // Vue Blade maîtresse (PA-183) : pwa/bar/carte.blade.php
+// Écart (PO 09/11/2026) : le badge « illimité » de la vue (carte.badge_illimite) ne qualifie
+// que les PLATS (jamais en rupture) ; une boisson, elle, peut être en rupture : le bar
+// ne le rend jamais.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +21,7 @@ import 'widgets/barre_exports_carte.dart';
 import '../../../shared_widgets/modale_export.dart';
 import 'widgets/modale_historique_prix.dart';
 import 'widgets/modale_lien_stock.dart';
+import 'widgets/modale_modifier_boisson.dart';
 import 'widgets/modale_nouvelle_boisson.dart';
 import 'widgets/modale_prix_boisson.dart';
 import 'widgets/modale_retrait_carte.dart';
@@ -33,7 +37,7 @@ import 'widgets/vue_ventes_bar.dart';
 /// Une seule colonne qui défile d'un bloc (`p-5 lg:p-8`, `max-w-[1500px]`,
 /// corps l.72-73), puis, dans l'ordre : l'en-tête et ses CINQ boutons
 /// (l.75-144), l'accordéon des six indicateurs (l.163-209), les onglets
-/// (l.212), la barre de filtres (l.230), le bandeau du rayon (l.260) et les
+/// (l.212), la barre de filtres (l.230) et les
 /// avertissements de stock (l.267-283), enfin le panneau de l'onglet courant.
 ///
 /// Trois choses ont changé de place par rapport à la version précédente, qui
@@ -42,7 +46,7 @@ import 'widgets/vue_ventes_bar.dart';
 ///  - « Exporter » et « Imprimer la fiche des prix » sont dans l'EN-TÊTE
 ///    (l.101-109), pas au-dessus du tableau ; « Exporter » suit l'onglet
 ///    courant (carte ou ventes, PO 03/09/2026) ;
-///  - le bandeau et les avertissements sont SOUS les filtres (l.258-283), pas
+///  - les avertissements sont SOUS les filtres (l.258-283), pas
 ///    au-dessus des onglets ;
 ///  - le tableau est dans un cadre à en-tête « N article(s) » (l.304-308).
 ///
@@ -120,9 +124,8 @@ class EcranCarteBar extends ConsumerWidget {
       largeurMax: AppLayout.pageCarteBar,
       enfants: [
         const _EnTete(),
-        // L'accordéon et le bandeau portent sur la carte ENTIÈRE, comme
-        // `socleDeLaCarte()` : le filtre du tableau ne change pas
-        // « Couverture actuelle ».
+        // L'accordéon porte sur la carte ENTIÈRE, comme `socleDeLaCarte()` :
+        // le filtre du tableau ne change pas les indicateurs.
         _Indicateurs(toutes: toutes),
         const _Onglets(),
         const _Filtres(),
@@ -399,8 +402,7 @@ class _Filtres extends ConsumerWidget {
 /* Bandeaux — corps l.258-289                                              */
 /* ====================================================================== */
 
-/// Le bandeau du rayon et les deux avertissements de stock, SOUS les filtres
-/// (l.258-283) : jusqu'au 08/10/2026 ils étaient posés au-dessus des
+/// Les deux avertissements de stock, SOUS les filtres (l.258-283) : jusqu'au 08/10/2026 ils étaient posés au-dessus des
 /// onglets, à côté des indicateurs.
 class _Bandeaux extends StatelessWidget {
   const _Bandeaux({required this.toutes});
@@ -412,7 +414,6 @@ class _Bandeaux extends StatelessWidget {
     final lignes = toutes.value;
     if (lignes == null) return const SizedBox.shrink();
 
-    final kpis = KpisCarte.calculer(lignes);
     final pointAbsent = lignes.any((l) => l.pointDeVenteAbsent);
     // Un ÉCHEC de lecture, distinct d'un point de vente absent — la vue les
     // dit par deux bandeaux différents (l.267-283).
@@ -424,7 +425,9 @@ class _Bandeaux extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _Bandeau(kpis: kpis),
+        // Le bandeau d'information du rayon (« Au bar, vendre et sortir du stock
+        // désignent la même chose… ») est RETIRÉ, web et poste, sur demande du
+        // Product Owner du 30/10/2026 : ne restent que les avertissements.
         if (pointAbsent)
           const AvertissementCarte(
             cle: Key('carte-point-absent'),
@@ -438,58 +441,6 @@ class _Bandeaux extends StatelessWidget {
             texte: TextesStockCarte.nonConsulteDetail,
           ),
       ],
-    );
-  }
-}
-
-/// Le bandeau du module (vue l.258-265, `carte_pwa.bar.bandeau_*`), encadré
-/// « gris » de la vue du bar : la couverture actuelle y est DITE en clair.
-/// `rounded-xl p-3.5 mb-4`, couleurs posées en `style` (`#F8FAFC` / `#E2E8F0`
-/// / `#334155`).
-class _Bandeau extends StatelessWidget {
-  const _Bandeau({required this.kpis});
-
-  final KpisCarte kpis;
-
-  @override
-  Widget build(BuildContext context) {
-    final fort = styleContenuCarte(
-      TaillesContenu.t13,
-      poids: FontWeight.bold,
-      couleur: Ardoise.c700,
-    );
-
-    return KeyedSubtree(
-      key: const Key('carte-bandeau'),
-      child: EncadreCarte(
-        fond: Ardoise.c50,
-        bordure: Ardoise.c200,
-        enfant: Text.rich(
-          TextSpan(
-            style: styleContenuCarte(TaillesContenu.t13, couleur: Ardoise.c700),
-            children: [
-              TextSpan(
-                text:
-                    'Au bar, vendre et sortir du stock désignent la même chose. ',
-                style: fort,
-              ),
-              // Chaque fragment est UN littéral : le comparateur coupe la phrase
-              // de la vue à ses balises `<strong>`, et cherche chaque morceau.
-              const TextSpan(
-                text:
-                    'Une Béninoise 66 cl vendue, c\'est une bouteille en moins. Le lien est direct et automatisable par rapprochement de libellé — à condition que la ',
-              ),
-              TextSpan(text: 'contenance', style: fort),
-              const TextSpan(
-                text:
-                    " corresponde : une 33 cl ne sort pas du casier de 66 cl, et l'écart ne se verrait qu'à l'inventaire. Couverture actuelle : ",
-              ),
-              TextSpan(text: '${kpis.lies} / ${kpis.articles}', style: fort),
-              const TextSpan(text: ' articles rattachés.'),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -549,6 +500,9 @@ class _PanneauCarte extends StatelessWidget {
           ),
           constructeur: (_, page) => TableCarte(
             lignes: page,
+            onModifier: peutEcrire
+                ? (l) => ouvrirModaleModifierBoisson(context, l)
+                : null,
             onModifierPrix: peutEcrire
                 ? (l) => ouvrirModalePrixBoisson(context, l)
                 : null,
@@ -556,14 +510,18 @@ class _PanneauCarte extends StatelessWidget {
                 ? (l) => ouvrirModaleLienStock(context, l)
                 : null,
             onRetirer: peutEcrire
-                ? (l) => ouvrirModaleRetraitCarte(context, l)
+                ? (l) => ouvrirModaleRetraitCarte(context, ref, l)
                 : null,
             onRemettre: peutEcrire
                 ? (l) => remettreALaCarte(context, ref, l)
                 : null,
             // Une LECTURE : offerte à tout rôle qui voit l'écran, comme
             // `ouvrirHistoriquePrix()`.
-            onHistorique: (l) => ouvrirModaleHistoriquePrix(context, l),
+            onHistorique: (l) => ouvrirModaleHistoriquePrix(
+              context,
+              libelle: l.libelle,
+              lecture: (ref) => ref.watch(historiquePrixProvider(l.id)),
+            ),
           ),
         ),
       ),

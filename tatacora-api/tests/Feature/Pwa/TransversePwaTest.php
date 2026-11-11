@@ -71,7 +71,10 @@ final class TransversePwaTest extends TestCase
         'journal-audit' => ['url' => '/pwa/journal-audit', 'module' => 'M14', 'titre' => 'Journal d&#039;Audit'],
         'roles-permissions' => ['url' => '/pwa/roles-permissions', 'module' => 'ROLES', 'titre' => 'Rôles &amp; Permissions'],
         'parametres' => ['url' => '/pwa/parametres', 'module' => 'PARAM', 'titre' => 'Paramètres'],
-        'import-export' => ['url' => '/pwa/import-export', 'module' => 'PARAM', 'titre' => 'Import &amp; Export'],
+        // 09/11/2026 : ouverte à tous les rôles (droit transverse `IMPORT_EXPORT` en lecture pour
+        // tous : `RolePermissionSeeder::DROITS_OUVERTS_A_TOUS`) — le test du droit lui-même est
+        // `EntreesMenuOuvertesATousTest`.
+        'import-export' => ['url' => '/pwa/import-export', 'module' => null, 'titre' => 'Import &amp; Export'],
     ];
 
     protected function setUp(): void
@@ -156,7 +159,9 @@ final class TransversePwaTest extends TestCase
         $this->get('/pwa/journal-audit')->assertOk();
         $this->get('/pwa/roles-permissions')->assertForbidden();
         $this->get('/pwa/parametres')->assertForbidden();
-        $this->get('/pwa/import-export')->assertForbidden();
+        // « Import & Export » est ouverte à tous les rôles depuis le 09/11/2026 (droit
+        // transverse `IMPORT_EXPORT`, lecture) : le barman la lit, sans onglet de sauvegarde.
+        $this->get('/pwa/import-export')->assertOk();
     }
 
     /**
@@ -190,6 +195,15 @@ final class TransversePwaTest extends TestCase
             'aide-a-propos' => ['recherche'],
             'journal-audit' => ['recherche'],
             'import-export' => ['rechercheArchives'],
+            // 28/10/2026 (décision du PO) : l'e-mail facultatif du compte COURANT est le seul champ
+            // d'« Informations personnelles » que le compte porte (`utilisateurs.email`). Comme au
+            // maître, il vit dans la carte, avec « Enregistrer les informations » : ce n'est pas un
+            // filtre mais une écriture sans module RBAC, inscrite à ce titre dans
+            // `PwaEcritureAutoriseeTest::ECRITURES_HORS_MODULE`. Le champ de mot de passe, lui, reste
+            // derrière sa modale.
+            // 03/11/2026 (décision du PO) : nom complet, téléphone et intitulé de poste, SOUS DROIT
+            // (modules RBAC `PROFIL_*`, relus côté serveur) — même famille que l'e-mail.
+            'mon-profil' => ['emailSaisi', 'nomSaisi', 'telephoneSaisi', 'intituleSaisi'],
         ];
 
         foreach (self::PAGES as $nom => $page) {
@@ -774,6 +788,13 @@ final class TransversePwaTest extends TestCase
         $groupesVus = [];
 
         foreach (RegistreParametres::definitions() as $definition) {
+            // La correspondance des comptes (26/10/2026) a son propre ecran ;
+            // `la_correspondance_des_comptes_ne_se_montre_pas_dans_parametres`
+            // prouve qu'elle n'est rendue sous aucun onglet.
+            if ($definition->groupe === RegistreParametres::GROUPE_COMPTES) {
+                continue;
+            }
+
             $onglet = Parametres::ongletDe($definition);
             $groupesVus[$definition->groupe] = true;
 
@@ -793,6 +814,28 @@ final class TransversePwaTest extends TestCase
             array_keys($groupesVus),
             'Un groupe du registre serveur n\'est rendu sous aucun onglet.',
         );
+    }
+
+    #[Test]
+    public function la_correspondance_des_comptes_ne_se_montre_pas_dans_parametres(): void
+    {
+        $this->actingAs($this->utilisateur('administrateur'));
+
+        $declarees = array_filter(
+            RegistreParametres::definitions(),
+            static fn ($d): bool => $d->groupe === RegistreParametres::GROUPE_COMPTES,
+        );
+        // Plancher : un registre sans ces cles rendrait le balayage vert a vide.
+        $this->assertGreaterThanOrEqual(15, count($declarees));
+
+        foreach (array_keys(Parametres::ONGLETS) as $onglet) {
+            $html = (string) $this->get('/pwa/parametres?onglet=' . $onglet)->assertOk()->getContent();
+
+            foreach ($declarees as $definition) {
+                $this->assertStringNotContainsString(e($definition->libelle), $html);
+                $this->assertStringNotContainsString($definition->cle, $html);
+            }
+        }
     }
 
     /**

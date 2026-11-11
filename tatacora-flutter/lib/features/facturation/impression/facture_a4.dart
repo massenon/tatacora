@@ -71,11 +71,13 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../../core/impression/bloc_signature_a4.dart';
 import '../../../core/impression/entete_etablissement.dart';
 import '../../../core/impression/texte_ticket.dart';
+import '../../../core/theme/app_assets.dart';
 import '../../pos/domain/place_hebergement.dart';
-import '../domain/certification_mecef.dart';
 import '../domain/entities/piece_facturation.dart';
+import '../domain/ifu_client.dart';
 import 'ticket_facture.dart' show TicketFacture;
 
 /// Page A4 portrait, marges de 18 mm.
@@ -130,6 +132,8 @@ final class FactureA4Composee {
     required this.piedDePage,
     required this.gabaritPagination,
     this.filigrane,
+    this.qrCode,
+    this.signature,
   });
 
   final PieceFacturation piece;
@@ -170,6 +174,13 @@ final class FactureA4Composee {
   /// `null` dès qu'une certification réelle a lieu — **dérivé, jamais posé**.
   final String? filigrane;
 
+  /// Le QR code fiscal, SEULEMENT pour une pièce réellement normalisée.
+  final String? qrCode;
+
+  /// Le bloc signature (PO, 07/11/2026) : `null` quand l'interrupteur des Paramètres est sur Non.
+  /// Aucune image fiscale : la signature et le cachet de l'entreprise, rien de plus.
+  final BlocSignatureA4? signature;
+
   /// **Tous** les textes du document.
   List<String> get textes => [
     ...lignesEntete,
@@ -185,6 +196,7 @@ final class FactureA4Composee {
     ...piedDePage,
     gabaritPagination,
     ?filigrane,
+    ...?signature?.textes,
   ];
 
   /// Le document en une seule chaîne — pour un test, une trace, un aperçu.
@@ -223,6 +235,10 @@ final class FactureA4Composee {
           _recapitulatif(),
           pw.SizedBox(height: 16),
           _cachetEtMentions(),
+          if (signature != null) ...[
+            pw.SizedBox(height: 18),
+            signature!.widget(),
+          ],
         ],
       ),
     );
@@ -266,8 +282,8 @@ final class FactureA4Composee {
         children: [
           if (logo != null) ...[
             pw.SizedBox(
-              width: 48,
-              height: 48,
+              width: AppAssets.logoFactureA4LargeurPt,
+              height: AppAssets.logoFactureA4HauteurPt,
               child: pw.Image(pw.MemoryImage(logo), fit: pw.BoxFit.contain),
             ),
             pw.SizedBox(width: 12),
@@ -444,27 +460,45 @@ final class FactureA4Composee {
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
       pw.Container(
-        width: 200,
+        width: qrCode == null ? 200 : 270,
         height: 112,
         padding: const pw.EdgeInsets.all(6),
         decoration: pw.BoxDecoration(
           border: pw.Border.all(width: 1, color: PdfColors.grey600),
         ),
-        child: pw.Column(
+        child: pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            for (var i = 0; i < cachetFiscal.length; i++)
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < cachetFiscal.length; i++)
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 2),
+                      child: pw.Text(
+                        cachetFiscal[i],
+                        style: pw.TextStyle(
+                          fontSize: i == 0 ? 9 : 7,
+                          fontWeight: i == 0
+                              ? pw.FontWeight.bold
+                              : pw.FontWeight.normal,
+                          color: i == 0 ? PdfColors.black : PdfColors.grey700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // Le QR code fiscal : la pièce est RÉELLEMENT normalisée.
+            if (qrCode != null)
               pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 2),
-                child: pw.Text(
-                  cachetFiscal[i],
-                  style: pw.TextStyle(
-                    fontSize: i == 0 ? 9 : 7,
-                    fontWeight: i == 0
-                        ? pw.FontWeight.bold
-                        : pw.FontWeight.normal,
-                    color: i == 0 ? PdfColors.black : PdfColors.grey700,
-                  ),
+                padding: const pw.EdgeInsets.only(left: 6),
+                child: pw.BarcodeWidget(
+                  barcode: pw.Barcode.qrCode(),
+                  data: qrCode!,
+                  width: 96,
+                  height: 96,
                 ),
               ),
           ],
@@ -526,15 +560,19 @@ final class FactureA4 {
   ///  - **ce qui compose le total**, hébergement et consommations nommés
   ///    séparément (⚠ Q3) ;
   ///  - **la mention MECeF réelle**, dérivée de la pièce et non d'un drapeau ;
-  ///  - **le filigrane « DOCUMENT DE DÉMONSTRATION »** tant qu'aucune
-  ///    certification réelle n'a eu lieu — il disparaîtra de lui-même, sans que
-  ///    personne modifie une chaîne ;
-  ///  - **l'emplacement réservé du cachet fiscal**, vide et nommé comme tel.
+  ///  - **aucune mention de démonstration** (décision du PO du 07/11/2026) : ni filigrane ni
+  ///    emplacement réservé — une facture simple est une facture ordinaire ; le cachet fiscal
+  ///    et le QR n'existent que pour une pièce réellement normalisée.
   static FactureA4Composee composer(
     PieceFacturation piece, {
     required AuteurEdition auteur,
     required DateTime dateEdition,
     EnteteEtablissement entete = const EnteteEtablissement(),
+
+    /// Ce poste normalise (boîtier ou e-MECeF) : une facture pas encore normalisée dit
+    /// « en attente de normalisation ». Mode désactivé (facture SIMPLE) : AUCUNE mention.
+    bool normalisable = false,
+    BlocSignatureA4? signature,
   }) {
     final estAvoir = piece.estAvoir;
 
@@ -588,23 +626,23 @@ final class FactureA4 {
       ],
       libelleTotal: _t(estAvoir ? 'TOTAL DE L\'AVOIR' : 'TOTAL À PAYER'),
       montantTotal: _t(TicketFacture.montant(piece.montantTotal)),
-      cachetFiscal: [
-        _t('Cachet fiscal MECeF'),
-        _t('Emplacement réservé — aucun cachet n\'est apposé.'),
-        _t(
-          'Le cachet et son QR code seront apposés après certification par la '
-          // Code interne (PA-17) retiré du papier, 14/10/2026.
-          'DGI. L\'inscription n\'est pas effectuée.',
-        ),
-        _t(
-          'Le format exact du cachet n\'est pas public : il est communiqué à '
-          'l\'entreprise après approbation de son système de facturation. '
-          'Rien n\'en est supposé ici.',
-        ),
-      ],
+      cachetFiscal: piece.estNormalisee
+          ? [
+              _t('Cachet fiscal MECeF'),
+              _t('Facture normalisée — NIM-TC ${piece.numeroMecef}'),
+              if ((piece.codeMecef ?? '').isNotEmpty)
+                _t('Code MECeF : ${piece.codeMecef}'),
+              if (piece.normaliseeLe != null)
+                _t('Normalisée le ${_horodatage(piece.normaliseeLe!)}'),
+            ]
+          : const [],
       mentions: [
-        // Dérivée de la pièce, jamais d'une configuration : c'est PA-61.
-        _t(piece.libelleCertification),
+        // Dérivée de la pièce, jamais d'une configuration : c'est PA-61. Une facture SIMPLE
+        // (mode désactivé) ne porte AUCUNE mention fiscale (décision du PO, 07/11/2026).
+        if (piece.estNormalisee)
+          _t(piece.libelleCertification ?? '')
+        else if (normalisable && !estAvoir)
+          _t(TextesFacturationModes.enAttenteDeNormalisation),
         _t(
           'Montants en francs CFA (XOF). Ce document ne porte aucune '
           // 09/10/2026 : « aucun taux de TVA n'est configuré » devenait faux
@@ -622,18 +660,14 @@ final class FactureA4 {
         ),
       ],
       piedDePage: [
-        _t(
-          'TATACORA AFRIQUE — Gîte Chez Noël · Projet PAEB · '
-          'Cabinet FAGUEZ SARL',
-        ),
         _t('Édité le ${_horodatage(dateEdition)} par ${auteur.libelle}'),
       ],
       gabaritPagination: _t('Page {page} / {total}'),
       // Dérivé de la pièce : le jour d'une certification réelle il disparaît
       // sans que personne modifie une chaîne (PA-61).
-      filigrane: piece.estCertifiee
-          ? null
-          : _t(CertificationMecef.filigraneDemonstration),
+      // Plus de filigrane de démonstration (décision du PO du 07/11/2026).
+      qrCode: piece.estNormalisee ? piece.qrCodeFiscal : null,
+      signature: signature,
     );
   }
 

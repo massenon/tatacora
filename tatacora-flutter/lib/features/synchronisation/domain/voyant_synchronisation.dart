@@ -6,7 +6,7 @@
 ///
 /// | Teinte | Quand | Ce que la phrase affirme |
 /// |---|---|---|
-/// | gris | démonstration, poste non appairé, serveur injoignable sans rien en attente | rien ne part (ou : on ne sait pas joindre le serveur) |
+/// | gris | démonstration, synchronisation désactivée, poste non appairé, serveur injoignable sans rien en attente | rien ne part (ou : on ne sait pas joindre le serveur) |
 /// | rouge | refus du jeton, serveur réinitialisé, opération rejetée / en conflit / bloquée | quelque chose attend un humain |
 /// | orange | opérations en attente ou en cours d'envoi | N opérations ne sont pas encore au serveur |
 /// | vert | AUCUNE opération en attente, aucune à traiter | tout ce que ce poste a saisi est au serveur |
@@ -55,6 +55,10 @@ final class VoyantSynchronisation {
 /// Les phrases du voyant.
 abstract final class TextesVoyant {
   static const demonstration = 'Démonstration : aucune synchronisation.';
+  static const desactivee = 'Synchronisation désactivée';
+  static String desactiveeAvecFile(int n) =>
+      'Synchronisation désactivée : $n opération(s) attendent la '
+      'réactivation pour partir.';
   static const nonAppaire =
       'Poste non appairé : rien ne part, rien ne descend.';
   static const jetonRefuse =
@@ -83,6 +87,7 @@ VoyantSynchronisation voyantDe({
   required bool appaire,
   required bool refusJeton,
   bool serveurReinitialise = false,
+  bool desactivee = false,
   required Map<StatutOperationSync, int> comptes,
   required BilanSynchronisation? bilan,
   required bool enCours,
@@ -100,6 +105,17 @@ VoyantSynchronisation voyantDe({
     return const VoyantSynchronisation(
       teinte: TeinteVoyant.gris,
       phrase: TextesVoyant.demonstration,
+    );
+  }
+  // L'interrupteur éteint passe avant tout : rien ne part, quoi que dise
+  // l'appairage — et un 401 ou un conflit consigné n'est pas réessayé.
+  if (desactivee) {
+    return VoyantSynchronisation(
+      teinte: TeinteVoyant.gris,
+      badge: badge(attente),
+      phrase: attente > 0
+          ? TextesVoyant.desactiveeAvecFile(attente)
+          : TextesVoyant.desactivee,
     );
   }
   if (!appaire) {

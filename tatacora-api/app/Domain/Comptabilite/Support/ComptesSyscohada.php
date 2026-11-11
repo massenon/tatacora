@@ -13,9 +13,20 @@ namespace App\Domain\Comptabilite\Support;
  * Le client Flutter desktop réplique CETTE table. Un compte absent du fichier
  * n'est JAMAIS créé ici : le flux concerné se refuse en nommant le compte.
  *
- * ⚠ À VALIDER PAR LE COMPTABLE : correspondance établie par le lead à partir de
- * sources secondaires (plan-comptable-ohada.com, guides OHADA) ; le texte
- * officiel de l'AUDCIF n'a pas été consulté. Le fichier du PO fait foi.
+ * ## Ces numéros sont les VALEURS PAR DÉFAUT, plus des constantes figées
+ *
+ * Décision du PO du 26/10/2026 : « ON PEUT IMPÉRATIVEMENT MODIFIER LES COMPTES
+ * SUR POSTE ET LE WEB ». Chaque rôle de {@see RolesCorrespondance::ROLES} se
+ * change à l'écran « Correspondance des comptes » (un paramètre `compte_<rôle>`,
+ * dernier écrit gagnant, synchronisé comme les autres paramètres) ; la
+ * constante ci-dessous est ce que le rôle vaut tant qu'AUCUN compte n'est
+ * choisi. Les services qui passent une pièce lisent la correspondance par
+ * {@see \App\Domain\Comptabilite\Services\CorrespondanceComptesService}, jamais
+ * la constante. Une pièce déjà passée n'est JAMAIS réécrite (RG-11).
+ *
+ * Les comptes 7073 (Locations, M8), 7061 (services vendus, circuits M9) et
+ * 4432 (TVA sur prestations) sont VALIDÉS PAR LE PO le 26/10/2026 ; le
+ * comptable peut encore les changer à l'écran. Le fichier du PO fait foi.
  *
  * | Fonction | Ancien | Compte | Libellé EXACT du fichier | Division parente |
  * |---|---|---|---|---|
@@ -29,6 +40,8 @@ namespace App\Domain\Comptabilite\Support;
  * | Banque | 521000 | 5211 | « Banque X » | 521 BANQUES LOCALES |
  * | Mobile Money | 522000 | 552 | « MONNAIE ELECTRONIQUE- TELEPHONE PORTABLE » | 55 (feuille à 3 chiffres) |
  * | Produit restaurant (M4), hébergement (M1) | 706200 / 706100 | 7061 | « dans la Région (1) » | 706 SERVICES VENDUS |
+ * | Produit tourisme (M9) | — | 7061 | « dans la Région (1) » | 706 SERVICES VENDUS (pas de compte dédié aux circuits au plan du PO ; le centre « Tourisme » porte la distinction) |
+ * | Produit location de véhicules (M8) | — | 7073 | « Locations (2) » | 707 PRODUITS ACCESSOIRES |
  * | Produit bar (M5) | 706300 | 7011 | « dans la Région (1) » | 701 VENTES DE MARCHANDISES |
  * | Achats de marchandises (dépenses) | 601100 | 6011 | « dans la Région » | 601 ACHATS DE MARCHANDISES (1) |
  * | Électricité | 604000 | 6052 | « Fournitures non stockables- Electricité » | 605 AUTRES ACHATS |
@@ -41,7 +54,7 @@ namespace App\Domain\Comptabilite\Support;
  * Correspondances décidées mais sans appelant dans le serveur aujourd'hui
  * (paie non comptabilisée) : salaires 661000 -> 6611, charges patronales CNSS
  * 645100 -> 6641, CNSS retenue 431000 -> 431, ITS 447000 -> 4472, personnel
- * 421000 -> 422, locations de véhicules -> 7073.
+ * 421000 -> 422.
  *
  * Le CENTRE DE COÛT porte la distinction que les anciens numéros portaient
  * (caisse Réception/Restaurant/Bar, produit hébergement/restaurant) : une
@@ -71,6 +84,17 @@ final class ComptesSyscohada
 
     public const PRODUIT_MARCHANDISES = '7011';
 
+    /**
+     * Circuits touristiques (M9) — son PROPRE rôle depuis le 26/10/2026, pour
+     * qu'un changement du compte du restaurant ne déplace pas les circuits.
+     * Même numéro par défaut que {@see self::PRODUIT_PRESTATIONS} : le plan du
+     * PO n'a pas de compte dédié aux circuits (validé par le PO le 26/10/2026).
+     */
+    public const PRODUIT_CIRCUITS = '7061';
+
+    /** Locations de véhicules (M8) — « Locations (2) » du plan du PO ; décision du 22/10/2026 (comptoir). */
+    public const PRODUIT_LOCATIONS = '7073';
+
     public const ACHATS_MARCHANDISES = '6011';
 
     public const ELECTRICITE = '6052';
@@ -84,4 +108,39 @@ final class ComptesSyscohada
     public const RESULTAT_BENEFICE = '131';
 
     public const RESULTAT_PERTE = '139';
+
+    /**
+     * Affectation du résultat (SYSCOHADA révisé, 09/11/2026) — les cinq comptes
+     * où se ventile le résultat d'un exercice clôturé.
+     *
+     * ⚠ 1181 et 1291, PAS 118 ni 129 : le plan du PO porte 1181 « Réserves
+     * facultatives » / 1188 sous 118, et 1291 « Perte nette à reporter » / 1292
+     * sous 129. 118 et 129 sont donc des DIVISIONS, que `PasserEcritureService`
+     * refuse d'imputer (« compte de division »). 111, 121 et 465 sont des
+     * feuilles du plan. Le comptable peut rattacher un rôle à 1188 ou 1292 à
+     * l'écran « Correspondance des comptes ».
+     */
+    public const RESERVE_LEGALE = '111';
+
+    public const AUTRES_RESERVES = '1181';
+
+    public const DIVIDENDES_A_PAYER = '465';
+
+    public const REPORT_A_NOUVEAU_CREDITEUR = '121';
+
+    public const REPORT_A_NOUVEAU_DEBITEUR = '1291';
+
+    /**
+     * Le COMPTE DE L'EXPLOITANT d'une entreprise individuelle (09/11/2026) : il
+     * reçoit le bénéfice (crédit) ou porte la perte (débit) que l'exploitant
+     * retire ou supporte.
+     *
+     * ⚠ 1041, PAS 104 : le plan du PO porte 104 « Compte de l'exploitant » avec
+     * ses sous-comptes 1041 « Apports temporaires », 1042 « Opérations courantes »,
+     * 1043, 1047, 1048 — 104 est donc une DIVISION, que `PasserEcritureService`
+     * refuse d'imputer. 1041 est le sous-compte proposé par le Product Owner ;
+     * le comptable peut rattacher le rôle à 1042 à l'écran « Correspondance des
+     * comptes » (à faire confirmer par l'expert-comptable).
+     */
+    public const COMPTE_EXPLOITANT = '1041';
 }

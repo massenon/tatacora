@@ -9,7 +9,9 @@ import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
 import 'package:tatacora_flutter/features/crm/data/client_dao.dart';
+import 'package:tatacora_flutter/features/hebergement/data/canaux_reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_repository_local.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_sejour.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/fiche_reservation.dart';
@@ -164,13 +166,22 @@ void main() {
             login: 'caissier',
             nom: 'Caissier',
             role: 'gerant',
-            droits: GardeAcces.depuisJson(const {'M1': 'C', 'M3': 'C'}),
+            droits: GardeAcces.depuisJson(const {
+              'M1': 'C',
+              'M3': 'C',
+              'ANNULATIONS': 'C',
+            }),
           ),
         ),
         droitsProvider.overrideWithValue(
           // M3 en plus de M1 : la fiche de réservation retient un client du
           // référentiel, et l'ajouter est une écriture sur M3.
-          droits ?? GardeAcces.depuisJson(const {'M1': 'C', 'M3': 'C'}),
+          droits ??
+              GardeAcces.depuisJson(const {
+                'M1': 'C',
+                'M3': 'C',
+                'ANNULATIONS': 'C',
+              }),
         ),
         // L'impression est une ACTION injectée : un test de widget n'a pas de
         // greffon natif, et `Printing` y lèverait. C'est aussi ce qui permet
@@ -282,6 +293,111 @@ void main() {
       await tester.tap(find.text(libelleOption).last);
       await tester.pumpAndSettle();
     }
+
+    testWidgets('les lignes parlent comme la vue : « + Ajouter une chambre », '
+        'l\'invite de l\'unité, « Retirer cette ligne »', (tester) async {
+      await monter(
+        tester,
+        const FicheReservation(),
+        periodeInitiale: periode(10, 12),
+      );
+
+      await tester.tap(find.byKey(const Key('service-hebergement')));
+      await tester.pumpAndSettle();
+      // `ligne_ajouter` + `labelLigne` : le « + » est dans le libellé.
+      expect(find.text('+ Ajouter une chambre'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('ajouter-hebergement')));
+      await tester.pumpAndSettle();
+      expect(find.text('Choisir une unité…'), findsOneWidget);
+      expect(find.byTooltip('Retirer cette ligne'), findsOneWidget);
+
+      // Un autre service : l'invite du catalogue, pas celle des unités.
+      await tester.tap(find.byKey(const Key('service-bar')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('ajouter-bar')));
+      await tester.tap(find.byKey(const Key('ajouter-bar')));
+      await tester.pumpAndSettle();
+      expect(find.text('Choisissez un élément du catalogue'), findsOneWidget);
+    });
+
+    testWidgets(
+      'le bandeau des nuits dit les mots de la vue, le nombre en gras',
+      (tester) async {
+        await monter(
+          tester,
+          const FicheReservation(uniteId: uniteId),
+          periodeInitiale: periode(10, 12),
+        );
+
+        final bandeau = tester.widget<Text>(
+          find.byKey(const Key('bandeau-nuits')),
+        );
+        final texte = bandeau.textSpan!.toPlainText();
+        expect(
+          texte,
+          '2 nuit(s) — calculées depuis les dates du séjour. Le champ n\'est '
+          'pas saisissable : allongez ou raccourcissez le séjour et les montants '
+          'suivent.',
+        );
+        // `<strong>:nombre nuit(s)</strong>` : seul le nombre est en gras.
+        final premier =
+            (bandeau.textSpan! as TextSpan).children!.first as TextSpan;
+        expect(premier.text, '2 nuit(s)');
+        expect(premier.style?.fontWeight, FontWeight.bold);
+      },
+    );
+
+    testWidgets('« Ajouter client » ouvre la modale de la vue, droit M3 dit', (
+      tester,
+    ) async {
+      await monter(
+        tester,
+        const FicheReservation(uniteId: uniteId),
+        periodeInitiale: periode(10, 12),
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const Key('bouton-nouveau-client')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('bouton-nouveau-client')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ajouter un client'), findsOneWidget);
+      expect(find.text('Fiche client unique du référentiel.'), findsOneWidget);
+      expect(find.text('Nom complet *'), findsOneWidget);
+      expect(find.text('01 97 35 59 74'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('nouveau-client-droit-m3')))
+            .data,
+        "Créer une fiche client demande le droit d'écriture sur les clients, en "
+        "plus de celui sur l'hébergement.",
+      );
+      expect(find.text('Ajouter le client'), findsOneWidget);
+    });
+
+    testWidgets('la modale « Réservation enregistrée » dit ce que le papier '
+        'EST : une confirmation, pas une facture', (tester) async {
+      await monter(
+        tester,
+        const FicheReservation(uniteId: uniteId),
+        periodeInitiale: periode(10, 12),
+      );
+      await choisirClient(tester, 'Comptoir');
+      await enregistrer(tester);
+
+      expect(find.text('Réservation enregistrée'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('impression-avertissement')))
+            .data,
+        startsWith(
+          'Le document remis porte le titre « CONFIRMATION DE RÉSERVATION » '
+          'et ne vaut pas facture',
+        ),
+      );
+    });
 
     testWidgets('la page porte les champs du maître, dans son ordre', (
       tester,
@@ -668,14 +784,11 @@ void main() {
       expect(await depot.reservations(), isEmpty);
     });
 
-    testWidgets('deux chambres sur une fiche sont REFUSÉES, et nommées', (
+    testWidgets('deux chambres sur UNE fiche sont ACCEPTÉES (PO, 10/11/2026)', (
       tester,
     ) async {
-      // Écart assumé avec le maître, qui les accepte : `reservations.unite_id`
-      // est une colonne unique et NOT NULL. Deux chambres partiraient au
-      // serveur comme une seule, et la seconde serait perdue en silence —
-      // elle resterait libre au planning, et le double-booking que M1 existe
-      // pour empêcher se produirait à la réception suivante.
+      // « Pour UNE SEULE réservation un client peut réserver UNE ou PLUSIEURS chambres » : la
+      // première chambre vit sur `unite_id`, la seconde part comme ligne d'hébergement.
       await db
           .into(db.unitesHebergementLocal)
           .insert(
@@ -701,9 +814,11 @@ void main() {
       );
       await enregistrer(tester);
 
-      expect(find.byKey(const Key('message-erreur')), findsOneWidget);
-      expect(find.textContaining('une seule chambre'), findsOneWidget);
-      expect(await depot.reservations(), isEmpty);
+      expect(find.byKey(const Key('message-erreur')), findsNothing);
+      final enregistrees = await depot.reservations();
+      expect(enregistrees, hasLength(1));
+      expect(enregistrees.single.uniteIds, hasLength(2));
+      expect(enregistrees.single.uniteIds, contains('u-bng-02'));
     });
 
     testWidgets('un chevauchement est refusé et NOMME le conflit', (
@@ -811,6 +926,108 @@ void main() {
       expect(ConfirmationReservation.titre, isNot(contains('FACTURE')));
     });
 
+    /// Choisit [libelle] dans la liste déroulante de clé [cle] (la fiche défile :
+    /// la liste est d'abord amenée à l'écran).
+    Future<void> choisirListe(
+      WidgetTester tester,
+      Key cle,
+      String libelle,
+    ) async {
+      final liste = find.byKey(cle);
+      await tester.ensureVisible(liste);
+      await tester.pumpAndSettle();
+      await tester.tap(liste);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(libelle).last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'canal et mode de paiement partent VIDES, avec l’invite de la vue, et '
+      's’enregistrent vides tant qu’on n’a rien choisi',
+      (tester) async {
+        await monter(
+          tester,
+          const FicheReservation(uniteId: uniteId),
+          periodeInitiale: periode(10, 12),
+        );
+
+        // Les premières options des `<select>` de la vue.
+        expect(find.text('Choisissez un canal'), findsOneWidget);
+        await tester.ensureVisible(
+          find.byKey(const Key('champ-mode-paiement')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Choisissez un mode'), findsOneWidget);
+
+        await choisirClient(tester, 'Comptoir');
+        await enregistrer(tester);
+        await tester.tap(find.byKey(const Key('bouton-plus-tard')));
+        await tester.pumpAndSettle();
+
+        // Une origine ou un mode devinés fausseraient l'analyse par canal : la
+        // vue les laisse vides (`nullable` au serveur), le poste aussi.
+        final r = (await depot.reservations()).single;
+        expect(r.canal, isNull);
+        expect(r.modePaiement, isNull);
+      },
+    );
+
+    testWidgets(
+      'les canaux viennent de la TABLE (Paramètres) : un canal ajouté '
+      'est proposé, un canal désactivé non — et enregistré',
+      (tester) async {
+        final canaux = CanauxReservationDao(db);
+        await canaux.ajouter('Agence du Sahel');
+        final tous = await canaux.tous();
+        await canaux.basculer(
+          tous.firstWhere((c) => c.libelle == 'Facebook').code,
+        );
+        await monter(
+          tester,
+          const FicheReservation(uniteId: uniteId),
+          periodeInitiale: periode(10, 12),
+        );
+
+        await tester.tap(find.byKey(const Key('champ-canal')));
+        await tester.pumpAndSettle();
+        expect(find.text('Agence du Sahel'), findsWidgets);
+        expect(find.text('Facebook'), findsNothing);
+        await tester.tap(find.text('Agence du Sahel').last);
+        await tester.pumpAndSettle();
+
+        await choisirClient(tester, 'Comptoir');
+        await enregistrer(tester);
+        await tester.tap(find.byKey(const Key('bouton-plus-tard')));
+        await tester.pumpAndSettle();
+
+        final r = (await depot.reservations()).single;
+        expect(r.canal!.libelle, 'Agence du Sahel');
+        expect(
+          r.canal!.code,
+          (await canaux.tous()).last.code,
+          reason: 'la colonne porte l’identifiant du canal de la table',
+        );
+      },
+    );
+
+    testWidgets('la fiche porte le sous-titre de la vue', (tester) async {
+      await monter(
+        tester,
+        const FicheReservation(uniteId: uniteId),
+        periodeInitiale: periode(10, 12),
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const Key('sous-titre-modale-reservation')),
+            )
+            .data,
+        'Renseignez les informations de la réservation.',
+      );
+    });
+
     testWidgets('une saisie valide crée la réservation ET ses lignes', (
       tester,
     ) async {
@@ -821,6 +1038,12 @@ void main() {
       );
 
       await choisirClient(tester, 'Comptoir');
+      await choisirListe(tester, const Key('champ-canal'), 'Physique');
+      await choisirListe(
+        tester,
+        const Key('champ-mode-paiement'),
+        'Mobile Money',
+      );
       await tester.enterText(find.byKey(const Key('champ-acompte')), '20000');
       await enregistrer(tester);
 
@@ -853,7 +1076,9 @@ void main() {
 
       // La fiche du maître est enregistrée, pas seulement recueillie.
       expect(r.typeClient, TypeClient.particulier);
-      expect(r.canal, CanalReservation.physique);
+      // Le canal vient de la TABLE (Paramètres › Canaux) : son identifiant,
+      // son libellé.
+      expect(r.canal!.libelle, CanalReservation.physique.libelle);
       expect(r.modePaiement, ModePaiementReservation.mobileMoney);
     });
   });
@@ -898,40 +1123,238 @@ void main() {
       ),
     );
 
-    testWidgets('le formulaire arrive REMPLI, et le titre nomme le client', (
-      tester,
-    ) async {
-      await aModifier(acompte: 10000);
-      await monter(
-        tester,
-        const FicheReservation(reservationId: 'res-mod'),
-        periodeInitiale: periode(1, 2),
-      );
+    testWidgets(
+      'le formulaire arrive REMPLI, sous le titre « Modifier la réservation »',
+      (tester) async {
+        await aModifier(acompte: 10000);
+        await monter(
+          tester,
+          const FicheReservation(reservationId: 'res-mod'),
+          periodeInitiale: periode(1, 2),
+        );
 
-      expect(
-        tester
-            .widget<Text>(find.byKey(const Key('titre-modale-reservation')))
-            .data,
-        'Modifier — Comptoir',
-      );
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('titre-modale-reservation')))
+              .data,
+          'Modifier la réservation',
+        );
 
-      // La fiche entière est reprise : un champ oublié au pré-remplissage se
-      // viderait à l'enregistrement, et l'utilisateur ne verrait rien.
-      // La liste des clients affiche « nom — téléphone » : c'est ce qui
-      // distingue deux homonymes, et c'est le seul moyen de choisir juste au
-      // comptoir.
-      expect(find.textContaining('Comptoir'), findsWidgets);
-      // « Structure », le mot de la vue (PA-185) — le code stocké reste
-      // `entreprise`, et c'est lui qui a été relu pour remplir ce champ.
-      expect(find.text('Structure'), findsWidgets);
-      expect(find.text('WhatsApp'), findsWidgets);
-      expect(find.text('Chèque'), findsWidgets);
+        // La fiche entière est reprise : un champ oublié au pré-remplissage se
+        // viderait à l'enregistrement, et l'utilisateur ne verrait rien.
+        // La liste des clients affiche « nom — téléphone » : c'est ce qui
+        // distingue deux homonymes, et c'est le seul moyen de choisir juste au
+        // comptoir.
+        expect(find.textContaining('Comptoir'), findsWidgets);
+        // « Structure », le mot de la vue (PA-185) — le code stocké reste
+        // `entreprise`, et c'est lui qui a été relu pour remplir ce champ.
+        expect(find.text('Structure'), findsWidgets);
+        expect(find.text('WhatsApp'), findsWidgets);
+        expect(find.text('Chèque'), findsWidgets);
 
-      // Les dates viennent de la RÉSERVATION, pas de la période consultée :
-      // l'écran a été monté sur une tout autre période.
-      expect(find.byKey(const Key('bloc-hebergement')), findsOneWidget);
-      expect(find.textContaining('56 000 FCFA'), findsWidgets);
-    });
+        // Les dates viennent de la RÉSERVATION, pas de la période consultée :
+        // l'écran a été monté sur une tout autre période.
+        expect(find.byKey(const Key('bloc-hebergement')), findsOneWidget);
+        expect(find.textContaining('56 000 FCFA'), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'DEBUG PO 10/11/2026 : rouvrir une réservation multi-chambres avec un service '
+      'bar rend TOUS les champs REMPLIS (chambres, boisson) — rien à ressélectionner',
+      (tester) async {
+        await db
+            .into(db.unitesHebergementLocal)
+            .insert(
+              UnitesHebergementLocalCompanion.insert(
+                id: 'u-bng-02',
+                categorieId: 'cat-1',
+                numero: 'BNG-02',
+                statut: 'libre',
+              ),
+            );
+        await db
+            .into(db.cartesBoissonLocal)
+            .insert(
+              CartesBoissonLocalCompanion.insert(
+                id: 'b-cafe',
+                articleId: 'art-cafe',
+                libelle: 'Café expresso',
+                categorie: 'maison',
+                prixVente: 1000,
+              ),
+            );
+        await depot.enregistrer(
+          Reservation(
+            id: 'res-mc',
+            reference: 'LOC-MC',
+            clientId: 'cli-comptoir',
+            clientNom: 'Comptoir',
+            uniteId: uniteId,
+            periode: periode(10, 12),
+            tarifNuit: 28000,
+            statut: StatutReservation.confirmee,
+            statutSynchronisation: StatutSynchronisation.synchronise,
+            creeeLe: DateTime(2026, 8, 1),
+            lignes: [
+              LigneService(
+                id: 'l-h1',
+                service: ServiceReservation.hebergement,
+                itemId: uniteId,
+                libelle: 'Bungalow (BNG-01)',
+                prixUnitaire: 28000,
+                quantite: 2,
+              ),
+              LigneService(
+                id: 'l-h2',
+                service: ServiceReservation.hebergement,
+                itemId: 'u-bng-02',
+                libelle: 'Bungalow (BNG-02)',
+                prixUnitaire: 28000,
+                quantite: 2,
+              ),
+              LigneService(
+                id: 'l-b1',
+                service: ServiceReservation.bar,
+                itemId: 'b-cafe',
+                libelle: 'Café expresso',
+                prixUnitaire: 1000,
+                quantite: 1,
+              ),
+            ],
+          ),
+        );
+        await monter(
+          tester,
+          const FicheReservation(reservationId: 'res-mc'),
+          periodeInitiale: periode(1, 2),
+        );
+
+        // Chaque ligne affiche SON choix (jamais l'invite « Choisir… »).
+        expect(find.textContaining('BNG-01'), findsWidgets);
+        expect(find.textContaining('BNG-02'), findsWidgets);
+        expect(find.textContaining('Café expresso'), findsWidgets);
+        expect(find.text('Choisir une unité…'), findsNothing);
+        expect(find.text('Choisissez un élément du catalogue'), findsNothing);
+
+        // Enregistrer SANS rien toucher ne perd aucune ligne.
+        final bouton = find.byKey(const Key('bouton-enregistrer'));
+        await tester.ensureVisible(bouton);
+        await tester.pumpAndSettle();
+        await tester.tap(bouton);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('bouton-plus-tard')));
+        await tester.pumpAndSettle();
+        final relue = await depot.parId('res-mc');
+        expect(relue!.lignes.map((l) => l.itemId).toSet(), {
+          uniteId,
+          'u-bng-02',
+          'b-cafe',
+        });
+      },
+    );
+
+    testWidgets(
+      'DEBUG PO 10/11/2026 (cause prouvée) : une ligne dont l’ARTICLE n’est plus au '
+      'catalogue du poste (plat, boisson, circuit, véhicule) reste AFFICHÉE avec son libellé '
+      'figé — jamais un sélecteur vide à ressélectionner — et survit à l’enregistrement',
+      (tester) async {
+        // Aucune ligne de catalogue n'est semée pour ces quatre identifiants : le poste ne les
+        // porte pas (réservation reçue d'un autre poste avant la descente du catalogue, article
+        // retiré, menu absent de la jointure des plats).
+        await depot.enregistrer(
+          Reservation(
+            id: 'res-orph',
+            reference: 'LOC-ORPH',
+            clientId: 'cli-comptoir',
+            clientNom: 'Comptoir',
+            uniteId: uniteId,
+            periode: periode(10, 12),
+            tarifNuit: 28000,
+            statut: StatutReservation.confirmee,
+            statutSynchronisation: StatutSynchronisation.synchronise,
+            creeeLe: DateTime(2026, 8, 1),
+            lignes: [
+              LigneService(
+                id: 'l-o-h',
+                service: ServiceReservation.hebergement,
+                itemId: uniteId,
+                libelle: 'Bungalow (BNG-01)',
+                prixUnitaire: 28000,
+                quantite: 2,
+              ),
+              LigneService(
+                id: 'l-o-r',
+                service: ServiceReservation.restauration,
+                itemId: 'plat-retire',
+                libelle: 'Demi-pintade',
+                prixUnitaire: 5500,
+                quantite: 1,
+              ),
+              LigneService(
+                id: 'l-o-b',
+                service: ServiceReservation.bar,
+                itemId: 'boisson-retiree',
+                libelle: 'Café expresso',
+                prixUnitaire: 1000,
+                quantite: 1,
+              ),
+              LigneService(
+                id: 'l-o-t',
+                service: ServiceReservation.tourisme,
+                itemId: 'circuit-retire',
+                libelle: 'Ornithologique',
+                prixUnitaire: 5000,
+                quantite: 2,
+              ),
+              LigneService(
+                id: 'l-o-v',
+                service: ServiceReservation.vehicule,
+                itemId: 'vehicule-retire',
+                libelle: 'scooter AB 1357 RB',
+                prixUnitaire: 6000,
+                quantite: 1,
+              ),
+            ],
+          ),
+        );
+        await monter(
+          tester,
+          const FicheReservation(reservationId: 'res-orph'),
+          periodeInitiale: periode(1, 2),
+        );
+
+        // Chaque ligne montre SON libellé figé (le sélecteur n'est pas vide).
+        expect(find.textContaining('Demi-pintade'), findsWidgets);
+        expect(find.textContaining('Café expresso'), findsWidgets);
+        expect(find.textContaining('Ornithologique'), findsWidgets);
+        expect(find.textContaining('scooter AB 1357 RB'), findsWidgets);
+        expect(find.text('Choisissez un élément du catalogue'), findsNothing);
+
+        // Enregistrer SANS rien toucher ne perd ni ne change aucune ligne.
+        final bouton = find.byKey(const Key('bouton-enregistrer'));
+        await tester.ensureVisible(bouton);
+        await tester.pumpAndSettle();
+        await tester.tap(bouton);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('bouton-plus-tard')));
+        await tester.pumpAndSettle();
+        final relue = await depot.parId('res-orph');
+        expect(relue!.lignes.map((l) => l.itemId).toSet(), {
+          uniteId,
+          'plat-retire',
+          'boisson-retiree',
+          'circuit-retire',
+          'vehicule-retire',
+        });
+        expect(
+          relue.lignes
+              .firstWhere((l) => l.itemId == 'plat-retire')
+              .prixUnitaire,
+          5500,
+        );
+      },
+    );
 
     testWidgets(
       'sa propre chambre reste retenue, sans conflit avec elle-même',
@@ -977,6 +1400,13 @@ void main() {
 
     testWidgets('la modification repart au serveur', (tester) async {
       final r = await aModifier();
+      // Synchronisée = le serveur la connaît : ici, elle lui est venue de lui
+      // (descendue). C'est ce qui fait PARTIR la correction (09/11/2026).
+      await db.customStatement(
+        'INSERT INTO origines_documents_local '
+        "(table_serveur, entite_id, recu_le) VALUES ('reservations', ?, 0)",
+        [r.id],
+      );
       await monter(
         tester,
         const FicheReservation(reservationId: 'res-mod'),
@@ -992,6 +1422,11 @@ void main() {
       // sinon l'écran affiche un état que le serveur ne porte pas.
       final relue = await depot.parId(r.id);
       expect(relue!.statutSynchronisation, StatutSynchronisation.local);
+      // Et c'est VRAI : une opération attend réellement dans la file.
+      expect(
+        await OperationsSyncDao(db).enSuspens('reservations', r.id),
+        isTrue,
+      );
     });
 
     testWidgets('une réservation introuvable le DIT', (tester) async {
@@ -1052,6 +1487,26 @@ void main() {
       expect(find.byKey(Key('annuler-${r.id}')), findsNothing);
     });
 
+    testWidgets(
+      '« Annuler » à moins de 24 h de l’arrivée : le taux de 50 % est '
+      'appliqué automatiquement (grille par délai)',
+      (tester) async {
+        final r = await creerEnBase(p: periode(0, 2));
+        await monter(tester, const EcranReservations());
+
+        await tester.tap(find.byKey(Key('annuler-${r.id}')));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const Key('annulation-taux')))
+              .controller!
+              .text,
+          '50.00',
+        );
+      },
+    );
+
     testWidgets('« Annuler » ouvre la modale du serveur : taux pré-rempli, '
         'refus aux mots du serveur, commission sur le montant GLOBAL', (
       tester,
@@ -1067,13 +1522,14 @@ void main() {
         find.byKey(const Key('modale-annulation-reservation')),
         findsOneWidget,
       );
-      // Le taux de référence du client, jamais imposé.
+      // Arrivée dans 10 jours : au-delà du seuil de 24 h, le taux « au-delà » (0 % par
+      // défaut) est appliqué automatiquement — modifiable, jamais imposé.
       expect(
         tester
             .widget<TextField>(find.byKey(const Key('annulation-taux')))
             .controller!
             .text,
-        '50.00',
+        '0.00',
       );
       expect(
         tester.widget<Text>(find.byKey(const Key('annulation-total'))).data,
@@ -1132,7 +1588,7 @@ void main() {
           clientId: 'cli-dossou',
           clientNom: 'DOSSOU Marie',
           uniteId: uniteId,
-          periode: periode(10, 12),
+          periode: periode(0, 2),
           tarifNuit: 28000,
           statut: StatutReservation.confirmee,
           statutSynchronisation: StatutSynchronisation.local,
@@ -1235,7 +1691,13 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('—'), findsNWidgets(6));
-      expect(find.textContaining('FCFA'), findsNothing);
+      // Aucun MONTANT : la phrase d'aide de l'onglet (qui nomme « FCFA ») n'en est pas un.
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Text && (w.data ?? '').contains('FCFA'),
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('l’onglet Annulations vide le dit', (tester) async {

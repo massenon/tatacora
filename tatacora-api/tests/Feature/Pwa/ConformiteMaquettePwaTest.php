@@ -63,43 +63,122 @@ final class ConformiteMaquettePwaTest extends TestCase
     // ------------------------------------------------------- Écran de connexion
 
     /**
-     * L'écart mesuré au brief : la maquette est en DEUX colonnes — panneau
-     * image `hidden lg:block lg:w-1/2` à gauche, formulaire `flex-1` à droite.
-     * La vue Blade n'en avait qu'une, dans une carte centrée.
+     * Refonte du 29/10/2026 (PO, docs/HANDOFF_ECRAN_CONNEXION_LOGIRESTOCK.md) :
+     * l'écran de connexion est une CARTE UNIQUE centrée, dans l'ordre du
+     * handoff : marque, slogan, bandeau de sept pictogrammes, accueil, deux
+     * champs, « Se souvenir de moi » / « Mot de passe oublié ? », bouton. Le
+     * panneau image à deux colonnes de l'ancienne maquette n'existe plus.
      */
     #[Test]
-    public function l_ecran_de_connexion_est_en_deux_colonnes_comme_la_maquette(): void
+    public function l_ecran_de_connexion_est_une_carte_unique_dans_l_ordre_du_handoff(): void
     {
         $html = (string) $this->get('/pwa/connexion')->getContent();
 
+        // DEUX panneaux depuis la decision du PO du 29/10/2026 : photo a gauche
+        // (dès `lg`), carte a droite.
         $this->assertStringContainsString('hidden lg:block lg:w-1/2 relative', $html);
         $this->assertStringContainsString('assets/img/gite-cover.jpg', $html);
-        $this->assertStringContainsString('flex-1 flex items-center justify-center p-6 overflow-y-auto', $html);
-        $this->assertStringContainsString('w-full max-w-sm py-8', $html);
+        $this->assertStringContainsString('alt="Gîte Chez Noël, Natitingou"', html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $this->assertStringContainsString('relative z-10 h-full flex flex-col justify-end p-12 text-white', $html);
+        $this->assertStringContainsString('w-16 h-16 rounded-xl mb-6 ring-2 ring-[var(--gold)] object-contain', $html);
+        $this->assertStringContainsString('Système de gestion Intégré<br>TATACORA AFRIQUE', $html);
+        $this->assertStringContainsString('une seule plateforme, pour le Gîte Chez Noël à Natitingou.', html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $this->assertStringContainsString('max-w-[520px]', $html);
+        // Correction du PO du 29/10/2026 : panneau droit BLANC uni, sans carte
+        // (ni bordure, ni ombre, ni rayon), centre dans la hauteur de la fenetre
+        // et SANS marge verticale (aucun ascenseur a hauteur normale).
+        $this->assertStringContainsString('flex-1 min-h-screen flex items-center justify-center bg-white px-6 md:px-8', $html);
+        $this->assertMatchesRegularExpression('#<body class="min-h-screen flex" style="background:white"#', $html);
+        $this->assertStringNotContainsString('rounded-2xl', $html);
+        $this->assertStringNotContainsString('shadow-sm', $html);
+        $this->assertStringNotContainsString('overflow-y-auto', $html);
+        $this->assertStringNotContainsString('var(--fond-clair)', $html);
+        // Les deux champs ont EXACTEMENT la meme bordure de repos.
+        preg_match_all('#<input id="champ-(?:identifiant|motdepasse)"[^>]*class="([^"]*)"#', $html, $champs);
+        $this->assertCount(2, $champs[1]);
+        foreach ($champs[1] as $classes) {
+            $this->assertStringContainsString('border border-slate-300 hover:border-slate-400 rounded-xl', $classes);
+        }
+        // Le panneau gauche precede la carte dans le document.
+        $this->assertLessThan(strpos($html, 'max-w-[520px]'), strpos($html, 'hidden lg:block lg:w-1/2'));
 
-        // Le corps porte les classes qui mettent les deux colonnes cote a
-        // cote : sans elles, elles existeraient dans le HTML l une sous l autre.
-        $this->assertMatchesRegularExpression('#<body class="h-screen flex"#', $html);
+        // Les libellés, dans l'ordre exact du document (apostrophes décodées).
+        $texte = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $ordre = [
+            'Logi', 'ReStock', 'TATACORA AFRIQUE',
+            'VOTRE LOGICIEL DE GESTION INTÉGRÉE',
+            'Restauration', 'Hébergement', 'Éco-tourisme', 'Stock', 'Location', 'Caisse', 'Comptabilité',
+            'Bienvenue !',
+            'Connectez-vous à votre espace d\'administration LogiReStock.',
+            'NOM D\'UTILISATEUR OU E-MAIL',
+            'MOT DE PASSE',
+            'Se souvenir de moi',
+            'Mot de passe oublié ?',
+            'SE CONNECTER',
+        ];
+        $position = 0;
+        foreach ($ordre as $libelle) {
+            $trouve = strpos($texte, $libelle, $position);
+            $this->assertNotFalse($trouve, "« {$libelle} » absent ou hors d'ordre.");
+            $position = $trouve + strlen($libelle);
+        }
 
-        // Hierarchie typographique de l ecran.
-        $this->assertStringContainsString('text-3xl font-bold mb-2 leading-tight', $html);
-        $this->assertStringContainsString('text-xl font-bold text-center mb-1', $html);
-        $this->assertStringContainsString('text-[15px] text-slate-400 text-center mb-6', $html);
+        // Sept pictogrammes de module, tous décoratifs, plus la marque.
+        $this->assertSame(7, substr_count($html, '<li title="'));
 
-        // Champs : classes `champ` du design system, invite de saisie.
-        $this->assertStringContainsString('champ w-full border border-slate-200 rounded-lg px-3.5 py-3 text-sm', $html);
-        $this->assertStringContainsString('ex. n.nabogou', $html);
+        // Accessibilité : labels explicites, autocomplete, œil nommé et pressé.
+        $this->assertStringContainsString('<label for="champ-identifiant"', $html);
+        $this->assertStringContainsString('<label for="champ-motdepasse"', $html);
+        $this->assertStringContainsString('autocomplete="username"', $html);
+        $this->assertStringContainsString('autocomplete="current-password"', $html);
+        $this->assertStringContainsString('aria-label="Afficher le mot de passe"', $html);
+        $this->assertStringContainsString('aria-pressed', $html);
 
-        // Pied de page.
-        $this->assertStringContainsString('TATACORA AFRIQUE © 2026 — PAEB / FAGUEZ SARL', $html);
+        // L'ordre de tabulation est celui du document : identifiant, mot de
+        // passe, œil, case, lien, bouton (aucun tabindex positif).
+        $this->assertDoesNotMatchRegularExpression('#tabindex="[1-9]#', $html);
+        $suite = ['id="champ-identifiant"', 'id="champ-motdepasse"', 'aria-pressed', 'type="checkbox"', 'aria-controls="aide-mot-de-passe-oublie"', 'type="submit"'];
+        $position = 0;
+        foreach ($suite as $element) {
+            $trouve = strpos($html, $element, $position);
+            $this->assertNotFalse($trouve, "{$element} hors de l'ordre de tabulation.");
+            $position = $trouve + strlen($element);
+        }
 
-        // Titre d'onglet : meme ordre (ecran, marque) que les autres pages —
-        // voir `lang/fr/coquille_pwa.php` pour l'unique exception (le splash).
-        // Le nom d'onglet suit le <h1> de la page (contrat de BaliseTitrePwaTest).
-        // Decision du Product Owner du 13/10/2026 (PA-208) : « LogiRestock »
-        // remplace ; seconde decision du meme jour (PA-209, D389) : la mention
-        // est « Systeme de gestion Integre » (casse exacte du PO).
-        $this->assertStringContainsString('<title>Système de gestion Intégré TATACORA AFRIQUE — TATACORA AFRIQUE</title>', $html);
+        // « Se souvenir » ne mémorise jamais le mot de passe.
+        $this->assertSame(1, substr_count($html, 'setItem(this'));
+        $this->assertSame(1, substr_count($html, 'localStorage.setItem(this.cle, this.$refs.identifiant.value)'));
+
+        // Titre d'onglet : le <h1> « Connexion » suivi de la marque.
+        $this->assertStringContainsString('<title>Connexion — LogiReStock</title>', $html);
+    }
+
+    /**
+     * Decision du PO du 29/10/2026 : le logo TELEVERSE coiffe la carte de
+     * connexion (hauteur 64, proportions gardees, alt = nom de la marque) ;
+     * absent, le pictogramme de marque prend sa place. « LogiReStock » reste.
+     */
+    #[Test]
+    public function le_logo_televerse_coiffe_la_carte_et_la_marque_reste_toujours(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake(\App\Shared\Parametres\Services\ApparenceEtablissementService::DISQUE);
+
+        $sans = (string) $this->get('/pwa/connexion')->getContent();
+        $this->assertStringNotContainsString('lg:hidden"', $sans, 'Sans logo televerse, la carte n\'a pas d\'image de logo.');
+        $this->assertStringContainsString('M6 30L32 8l26 22', $sans, 'Le pictogramme de marque est toujours affiche.');
+
+        \Illuminate\Support\Facades\Storage::disk(\App\Shared\Parametres\Services\ApparenceEtablissementService::DISQUE)
+            ->put(\App\Shared\Parametres\Services\ApparenceEtablissementService::REPERTOIRE.'/logo.png', 'x');
+
+        $avec = (string) $this->get('/pwa/connexion')->getContent();
+        // Sous `lg` : logo en haut de la carte (`lg:hidden`) ; dès `lg` : dans le
+        // panneau gauche, jamais repete en haut de la carte.
+        $this->assertMatchesRegularExpression('#<img src="[^"]*/pwa/apparence/logo[^"]*" alt="Logo TATACORA AFRIQUE" class="[^"]*h-16[^"]*object-contain[^"]*lg:hidden"#', $avec);
+        $this->assertMatchesRegularExpression('#<img src="[^"]*/pwa/apparence/logo[^"]*" alt="Logo TATACORA AFRIQUE" class="w-16 h-16 rounded-xl mb-6#', $avec);
+        $this->assertStringContainsString('M6 30L32 8l26 22', $avec, 'Le logo s ajoute AU-DESSUS : le pictogramme reste.');
+        $this->assertLessThan(strpos($avec, 'M6 30L32 8l26 22'), strpos($avec, 'h-16 w-auto'), 'Le logo est au-dessus de la marque.');
+        $this->assertStringContainsString('>Logi<', $avec);
+        $this->assertStringContainsString('>ReStock<', $avec);
     }
 
     /**
@@ -714,12 +793,14 @@ final class ConformiteMaquettePwaTest extends TestCase
             'badge reseau' => 'bg-[var(--succes)]/15',
             'indicateur de caisse' => 'id="indicateur-caisse"',
             'bouton Vente' => 'bg-[var(--gold)] text-white hover:brightness-110',
+            // AJOUT du PO (03/11/2026) : entre « Vente » et la cloche.
+            'icone de synchronisation' => 'id="bouton-synchronisation"',
             'cloche de notifications' => 'id="bouton-cloche-notifications"',
             'pastille de comptage' => 'id="badge-notifications-non-lues"',
             'bloc de compte' => 'class="relative ml-2 pl-3 border-l border-white/10"',
         ];
 
-        $this->assertGreaterThanOrEqual(11, count($widgets));
+        $this->assertGreaterThanOrEqual(12, count($widgets));
 
         $precedent = -1;
         foreach ($widgets as $quoi => $marqueur) {
@@ -997,5 +1078,22 @@ final class ConformiteMaquettePwaTest extends TestCase
             'role_id' => Role::where('libelle', $role)->firstOrFail()->id,
             'statut' => $statut,
         ]);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function import_export_synchronisation_et_appairage_ont_trois_icones_distinctes(): void
+    {
+        $noms = ['Import & Export', 'Synchronisation', 'Appairage Postes'];
+        $icones = [];
+        foreach (MenuLateral::NAVIGATION as $groupe) {
+            foreach ($groupe['items'] ?? [] as $entree) {
+                if (in_array($entree['nom'] ?? null, $noms, true)) {
+                    $icones[$entree['nom']] = $entree['icone'];
+                }
+            }
+        }
+
+        $this->assertCount(3, $icones, 'Les trois entrées existent au menu.');
+        $this->assertCount(3, array_unique($icones), 'Trois icônes distinctes : '.json_encode($icones));
     }
 }

@@ -38,6 +38,18 @@ enum TableDescendue {
   menus('menus', TableSynchronisee.menus),
   recettes('recettes', TableSynchronisee.recettes),
   plats('plats', TableSynchronisee.plats),
+
+  /// 21/10/2026 : les retraits de la carte du jour, après les boissons et les
+  /// plats qu'ils citent.
+  indisponibilitesCarte(
+    'indisponibilites_carte',
+    TableSynchronisee.indisponibilitesCarte,
+  ),
+
+  /// 26/10/2026 : l'historique des prix de la carte, après les boissons et les
+  /// plats dont il trace le prix. Le poste ne le POUSSE pas : le serveur en est
+  /// l'unique auteur (ses observateurs de prix).
+  historiquePrixCarte('historique_prix_carte', null),
   categoriesHebergement(
     'categories_hebergement',
     TableSynchronisee.categoriesHebergement,
@@ -48,10 +60,17 @@ enum TableDescendue {
   tablesSalle('tables_salle', TableSynchronisee.tablesSalle),
   fournisseurs('fournisseurs', TableSynchronisee.fournisseurs),
 
+  /// 21/10/2026 : les canaux de réservation, AVANT les réservations qui les
+  /// citent (la réservation arrive avec le NOM de son canal).
+  canauxReservation('canaux_reservation', TableSynchronisee.canauxReservation),
+
   /// Lot F3 (décision du PO du 16/10/2026) : les clients et les séjours de
   /// TOUS les postes descendent — le client AVANT la réservation qui le cite
   /// (PA-127), l'unité bien avant.
   clients('clients', TableSynchronisee.clients),
+
+  /// 21/10/2026 : les relances de TOUS les postes, après le client qu'elles citent.
+  relancesClients('relances_clients', TableSynchronisee.relancesClients),
   reservations('reservations', TableSynchronisee.reservations),
 
   /// Lot F5 : l'arrivée et le départ réels, après la réservation.
@@ -71,6 +90,9 @@ enum TableDescendue {
   /// avoirs, puis les encaissements — le reste dû d'une facture est le même
   /// sur tous les postes.
   factures('factures', TableSynchronisee.factures),
+
+  /// 07/11/2026 : les proformas de TOUS les postes et de la PWA (numéro du serveur, lignes avec elles).
+  proformas('proformas', TableSynchronisee.proformas),
   avoirs('avoirs', null),
   paiements('paiements', TableSynchronisee.paiements),
   commandesAchat('commandes_achat', TableSynchronisee.commandesAchat),
@@ -87,11 +109,20 @@ enum TableDescendue {
   /// Audit de couverture (18/10/2026) : le parc M8 et ses contrats.
   vehicules('vehicules', TableSynchronisee.vehicules),
   contratsLocation('contrats_location', TableSynchronisee.contratsLocation),
+  entretiensVehicule(
+    'entretiens_vehicule',
+    TableSynchronisee.entretiensVehicule,
+  ),
 
   /// Audit de couverture (18/10/2026) : M13.
   servicesRh('services', null),
   employes('employes', TableSynchronisee.employes),
   bulletinsPaie('bulletins_paie', TableSynchronisee.bulletinsPaie),
+
+  /// 21/10/2026 : les créneaux de planning, puis les demandes de congé (après
+  /// le dossier des employés qu'ils citent).
+  plannings('plannings', TableSynchronisee.plannings),
+  conges('conges', TableSynchronisee.conges),
 
   /// Descendue sans être synchronisable : le poste ne pousse pas ses centres.
   centresCout('centres_cout', null),
@@ -110,7 +141,43 @@ enum TableDescendue {
   /// Passage d'année (20/10/2026) : les exercices du serveur et leur statut
   /// — une clôture faite au serveur verrouille l'année ici aussi. Le poste ne
   /// les pousse pas.
-  exercicesComptables('exercices_comptables', null);
+  exercicesComptables('exercices_comptables', null),
+
+  /// Le PLAN COMPTABLE du serveur (28/10/2026, D246 rouvert), après les exercices
+  /// et AVANT les écritures et les pièces qui citent un compte par son numéro.
+  /// Un compte se reconnaît à son NUMÉRO : le poste ajoute ceux qu'il n'a pas et
+  /// n'en réécrit aucun, y compris un compte créé ici qui attend son envoi.
+  planComptable('plan_comptable', TableSynchronisee.planComptable),
+
+  /// Les écritures VALIDÉES du serveur (21/10/2026), après leurs exercices :
+  /// un miroir de LECTURE pour les états financiers, jamais mêlé aux pièces du
+  /// poste. Le poste ne les pousse pas.
+  ecrituresComptables('ecritures_comptables', null),
+
+  /// 09/11/2026 (PO : « une affectation passée au web DOIT apparaître sur le poste ») :
+  /// les AFFECTATIONS DU RÉSULTAT du serveur, actives et contre-passées, après les
+  /// écritures qu'elles citent. Un miroir de LECTURE pour la carte « Affectation du
+  /// résultat » : le poste ne les pousse pas (les siennes partent comme des pièces
+  /// saisies, `pieces_saisie`), l'aligneur ne fait que les inscrire.
+  affectationsResultat('affectations_resultat', null),
+
+  /// 21/10/2026 : les immobilisations de tous les postes (M10) ; le plan
+  /// d'amortissement ne descend pas, il se calcule.
+  immobilisations('immobilisations', TableSynchronisee.immobilisations),
+
+  /// 21/10/2026 : les inventaires physiques clôturés de tous les postes, avec
+  /// leurs lignes comptées (elles descendent AVEC l'inventaire).
+  inventaires('inventaires', TableSynchronisee.inventaires),
+
+  /// 03/11/2026 (décision du PO : supprimer un compte, avec synchronisation) : les
+  /// comptes SUPPRIMÉS au serveur, et eux seuls — `login` et `supprime_le`, jamais un
+  /// mot de passe, un dérivé, un rôle ni un e-mail. Le LOGIN est la clé d'appariement
+  /// (les identifiants diffèrent entre le web et les postes) : l'aligneur marque
+  /// `supprime_le` sur le compte local de même login, ne CRÉE jamais de compte et
+  /// n'écrase jamais autre chose. Descendue sans être « synchronisable » au sens du
+  /// catalogue : la file d'envoi n'a, pour les comptes, que la suppression
+  /// ([TableSynchronisee.utilisateurs]).
+  utilisateurs('utilisateurs', null);
 
   const TableDescendue(this.nomServeur, this.tableSynchronisee);
 
@@ -134,6 +201,7 @@ enum TableDescendue {
 String libelleTableServeur(String nom) => switch (nom) {
   'reservations' => 'Réservations',
   'clients' => 'Clients',
+  'relances_clients' => 'Relances de clients',
   'fournisseurs' => 'Fournisseurs',
   'points_stockage' => 'Points de stockage',
   'articles' => 'Articles de stock',
@@ -141,6 +209,8 @@ String libelleTableServeur(String nom) => switch (nom) {
   'menus' => 'Menus',
   'recettes' => 'Fiches techniques',
   'plats' => 'Plats',
+  'indisponibilites_carte' => 'Retraits de la carte du jour',
+  'historique_prix_carte' => 'Historique des prix de la carte',
   'categories_hebergement' => 'Catégories d\'hébergement',
   'unites_hebergement' => 'Unités d\'hébergement',
   'commandes_achat' => 'Commandes d\'achat',
@@ -151,6 +221,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'tables_salle' => 'Tables de salle',
   'paniers' => 'Tables occupées (additions ouvertes)',
   'factures' => 'Factures',
+  'proformas' => 'Factures proforma',
   'avoirs' => 'Avoirs',
   'paiements' => 'Encaissements de factures',
   'centres_cout' => 'Centres de coût',
@@ -161,14 +232,27 @@ String libelleTableServeur(String nom) => switch (nom) {
   'reservations_tour' => 'Réservations de circuits',
   'sejours' => 'Séjours (arrivées et départs)',
   'vehicules' => 'Véhicules',
+  'entretiens_vehicule' => 'Entretiens et carburations',
   'contrats_location' => 'Contrats de location',
   'services' => 'Services (RH)',
   'employes' => 'Employés',
   'bulletins_paie' => 'Bulletins de paie',
+  'plannings' => 'Plannings',
+  'conges' => 'Congés',
   'parametres_systeme' => 'Paramètres',
   'roles' => 'Rôles et permissions',
   'modeles_notification' => 'Modèles de notification',
   'exercices_comptables' => 'Exercices comptables',
+  'ecritures_comptables' => 'Écritures comptables validées',
+  'affectations_resultat' => 'Affectations du résultat',
+  'immobilisations' => 'Immobilisations',
+  'plan_comptable' => 'Plan comptable',
+  'pieces_saisie' => 'Pièces comptables saisies',
+  'canaux_reservation' => 'Canaux de réservation',
+  'inventaires' => 'Inventaires physiques',
+  // 03/11/2026 : les comptes supprimés au serveur (le login seul).
+  'utilisateurs' => 'Comptes supprimés',
+  'demandes_cloture_exercice' => 'Demandes de clôture d’exercice',
   _ => nom,
 };
 
@@ -181,9 +265,16 @@ final class ElementCatalogue {
     required this.modifieLe,
     required this.donnees,
     this.posteOrigine,
+    this.supprime = false,
   });
 
   final TableDescendue table;
+
+  /// `true` : la PURGE définitive de l'élément, faite ailleurs (A5, 28/10/2026).
+  /// Seules les unités d'hébergement et les véhicules en portent ; [donnees] est
+  /// vide. L'aligneur la rejoue SEULEMENT si aucune saisie locale n'y est
+  /// rattachée.
+  final bool supprime;
 
   /// Le poste qui a saisi le document (lot F4) ; `null` : saisi au serveur.
   final String? posteOrigine;
@@ -205,24 +296,42 @@ final class ElementCatalogue {
     final donnees = brut['donnees'];
     if (table is! String || id is! String || id.isEmpty) return null;
     final t = TableDescendue.depuisNom(table);
-    if (t == null || donnees is! Map) return null;
+    final supprime = brut['supprime'] == true;
+    // Une suppression ne porte aucune donnée (le serveur rend `{}`) ; seule la
+    // table du REGISTRE FERMÉ de la purge est admise, jamais une autre.
+    if (supprime) {
+      if (t == null || !_tablesSupprimables.contains(t)) return null;
+    } else if (t == null || donnees is! Map) {
+      return null;
+    }
     return ElementCatalogue(
       table: t,
       id: id,
-      actif: brut['actif'] != false,
+      supprime: supprime,
+      actif: supprime ? false : brut['actif'] != false,
       modifieLe: brut['modifie_le'] is String
           ? brut['modifie_le']! as String
           : '',
-      donnees: Map<String, Object?>.from(donnees),
+      donnees: donnees is Map
+          ? Map<String, Object?>.from(donnees)
+          : const <String, Object?>{},
       posteOrigine: brut['poste_origine'] is String
           ? brut['poste_origine']! as String
           : null,
     );
   }
 
+  /// Le registre FERMÉ de la purge (A5) : le miroir de `SuppressionsDescendantes::
+  /// TABLES` du serveur.
+  static const Set<TableDescendue> _tablesSupprimables = {
+    TableDescendue.unitesHebergement,
+    TableDescendue.vehicules,
+  };
+
   Map<String, Object?> versJson() => {
     'table': table.nomServeur,
     'id': id,
+    if (supprime) 'supprime': true,
     'actif': actif,
     'modifie_le': modifieLe,
     'poste_origine': posteOrigine,

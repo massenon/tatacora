@@ -11,10 +11,16 @@ use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Stocks\Models\Article;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
+use App\Domain\Ventes\Models\LigneVente;
+use App\Domain\Ventes\Models\Vente;
 use App\Models\User;
 use App\Pwa\Livewire\Restaurant\CarteRestaurant;
 use App\Pwa\Livewire\Restaurant\Restauration;
+use App\Pwa\Livewire\Transverse\ClocheNotifications;
+use App\Pwa\Livewire\Transverse\RechercheGlobale;
+use App\Pwa\Support\MontantFcfa;
 use App\Shared\Rbac\Models\Role;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -90,16 +96,17 @@ final class RestaurantPwaTest extends TestCase
 
         $html = (string) $this->get('/pwa/restaurant/carte')->assertOk()->getContent();
 
-        $this->assertStringContainsString('<title>Carte du restaurant — TATACORA AFRIQUE</title>', $html);
+        $this->assertStringContainsString('<title>Carte du restaurant — LogiReStock — TATACORA AFRIQUE</title>', $html);
         $this->assertSame(1, substr_count($html, '<h1 '), 'Un seul <h1> par page.');
         $this->assertStringContainsString('>Carte du restaurant</h1>', $html);
         $this->assertStringContainsString('<body data-module="M4"', $html);
 
-        // Le sous-titre et le bandeau du MAÎTRE.
+        // Le sous-titre du MAÎTRE.
         $this->assertStringContainsString('Le stock affiché est <strong>calculé</strong>, jamais saisi.', $html);
-        // Blade échappe l'apostrophe : chercher la forme typographique
-        // répondrait « absente » sur une page qui porte bien la phrase.
-        $this->assertStringContainsString('c&#039;est une recette', $html);
+        // Le bandeau jaune « Un plat n'est pas un article de stock : c'est une
+        // recette… » est RETIRÉ (PO, 30/10/2026). Blade échappe l'apostrophe.
+        $this->assertStringNotContainsString('c&#039;est une recette', $html);
+        $this->assertStringNotContainsString('ne décrémentent rien à la vente. La valeur', $html);
 
         $this->assertStringContainsString('Poulet DG', $html);
     }
@@ -344,7 +351,7 @@ final class RestaurantPwaTest extends TestCase
         // Directive) pendant que le <h1> disait déjà « Restaurant & Cuisine »
         // (mot du maître, qui gagne) : deux noms pour la même page, et
         // `BaliseTitrePwaTest` le refusait à raison.
-        $this->assertStringContainsString('<title>Restaurant &amp; Cuisine — TATACORA AFRIQUE</title>', $html);
+        $this->assertStringContainsString('<title>Restaurant &amp; Cuisine — LogiReStock — TATACORA AFRIQUE</title>', $html);
         $this->assertSame(1, substr_count($html, '<h1 '), 'Un seul <h1> par page.');
         // Le mot du MAÎTRE (l.28) : la vue livrée rendait « Catalogue des
         // Plats & Restauration ».
@@ -474,11 +481,101 @@ final class RestaurantPwaTest extends TestCase
         $this->assertSame(0, bccomp((string) $cree->prix_vente, '2500.00', 2));
     }
 
+    /**
+     * Décision du PO du 30/10/2026 : la description du plat est FACULTATIVE,
+     * normalisée (trim, vide = NULL), 500 caractères au plus, et s'affiche en
+     * ligne secondaire sous le nom dans la liste des plats.
+     */
+    #[Test]
+    public function la_description_du_plat_est_facultative_normalisee_et_affichee(): void
+    {
+        $this->jeuDeDonnees();
+        $this->actingAs($this->utilisateur('administrateur'));
+
+        $saisie = fn (string $nom, string $description) => Livewire::test(Restauration::class)
+            ->call('ouvrirCreationPlat')
+            ->set('libelleSaisi', $nom)
+            ->set('descriptionSaisie', $description)
+            ->set('prixVenteSaisi', '2500')
+            ->set('categorieSaisie', 'plats')
+            ->set('menuIdSaisi', $this->menu->id)
+            ->set('recetteIdSaisie', $this->recetteGarnie->id)
+            ->call('enregistrerPlat');
+
+        // Absente : le plat est créé, la colonne vaut NULL.
+        $saisie('Plat sans description', '')->assertHasNoErrors();
+        $this->assertNull(Plat::where('libelle', 'Plat sans description')->firstOrFail()->description);
+
+        // Faite d'espaces : NULL aussi.
+        $saisie('Plat espaces', "  \n  ")->assertHasNoErrors();
+        $this->assertNull(Plat::where('libelle', 'Plat espaces')->firstOrFail()->description);
+
+        // Saisie : rognée, conservée telle quelle à l'intérieur (multiligne).
+        $saisie('Plat décrit', "  Poulet, plantain\nsauce tomate  ")->assertHasNoErrors();
+        $plat = Plat::where('libelle', 'Plat décrit')->firstOrFail();
+        $this->assertSame("Poulet, plantain\nsauce tomate", $plat->description);
+
+        // 500 passe, 501 est refusé avec la phrase de l'API.
+        $saisie('Plat limite', str_repeat('a', 500))->assertHasNoErrors();
+        $saisie('Plat trop long', str_repeat('a', 501))
+            ->assertHasErrors(['descriptionSaisie'])
+            ->assertSee(__('restaurant.validation.description_trop_longue', ['max' => 500]));
+        $this->assertNull(Plat::where('libelle', 'Plat trop long')->first());
+
+        // La modification précharge puis efface (vide = NULL).
+        $composant = Livewire::test(Restauration::class)
+            ->call('ouvrirModificationPlat', $plat->id)
+            ->assertSet('descriptionSaisie', "Poulet, plantain\nsauce tomate");
+        $this->assertStringContainsString('Poulet, plantain', $composant->html());
+
+        // La carte du restaurant la montre en ligne secondaire sous le nom ; sans
+        // description, aucune ligne secondaire n'est rendue.
+        $carte = Livewire::test(CarteRestaurant::class)->html();
+        $this->assertStringContainsString('Poulet, plantain', $carte);
+        $this->assertStringContainsString('Plat limite', $carte);
+
+        $composant->set('descriptionSaisie', '')->call('enregistrerPlat')->assertHasNoErrors();
+        $this->assertNull($plat->refresh()->description);
+    }
+
+    /**
+     * L'API refuse comme la PWA : 501 caractères, et une modification qui ne
+     * soumet pas la description la laisse en place.
+     */
+    #[Test]
+    public function l_api_valide_la_description_et_la_modification_sans_elle_la_conserve(): void
+    {
+        $this->jeuDeDonnees();
+        $this->actingAs($this->utilisateur('administrateur'));
+
+        $corps = [
+            'libelle' => 'Plat API', 'menu_id' => $this->menu->id,
+            'recette_id' => $this->recetteGarnie->id, 'prix_vente' => '1000',
+        ];
+
+        $this->postJson('/api/v1/restaurant/plats', [...$corps, 'description' => str_repeat('b', 501)])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('description');
+
+        $id = $this->postJson('/api/v1/restaurant/plats', [...$corps, 'description' => '  Riz et sauce  '])
+            ->assertCreated()
+            ->assertJsonPath('data.description', 'Riz et sauce')
+            ->json('data.id');
+
+        $this->putJson("/api/v1/restaurant/plats/{$id}", [...$corps, 'prix_vente' => '1200'])
+            ->assertOk()
+            ->assertJsonPath('data.description', 'Riz et sauce');
+
+        $this->putJson("/api/v1/restaurant/plats/{$id}", [...$corps, 'description' => '   '])
+            ->assertOk()
+            ->assertJsonPath('data.description', null);
+    }
+
     #[Test]
     public function un_role_en_lecture_seule_ne_peut_pas_creer_de_plat(): void
     {
         $this->jeuDeDonnees();
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M4'));
 
         $avant = Plat::count();
@@ -746,7 +843,7 @@ final class RestaurantPwaTest extends TestCase
     {
         $this->jeuDeDonnees();
 
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M4'));
 
         $menusAvant = Menu::count();
@@ -924,8 +1021,8 @@ final class RestaurantPwaTest extends TestCase
         // actions sur CHAQUE page : elles se resolvent sur eux, jamais sur le
         // composant de page.
         foreach ([
-            \App\Pwa\Livewire\Transverse\ClocheNotifications::class,
-            \App\Pwa\Livewire\Transverse\RechercheGlobale::class,
+            ClocheNotifications::class,
+            RechercheGlobale::class,
         ] as $imbrique) {
             foreach ((new \ReflectionClass($imbrique))->getMethods(\ReflectionMethod::IS_PUBLIC) as $m) {
                 $publiques[] = $m->getName();
@@ -1132,9 +1229,9 @@ final class RestaurantPwaTest extends TestCase
         // RG-02 puis total : 2 × 4 500 = 9 000 F, les 18 000 F annulés exclus.
         $this->assertStringContainsString('V-TEST-M4-ANNULEE', $html);
         $this->assertStringContainsString('Annulée', $html);
-        $this->assertStringContainsString(\App\Pwa\Support\MontantFcfa::format('9000.00'), $html);
+        $this->assertStringContainsString(MontantFcfa::format('9000.00'), $html);
         $this->assertStringNotContainsString(
-            \App\Pwa\Support\MontantFcfa::format('27000.00'),
+            MontantFcfa::format('27000.00'),
             $html,
             "Le total additionne la vente annulée : son montant n'est pas de l'argent.",
         );
@@ -1152,7 +1249,7 @@ final class RestaurantPwaTest extends TestCase
         $this->actingAs($this->utilisateur('administrateur'));
 
         $poulet = Plat::where('libelle', 'Poulet DG')->firstOrFail();
-        $jour = \Carbon\CarbonImmutable::parse('2026-08-20 21:15:00');
+        $jour = CarbonImmutable::parse('2026-08-20 21:15:00');
 
         $this->venteDeTest('V-TEST-M4-DERNIERJOUR', $jour, [
             ['code' => $poulet->id, 'nom' => 'Poulet DG', 'module' => 'M4', 'prix' => '4500.00', 'qte' => 1],
@@ -1301,7 +1398,7 @@ final class RestaurantPwaTest extends TestCase
         $this->actingAs($this->utilisateur('administrateur'));
 
         $poulet = Plat::where('libelle', 'Poulet DG')->firstOrFail();
-        $jour = \Carbon\CarbonImmutable::parse('2026-08-20 21:15:00');
+        $jour = CarbonImmutable::parse('2026-08-20 21:15:00');
 
         $this->venteDeTest('V-TEST-M4-DANSLAPLAGE', $jour, [
             ['code' => $poulet->id, 'nom' => 'Poulet DG', 'module' => 'M4', 'prix' => '4500.00', 'qte' => 1],
@@ -1325,8 +1422,8 @@ final class RestaurantPwaTest extends TestCase
             "L'export ignore la borne haute : le document est plus large que l'écran.",
         );
 
-        $this->assertStringContainsString('19/08/2026', $texte, "Le document ne dit pas sa période.");
-        $this->assertStringContainsString('20/08/2026', $texte, "Le document ne dit pas sa période.");
+        $this->assertStringContainsString('19/08/2026', $texte, 'Le document ne dit pas sa période.');
+        $this->assertStringContainsString('20/08/2026', $texte, 'Le document ne dit pas sa période.');
     }
 
     /**
@@ -1425,14 +1522,14 @@ final class RestaurantPwaTest extends TestCase
         array $lignes,
         string $statut = 'validee',
         string $motif = '',
-    ): \App\Domain\Ventes\Models\Vente {
+    ): Vente {
         $total = '0.00';
 
         foreach ($lignes as $ligne) {
             $total = bcadd($total, bcmul($ligne['prix'], (string) $ligne['qte'], 2), 2);
         }
 
-        $vente = \App\Domain\Ventes\Models\Vente::create([
+        $vente = Vente::create([
             'numero' => $numero,
             'point_vente' => 'restaurant',
             'montant_total' => $total,
@@ -1447,7 +1544,7 @@ final class RestaurantPwaTest extends TestCase
         $vente->forceFill(['created_at' => $quand])->save();
 
         foreach ($lignes as $ligne) {
-            \App\Domain\Ventes\Models\LigneVente::create([
+            LigneVente::create([
                 'vente_id' => $vente->id,
                 'code' => $ligne['code'],
                 'nom' => $ligne['nom'],

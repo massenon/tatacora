@@ -52,6 +52,15 @@ abstract final class AppTextStyles {
   /// 6 px sur « RÉSERVATIONS & SÉJOURS » (mesuré au relevé du châssis).
   static const double suiviPlusLarge = 0.05;
 
+  /// `tracking-widest` de Tailwind — **0.1em**. Le sous-titre de marque de
+  /// l'écran de connexion (« TATACORA AFRIQUE », `text-[11px] … tracking-widest`).
+  /// JETON AJOUTÉ le 29/10/2026.
+  static const double suiviTresLarge = 0.1;
+
+  /// `tracking-[0.2em]` — le slogan de l'écran de connexion (valeur entre
+  /// crochets de la vue, pas un palier Tailwind). JETON AJOUTÉ le 29/10/2026.
+  static const double suiviSlogan = 0.2;
+
   /// `tracking-tight` de Tailwind — **−0.025em**. La marque de la barre
   /// supérieure (`text-base font-bold tracking-tight`).
   static const double suiviSerre = -0.025;
@@ -146,7 +155,7 @@ abstract final class AppTextStyles {
 /// | 20 px | 48 | `text-xl` |
 /// | 16 px | 25 | `text-base` |
 /// | 10 px | 23 | `text-[10px]` |
-/// | 30 px | 2 | `text-3xl` — le titre de la colonne image de connexion |
+/// | 30 px | 2 | `text-3xl` — le titre de l'écran de démarrage (la colonne image de connexion est passée à 20 px le 09/11/2026) |
 ///
 /// **Ce que ce tableau apprend, et qui ne se devine pas :** le maître n'emploie
 /// presque pas l'échelle nommée de Tailwind. Neuf de ses dix tailles les plus
@@ -196,7 +205,8 @@ abstract final class Tailles {
   /// `text-xl` — titres de page et de modale.
   static const double t20 = 20;
 
-  /// `text-3xl` — le seul très grand titre du maître, en colonne image.
+  /// `text-3xl` — le seul très grand titre du maître : l'écran de DÉMARRAGE.
+  /// La connexion n'en emploie plus depuis le 09/11/2026 ([MesuresConnexion.tailleTitre]).
   static const double t30 = 30;
 
   /// `leading-tight` de Tailwind, employé sur le titre 30 px.

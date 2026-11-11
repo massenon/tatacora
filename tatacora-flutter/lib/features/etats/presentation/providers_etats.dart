@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../achats/presentation/providers_achats.dart';
+import '../../comptabilite/presentation/providers_etats_financiers.dart'
+    show lireDonneesEtats;
 import '../../depenses/presentation/providers_depenses.dart';
 import '../../facturation/presentation/providers_paiements.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
@@ -17,6 +19,7 @@ import '../../ventes/domain/journal_ventes.dart';
 import '../data/etats_api.dart';
 import '../domain/apercu_etat.dart';
 import '../domain/entities/etat_catalogue.dart';
+import '../domain/registre_etats.dart';
 
 /// L'horloge de M14 : « maintenant » d'une photographie (« Arrêté au … ») et
 /// mois courant de la paie. Injectable — un test qui lit l'horloge réelle
@@ -59,6 +62,7 @@ final sourcesEtatsProvider = Provider<SourcesEtats>(
         ref.read(livreDePaieServiceProvider).totaux(periode),
     clients: () => ref.read(clientDaoProvider).clients(),
     creances: () => lireCreances(ref.read),
+    donneesComptables: () => lireDonneesEtats(ref),
     maintenant: ref.watch(horlogeEtatsProvider),
   ),
 );
@@ -148,5 +152,30 @@ final catalogueFiltreProvider = Provider<AsyncValue<List<EtatCatalogue>>>((
 /// ne le dise (PA-59/60/61).
 final apercuEtatProvider = FutureProvider.autoDispose
     .family<ResultatApercu, String>(
-      (ref, code) => ref.watch(etatsApiProvider).apercu(code),
+      (ref, code) => ref
+          .watch(etatsApiProvider)
+          .apercu(
+            code,
+            // La case n'existe que sur l'état « Locations » : les autres ne
+            // dépendent pas d'elle (et ne se recalculent pas quand on la coche).
+            inclureAnnules:
+                code == EtatLocal.locationsVehicules.code &&
+                ref.watch(inclureAnnulesEtatsProvider),
+          ),
     );
+
+/// La case « Inclure les contrats annulés » de l'état « Locations » —
+/// `pwa.etats.inclure_annules`, DÉCOCHÉE par défaut (`$inclureAnnules` de
+/// `EtatsStudio`). Un contrat annulé n'est jamais compté (voir
+/// `apercuLocations`).
+final inclureAnnulesEtatsProvider =
+    NotifierProvider<_InclureAnnulesNotifier, bool>(
+      _InclureAnnulesNotifier.new,
+    );
+
+class _InclureAnnulesNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void definir(bool valeur) => state = valeur;
+}

@@ -150,6 +150,87 @@ void main() {
     });
   });
 
+  group('LA RÈGLE DU « REMBOURSÉ » — les deux annulations des captures du PO '
+      '(09/11/2026) : identique au web', () {
+    ResultatAnnulation applique({
+      required int total,
+      required int acompte,
+      required String taux,
+    }) {
+      // La valeur que la modale PROPOSE (la même fonction que l'écran), prise telle quelle.
+      final propose = pourcentageRembourseSuggere(
+        acompteCentimes: acompte * 100,
+        totalCentimes: total * 100,
+        taux: taux,
+      );
+      return calculerAnnulation(
+        dejaAnnulee: false,
+        totalCentimes: total * 100,
+        acompteCentimes: acompte * 100,
+        tauxSaisi: taux,
+        modeSaisi: 'pourcentage',
+        valeurSaisie: propose,
+      );
+    }
+
+    test('Robert : 80 000, 50 %, acompte 40 000 -> commission 40 000, '
+        'remboursé 0 (acompte − commission), PAS total − commission', () {
+      final r = applique(total: 80000, acompte: 40000, taux: '50');
+      expect(r.commissionCentimes, 4000000);
+      expect(r.rembourseCentimes, 0);
+      expect(
+        r.totalCentimes - r.commissionCentimes,
+        4000000,
+        reason:
+            'total − commission aurait donné 40 000 : ce n’est pas la règle',
+      );
+    });
+
+    test('payé en totalité (40 000 sur 40 000), 50 % : remboursé = payé − '
+        'commission = total − commission', () {
+      final r = applique(total: 40000, acompte: 40000, taux: '50');
+      expect(r.commissionCentimes, 2000000);
+      // Le remboursé SAISI (ici la valeur proposée : payé − commission).
+      final propose = pourcentageRembourseSuggere(
+        acompteCentimes: 4000000,
+        totalCentimes: 4000000,
+        taux: '50.00',
+      );
+      expect(propose, '50.00'); // 50 % du payé = 20 000 = 40 000 − 20 000
+    });
+
+    test('la GRILLE par délai : sous le seuil le taux de 50 %, au-delà 0 % ; '
+        'seuil et taux paramétrables', () {
+      final defaut = grilleAnnulation(const {});
+      expect(defaut.seuilHeures, 24);
+      expect(defaut.tauxPour(10), '50.00');
+      expect(defaut.tauxPour(24), '0.00');
+      expect(defaut.tauxPour(-5), '50.00'); // arrivée déjà passée
+      final reglee = grilleAnnulation(const {
+        'hebergement_annulation_seuil_heures': '72',
+        'hebergement_annulation_taux_au_dela': '10',
+        'hebergement_taux_annulation_moins_24h': '40',
+      });
+      expect(reglee.tauxPour(48), '40');
+      expect(reglee.tauxPour(100), '10');
+    });
+
+    test('Pierre : 90 000, 20 %, acompte 0 -> commission 18 000, remboursé 0 '
+        '(on ne rend pas un acompte jamais encaissé)', () {
+      final r = applique(total: 90000, acompte: 0, taux: '20');
+      expect(r.commissionCentimes, 1800000);
+      expect(r.rembourseCentimes, 0);
+    });
+
+    test('un acompte qui couvre la commission : remboursé = acompte − '
+        'commission, jamais plus que l’acompte', () {
+      final r = applique(total: 80000, acompte: 40000, taux: '20');
+      expect(r.commissionCentimes, 1600000);
+      expect(r.rembourseCentimes, 2400000);
+      expect(r.rembourseCentimes, lessThanOrEqualTo(4000000));
+    });
+  });
+
   group('Le calcul — dans l’ORDRE du serveur', () {
     ResultatAnnulation annuler({
       bool dejaAnnulee = false,

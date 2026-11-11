@@ -29,6 +29,9 @@ final class FichierLu {
 /// « Enregistrer sous » (14/10/2026 : les exports PDF passent aussi par elle).
 enum TypeFichierEnregistre {
   csv('CSV', ['csv', 'txt']),
+
+  /// Le modèle d'import : un vrai classeur Excel (PO, 30/10/2026).
+  xlsx('Classeur Excel', ['xlsx']),
   pdf('PDF', ['pdf']),
 
   /// La copie de la base du poste (Import & Export, « Générer une sauvegarde
@@ -36,7 +39,11 @@ enum TypeFichierEnregistre {
   sauvegarde('Base SQLite', ['sqlite']),
 
   /// L'export d'une table (Import & Export, « Exporter une table existante »).
-  json('JSON', ['json']);
+  json('JSON', ['json']),
+
+  /// L'archive légale d'une clôture d'exercice (hub Comptabilité, onglet
+  /// Clôtures, « Télécharger l'archive (ZIP) »).
+  zip('ZIP', ['zip']);
 
   const TypeFichierEnregistre(this.libelle, this.extensions);
 
@@ -52,8 +59,14 @@ enum TypeFichierEnregistre {
 
 /// Ce que le poste sait faire avec un fichier choisi par l'utilisateur.
 abstract interface class SelecteurFichiers {
-  /// Ouvre la fenêtre « Ouvrir » filtrée sur les CSV. `null` : annulé.
-  Future<FichierLu?> ouvrirCsv();
+  /// Ouvre la fenêtre « Ouvrir » filtrée sur les classeurs `.xlsx` (et, en
+  /// secours, les CSV). `null` : annulé.
+  Future<FichierLu?> ouvrirTableur();
+
+  /// Ouvre la fenêtre « Ouvrir » filtrée sur des images ([extensions] sans
+  /// point : `png`, `jpg`, `ico`…) — le logo et le favicon (Paramètres, Logo &
+  /// Apparence). `null` : annulé.
+  Future<FichierLu?> ouvrirImage({required List<String> extensions});
 
   /// Ouvre la fenêtre « Enregistrer sous » avec [nomSuggere], filtrée sur
   /// [type] et ouverte sur [dossierInitial] quand il est donné, puis écrit
@@ -71,18 +84,27 @@ abstract interface class SelecteurFichiers {
 final class SelecteurFichiersNatif implements SelecteurFichiers {
   const SelecteurFichiersNatif();
 
-  static const XTypeGroup _csv = XTypeGroup(
-    label: 'CSV',
-    extensions: ['csv', 'txt'],
+  static const XTypeGroup _tableur = XTypeGroup(
+    label: 'Classeur Excel ou CSV',
+    extensions: ['xlsx', 'csv', 'txt'],
   );
 
   static XTypeGroup _groupe(TypeFichierEnregistre type) =>
       XTypeGroup(label: type.libelle, extensions: type.extensions);
 
   @override
-  Future<FichierLu?> ouvrirCsv() async {
+  Future<FichierLu?> ouvrirTableur() async {
     final fichier = await FileSelectorPlatform.instance.openFile(
-      acceptedTypeGroups: const [_csv],
+      acceptedTypeGroups: const [_tableur],
+    );
+    if (fichier == null) return null;
+    return FichierLu(nom: fichier.name, octets: await fichier.readAsBytes());
+  }
+
+  @override
+  Future<FichierLu?> ouvrirImage({required List<String> extensions}) async {
+    final fichier = await FileSelectorPlatform.instance.openFile(
+      acceptedTypeGroups: [XTypeGroup(label: 'Images', extensions: extensions)],
     );
     if (fichier == null) return null;
     return FichierLu(nom: fichier.name, octets: await fichier.readAsBytes());

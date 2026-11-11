@@ -45,6 +45,11 @@ void main() {
   }
 
   const droitsAvant = '{"M5":"C","M6":"L"}';
+  // La v49 (03/11/2026) AJOUTE les trois droits de « Mon profil » aux matrices déjà
+  // stockées (additif : les clés d'avant sont intactes).
+  // La v54 (09/11/2026) AJOUTE ensuite les trois droits ouverts à tous (`L` hors administration).
+  const droitsApres =
+      '{"M5":"C","M6":"L","PROFIL_NOM":"C","PROFIL_TELEPHONE":"C","PROFIL_INTITULE":"-","SYNCHRO":"L","APPAIRAGE":"L","IMPORT_EXPORT":"L"}';
 
   test('v23 -> v24 : la table APPARAÎT vide, le compte d’avant est INTACT ; '
       'le socle se pose ensuite au geste, sans toucher le compte', () async {
@@ -72,6 +77,19 @@ void main() {
       ...tablesAjouteesEnV27,
       ...tablesAjouteesEnV28,
       ...tablesAjouteesEnV29,
+      ...tablesAjouteesEnV31,
+      ...tablesAjouteesEnV32,
+      ...tablesAjouteesEnV33,
+      ...tablesAjouteesEnV34,
+      ...tablesAjouteesEnV35,
+      ...tablesAjouteesEnV37,
+      ...tablesAjouteesEnV38,
+      ...tablesAjouteesEnV39,
+      ...tablesAjouteesEnV40,
+      ...tablesAjouteesEnV44,
+      ...tablesAjouteesEnV46,
+      ...tablesAjouteesEnV52,
+      ...tablesAjouteesEnV53,
     });
 
     final roles = await apres
@@ -81,7 +99,7 @@ void main() {
     final u = await apres
         .customSelect('SELECT role, droits_json FROM utilisateurs_local')
         .getSingle();
-    expect((u.data['role'], u.data['droits_json']), ('barman', droitsAvant));
+    expect((u.data['role'], u.data['droits_json']), ('barman', droitsApres));
 
     // Le poste migré est utilisable : le socle se pose, le compte compte, et
     // ses droits ne sont réécrits que par un geste de l'écran.
@@ -94,7 +112,7 @@ void main() {
     final relu = await apres
         .customSelect('SELECT droits_json FROM utilisateurs_local')
         .getSingle();
-    expect(relu.data['droits_json'], droitsAvant);
+    expect(relu.data['droits_json'], droitsApres);
     await apres.close();
   });
 }

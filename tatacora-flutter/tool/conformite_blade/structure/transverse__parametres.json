@@ -198,6 +198,74 @@
             {
                 "type": "p",
                 "texte": "Imprimé avec l’IFU et le RCCM dans les mentions légales des états quand il est renseigné."
+            },
+            {
+                "type": "h3",
+                "texte": "Facturation normalisée (MECeF)"
+            },
+            {
+                "type": "p",
+                "texte": "Mode"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Désactivé : factures de démonstration, sans valeur fiscale. e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, même hors ligne. Réservé aux Administrateurs."
+            },
+            {
+                "type": "p",
+                "texte": "Adresse de l’API de la DGI"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "https:// exigé. Vide : developper.impots.bj/sygmef-emcf/api (adresse de la DGI)."
+            },
+            {
+                "type": "p",
+                "texte": "Identifiant de l’opérateur"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Nom de l’opérateur"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "30 caractères au plus (limite du boîtier)."
+            },
+            {
+                "type": "p",
+                "texte": "Jeton JWT e-MECeF"
+            },
+            {
+                "type": "button",
+                "texte": "Saisir un nouveau jeton"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun jeton enregistré."
+            },
+            {
+                "type": "p",
+                "texte": "Le jeton est rangé chiffré sur le serveur : il n’est jamais réaffiché ni envoyé aux postes. Pour le remplacer, saisissez-en un nouveau."
+            },
+            {
+                "type": "button",
+                "texte": "Tester la connexion"
             }
         ],
         "communication": [
@@ -266,7 +334,7 @@
             },
             {
                 "type": "h3",
-                "texte": "Canaux de notification (Module M12)"
+                "texte": "Canaux de notification"
             },
             {
                 "type": "p",
@@ -282,27 +350,11 @@
             },
             {
                 "type": "p",
-                "texte": "Clé API WhatsApp Business"
-            },
-            {
-                "type": "p",
-                "texte": "Secret technique : n'entrera jamais dans les paramètres système, lisibles par tout profil ayant accès à cet écran — il vit en configuration serveur."
-            },
-            {
-                "type": "p",
                 "texte": "Site web"
             },
             {
                 "type": "button",
                 "texte": "Modifier"
-            },
-            {
-                "type": "p",
-                "texte": "Message de bienvenue (notifications automatiques)"
-            },
-            {
-                "type": "p",
-                "texte": "Porté par les modèles du module Notifications (un texte par évènement et par canal) : une seconde source de texte ici finirait par diverger de la première."
             }
         ],
         "email": [
@@ -431,7 +483,7 @@
             },
             {
                 "type": "p",
-                "texte": "Secret technique : n'entre jamais dans les paramètres système. Rangé chiffré sur le serveur, il n'est jamais réaffiché, exporté ni synchronisé ; sans lui, la configuration serveur (.env) s'applique. L'envoi de test ci-dessous l'emprunte réellement."
+                "texte": "Le mot de passe est enregistré chiffré sur le serveur : il n'est jamais réaffiché. Sans lui, la configuration du serveur s'applique. L'envoi de test ci-dessous l'emprunte réellement."
             },
             {
                 "type": "button",
@@ -524,7 +576,7 @@
             },
             {
                 "type": "p",
-                "texte": "Couleurs de la charte graphique (lecture seule — chap. 9.3.1 du CdCF)"
+                "texte": "Couleurs de la charte graphique (lecture seule)"
             },
             {
                 "type": "span",
@@ -879,10 +931,6 @@
             },
             {
                 "type": "p",
-                "texte": "Servi par le registre serveur — le maître ne pose pas de champ dédié pour ce groupe sous cet onglet, et le masquer ailleurs rendrait ses réglages invisibles."
-            },
-            {
-                "type": "p",
                 "texte": "CNSS part salariale (%)"
             },
             {
@@ -935,10 +983,6 @@
             },
             {
                 "type": "p",
-                "texte": "Servi par le registre serveur — le maître ne pose pas de champ dédié pour ce groupe sous cet onglet, et le masquer ailleurs rendrait ses réglages invisibles."
-            },
-            {
-                "type": "p",
                 "texte": "Tolérance de réception (%)"
             },
             {
@@ -988,6 +1032,18 @@
             {
                 "type": "p",
                 "texte": "Vide ou 0 : aucune purge n’a lieu. La durée contractuelle n’est pas tranchée (PA-08) — la renseigner DÉMARRE la suppression définitive de traces d’audit."
+            },
+            {
+                "type": "h3",
+                "texte": "Réinitialiser les données de test"
+            },
+            {
+                "type": "p",
+                "texte": "Réinitialisation désactivée"
+            },
+            {
+                "type": "p",
+                "texte": "Cette fonction vide les jeux de données de démonstration. Elle reste fermée par défaut : laissée ouverte sur une base d'exploitation réelle, elle détruirait le travail de l'entreprise."
             },
             {
                 "type": "h3",

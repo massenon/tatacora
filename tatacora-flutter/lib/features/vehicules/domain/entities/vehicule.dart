@@ -81,12 +81,12 @@ enum StatutVehicule {
 /// **aucune colonne de nom**. L'écran affiche donc l'immatriculation, seul
 /// identifiant qui existe, et le dit.
 ///
-/// ## Trois attributs du schéma de référence manquent à la table LOCALE
+/// ## Année, places et transmission : portés depuis la v41 (27/10/2026)
 ///
-/// `annee`, `transmission` et `capacite` existent côté serveur et **pas** dans
-/// `core/database/tables/vehicules_tables.dart`. Ils valent donc toujours
-/// `null` ici, l'écran rend « — », et la modale de saisie les affiche inertes
-/// avec leur raison plutôt que de les collecter pour les jeter.
+/// `annee`, `transmission` et `capacite` sont des colonnes NULLABLES de
+/// `vehicules_local` (décision D1/D2 du PO : le poste fait comme le web). Un
+/// véhicule d'avant la v41 les a à `null` et l'écran rend « — » : la migration
+/// n'en fabrique aucun.
 final class Vehicule {
   const Vehicule({
     required this.id,
@@ -107,14 +107,14 @@ final class Vehicule {
   final CategorieVehicule? categorie;
   final String? categorieBrute;
 
-  /// **Toujours `null`** — aucune colonne dans la table locale.
+  /// L'année (`vehicules_local.annee`, v41). `null` : véhicule d'avant, ou
+  /// jamais saisie — « — » s'affiche, jamais « 0 ».
   final int? annee;
 
-  /// **Toujours `null`** — aucune colonne dans la table locale.
+  /// La transmission (v41), texte libre. `null` : « — ».
   final String? transmission;
 
-  /// Le nombre de places. **Toujours `null`** : aucune colonne dans la table
-  /// locale. « — » s'affiche, jamais « 0 ».
+  /// Le nombre de places (v41). `null` : « — » s'affiche, jamais « 0 ».
   final int? capacite;
 
   /// Montant décimal en chaîne (« 25000.00 »), converti une seule fois au DAO.

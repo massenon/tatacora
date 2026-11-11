@@ -44,6 +44,7 @@ final class ReponseHttp extends IssueHttp {
     required this.statut,
     required this.corps,
     this.entetes = const {},
+    this.octets = const [],
   });
 
   final int statut;
@@ -53,6 +54,10 @@ final class ReponseHttp extends IssueHttp {
 
   /// Les en-têtes, noms en minuscules.
   final Map<String, String> entetes;
+
+  /// Les octets BRUTS du corps — renseignés pour un téléchargement de fichier
+  /// ([TransportFichiers.telecharger], lot L4), vides sinon.
+  final List<int> octets;
 
   bool get estSucces => statut >= 200 && statut < 300;
 }
@@ -75,8 +80,29 @@ abstract interface class TransportSynchronisation {
   Future<IssueHttp> get(Uri url, {String? jeton});
 }
 
-/// [TransportSynchronisation] sur `package:http`.
-final class TransportHttp implements TransportSynchronisation {
+/// Le transport d'un FICHIER (lot L4, 27/10/2026 — le reçu d'une dépense). Une
+/// interface À PART : `/sync` reste du JSON, et les faux transports de la file
+/// n'ont pas à connaître les fichiers. Mêmes garanties que
+/// [TransportSynchronisation] : une [IssueHttp] revient, jamais une exception ;
+/// `Accept: application/json` (les refus sont du JSON) ; le jeton en `Bearer`.
+abstract interface class TransportFichiers {
+  /// `PUT` du fichier BRUT [octets] (`Content-Type` = [type]) ; [entetes]
+  /// s'ajoutent (l'empreinte, `X-Recu-Sha256`).
+  Future<IssueHttp> deposer(
+    Uri url, {
+    required List<int> octets,
+    required String type,
+    Map<String, String> entetes = const {},
+    String? jeton,
+  });
+
+  /// `GET` d'un fichier : les octets sont dans [ReponseHttp.octets].
+  Future<IssueHttp> telecharger(Uri url, {String? jeton});
+}
+
+/// [TransportSynchronisation] (et [TransportFichiers]) sur `package:http`.
+final class TransportHttp
+    implements TransportSynchronisation, TransportFichiers {
   /// [client] : un `MockClient` en test. Par défaut, un client `dart:io` dont
   /// la connexion est bornée à [delai].
   TransportHttp({http.Client? client, this.delai = delaiTransport})
@@ -109,6 +135,25 @@ final class TransportHttp implements TransportSynchronisation {
   Future<IssueHttp> get(Uri url, {String? jeton}) =>
       _executer(() => _client.get(url, headers: _entetes(jeton)));
 
+  @override
+  Future<IssueHttp> deposer(
+    Uri url, {
+    required List<int> octets,
+    required String type,
+    Map<String, String> entetes = const {},
+    String? jeton,
+  }) => _executer(
+    () => _client.put(
+      url,
+      headers: {..._entetes(jeton), 'Content-Type': type, ...entetes},
+      body: octets,
+    ),
+  );
+
+  @override
+  Future<IssueHttp> telecharger(Uri url, {String? jeton}) =>
+      _executer(() => _client.get(url, headers: _entetes(jeton)));
+
   Future<IssueHttp> _executer(Future<http.Response> Function() requete) async {
     final http.Response reponse;
     try {
@@ -133,6 +178,7 @@ final class TransportHttp implements TransportSynchronisation {
       entetes: {
         for (final e in reponse.headers.entries) e.key.toLowerCase(): e.value,
       },
+      octets: reponse.bodyBytes,
     );
   }
 

@@ -7,6 +7,8 @@ namespace App\Domain\Ventes\Services;
 use App\Domain\Bar\Models\CarteBoisson;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Restaurant\Models\Plat;
+use App\Domain\Tourisme\Models\Circuit;
+use App\Domain\Vehicules\Models\Vehicule;
 use App\Domain\Ventes\Models\LignePanier;
 use App\Domain\Ventes\Models\Panier;
 use App\Domain\Ventes\Models\Vente;
@@ -517,26 +519,35 @@ class PanierService
             ]));
         }
 
-        $article = $module === 'M5'
-            ? CarteBoisson::find($reference)
-            : Plat::find($reference);
+        // Tourisme (M9) et location (M8), encaissables depuis le 22/10/2026 :
+        // le prix est celui du circuit / le tarif jour du véhicule.
+        $article = match ($module) {
+            'M5' => CarteBoisson::find($reference),
+            'M8' => Vehicule::find($reference),
+            'M9' => Circuit::find($reference),
+            default => Plat::find($reference),
+        };
 
         if ($article === null) {
             throw new RuntimeException(__('ventes.reference_inconnue', ['reference' => $reference]));
         }
 
-        $prix = (string) $article->prix_vente;
+        [$libelle, $prix] = match ($module) {
+            'M8' => [$article->immatriculation.' ('.$article->categorie.')', (string) $article->tarif_jour],
+            'M9' => [$article->nom, (string) $article->prix],
+            default => [$article->libelle, (string) $article->prix_vente],
+        };
 
         // Un article sans prix ne se vend pas — le maitre le dit lui-meme
         // (pos.html l.520). `bccomp` et non une egalite : c'est un montant.
         if (bccomp($prix, '0.00', self::PRECISION) <= 0) {
             throw new RuntimeException(__('ventes.article_sans_prix', [
-                'article' => (string) $article->libelle,
+                'article' => (string) $libelle,
             ]));
         }
 
         return [
-            'libelle' => (string) $article->libelle,
+            'libelle' => (string) $libelle,
             'prix' => $prix,
         ];
     }

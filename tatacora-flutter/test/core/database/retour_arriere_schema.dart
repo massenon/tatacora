@@ -91,7 +91,278 @@ const tablesAjouteesEnV28 = <String>{'origines_documents_local'};
 /// lot F6 du 18/10/2026).
 const tablesAjouteesEnV29 = <String>{'occupations_tables_local'};
 
+/// La table que la v31 AJOUTE (retraits de la carte du jour, 21/10/2026).
+const tablesAjouteesEnV31 = <String>{'indisponibilites_carte_local'};
+
+/// La table que la v32 AJOUTE (entretiens de véhicules, 21/10/2026).
+const tablesAjouteesEnV32 = <String>{'entretiens_vehicule_local'};
+
+/// Les tables que la v33 AJOUTE (plannings et congés, 21/10/2026).
+const tablesAjouteesEnV33 = <String>{'plannings_local', 'conges_local'};
+
+/// La table que la v34 AJOUTE (écritures validées du serveur, 21/10/2026).
+const tablesAjouteesEnV34 = <String>{'ecritures_serveur_local'};
+
+/// Les tables que la v35 AJOUTE (21/10/2026).
+const tablesAjouteesEnV35 = <String>{
+  'immobilisations_local',
+  'relances_clients_local',
+  'inventaires_local',
+  'lignes_inventaire_local',
+  'canaux_reservation_local',
+};
+
+/// La table que la v37 AJOUTE (journal de réception du poste, 26/10/2026).
+const tablesAjouteesEnV37 = <String>{'journal_reception_local'};
+
+/// La table que la v38 AJOUTE (historique des prix de la carte, 26/10/2026).
+const tablesAjouteesEnV38 = <String>{'historique_prix_carte_local'};
+
+/// La table que la v39 AJOUTE (boîte d'envoi des e-mails, 26/10/2026).
+const tablesAjouteesEnV39 = <String>{'boite_envoi_emails_local'};
+
+/// La table que la v40 AJOUTE (clôtures d'exercice du poste, 26/10/2026).
+const tablesAjouteesEnV40 = <String>{'clotures_exercices_local'};
+
+/// La table que la v44 AJOUTE (pièces saisies à la main, 28/10/2026).
+const tablesAjouteesEnV44 = <String>{'pieces_saisie_local'};
+
+/// La table que la v46 AJOUTE (journal de securite du poste, 29/10/2026).
+const tablesAjouteesEnV46 = <String>{'journal_securite_local'};
+
+/// Les tables que la v52 AJOUTE (facture proforma, 07/11/2026).
+const tablesAjouteesEnV52 = <String>{
+  'proformas_local',
+  'lignes_proforma_local',
+  'sequences_proforma_local',
+};
+
+/// La table que la v53 AJOUTE (affectations du résultat reçues du serveur, 09/11/2026).
+const tablesAjouteesEnV53 = <String>{'affectations_resultat_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v59 (10/11/2026, le CMP du serveur comme reference) AJOUTE une colonne nullable,
+  // `articles_local.cmp_reference`, ni indexee ni referencee : retour arriere symetrique.
+  59: <String>['ALTER TABLE articles_local DROP COLUMN cmp_reference'],
+
+  // La v58 (09/11/2026, l'auteur d'une annulation recue) AJOUTE une colonne nullable,
+  // `reservations_local.auteur_annulation_login`, ni indexee ni referencee : retour arriere
+  // symetrique.
+  58: <String>[
+    'ALTER TABLE reservations_local DROP COLUMN auteur_annulation_login',
+  ],
+
+  // La v57 (09/11/2026, valeur d'achat de reference) AJOUTE une colonne nullable,
+  // `articles_local.prix_achat_reference`, ni indexee ni referencee : retour arriere
+  // symetrique.
+  57: <String>['ALTER TABLE articles_local DROP COLUMN prix_achat_reference'],
+
+  // La v56 (09/11/2026, le cout des entrees de stock descend) ne change AUCUN schema : elle
+  // n'oublie que le curseur de descente. L'entree doit exister.
+  56: <String>[],
+
+  // La v55 est RESERVEE a un autre chantier (client au panier du poste) : tant qu'il n'a pas
+  // livre sa migration, l'entree est VIDE (aucun ordre) pour que les fixtures franchissent
+  // la version. Celui qui livre la v55 REMPLACE cette entree par ses annulations.
+  55: <String>[],
+
+  // La v54 (09/11/2026, trois droits transverses ouverts a tous) ne change AUCUN schema :
+  // elle ne pose que des cles dans `droits_json`. Le retour arriere n'a donc aucun ordre
+  // (les cles posees restent, additives) — mais l'entree doit exister.
+  54: <String>[],
+
+  // La v53 (09/11/2026, affectations du resultat recues du serveur) ajoute UNE table neuve,
+  // aucune colonne : le retour arriere la supprime (elle n'a ni cle etrangere ni dependant).
+  53: <String>['DROP TABLE affectations_resultat_local'],
+
+  // La v52 (07/11/2026, facture proforma) ajoute TROIS tables neuves, aucune colonne.
+  // L'ordre est celui de l'annulation : les lignes (cle etrangere) avant leur en-tete.
+  52: <String>[
+    'DROP TABLE lignes_proforma_local',
+    'DROP TABLE proformas_local',
+    'DROP TABLE sequences_proforma_local',
+  ],
+
+  // La v51 (07/11/2026, IFU du client) ajoute TROIS colonnes nullables, ni indexees ni
+  // referencees, aucune table : `pieces_facturation_local.acheteur_ifu` / `.acheteur_nom`
+  // et `clients_local.ifu`. Retour arriere symetrique : les trois colonnes sont retirees.
+  51: <String>[
+    'ALTER TABLE clients_local DROP COLUMN ifu',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN acheteur_nom',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN acheteur_ifu',
+  ],
+
+  // La v50 (07/11/2026, facturation normalisee) ajoute HUIT colonnes nullables a
+  // `pieces_facturation_local`, ni indexees ni referencees, aucune table : retour
+  // arriere symetrique (les DAO d'aujourd'hui qui lisent la table entiere ne
+  // sont pas utilises par les fixtures anciennes, qui semment en SQL).
+  50: <String>[
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisee_le',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN qr_code_fiscal',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN code_mecef',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisation_compteur_avant',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisation_compteur',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisation_mode',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisation_motif',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisation_statut',
+  ],
+
+  // La v49 (03/11/2026, « Mon profil » sous droit) ajoute DEUX colonnes nullables a
+  // `utilisateurs_local` (`telephone`, `intitule_de_poste`), ni indexees ni
+  // referencees, aucune table. Le retour arriere CONSERVE les colonnes, comme pour la
+  // v45/v46/v48 : les DAO d'aujourd'hui qui JOIGNENT `utilisateurs_local` lisent
+  // toutes ses colonnes. La migration, elle, est eprouvee en RETIRANT les colonnes a
+  // la main (`migration_v49_profil_test`).
+  49: <String>[],
+
+  // La v48 (03/11/2026, supprimer un compte) ajoute UNE colonne nullable a
+  // `utilisateurs_local`, ni indexee ni referencee, aucune table. Le retour arriere
+  // CONSERVE la colonne (comme la v46 conserve ses colonnes de comptes) : les DAO
+  // d'aujourd'hui qui JOIGNENT `utilisateurs_local` (auteur d'un mouvement, d'une
+  // ecriture) lisent toutes ses colonnes, et une fixture « ancienne » qui semerait
+  // par eux echouerait sur « no such column ». La migration, elle, est eprouvee en
+  // RETIRANT la colonne a la main (`migration_v48_compte_supprime_test`).
+  48: <String>[],
+
+  // La v47 (30/10/2026, la description facultative d'un plat) ajoute UNE colonne nullable,
+  // ni indexee ni referencee, aucune table : retour arriere symetrique.
+  47: <String>['ALTER TABLE plats_local DROP COLUMN description'],
+
+  // La v46 (29/10/2026, mot de passe perdu SANS e-mail) ajoute ONZE colonnes a
+  // `utilisateurs_local` (changement obligatoire, expiration du temporaire, derive
+  // de l'ancien mot de passe, derive du code de secours, compteur d'echecs) et UNE
+  // table locale neuve, `journal_securite_local`, sans cle etrangere ni index.
+  //
+  // ⚠ Le retour arriere ne retire QUE la table. Les colonnes de
+  // `utilisateurs_local` sont CONSERVEES, pour la meme raison que
+  // `utilisateurs_local.email` (v45) : plusieurs DAO joignent la table entiere des
+  // utilisateurs et les tests v13/v14 SEMENT par les DAO d'aujourd'hui sur la forme
+  // ancienne ; un fichier sans ces colonnes ne se lit plus par le code courant. Leur
+  // retrait est eprouve a part, sur fichier (`migration_v46_mot_de_passe_perdu_test`,
+  // qui les retire lui-meme) et sur la VRAIE base v45 (`migration_depuis_anciens_schemas_test`).
+  46: <String>['DROP TABLE journal_securite_local'],
+
+  // La v45 (28/10/2026, l'e-mail facultatif d'un employe et d'un compte) ajoute DEUX
+  // colonnes nullables, aucune table, ni indexees ni referencees.
+  //
+  // ⚠ Le retour arriere est SYMETRIQUE pour `employes_local` seulement.
+  // `utilisateurs_local.email` est CONSERVEE : plusieurs DAO joignent la table
+  // entiere des utilisateurs (StocksDao, ...) et les tests v13/v14 SEMENT par les
+  // DAO d'aujourd'hui sur la forme ancienne ; un fichier sans la colonne ne se lit
+  // plus par le code courant. Le retrait de la colonne des comptes est eprouve a
+  // part, sur fichier (`migration_v45_email_test`, qui la retire lui-meme) et sur
+  // la VRAIE base v44 (`migration_depuis_anciens_schemas_test`).
+  45: <String>['ALTER TABLE employes_local DROP COLUMN email'],
+
+  // La v44 (28/10/2026, D246 rouvert : comptes et pieces saisies a la main
+  // partages) ajoute UNE table neuve, sans cle etrangere ni index, et UNE colonne
+  // nullable, ni indexee ni referencee : retour arriere symetrique.
+  44: <String>[
+    'DROP TABLE pieces_saisie_local',
+    'ALTER TABLE ecritures_serveur_local DROP COLUMN piece_origine_id',
+  ],
+
+  // La v43 (28/10/2026, A5 « Purger ») n'ajoute ni colonne ni table : elle ELARGIT le
+  // CHECK du type de `operations_sync_local` (`suppression`). Le retour arriere
+  // RETRECIT donc la contrainte en recreant la table (voir `_retrecirTypesOperations`,
+  // appele par `ramenerSchemaA` a cette etape) : la migration a alors un vrai
+  // travail a faire dans chaque fixture qui la traverse.
+  43: <String>[],
+
+  // La v42 (27/10/2026, le recu en image d'une depense) ajoute SIX colonnes
+  // nullables a `depenses_local`, aucune table, ni indexees ni referencees :
+  // retour arriere symetrique.
+  42: <String>[
+    'ALTER TABLE depenses_local DROP COLUMN recu_nom',
+    'ALTER TABLE depenses_local DROP COLUMN recu_sha256',
+    'ALTER TABLE depenses_local DROP COLUMN recu_taille',
+    'ALTER TABLE depenses_local DROP COLUMN recu_type',
+    'ALTER TABLE depenses_local DROP COLUMN recu_statut',
+    'ALTER TABLE depenses_local DROP COLUMN recu_cause',
+  ],
+
+  // La v41 (27/10/2026, les champs du web que le poste ne portait pas) ajoute DIX
+  // colonnes nullables, aucune table, ni indexees ni referencees : retour arriere
+  // symetrique.
+  41: <String>[
+    'ALTER TABLE vehicules_local DROP COLUMN annee',
+    'ALTER TABLE vehicules_local DROP COLUMN capacite',
+    'ALTER TABLE vehicules_local DROP COLUMN transmission',
+    'ALTER TABLE contrats_location_local DROP COLUMN numero',
+    'ALTER TABLE contrats_location_local DROP COLUMN remise',
+    'ALTER TABLE contrats_location_local DROP COLUMN acompte',
+    'ALTER TABLE contrats_location_local DROP COLUMN montant',
+    'ALTER TABLE plats_local DROP COLUMN categorie',
+    'ALTER TABLE guides_local DROP COLUMN certification',
+    'ALTER TABLE guides_local DROP COLUMN tarif_jour',
+  ],
+
+  // La v40 (26/10/2026, la cloture annuelle sur le poste) ajoute UNE table
+  // neuve : ses cles etrangeres (exercices, utilisateurs) pointent vers des
+  // tables qui existent deja, rien ne la reference — retour arriere symetrique.
+  40: <String>['DROP TABLE clotures_exercices_local'],
+
+  // La v39 (26/10/2026, l'envoi reel d'e-mails) ajoute UNE table neuve, sans
+  // cle etrangere : retour arriere symetrique.
+  39: <String>['DROP TABLE boite_envoi_emails_local'],
+
+  // La v38 (26/10/2026, « le poste fait ce que le web fait ») ajoute UNE table
+  // neuve et SIX colonnes nullables, ni indexees ni referencees : retour
+  // arriere symetrique (les colonnes d'une table avant la table elle-meme n'a
+  // pas lieu d'etre ici, aucune de ces tables n'est retiree par la v38).
+  38: <String>[
+    'DROP TABLE historique_prix_carte_local',
+    'ALTER TABLE contrats_location_local DROP COLUMN statut',
+    'ALTER TABLE operations_sync_local DROP COLUMN auteur_login',
+    'ALTER TABLE operations_sync_local DROP COLUMN poste_nom',
+    'ALTER TABLE paniers_local DROP COLUMN numero_vente',
+    'ALTER TABLE paniers_local DROP COLUMN auteur_login',
+  ],
+
+  // La v37 (journal de reception, 26/10/2026) ajoute UNE table neuve, sans
+  // index ni cle etrangere : retour arriere symetrique.
+  37: <String>['DROP TABLE journal_reception_local'],
+
+  // La v36 (lien direct plat -> article, 21/10/2026) AJOUTE deux colonnes
+  // nullables a `plats_local`, ni indexees ni referencees : retour symetrique.
+  36: <String>[
+    'ALTER TABLE plats_local DROP COLUMN article_id',
+    'ALTER TABLE plats_local DROP COLUMN unites_vendables',
+  ],
+
+  // La v35 ajoute CINQ tables neuves et CINQ colonnes (sans index ni cle
+  // etrangere) : retour arriere symetrique.
+  35: <String>[
+    'DROP TABLE immobilisations_local',
+    'DROP TABLE relances_clients_local',
+    'DROP TABLE inventaires_local',
+    'DROP TABLE lignes_inventaire_local',
+    'DROP TABLE canaux_reservation_local',
+    'ALTER TABLE articles_local DROP COLUMN actif',
+    'ALTER TABLE clients_local DROP COLUMN actif',
+    'ALTER TABLE recettes_local DROP COLUMN composition_provisoire',
+    'ALTER TABLE paniers_local DROP COLUMN remise_type',
+    'ALTER TABLE paniers_local DROP COLUMN remise_valeur_centiemes',
+  ],
+
+  // La v34 ajoute UNE table neuve, sans index ni cle etrangere.
+  34: <String>['DROP TABLE ecritures_serveur_local'],
+
+  // La v33 ajoute DEUX tables neuves, sans index ni cle etrangere.
+  33: <String>['DROP TABLE plannings_local', 'DROP TABLE conges_local'],
+
+  // La v32 ajoute UNE table neuve, sans index ni cle etrangere.
+  32: <String>['DROP TABLE entretiens_vehicule_local'],
+
+  // La v31 (retraits de la carte du jour, 21/10/2026) ajoute UNE table neuve,
+  // sans index ni cle etrangere : retour arriere symetrique.
+  31: <String>['DROP TABLE indisponibilites_carte_local'],
+
+  // La v30 (facteur de conversion des boissons, 21/10/2026) AJOUTE une colonne
+  // nullable à `cartes_boisson_local` : retour arriere symetrique, la colonne
+  // n'est ni indexee ni referencee.
+  30: <String>['ALTER TABLE cartes_boisson_local DROP COLUMN unites_vendables'],
+
   // La v29 (occupation des tables, lot F6 du 18/10/2026) ajoute UNE table
   // neuve, sans index ni cle etrangere : retour arriere symetrique.
   29: <String>['DROP TABLE occupations_tables_local'],
@@ -248,7 +519,7 @@ const _ajoutsParVersion = <int, List<String>>{
     'DROP TABLE centres_cout_local',
   ],
 
-  // La v14 (M4 Restaurant, source locale) ajoute QUATRE tables neuves et ne
+  // La v14 (M4 Restaurant, source locale) ajoute CINQ tables neuves et ne
   // touche rien d'existant : son retour arriere est symetrique. L'ordre est
   // celui de l'annulation, l'enfant avant le parent (cles etrangeres actives) :
   // la composition et les plats avant les fiches et les menus. Les lignes
@@ -422,7 +693,50 @@ Future<void> ramenerSchemaA(AppDatabase db, int cible) async {
     for (final ordre in ordres) {
       await db.customStatement(ordre);
     }
+    if (version == 43) await _retrecirTypesOperations(db);
   }
 
   await db.customStatement('PRAGMA user_version = $cible');
+}
+
+/// Annule la v43 : remet le `CHECK (type IN ('creation', 'modification'))` de la file
+/// d'envoi (SQLite ne modifie pas une contrainte : la table est recreee, ses lignes
+/// recopiees, ses index recrees). Les lignes de type `suppression` n'existent pas
+/// encore a ce stade d'une fixture ; elles sont ecartees par la copie, comme une
+/// version anterieure les ignorerait.
+Future<void> _retrecirTypesOperations(AppDatabase db) async {
+  const nom = 'operations_sync_local';
+  final sql =
+      (await db
+              .customSelect(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = '$nom'",
+              )
+              .getSingle())
+          .read<String>('sql');
+  const large = "'creation', 'modification', 'suppression'";
+  if (!sql.contains(large)) return;
+  final index = [
+    for (final r
+        in await db
+            .customSelect(
+              "SELECT name, sql FROM sqlite_master WHERE type = 'index' "
+              "AND tbl_name = '$nom' AND sql IS NOT NULL",
+            )
+            .get())
+      (nom: r.read<String>('name'), sql: r.read<String>('sql')),
+  ];
+  for (final i in index) {
+    await db.customStatement('DROP INDEX ${i.nom}');
+  }
+  await db.customStatement('ALTER TABLE $nom RENAME TO ${nom}_large');
+  await db.customStatement(
+    sql.replaceFirst(large, "'creation', 'modification'"),
+  );
+  await db.customStatement(
+    "INSERT INTO $nom SELECT * FROM ${nom}_large WHERE type <> 'suppression'",
+  );
+  await db.customStatement('DROP TABLE ${nom}_large');
+  for (final i in index) {
+    await db.customStatement(i.sql);
+  }
 }

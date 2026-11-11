@@ -94,5 +94,5 @@ final class CertificationMecef {
 
   /// Le libellé de certification d'une pièce — jamais « certifiée » par défaut.
   static String libelle(String? numeroMecef) =>
-      estReelle(numeroMecef) ? 'MECeF $numeroMecef' : libelleDemonstration;
+      estReelle(numeroMecef) ? 'MECeF $numeroMecef' : '';
 }

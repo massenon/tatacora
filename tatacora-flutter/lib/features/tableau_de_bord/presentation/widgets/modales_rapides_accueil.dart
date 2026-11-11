@@ -588,7 +588,14 @@ class _ModaleReservationRapideState
               key: const Key('tdb-resa-canal'),
               valeur: _canal,
               consigne: 'Choisissez un canal',
-              choix: [for (final c in CanalReservation.values) (c, c.libelle)],
+              // Les canaux ACTIFS de la table (Paramètres › Canaux de
+              // réservation), comme la fiche de réservation.
+              choix: [
+                for (final c
+                    in ref.watch(canauxReservationProvider).value ??
+                        CanalReservation.jeuInitial)
+                  if (c.actif) (c, c.libelle),
+              ],
               onChange: (c) => setState(() => _canal = c),
             ),
             erreur: _erreurs['canal'],

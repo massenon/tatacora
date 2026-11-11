@@ -4,11 +4,19 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Services;
 
+use App\Domain\Caisse\Exceptions\RefusCaisseException;
+use App\Domain\Comptabilite\Exceptions\EcritureImmuableException;
+use App\Domain\Facturation\Exceptions\FactureImmuableException;
+use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
+use App\Domain\Stocks\Exceptions\RuptureStockException;
 use App\Models\User;
+use App\Shared\Auth\Services\SuppressionCompteService;
 use App\Shared\Integrite\Exceptions\ChevauchementDetecteException;
 use App\Shared\Rbac\Models\JournalSecurite;
 use App\Shared\Sync\Contracts\GestionnaireSynchronisation;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Exceptions\DonneesSynchroniseesInvalidesException;
+use App\Shared\Sync\Gestionnaires\GestionnaireUtilisateurs;
 use App\Shared\Sync\Models\ConflitSynchronisation;
 use App\Shared\Sync\Models\DeduplicationSynchronisation;
 use App\Shared\Sync\Models\SessionSynchronisation;
@@ -19,6 +27,7 @@ use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Throwable;
 
 /**
  * Traitement d'un lot d'opérations de synchronisation — LARAVEL_SYNC_FLUTTER.md.
@@ -82,8 +91,20 @@ class SynchronisationService
         private readonly RegistreSynchronisation $registre,
         private readonly ResolveurCorrespondances $correspondances,
         private readonly OrigineDocuments $origines,
+        private readonly JournalReceptionService $journal,
+        private readonly SuppressionCompteService $comptes,
+        private readonly EpoqueSynchronisation $epoque,
     ) {
     }
+
+    /**
+     * Ce que le traitement de l'opération courante a appris et que le résultat
+     * rendu au poste ne porte pas : l'exception métier, le module refusé. Lu
+     * par le journal de réception (26/10/2026), jamais envoyé au poste.
+     *
+     * @var array<string, mixed>
+     */
+    private array $extras = [];
 
     /**
      * Utilisateurs deja resolus, pour ne pas interroger la base a chaque
@@ -97,7 +118,7 @@ class SynchronisationService
      * @param  list<array<string, mixed>>  $operations
      * @return array{session_id: string, resultats: list<array<string, mixed>>}
      */
-    public function traiterLot(string $posteId, array $operations, string $utilisateurId): array
+    public function traiterLot(string $posteId, array $operations, string $utilisateurId, bool $journaliser = true): array
     {
         $session = SessionSynchronisation::create([
             'poste_id' => $posteId,
@@ -111,8 +132,25 @@ class SynchronisationService
         $conflits = 0;
         $echecs = 0;
 
+        // Les éléments dont une opération vient d'être DIFFÉRÉE (dépendance pas encore
+        // reçue, erreur imprévue) : les opérations suivantes du MÊME élément dans ce lot
+        // attendent aussi (elles ne peuvent pas devancer la première), sans être
+        // rejetées — le poste les remet en file dans l'ordre. Toute AUTRE opération du
+        // lot, d'une autre table ou d'un autre élément, est traitée normalement.
+        $differes = [];
+
         foreach ($operations as $operation) {
-            $resultat = $this->traiterOperation($operation, $posteId, $utilisateurId, $session->id);
+            $cle = (string) ($operation['table'] ?? '') . '|' . (string) ($operation['entite_id'] ?? '');
+
+            if (isset($differes[$cle]) && ! $this->dejaTraitee((string) $operation['uuid_operation'])) {
+                $resultat = $this->rejet($operation, __('sync.operation_differee'), self::CODE_DEPENDANCE);
+            } else {
+                $resultat = $this->traiterSansBloquerLeLot($operation, $posteId, $utilisateurId, $session->id, $journaliser);
+            }
+
+            if ($this->estDifferee($resultat)) {
+                $differes[$cle] = true;
+            }
 
             $resultats[] = $resultat;
             $conflits += $resultat['statut'] === 'conflit' ? 1 : 0;
@@ -132,10 +170,121 @@ class SynchronisationService
     }
 
     /**
+     * Code rendu pour une opération DIFFÉRÉE : l'élément qu'elle cite n'est pas
+     * encore connu du serveur. Jamais mémorisé, jamais définitif : le poste la remet
+     * en file avec un repli (09/11/2026).
+     */
+    public const CODE_DEPENDANCE = 'dependance_manquante';
+
+    /**
+     * Code rendu pour une erreur IMPRÉVUE du serveur sur UNE opération : elle ne fait
+     * plus échouer le lot entier (500), elle est différée comme une dépendance.
+     */
+    public const CODE_ERREUR_SERVEUR = 'erreur_serveur';
+
+    /**
+     * Traite une opération du lot SANS qu'une erreur imprévue sur elle n'emporte le
+     * lot entier (décision du PO du 09/11/2026 : « aucune opération ne doit bloquer la
+     * synchronisation »). Avant, un bogue sur UNE opération levait un 500 : le poste
+     * renvoyait le même lot, le même 500, à chaque passage — une opération « poison »
+     * bloquait tout ce qui la suivait. Désormais l'erreur est journalisée (`report`, et
+     * le journal de réception par `traiterOperation`), l'opération est rendue DIFFÉRÉE
+     * (`erreur_serveur`, non mémorisée : rejouée pour de bon au prochain passage) et les
+     * autres opérations du lot passent.
+     *
      * @param  array<string, mixed>  $operation
      * @return array<string, mixed>
      */
-    public function traiterOperation(array $operation, string $posteId, string $utilisateurId, string $sessionId): array
+    private function traiterSansBloquerLeLot(array $operation, string $posteId, string $utilisateurId, string $sessionId, bool $journaliser): array
+    {
+        if (! $journaliser) {
+            // La correction depuis la PWA veut l'exception telle quelle (elle la traduit).
+            return $this->traiterOperation($operation, $posteId, $utilisateurId, $sessionId, false);
+        }
+
+        try {
+            return $this->traiterOperation($operation, $posteId, $utilisateurId, $sessionId, true);
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->rejet($operation, __('sync.erreur_serveur_operation'), self::CODE_ERREUR_SERVEUR);
+        }
+    }
+
+    /** @param  array<string, mixed>  $resultat */
+    private function estDifferee(array $resultat): bool
+    {
+        return ($resultat['statut'] ?? null) === 'rejete'
+            && in_array($resultat['code_motif'] ?? null, [self::CODE_DEPENDANCE, self::CODE_ERREUR_SERVEUR], true);
+    }
+
+    private function dejaTraitee(string $uuidOperation): bool
+    {
+        return DeduplicationSynchronisation::where('uuid_operation', $uuidOperation)->exists();
+    }
+
+    /**
+     * Ce que la DERNIÈRE opération traitée a appris en plus de son résultat
+     * (exception métier, module refusé, compte inactif) : lu par la
+     * correction depuis la PWA pour traduire la cause d'un nouvel échec.
+     *
+     * @return array<string, mixed>
+     */
+    public function extrasDeLaDerniereOperation(): array
+    {
+        return $this->extras;
+    }
+
+    /**
+     * Traite UNE opération et la consigne au journal de réception.
+     *
+     * `$journaliser = false` : la CORRECTION depuis la PWA rejoue une
+     * opération déjà consignée (`CorrectionReceptionService`), qui met sa
+     * propre ligne à jour.
+     *
+     * @param  array<string, mixed>  $operation
+     * @return array<string, mixed>
+     */
+    public function traiterOperation(array $operation, string $posteId, string $utilisateurId, string $sessionId, bool $journaliser = true): array
+    {
+        $this->extras = [];
+
+        try {
+            $resultat = $this->traiterOperationInterne($operation, $posteId, $utilisateurId, $sessionId);
+        } catch (Throwable $e) {
+            // Toute autre exception se propage (voir plus bas) : le journal
+            // en garde la trace, le poste réessaiera.
+            if ($journaliser) {
+                $this->journal->enregistrer($operation, $posteId, $utilisateurId, $sessionId, [], $this->extras, $e);
+            }
+
+            throw $e;
+        }
+
+        if ($journaliser) {
+            $this->journal->enregistrer($operation, $posteId, $utilisateurId, $sessionId, $resultat, $this->extras);
+        }
+
+        // L'ÉPOQUE (03/11/2026) : une opération ACCEPTÉE — et pas un rejeu, ni un
+        // refus — change ce que les AUTRES postes ont à descendre ; le battement de
+        // 30 s le leur dit. Elle n'est jamais bloquante : un cache en panne ne fait
+        // pas échouer une opération déjà écrite.
+        if (($resultat['statut'] ?? null) === 'synchronise' && ! isset($resultat['rejeu_idempotent'])) {
+            try {
+                $this->epoque->incrementer();
+            } catch (Throwable) {
+                // Le cycle de 5 minutes rattrape.
+            }
+        }
+
+        return $resultat;
+    }
+
+    /**
+     * @param  array<string, mixed>  $operation
+     * @return array<string, mixed>
+     */
+    private function traiterOperationInterne(array $operation, string $posteId, string $utilisateurId, string $sessionId): array
     {
         $uuidOperation = (string) $operation['uuid_operation'];
 
@@ -150,24 +299,32 @@ class SynchronisationService
             return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
                 $operation,
                 __('sync.table_non_synchronisable', ['table' => $table]),
+                'table_non_synchronisable',
             ));
         }
 
         $gestionnaire = $this->registre->pour($table);
 
-        // RBAC par operation — 2e niveau, applique ici faute de pouvoir l'etre
-        // sur la route (PA-65). Un lot est multi-modules par nature : un seul
-        // `VerifierAccesModule` sur `/api/v1/sync` serait soit trop laxiste,
-        // soit bloquant pour un lot legitime.
+        // A5 (28/10/2026) : la SUPPRESSION a son propre chemin — registre
+        // fermé, droit propre (super administrateur + écriture PARAM, comme
+        // l'écran web), aucun arbitrage de version : la purge est un acte.
+        if ($operation['type'] === 'suppression') {
+            return $this->traiterSuppression($operation, $gestionnaire, $posteId, $utilisateurId);
+        }
+
+        // Le COMPTE du jeton : actif, et rien d'autre pour une opération d'usage.
         //
-        // Le refus porte sur l'OPERATION, pas sur le lot : echouer le lot
-        // entier ferait perdre a un utilisateur legitime les operations qu'il
-        // avait le droit de pousser, a cause d'une seule qu'il n'avait pas.
+        // Décision du PO du 09/11/2026 : « le jeton du poste porte un seul compte ;
+        // tout ce qui sort d'un poste appairé par le barman est jugé sur les droits du
+        // barman : NON, ÇA NE DOIT PAS JUGER ». Les droits par module se jugent AU
+        // POSTE, sur l'utilisateur connecté (RBAC local) ; le serveur reçoit les
+        // opérations d'un poste de confiance (appairé par un administrateur, jeton
+        // révocable) et ne garde que la liste fermée des opérations SENSIBLES
+        // (`OperationsSensibles`) : un gestionnaire n'exige un module que pour elles
+        // (`modulesRequis`), et leur refus est rendu SEUL.
         //
-        // Et il est DEFINITIF (`rejete`, jamais `conflit`) : rejouer n'accorde
-        // pas de droits. Le client le retire de sa file avec son motif, ce qui
-        // est le comportement voulu — au contraire d'un bogue serveur, qui doit
-        // remonter en 500 pour etre rejoue plus tard.
+        // Un refus porte sur l'OPERATION, pas sur le lot, et il est DEFINITIF
+        // (`rejete`, jamais `conflit`) : rejouer n'accorde pas de droits.
         $utilisateur = $this->utilisateurAutorise(
             $utilisateurId,
             $gestionnaire,
@@ -178,7 +335,29 @@ class SynchronisationService
             return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
                 $operation,
                 __('auth.module_refuse'),
+                ($this->extras['compte_inactif'] ?? false) === true ? 'compte_inactif' : 'droit_manquant',
             ));
+        }
+
+        // 09/11/2026 : le droit PARTICULIER d'une opération (en plus du module) — les
+        // réglages MECeF et la forme juridique n'acceptent d'un poste que le compte d'un
+        // administrateur. Refus DÉFINITIF et lisible (`droit_manquant`, « À traiter » du
+        // poste), tracé comme tout accès refusé, hors de la transaction de l'opération.
+        $refusDeDroit = $gestionnaire->refusDeDroit(
+            is_array($operation['payload'] ?? null) ? $operation['payload'] : [],
+            $utilisateur,
+        );
+
+        if ($refusDeDroit !== null) {
+            JournalSecurite::create([
+                'type_evenement' => 'acces_refuse_rbac',
+                'utilisateur_id' => $utilisateur->id,
+                'adresse_ip' => request()->ip(),
+                'module_concerne' => $gestionnaire->module(),
+            ]);
+            $this->extras['module'] = $gestionnaire->module();
+
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet($operation, $refusDeDroit, 'droit_manquant'));
         }
 
         // Refus explicite d'une table qui ne synchronise pas ses
@@ -187,6 +366,7 @@ class SynchronisationService
             return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
                 $operation,
                 __('sync.modification_non_synchronisable'),
+                'modification_non_synchronisable',
             ));
         }
 
@@ -198,6 +378,7 @@ class SynchronisationService
             return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
                 $operation,
                 __('sync.date_metier_invalide'),
+                'date_metier_invalide',
             ));
         }
 
@@ -214,18 +395,26 @@ class SynchronisationService
             // mais un rejet — deux enregistrements distincts qui ne peuvent pas
             // coexister (RG-01/RG-08/RG-13).
             $resultat = [
-                ...$this->rejet($operation, $e->getMessage()),
+                ...$this->rejet($operation, $e->getMessage(), 'chevauchement'),
                 'entites_en_conflit' => $e->identifiantsEnConflit,
             ];
         } catch (DonneesSynchroniseesInvalidesException $e) {
             // Les phrases de l'API, champ par champ : le poste les affiche à
             // côté de la saisie, comme l'écran en ligne.
-            $resultat = [...$this->rejet($operation, $e->getMessage()), 'erreurs' => $e->erreurs];
+            $resultat = [...$this->rejet($operation, $e->getMessage(), 'donnees_invalides'), 'erreurs' => $e->erreurs];
+        } catch (DependanceManquanteException $e) {
+            // L'élément cité n'est pas ENCORE connu : ni définitif ni mémorisé (le même
+            // identifiant d'opération, rejoué plus tard, est jugé pour de bon). Le
+            // poste la remet en file avec un repli ; la trace reste au journal.
+            $this->extras['exception'] = $e::class;
+
+            return $this->rejet($operation, $e->getMessage(), self::CODE_DEPENDANCE);
         } catch (RuntimeException $e) {
             // UNIQUEMENT les refus métier. Le message est transmis au client :
             // §2.2 exige que l'application informe l'utilisateur clairement,
             // pas par une erreur technique brute.
-            $resultat = $this->rejet($operation, $e->getMessage());
+            $this->extras['exception'] = $e::class;
+            $resultat = $this->rejet($operation, $e->getMessage(), $this->codeDeLException($e));
         }
 
         // Toute autre exception — bogue de programmation, panne de base — se
@@ -247,23 +436,155 @@ class SynchronisationService
     }
 
     /**
-     * L'utilisateur, s'il a le droit d'écrire dans le module du gestionnaire.
-     *
-     * Toute operation de synchronisation est une ecriture (`creation` ou
-     * `modification`, seuls types acceptes par `SynchroniserRequest`) : le
-     * niveau requis, declare par le gestionnaire, est `C`, jamais `L`.
-     *
-     * Le niveau est lu par `User::niveauSurModule()`, la meme source que
-     * `VerifierAccesModule` — reecrire le calcul ici ferait diverger les deux
-     * chemins le jour ou la matrice changerait.
+     * Le module dont l'écriture est exigée pour purger (celui de l'onglet
+     * « Import/Export » où vit le bouton « Purger »).
      */
+    public const MODULE_PURGE = 'PARAM';
+
     /**
-     * Depuis le 15/10/2026 (lot S3), un document peut exiger PLUSIEURS
-     * modules (`modulesRequis()`) : une vente qui porte des plats est une
-     * écriture sur M5 ET M4, exactement comme `PosComptant::encaissementReel`
-     * l'exige en ligne. Le contrôle reste ICI, hors de la transaction de
-     * l'opération : un refus levé dans le gestionnaire annulerait aussi la
-     * trace `journal_securite` qui doit lui survivre.
+     * Rejoue une PURGE DÉFINITIVE (`suppression`) par le gestionnaire, donc par
+     * le service de parc : mêmes verrous, mêmes phrases que l'écran web. Sans
+     * l'élément (déjà purgé, rejeu), l'opération réussit sans rien faire —
+     * idempotente.
+     *
+     * @param  array<string, mixed>  $operation
+     * @return array<string, mixed>
+     */
+    private function traiterSuppression(array $operation, GestionnaireSynchronisation $gestionnaire, string $posteId, string $utilisateurId): array
+    {
+        if (! $gestionnaire->accepteSuppression()) {
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
+                $operation,
+                __('sync.suppression_non_synchronisable'),
+                'suppression_non_synchronisable',
+            ));
+        }
+
+        $utilisateur = $this->utilisateurs[$utilisateurId] ??= User::find($utilisateurId);
+
+        if (! $utilisateur instanceof User || ! $utilisateur->estActif()) {
+            $this->extras['compte_inactif'] = true;
+
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet($operation, __('auth.module_refuse'), 'compte_inactif'));
+        }
+
+        // 03/11/2026 : la suppression d'un COMPTE a sa propre autorité (le jeton
+        // d'appairage du poste doit être un super administrateur) et sa propre
+        // clé (le LOGIN).
+        if ($gestionnaire instanceof GestionnaireUtilisateurs) {
+            return $this->traiterSuppressionDeCompte($operation, $posteId, $utilisateur);
+        }
+
+        // Dans l'ordre de l'écran : super administrateur d'abord, puis l'écriture du module.
+        if (! $utilisateur->estSuperAdmin() || $utilisateur->niveauSurModule(self::MODULE_PURGE) !== 'C') {
+            JournalSecurite::create([
+                'type_evenement' => 'acces_refuse_rbac',
+                'utilisateur_id' => $utilisateur->id,
+                'adresse_ip' => request()->ip(),
+                'module_concerne' => self::MODULE_PURGE,
+            ]);
+            $this->extras['module'] = self::MODULE_PURGE;
+
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
+                $operation,
+                __('sync.suppression_reservee'),
+                'droit_manquant',
+            ));
+        }
+
+        $horodatage = Carbon::parse((string) $operation['horodatage_client']);
+        $contexte = new ContexteSynchronisation($posteId, $utilisateur, $horodatage, $horodatage->copy());
+
+        try {
+            $resultat = DB::transaction(function () use ($operation, $gestionnaire, $contexte): array {
+                $idPoste = (string) $operation['entite_id'];
+                $entiteId = $this->correspondances->resoudre($gestionnaire->table(), $idPoste);
+
+                if (DB::table($gestionnaire->table())->where('id', $entiteId)->doesntExist()) {
+                    return $this->succes($operation, new EcritureSynchronisee($idPoste, complements: ['deja_supprime' => true]));
+                }
+
+                return $this->succes($operation, $gestionnaire->supprimer($entiteId, $contexte));
+            });
+        } catch (RuntimeException $e) {
+            $this->extras['exception'] = $e::class;
+            $resultat = $this->rejet($operation, $e->getMessage(), $this->codeDeLException($e));
+        }
+
+        return $this->memoriser($operation, $posteId, $utilisateurId, $resultat);
+    }
+
+    /**
+     * Rejoue la SUPPRESSION d'un COMPTE annoncée par un poste (03/11/2026).
+     *
+     * L'AUTORITÉ d'abord : le compte du jeton d'appairage de ce poste doit être
+     * un super administrateur actif (`User::peutSupprimerDesComptes`). Sinon
+     * rejet DÉFINITIF `droit_manquant`, lisible dans « À traiter » du poste et
+     * dans le journal de réception — le compte local reste supprimé chez lui, le
+     * serveur n'en sait rien. Puis le service : cible non administratrice, jamais
+     * le compte du jeton lui-même, compte inconnu ou déjà supprimé = no-op
+     * journalisé (idempotence). Le payload ne porte que le `login` (et le login
+     * local de l'auteur, pour l'audit) : jamais un mot de passe ni un hash.
+     *
+     * @param  array<string, mixed>  $operation
+     * @return array<string, mixed>
+     */
+    private function traiterSuppressionDeCompte(array $operation, string $posteId, User $auteur): array
+    {
+        $payload = is_array($operation['payload'] ?? null) ? $operation['payload'] : [];
+        $login = is_string($payload['login'] ?? null) ? trim($payload['login']) : '';
+
+        if (! $auteur->peutSupprimerDesComptes()) {
+            JournalSecurite::create([
+                'type_evenement' => 'acces_refuse_rbac',
+                'utilisateur_id' => $auteur->id,
+                'adresse_ip' => request()->ip(),
+                'module_concerne' => User::MODULE_SUPPRESSION_COMPTES,
+            ]);
+            $this->extras['module'] = User::MODULE_SUPPRESSION_COMPTES;
+
+            return $this->memoriser($operation, $posteId, (string) $auteur->id, $this->rejet(
+                $operation,
+                __('sync.comptes.suppression_reservee'),
+                'droit_manquant',
+            ));
+        }
+
+        if ($login === '') {
+            return $this->memoriser($operation, $posteId, (string) $auteur->id, $this->rejet(
+                $operation,
+                __('sync.comptes.login_manquant'),
+                'donnees_invalides',
+            ));
+        }
+
+        $local = is_string($payload['supprime_par'] ?? null) ? mb_substr(trim($payload['supprime_par']), 0, 100) : null;
+
+        try {
+            $supprime = DB::transaction(fn (): ?User => $this->comptes->supprimerPourUnPoste($auteur, $login, $posteId, $local));
+            $resultat = $this->succes($operation, new EcritureSynchronisee(
+                (string) $operation['entite_id'],
+                complements: $supprime === null ? ['deja_supprime' => true] : [],
+            ));
+        } catch (RuntimeException $e) {
+            $this->extras['exception'] = $e::class;
+            $resultat = $this->rejet($operation, $e->getMessage(), $this->codeDeLException($e));
+        }
+
+        return $this->memoriser($operation, $posteId, (string) $auteur->id, $resultat);
+    }
+
+    /**
+     * Le compte du JETON D'APPAIRAGE, s'il est ACTIF — `null` sinon (compte suspendu,
+     * désactivé ou supprimé : refusé `compte_inactif`).
+     *
+     * Les modules NE SONT PLUS jugés pour une opération d'usage (décision du PO du
+     * 09/11/2026, voir plus haut) : `modulesRequis()` est vide par défaut. Il ne se
+     * remplit que pour la liste fermée `OperationsSensibles` (clôture d'exercice,
+     * affectation du résultat), où le compte doit écrire sur le module — lu par
+     * `User::niveauSurModule()`, la même source que `VerifierAccesModule`. Le contrôle
+     * reste ICI, hors de la transaction de l'opération : un refus levé dans le
+     * gestionnaire annulerait aussi la trace `journal_securite` qui doit lui survivre.
      *
      * @param  array<string, mixed>  $payload
      */
@@ -272,6 +593,8 @@ class SynchronisationService
         $utilisateur = $this->utilisateurs[$utilisateurId] ??= User::find($utilisateurId);
 
         if (! $utilisateur instanceof User || ! $utilisateur->estActif()) {
+            $this->extras['compte_inactif'] = true;
+
             return null;
         }
 
@@ -299,6 +622,8 @@ class SynchronisationService
             'adresse_ip' => request()->ip(),
             'module_concerne' => $module,
         ]);
+
+        $this->extras['module'] = $module;
 
         return null;
     }
@@ -437,7 +762,7 @@ class SynchronisationService
                 return [...$this->succes($operation, $reprise), 'document_deja_enregistre' => true];
             }
 
-            return $this->rejet($operation, __('sync.creation_entite_existante'));
+            return $this->rejet($operation, __('sync.creation_entite_existante'), 'entite_existante');
         }
 
         // Lot F4 : tout ce que le service écrit dans cette portée (le
@@ -485,7 +810,7 @@ class SynchronisationService
         $ecriture = $gestionnaire->modificationSurInconnu($idPoste, $payload, $contexte);
 
         if ($ecriture === null) {
-            return $this->rejet($operation, __('sync.modification_entite_inconnue'));
+            return $this->rejet($operation, __('sync.modification_entite_inconnue'), 'entite_inconnue');
         }
 
         if ($ecriture->fusionneAvec !== null) {
@@ -525,14 +850,33 @@ class SynchronisationService
      * @param  array<string, mixed>  $operation
      * @return array<string, mixed>
      */
-    private function rejet(array $operation, string $motif): array
+    private function rejet(array $operation, string $motif, string $code = 'regle_metier'): array
     {
         return [
             'uuid_operation' => (string) $operation['uuid_operation'],
             'statut' => 'rejete',
             'entite_id' => (string) $operation['entite_id'],
             'motif' => $motif,
+            // Le motif STRUCTURÉ (26/10/2026) : un code stable que le poste et
+            // le journal de réception traduisent. Ajout rétro-compatible.
+            'code_motif' => $code,
         ];
+    }
+
+    /**
+     * Le code de motif d'un refus métier, d'après le type de l'exception.
+     * Un type inconnu reste une règle de gestion générique : la phrase du
+     * serveur, elle, est toujours transmise.
+     */
+    private function codeDeLException(RuntimeException $e): string
+    {
+        return match (true) {
+            $e instanceof RuptureStockException => 'stock_insuffisant',
+            $e instanceof RecetteManquanteException => 'recette_manquante',
+            $e instanceof RefusCaisseException => 'refus_caisse',
+            $e instanceof EcritureImmuableException, $e instanceof FactureImmuableException => 'piece_immuable',
+            default => 'regle_metier',
+        };
     }
 
     /**

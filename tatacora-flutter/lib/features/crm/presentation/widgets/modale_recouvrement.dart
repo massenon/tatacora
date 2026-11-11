@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
+import '../../../caisse/domain/montant_caisse.dart' show formaterCentimesExact;
 import '../../../caisse/presentation/widgets/modale_ouverture_caisse.dart'
     show BoutonActionCaisse, BoutonAnnulerCaisse, ChampMontantCaisse;
 import '../../../comptabilite/domain/montant_comptable.dart'
@@ -34,8 +34,10 @@ typedef FactureImpayee = ({String id, String libelle, int resteCentimes});
 ///
 /// ## Deux champs de la vue NE SONT PAS rendus, et c'est dit
 ///
-/// La vue pose aussi « Référence » (« N° de transaction Mobile Money, n° de
-/// chèque… ») et « Commentaire ». Le serveur les LIE à deux propriétés
+/// La vue pose aussi « Référence » et « Commentaire ». L'invite du champ
+/// « Référence », dite ici avec les mots de la vue :
+/// « N° de transaction Mobile Money, n° de chèque… »
+/// Le serveur les LIE à deux propriétés
 /// (`recouvrementReference`, `recouvrementCommentaire`) que
 /// `enregistrerRecouvrement` ne lit JAMAIS : `paiements` n'a aucune colonne pour
 /// elles, et la colonne « Référence » du tableau des recouvrements affiche les
@@ -240,7 +242,7 @@ class _EtatModaleRecouvrement extends ConsumerState<ModaleRecouvrement> {
                   value: f.id,
                   // `{{ libelle }} — dû {{ MontantFcfa::format(reste) }}`.
                   child: Text(
-                    '${f.libelle} — dû ${formaterCentimesEnFcfa(f.resteCentimes)}',
+                    '${f.libelle} — dû ${formaterCentimesExact(f.resteCentimes)}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

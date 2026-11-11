@@ -50,7 +50,7 @@ class ConflitSynchronisation extends Model
      */
     public function arbitre(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'arbitre_par_id');
+        return $this->belongsTo(User::class, 'arbitre_par_id')->withTrashed();
     }
 
     public function estEnAttente(): bool

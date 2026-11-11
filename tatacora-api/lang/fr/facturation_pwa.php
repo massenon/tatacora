@@ -25,6 +25,12 @@ return [
     // ne le dise — et vide, parce que la donnée n'existe pas côté serveur.
 
     'col_mode_paiement' => 'Mode de paiement',
+    // Origine d'une facture (colonne `factures.origine`) — mêmes mots que le poste.
+    'origine' => [
+        'pos_comptant' => 'POS au comptant',
+        'pos_sejour' => 'Séjour client hébergé',
+        'facture_directe' => 'Facture directe',
+    ],
 
     // --- Avoir (RG-03) ----------------------------------------------------
 
@@ -43,6 +49,10 @@ return [
 
     'avoir_introuvable' => "Cette facture n'existe plus au registre : l'avoir n'a pas été émis.",
 
+    // Facturation normalisée (07/11/2026) — mode e-MECeF seulement.
+    'normaliser_action' => 'Normaliser',
+    'mecef_aucune_normalisee' => 'MECeF — <strong>aucune pièce normalisée</strong>',
+
     // --- Registre imprimé (forme document du moteur du maître) ------------
     //
     // Les trois libellés que le maître n'écrit QUE dans la configuration de
@@ -59,9 +69,14 @@ return [
 
     'document_action' => 'Facture A4',
     'document_titre' => 'Facture',
+    'signature_pour' => 'Pour :entreprise',
     'document_fichier' => 'facture',
 
     'document_numero' => 'N° MECeF',
+    // Facture SIMPLE ou non encore normalisée : le numéro de la facture, jamais un numéro MECeF.
+    'document_numero_simple' => 'N°',
+    'document_en_attente_normalisation' => 'Facture en attente de normalisation',
+    'document_acheteur_ifu' => 'IFU du client',
     'document_date' => "Date d'émission",
     'document_client' => 'Client',
     'document_etabli_par' => 'Établie par',
@@ -100,6 +115,13 @@ return [
     // DÉRIVÉE de l'état réel de certification, jamais figée (PA-61).
     'document_mention_attente' => 'Certification électronique MECeF : en attente d\'inscription '
         .'auprès de la Direction Générale des Impôts du Bénin.',
+    // Facturation normalisée (07/11/2026) : imprimées SEULEMENT pour une facture normalisée.
+    'document_normalisee_titre' => 'Facture normalisée MECeF',
+    'document_normalisee_nim' => 'NIM-TC',
+    'document_normalisee_code' => 'Code MECeF',
+    'document_normalisee_qr' => 'Contenu du code QR fiscal',
+    'document_normalisee_le' => 'Normalisée le :date',
+    'document_normalisation_etat' => 'Normalisation : :statut',
     'document_cachet_reserve' => 'Emplacement réservé au cachet fiscal MECeF',
     'document_cachet_absent' => "Aucun cachet n'est imprimé : le format du code fiscal n'est pas "
         .'public, et en dessiner un exemple sur un document remis à un client produirait un faux.',

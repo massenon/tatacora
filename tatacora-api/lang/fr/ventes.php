@@ -24,9 +24,8 @@ return [
         ."Le prix et le libellé d'une vente sont figés depuis le catalogue, jamais saisis : "
         .'sans référence, il n\'y a rien à figer.',
 
-    'module_non_encaissable' => ':module ne dispose pas encore de catalogue encaissable au comptoir. '
-        ."Accepter la ligne obligerait l'écran à transmettre un prix au clavier — c'est l'anti-patron "
-        .'que le prototype porte et que ce dépôt refuse.',
+    'module_non_encaissable' => ':module ne dispose pas encore de catalogue encaissable au comptoir : '
+        .'la ligne ne peut pas être acceptée.',
 
     // Synchronisation (décision PO du 15/10/2026) : le prix du POSTE fait
     // foi — encore faut-il qu'il en porte un.
@@ -39,10 +38,11 @@ return [
 
     'motif_annulation_stock' => 'Annulation vente :numero',
 
-    // Vente synchronisée d'un plat sans composition (décision PO du 15/10/2026) :
-    // la vente est gardée, la déduction de cette ligne est écartée et signalée.
-    'stock_non_sorti_plat_sans_composition' => 'Stock non sorti : le plat « :plat » n\'a aucune composition '
-        . '(fiche technique vide, aucun article lié). Complétez sa fiche et régularisez le stock de cuisine.',
+    // Plat vendu sans composition (décision PO du 15/10/2026 pour la vente synchronisée,
+    // étendue à toute vente le 30/10/2026 : « le stock s'ajoute après ») : la vente est
+    // gardée, cette ligne ne sort rien du stock et la vente le dit.
+    'stock_non_sorti_plat_sans_composition' => 'Aucune sortie de stock : le plat « :plat » n\'a aucune composition '
+        . '(fiche technique vide, aucun article lié). Il se vend ; le stock se décrémentera une fois sa fiche composée.',
     'stock_deja_sorti_commande' => 'Stock déjà sorti à la transmission en cuisine '
         .'(commande :commande) : la vente ne le déduit pas une seconde fois.',
 

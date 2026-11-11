@@ -152,6 +152,8 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // cette garde le dirait.
         'ouvrirExport',
         'genererExport',
+        // Reçu de location : le PDF d'UN contrat, une lecture (28/10/2026).
+        'imprimerRecu',
         'exporterPdf',
         // Lot 4 (20/10/2026) : délivre l'archive de clôture DÉJÀ écrite,
         // vérifiée contre son empreinte — `ArchiveClotureService::zip()` ne
@@ -163,7 +165,7 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // `ouvrirExport`/`genererExport`). Une entrée sans appelant est un
         // joker dormant : un futur `exporterExcel` qui ÉCRIRAIT serait
         // exempté d'office par elle.
-        'telechargerModeleCsv',
+        'telechargerModele',
         'imprimerFichePrix',
         'imprimerRapportInventairePdf',
         'telechargerTicket',
@@ -182,6 +184,11 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // n'est pas cette liste qu'il faut élargir : c'est le middleware de
         // la route qui doit le dire.
         'fermerModales',
+        // Tourisme / Départs (26/10/2026) : referme la modale « Ajouter Guide
+        // Touristisme » ; état d'interface, aucune table touchée.
+        'fermerAjoutGuide',
+        // Paramètres › Activation & Sécurité (09/11/2026) : referme la modale de réinitialisation.
+        'fermerReinitialisation',
         'changerOnglet',
 
         // 6. UNE LECTURE SEULE explicitement nommée — PA-165 (02/09/2026).
@@ -260,6 +267,20 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // schéma que `seConnecter`, déjà inscrite ci-dessus dans les deux
         // registres à la fois.
         'changerMotDePasse',
+        // Mot de passe perdu SANS e-mail (29/10/2026, option A du PO) :
+        //  - `ouvrirFormulaireCodeSecours` et `ouvrirReinitialisation` ouvrent une
+        //    fenêtre, n\'écrivent rien (réservées aux administrateurs, 403 sinon) ;
+        //  - les trois écritures hors module sont inscrites ici ET dans
+        //    `ECRITURES_HORS_MODULE` (même schéma que `changerMotDePasse`).
+        'ouvrirFormulaireCodeSecours',
+        'ouvrirReinitialisation',
+        // Supprimer un compte (03/11/2026) : ouvre la confirmation, n\'écrit rien ; `supprimerCompte` appelle `exigerEcriture`.
+        'ouvrirSuppression',
+        'genererCodeSecours',
+        'definirNouveauMotDePasse',
+        'reinitialiserParCodeDeSecours',
+        // `MonProfil::enregistrerInformations` (28/10/2026) : l'e-mail du compte COURANT, même famille.
+        'enregistrerInformations',
         'envoyerMessage',
         'signalerBug',
         // `ClocheNotifications` (01/09/2026) — même schéma : inscrites dans
@@ -269,11 +290,37 @@ final class PwaEcritureAutoriseeTest extends TestCase
         'marquerLu',
         // `SynchronisationPostes` (18/10/2026) — même schéma.
         'synchroniser',
+        // L'icône de synchronisation de la barre (03/11/2026) : ouvrir et
+        // fermer la modale n'écrivent rien ; `demander` pose la MÊME demande
+        // que `synchroniser` (inscrite ci-dessous, hors module).
+        'ouvrir',
+        'fermer',
+        'demander',
+        // « Actualiser » (21/10/2026) : relit l'état des postes, n'écrit rien.
+        'actualiser',
         // Révocation d'appairage (19/10/2026) : ouvrir et fermer la
         // confirmation n'écrit rien ; `revoquer` est inscrite ci-dessous.
         'demanderRevocation',
         'annulerRevocation',
         'revoquer',
+        // Onglets « Réception » et « Envoi » (26/10/2026) : ouvrir ou fermer
+        // une fenêtre n'écrit rien ; les quatre écritures sont inscrites ici
+        // ET dans `ECRITURES_HORS_MODULE` (même schéma que `revoquer`).
+        'changerOnglet',
+        'ouvrirOperation',
+        'fermerOperation',
+        'ouvrirCorrection',
+        'fermerCorrection',
+        'enregistrerCorrection',
+        'relancer',
+        'ouvrirIgnorer',
+        'fermerIgnorer',
+        'ignorer',
+        'voirPoste',
+        'fermerPoste',
+        'demanderRedescente',
+        'annulerRedescente',
+        'redescendre',
 
         // 11. M10 — `Hub::ouvrirPlanAmortissement()` (Vague E, 01/09/2026).
         //
@@ -341,6 +388,21 @@ final class PwaEcritureAutoriseeTest extends TestCase
     private const ECRITURES_HORS_MODULE = [
         'Connexion::seConnecter',
         'MonProfil::changerMotDePasse',
+        'MonProfil::enregistrerInformations',
+        // 29/10/2026 (PO, option A du « mot de passe perdu ») — trois écritures
+        // qui ne relèvent d\'AUCUN module :
+        //  - `genererCodeSecours` : le code de l\'administrateur COURANT, après
+        //    confirmation de son mot de passe (même famille que `changerMotDePasse`) ;
+        //  - `definirNouveauMotDePasse` : le titulaire dont le mot de passe vient
+        //    d\'être réinitialisé choisit le sien — il n\'a, par construction, accès
+        //    à aucun module tant qu\'il ne l\'a pas fait ;
+        //  - `reinitialiserParCodeDeSecours` : AUCUNE session n\'existe encore
+        //    (login + code de secours à usage unique, essais limités).
+        // La réinitialisation PAR UN ADMINISTRATEUR, elle, exige `C` sur ROLES
+        // (`ComptesUtilisateurs::reinitialiserMotDePasse` appelle `exigerEcriture`).
+        'MonProfil::genererCodeSecours',
+        'ChangementMotDePasseObligatoire::definirNouveauMotDePasse',
+        'CodeSecours::reinitialiserParCodeDeSecours',
         'ContactEditeur::envoyerMessage',
         'ContactEditeur::signalerBug',
 
@@ -359,11 +421,26 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // seulement passer les postes plus tôt. Tout compte qui enregistre au
         // serveur doit pouvoir la faire, quels que soient ses modules.
         'SynchronisationPostes::synchroniser',
+        // L'icône de la barre (03/11/2026) : même demande, même service, même
+        // ouverture à tout compte connecté que la page « Postes & Appairage ».
+        'SynchronisationBarre::demander',
         // La RÉVOCATION d'un appairage (19/10/2026) supprime des jetons, pas
         // une donnée métier, et n'a pas de module : elle est réservée aux
         // deux rôles d'administration (`estAdministrateur`, au composant ET
         // au service), tracée au journal d'audit.
         'SynchronisationPostes::revoquer',
+        // Corriger, relancer, ignorer (26/10/2026) : le module est celui de la
+        // DONNÉE, connu à l'exécution (une vente exige M5, une dépense M10…),
+        // jamais celui de l'écran. Le composant exige le rôle (Administrateurs
+        // et Comptable, 403 sinon) ; `CorrectionReceptionService` exige le
+        // niveau d'écriture sur chaque module de la donnée, trace le refus au
+        // journal de sécurité, et l'auteur de chaque geste au journal d'audit.
+        'ReceptionSynchronisation::enregistrerCorrection',
+        'ReceptionSynchronisation::relancer',
+        'ReceptionSynchronisation::ignorer',
+        // La redescente pose une demande consommée au prochain passage du
+        // poste : réservée aux Administrateurs, tracée au journal d'audit.
+        'EnvoiSynchronisation::redescendre',
     ];
 
     /**

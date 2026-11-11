@@ -27,9 +27,9 @@ use App\Domain\Stocks\Models\Article;
  * conformité) :
  *
  * - `MOTIF_RECETTE_VIDE` — la fiche technique n'a aucun ingrédient. Le plat se
- *   vend sans rien décrémenter, et c'est exactement le cas que
- *   `RecetteManquanteException` refuse à la transmission en cuisine : l'écran
- *   le montre AVANT que la commande ne soit refusée au comptoir.
+ *   vend sans rien décrémenter (décision du PO du 30/10/2026 : il était
+ *   auparavant refusé au comptoir) : l'écran le dit, pour que personne ne lise
+ *   un tiret comme un stock suivi.
  * - `MOTIF_POINT_CUISINE_ABSENT` — aucun point de stockage de type `cuisine`
  *   n'existe. On ne sait pas d'où sortiraient les denrées, donc on ne sait pas
  *   combien il en reste.

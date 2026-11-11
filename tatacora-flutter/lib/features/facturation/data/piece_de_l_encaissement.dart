@@ -1,5 +1,4 @@
 import '../../comptabilite/data/moteur_comptable.dart';
-import '../../comptabilite/domain/comptes_syscohada.dart';
 import '../../depenses/domain/categories_depense.dart';
 import '../domain/entities/paiement_facture.dart';
 
@@ -30,11 +29,8 @@ DemandePiece pieceDeLEncaissement({
     date: dateIso,
     libelle: libelle,
     lignes: [
-      LigneDemandee(compte: tresorerie.compte, debitCentimes: montantCentimes),
-      LigneDemandee(
-        compte: ComptesSyscohada.clients,
-        creditCentimes: montantCentimes,
-      ),
+      LigneDemandee(role: tresorerie.role, debitCentimes: montantCentimes),
+      LigneDemandee(role: 'CLIENTS', creditCentimes: montantCentimes),
     ],
   );
 }

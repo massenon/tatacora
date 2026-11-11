@@ -12,6 +12,7 @@ import '../domain/entities/article_vendable.dart';
 import '../domain/entities/mode_reglement.dart';
 import '../domain/entities/panier.dart';
 import '../domain/entities/reference_catalogue.dart';
+import '../domain/entities/sejour_au_pos.dart';
 import '../domain/entities/table_pos.dart';
 import '../domain/repositories/panier_repository.dart';
 import '../domain/usecases/gerer_panier.dart';
@@ -128,9 +129,24 @@ final modeReglementProvider =
 /* Catalogue — l'AFFICHAGE                                                 */
 /* ====================================================================== */
 
-final rayonsProvider = FutureProvider<List<RayonCatalogue>>(
-  (ref) => ref.watch(catalogueProvider).rayons(),
-);
+/// Les modules que la SÉLECTION du point de vente propose : le bar (M5) et le
+/// restaurant (M4), rien d'autre. Directive du PO du 26/10/2026 : « Tourisme »
+/// et « Location » (M9/M8) sont retirés du POS au comptant et du POS des
+/// hébergés (sélecteur de famille, pastilles, cartes). Le dépôt de catalogue
+/// continue de les lire — la fiche de réservation en a besoin pour ses
+/// services — et le domaine d'accepter une vente M8/M9 déjà faite ; seule la
+/// vitrine du comptoir les ignore.
+const List<ModuleVendable> modulesProposesAuPos = [
+  ModuleVendable.m4Restaurant,
+  ModuleVendable.m5Bar,
+];
+
+final rayonsProvider = FutureProvider<List<RayonCatalogue>>((ref) async {
+  final rayons = await ref.watch(catalogueProvider).rayons();
+  return rayons
+      .where((RayonCatalogue r) => modulesProposesAuPos.contains(r.module))
+      .toList(growable: false);
+});
 
 /// Le rayon affiché — **filtre d'AFFICHAGE, jamais la caisse**.
 ///
@@ -174,7 +190,7 @@ final class RechercheNotifier extends Notifier<String> {
 /// Les articles réellement affichés, filtre et recherche appliqués.
 ///
 /// La recherche **ignore le filtre de rayon** : chercher « Béninoise » depuis
-/// l'onglet Tourisme doit la trouver, sans quoi il faut deviner l'onglet.
+/// l'onglet Restaurant doit la trouver, sans quoi il faut deviner l'onglet.
 final articlesAffichesProvider = Provider<List<ArticleVendable>>((ref) {
   final List<RayonCatalogue> rayons =
       ref.watch(rayonsProvider).value ?? const <RayonCatalogue>[];
@@ -235,13 +251,7 @@ final panierCourantProvider = FutureProvider<Panier?>((ref) {
 /// réservation annulée ou terminée n'en ouvre pas.
 final sejoursEnCoursProvider = FutureProvider<List<Reservation>>((ref) async {
   final toutes = await ref.watch(depotReservationProvider).reservations();
-  return toutes
-      .where(
-        (r) =>
-            r.statut == StatutReservation.enCours ||
-            r.statut == StatutReservation.confirmee,
-      )
-      .toList(growable: false);
+  return toutes.where(estSejourAuPos).toList(growable: false);
 });
 
 /// Le panier ouvert d'un séjour, s'il existe.
@@ -301,8 +311,8 @@ final paniersDesSejoursProvider = FutureProvider<Map<String, Panier>>((
 ///
 /// ⚠ ÉCART DÉLIBÉRÉ — `ComposePanier::categoriesDuCatalogue()` (l.210-223).
 /// La vue : une pastille par catégorie d'ARTICLE (catégories de boisson, de
-/// plat), plus « Tourisme & location » pour les prestations. Ici : une pastille
-/// par RAYON (Bar, Restauration, Tourisme & location). Raison (09/10/2026,
+/// plat). Ici : une pastille par RAYON (Bar, Restauration) — « Tourisme &
+/// location » n'existe plus depuis le 26/10/2026. Raison (09/10/2026,
 /// relue contre `CatalogueDao`) : `ArticleVendable.categorie` porte le CODE
 /// brut de la catégorie (`locale`, `Nature`…), pas son libellé français, et les
 /// libellés de la vue (`CarteBoisson::CATEGORIES`) n'existent pas sur ce poste.
@@ -310,8 +320,7 @@ final paniersDesSejoursProvider = FutureProvider<Map<String, Panier>>((
 enum CategorieHeberges {
   tout('Tout'),
   bar('Bar'),
-  restauration('Restauration'),
-  prestations('Tourisme & location');
+  restauration('Restauration');
 
   const CategorieHeberges(this.libelle);
 
@@ -323,9 +332,6 @@ enum CategorieHeberges {
     CategorieHeberges.tout => true,
     CategorieHeberges.bar => module == ModuleVendable.m5Bar,
     CategorieHeberges.restauration => module == ModuleVendable.m4Restaurant,
-    CategorieHeberges.prestations =>
-      module == ModuleVendable.m8Vehicules ||
-          module == ModuleVendable.m9Tourisme,
   };
 }
 

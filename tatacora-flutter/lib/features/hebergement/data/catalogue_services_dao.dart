@@ -125,6 +125,18 @@ class CatalogueServicesDao extends DatabaseAccessor<AppDatabase>
               }))
               .get();
       engagees.addAll(prises.map((r) => r.uniteId));
+      // Multi-chambres (10/11/2026) : les chambres SUPPLÉMENTAIRES d'une réservation sont
+      // aussi engagées (lignes `hebergement` dont l'unité n'est pas la principale).
+      if (prises.isNotEmpty) {
+        final supplementaires =
+            await (select(attachedDatabase.lignesReservationLocal)..where(
+                  (l) =>
+                      l.service.equals('hebergement') &
+                      l.reservationId.isIn(prises.map((r) => r.id)),
+                ))
+                .get();
+        engagees.addAll(supplementaires.map((l) => l.itemId));
+      }
     }
 
     return lignes

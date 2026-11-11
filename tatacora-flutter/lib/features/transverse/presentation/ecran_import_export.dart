@@ -1,7 +1,7 @@
 // Vue Blade maîtresse (PA-183) : pwa/transverse/import-export.blade.php
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
@@ -9,6 +9,7 @@ import '../../../core/fichiers/selecteur_fichiers.dart';
 import '../../../core/navigation/coquille_vue.dart';
 import '../../../core/navigation/trace_svg.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../../core/rbac/regle_archivage.dart' show estSuperAdmin;
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -16,20 +17,27 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/cadre_tirete.dart';
+import '../../../core/theme/mesures_archives.dart';
 import '../../../shared_widgets/toast_export.dart';
-import '../../synchronisation/domain/reinitialisation_serveur.dart';
+import '../../hebergement/presentation/providers_hebergement.dart'
+    show rafraichirListes;
+import '../../vehicules/presentation/providers_vehicules.dart'
+    show rechargerVehicules;
+import '../data/archives_poste.dart';
+import '../domain/registre_archives.dart';
+import 'providers_archives.dart';
 import '../data/importeurs_locaux.dart';
-import '../data/reinitialisation_locale.dart';
-import '../data/sauvegarde_locale.dart';
+import '../data/sauvegardes_poste.dart';
 import '../domain/import_referentiels.dart';
 import 'providers_import_export.dart';
 import 'widgets/briques_transverses.dart';
 
 /// L'écran **Import & Export** — lot D du plan du Product Owner (14/10/2026).
 ///
-/// Les QUATRE onglets de la vue, cliquables, dans son ordre : Importer les
-/// données, Sauvegardes de la base, Restaurer, Réinitialiser les données de
-/// test. Chaque panneau reprend les blocs, titres et aides de la vue.
+/// Les TROIS onglets de la vue, cliquables, dans son ordre : Importer les
+/// données, Sauvegardes de la base, Restaurer. « Réinitialiser les données de test »
+/// n'est plus un onglet d'ici : elle est dans Paramètres › Activation & Sécurité
+/// (PO, 09/11/2026). Chaque panneau reprend les blocs, titres et aides de la vue.
 ///
 /// ## Ce que le poste détient, et ce qu'il n'a pas (D419)
 ///
@@ -46,17 +54,34 @@ import 'widgets/briques_transverses.dart';
 ///   tout dans UNE transaction. Écart nommé : une ligne déjà présente (clé
 ///   naturelle) est IGNORÉE, jamais dupliquée. L'historique est celui de la
 ///   session (aucune table `journal_imports` sur le poste), et le dit.
-/// - **Sauvegardes** : « Générer une sauvegarde de la base » enregistre une
-///   copie cohérente de la base (`VACUUM INTO`, `data/sauvegarde_locale.dart`)
-///   par « Enregistrer sous » ; « Exporter une table existante » rend une
-///   table en JSON (comptes exclus). Le poste n'en CONSERVE aucune : les
-///   indicateurs sans source affichent « — » (jamais « Quotidien (02h00) »,
-///   qui décrit le serveur), et les phrases de la vue qui décrivent le
-///   serveur (rythme, liste vide, rétention) sont REMPLACÉES par la phrase
-///   vraie (piège 13).
-/// - **Restaurer** : aucun registre d'archives sur ce poste ; un élément
-///   archivé s'y réintègre depuis l'écran de son module. L'encadré de la vue
-///   est rendu, suivi d'une ligne « Sur ce poste ».
+/// - **Sauvegardes** (portées à la vue le 21/10/2026, `data/sauvegardes_poste.dart`) :
+///   « Générer une sauvegarde de la base » RANGE une copie cohérente de la base
+///   (`VACUUM INTO`) dans `sauvegardes/`, à côté de `poste.json` ; la liste,
+///   les bandeaux (vert après génération, or pour la plus récente jamais
+///   téléchargée), « Télécharger » (fenêtre « Enregistrer sous », qui marque la
+///   copie téléchargée), « Retirer de la liste » (avec sa confirmation forte
+///   quand la copie n'a jamais été téléchargée) et la rétention de trente jours
+///   sont ceux de la vue. « Exporter une table existante » rend une table en
+///   JSON (comptes exclus). ÉCARTS nommés (piège 13) : « Rythme automatique »
+///   reste « — » (« Quotidien (02h00) » décrit le serveur ; une application de
+///   bureau n'est pas allumée à 02h00), et les quatre phrases de la vue qui
+///   disent « ce serveur » (« la sauvegarde automatique tourne chaque nuit… »,
+///   « tant qu'elle reste sur ce serveur », la rétention, la modale de retrait)
+///   disent ici « ce poste », ou la vérité du poste.
+/// - **Restaurer** : rendu (A4, 27/10/2026). Registre DÉRIVÉ, sans table
+///   d'archives (comme le serveur, `RegistreArchivesService`) : les unités
+///   d'hébergement et les véhicules `hors_service` sont les « archivés » ;
+///   « archivé le / par » vient de la file d'envoi (`operations_sync_local`),
+///   « — » à défaut. Les « déjà restaurées » sont les restaurations locales
+///   précédées d'un archivage connu (plafond de cent). « Restaurer » écrit par
+///   le DAO du module (unité `libre`, véhicule `disponible`) et enfile. ÉCARTS
+///   nommés : les archives d'un autre poste n'y figurent pas ; l'ordre des
+///   lignes suit l'instant d'archivage. « Purger » (A5, 28/10/2026) : la corbeille
+///   de chaque ligne, offerte au seul `super_admin`, ouvre la confirmation forte
+///   de la vue ; les verrous (non archivé, engagé, cité par un enregistrement
+///   passé) sont ceux des services de parc du serveur, dits dans la modale
+///   restée ouverte. La `suppression` part au serveur (protocole fermé à ces
+///   deux tables) et redescend vers les autres postes.
 /// - **Réinitialiser** : « Réinitialiser comme neuf » (demande du PO du
 ///   14/10/2026, lot E), réplique LOCALE du serveur
 ///   (`data/reinitialisation_locale.dart`) : refus en build production
@@ -64,9 +89,9 @@ import 'widgets/briques_transverses.dart';
 ///   phase d'essais annoncée par le serveur — bandeau ambre, phrase de la vue),
 ///   bascule `reinitialisation_seeders` de Paramètres, rôles d'administration,
 ///   saisie du mot « VIDER », une transaction. Les trois états de la vue
-///   (production, verrouillé, ouvert) et sa modale sont rendus. Écart NOMMÉ :
-///   la vue promet « une sauvegarde complète générée juste avant » ; le poste
-///   n'en produit aucune, la phrase est remplacée par la vraie (piège 13).
+///   (production, verrouillé, ouvert) et sa modale sont rendus. Depuis le
+///   21/10/2026 la phrase de la vue est VRAIE : une sauvegarde complète est
+///   rangée juste avant le vidage, et rien n'est vidé si elle échoue.
 ///
 /// Droit : la route de la vue exige PARAM en lecture (`module:PARAM,L`).
 class EcranImportExport extends ConsumerStatefulWidget {
@@ -84,11 +109,10 @@ class EcranImportExport extends ConsumerStatefulWidget {
 abstract final class TextesImportExport {
   static const String titre = 'Import & Export';
   static const String sousTitre =
-      'Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test.';
+      'Chargement de données par module, sauvegardes de la base, restauration des éléments archivés.';
   static const String ongletImporter = 'Importer les données';
   static const String ongletSauvegardes = 'Sauvegardes de la base';
   static const String ongletRestaurer = 'Restaurer';
-  static const String ongletSeeders = 'Réinitialiser les données de test';
   static const String importerModuleLabel = '1. Choisir le module à alimenter';
   static const String importerModuleAide =
       'Chaque module a ses propres colonnes. Le modèle et le contrôle en découlent.';
@@ -96,11 +120,14 @@ abstract final class TextesImportExport {
   static const String importerModeleTitre = '2. Télécharger le fichier modèle';
   static const String importerModeleBouton = 'Télécharger le modèle';
   static const String importerModeleAide1 =
-      "Le modèle porte les colonnes exactes et une ligne d'exemple. Il est généré depuis la même déclaration que le contrôle : il ne peut pas s'en écarter. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en";
-  static const String importerModeleAideFormat = 'CSV UTF-8';
+      "Le modèle est un classeur Excel : une colonne par champ, une ligne d'exemple, et une feuille « Aide » qui détaille chaque colonne. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en";
+  static const String importerModeleAideFormat = 'Classeur Excel (.xlsx)';
+  static const String importerGiteBouton = 'Carte du Gîte Chez Noël (exemple)';
+  static const String importerGiteAide =
+      "Le même modèle, déjà rempli avec la carte des affiches du Gîte (prix, catégories), sans stock ni quantité : le stock s'ajoute après. Ordre d'import : Articles de stock, puis Carte du bar ; la Carte du restaurant est indépendante.";
   static const String importerDepotTitre = '3. Déposer le fichier rempli';
   static const String importerDepotAide =
-      'Formats acceptés : CSV (séparateur point-virgule ou virgule).';
+      'Formats acceptés : classeur Excel .xlsx (recommandé) ou CSV (séparateur point-virgule, virgule ou tabulation). Les colonnes sont repérées par leur nom.';
   static const String importerDepotGlisser = 'Glissez votre fichier ici';
   static const String importerDepotCliquer = 'ou cliquez pour le sélectionner';
   static const String importerValider = 'Valider et contrôler le fichier';
@@ -110,7 +137,7 @@ abstract final class TextesImportExport {
   static const String demarche2Avant = 'Téléchargez le modèle et remplissez-le';
   static const String demarche2Fort = "sans modifier la ligne d'en-tête";
   static const String demarche3 =
-      'Enregistrez en CSV UTF-8. Sans cet encodage, les accents deviennent illisibles à la relecture.';
+      'Enregistrez en classeur Excel (.xlsx). Les colonnes sont repérées par leur nom ; le CSV reste accepté en secours.';
   static const String demarche4 =
       "Déposez le fichier et lancez le contrôle. Rien n'est importé à ce stade.";
   static const String demarche5 =
@@ -135,13 +162,24 @@ abstract final class TextesImportExport {
       "Ici, « supprimer » archive : une unité d'hébergement ou un véhicule retiré du parc est conservé au complet et peut être remis en place ci-dessous. Partout ailleurs, rien ne se supprime — on annule ou on contre-passe, et l'enregistrement reste lisible sur l'écran de son module. La purge définitive existe, mais elle est réservée à l'administrateur et n'a pas de retour : c'est le seul endroit de l'application où une donnée disparaît vraiment.";
   static const String rechercheArchives = 'Rechercher dans les archives…';
   static const String filtreRestaurables = 'À restaurer';
+  static const String filtreToutes = 'Toutes les entrées';
+  static const String filtreRestaurees = 'Déjà restaurées';
+  static const String actionRestaurer = 'Restaurer';
+
+  // La purge définitive (A5) — `pwa.import_export.*`, au mot.
+  static const String actionPurger = 'Purger définitivement (administrateur)';
+  static const String purgeTitre = 'Purger définitivement';
+  static const String purgeMessage =
+      'Cet élément sera effacé sans retour possible.';
+  static const String purgeDetail =
+      "Contrairement à l'archivage, la purge ne laisse aucune trace restaurable.";
+  static const String purgeConfirmer = 'Purger';
+  static const String badgeRestaure = 'RESTAURÉ';
+  static const String archivesVide = 'Aucun élément archivé ne correspond.';
   static const String colElement = 'ÉLÉMENT';
   static const String colModule = 'MODULE';
   static const String colArchiveLe = 'ARCHIVÉ LE';
   static const String colPar = 'PAR';
-  static const String seedersVerrouilleTitre = 'Réinitialisation désactivée';
-  static const String seedersVerrouilleTexte =
-      'Cette fonction vide les jeux de données de démonstration. Elle reste fermée par défaut : laissée ouverte sur une base d\'exploitation réelle, elle détruirait le travail de l\'entreprise.';
   static const String tiret = '—';
 
   // L'onglet « Importer les données », RÉEL depuis le 14/10/2026 — les mots
@@ -175,7 +213,7 @@ abstract final class TextesImportExport {
       "Confirmer l'import de $nombre ligne(s)";
   static const String rapportCorriger =
       'Corrigez les lignes ci-dessus dans votre fichier, enregistrez-le à '
-      'nouveau en CSV UTF-8, puis redéposez-le. Le contrôle se relance à '
+      'nouveau en classeur Excel (.xlsx), puis redéposez-le. Le contrôle se relance à '
       'chaque dépôt.';
   static String historiqueLignes(int nombre) => '$nombre ligne(s) importée(s)';
   static String importFait(int nombre, String module, int ignorees) =>
@@ -220,13 +258,14 @@ abstract final class TextesImportExport {
   static const String importAucuneNouvelle =
       "Aucune ligne nouvelle : toutes existent déjà, rien n'a été importé.";
   static const String historiqueVideSurCePoste =
-      "Aucun import pendant cette session : ce poste ne garde pas l'historique "
-      "des imports d'une ouverture de l'application à l'autre.";
+      'Aucun import pendant cette session.';
 
   // L'onglet « Sauvegardes de la base » — « Générer une sauvegarde » et
   // « Exporter une table existante », RÉELS depuis le 14/10/2026.
   static String sauvegardeGeneree(String fichier, String taille) =>
       'Sauvegarde générée : $fichier ($taille).';
+  static String sauvegardeEnregistree(String fichier) =>
+      'Sauvegarde enregistrée : $fichier.';
   static String sauvegardeEchec(Object erreur) =>
       'La sauvegarde a échoué : $erreur';
   static const String exportTableTitre = 'Exporter une table existante';
@@ -236,68 +275,40 @@ abstract final class TextesImportExport {
   static const String exportTableChoisir = 'Sélectionnez une table.';
   static const String actionTelecharger = 'Télécharger';
 
-  static const String rythmeSurCePoste =
-      "Sur ce poste : aucune sauvegarde automatique n'a lieu, et aucune n'est "
-      'conservée.';
-  static const String sauvegardesVideSurCePoste =
-      'Aucune sauvegarde conservée sur ce poste : « Générer une sauvegarde de '
-      "la base » enregistre une copie complète à l'emplacement que vous "
-      "choisissez — c'est cet emplacement qui la met à l'abri.";
-  static const String restaurerSurCePoste =
-      "Sur ce poste : aucun registre d'archives n'est tenu ici — un élément "
-      "archivé se réintègre depuis l'écran de son module.";
-  static const String archivesVideSurCePoste =
-      "Aucun registre d'archives sur ce poste.";
-  // « Réinitialiser comme neuf » (lot E, 14/10/2026) — les mots de la vue.
-  static const String seedersVerrouilleOuvrirAvant =
-      "Un administrateur peut l'ouvrir dans";
-  static const String seedersVerrouilleOuvrirLien =
-      'Paramètres › Activation & Sécurité';
-  static const String seedersBandeauTitre =
-      "Fonction ouverte — à refermer dès que l'exploitation réelle commence";
-  static const String seedersVideTitre = 'Ce qui sera vidé';
-  static const String seedersVideTexte =
-      "Tout ce que l'exploitation produit : clients, employés et paie, fournisseurs, guides, réservations et séjours, ventes, factures, mouvements de stock, achats, dépenses, locations, écritures comptables, notifications, caches et files de tâches.";
-  static const String seedersConserveTitre = 'Ce qui sera conservé';
-  static const String seedersConserveTexte =
-      'Comptes et droits, paramètres, journaux, chambres du parc, articles de stock (sans mouvements), fiche restaurant, carte du bar, véhicules, catalogue tourisme et plan comptable.';
-  static const String seedersRienAVider =
-      'Aucune donnée à vider — la base est déjà vierge.';
-  static const String seedersBouton = 'Réinitialiser comme neuf';
-  static const String seedersModaleTitre = 'Réinitialiser comme neuf ?';
-  static String seedersModaleTexteAvant(int nombre) => '$nombre table(s)';
-  static const String seedersModaleTexte1 =
-      "vont être vidées : clients, employés, fournisseurs, guides, réservations, ventes, factures, stocks, écritures, paie, et tous les jeux de démonstration. Rien n'est semé à nouveau.";
-  static const String seedersModaleTexte2 =
-      "Les paramètres de l'entreprise, la matrice des droits, votre compte, le journal d'audit, les chambres, les articles, la fiche restaurant, la carte du bar, les véhicules et le catalogue tourisme sont";
-  static const String seedersModaleTexte2Fort = 'conservés';
-  static const String seedersConfirmationAvant = 'Pour confirmer, saisissez';
-  static const String seedersPhraseConfirmation = 'VIDER';
-  static const String seedersConfirmationAide =
-      "Une saisie plutôt qu'un simple clic : c'est la seule barrière qui résiste à un double-clic distrait.";
-  static const String seedersConfirmer = 'Vider définitivement';
-  static const String annuler = 'Annuler';
-  static const String seedersPhraseInvalide =
-      'La phrase tapée ne correspond pas à $seedersPhraseConfirmation.';
-  // Phase d'essais en production (19/10/2026) — la phrase de la vue,
-  // affichée quand le SERVEUR l'annonce (en-tête de synchronisation).
-  static const String resetPhaseEssais =
-      "Phase d'essais en Production : la réinitialisation reste possible pour effacer les essais avant la mise en service. Chaque poste devra ensuite être réinitialisé à son tour. Retirez TATACORA_PHASE_ESSAIS du fichier .env le jour de la mise en service réelle.";
-  static const String resetEnvironnementProduction =
-      "Cet écran s'exécute en Production : la réinitialisation est désactivée, quel que soit votre rôle — c'est l'environnement qui refuse, pas un droit qui manque.";
+  /// `sauvegardes_vide` (au mot).
+  static const String sauvegardesVide =
+      'Aucune sauvegarde. Utilisez le bouton ci-dessus pour en générer une.';
 
-  /// REMPLACEMENTS déclarés (piège 13) — la vue annonce une sauvegarde
-  /// complète générée avant chaque réinitialisation (bandeau et modale de
-  /// l'onglet « seeders ») ; le poste n'en produit AUCUNE : la phrase vraie
-  /// prend sa place, avec le maximum des mots de la vue.
-  static const String seedersBandeauTexteSurCePoste =
-      "Sur ce poste, aucune sauvegarde n'est générée avant la réinitialisation : "
-      'rien ne permet de revenir en arrière si la bascule était restée ouverte par erreur.';
-  static const String seedersModaleTexte2FinSurCePoste =
-      ". Sur ce poste, aucune sauvegarde n'est générée juste avant.";
-  static String seedersFaitSurCePoste(int tables, int lignes) =>
-      '$tables table(s) vidée(s), $lignes ligne(s) supprimée(s). Les '
-      'paramètres, les droits et les référentiels gardés sont intacts.';
+  /// `sauvegarde_contenu`, `action_retirer`, `sauvegarde_non_telechargee`.
+  static const String sauvegardeContenu = 'Base complète';
+  static const String actionRetirer = 'Retirer de la liste';
+  static const String sauvegardeNonTelechargee = 'non téléchargée';
+
+  /// `bandeau_generee_*` et `bandeau_rappel_*` : « sur ce serveur » devient
+  /// « sur ce poste » — c'est là que vivent les fichiers (ÉCART nommé).
+  static const String bandeauGenereeTitre = 'Sauvegarde générée';
+  static String bandeauGenereeTexte(String fichier) =>
+      "$fichier — téléchargez-la : tant qu'elle reste sur ce poste, elle ne protège de rien.";
+  static const String bandeauRappelTitre =
+      'Sauvegarde en attente de téléchargement';
+  static String bandeauRappelTexte(String fichier, String date) =>
+      "$fichier du $date n'a pas été téléchargée.";
+
+  /// `sauvegardes_retention` : « conservées sur ce serveur » devient « sur ce
+  /// poste ».
+  static const String sauvegardesRetention =
+      "Les sauvegardes des 30 derniers jours sont conservées sur ce poste. Une sauvegarde restée sur la machine ne protège de rien : c'est le téléchargement qui la met à l'abri.";
+
+  /// La modale de retrait — `retrait_*` (« sur ce serveur » → « sur ce poste »).
+  static const String retraitTitre = 'Sauvegarde jamais téléchargée';
+  static const String retraitMessage =
+      "Cette sauvegarde n'existe que sur ce poste.";
+  static const String retraitDetail =
+      "La retirer la perd définitivement : il n'en existe aucune copie ailleurs.";
+  static const String retraitConfirmer = 'Retirer quand même';
+  static const String sauvegardeRetiree = 'Sauvegarde retirée de la liste.';
+
+  static const String annuler = 'Annuler';
 }
 
 class _EcranImportExportState extends ConsumerState<EcranImportExport> {
@@ -307,15 +318,21 @@ class _EcranImportExportState extends ConsumerState<EcranImportExport> {
     (cle: 'importer', libelle: TextesImportExport.ongletImporter),
     (cle: 'sauvegardes', libelle: TextesImportExport.ongletSauvegardes),
     (cle: 'restaurer', libelle: TextesImportExport.ongletRestaurer),
-    (cle: 'seeders', libelle: TextesImportExport.ongletSeeders),
   ];
 
   @override
   Widget build(BuildContext context) {
     final droits = ref.watch(droitsProvider);
-    if (!droits.peutLire(ModuleTatacora.parametres)) {
+    // 09/11/2026 (PO) : la page est au menu de TOUS les rôles — le droit transverse
+    // `IMPORT_EXPORT` (lecture par défaut) ne commande que sa VISIBILITÉ. Les onglets
+    // « Sauvegardes de la base » et « Restaurer » exigent en plus la lecture de
+    // `Paramètres` (comme au serveur : un rôle sans `PARAM` n'a que « Importer ») et
+    // chaque geste son écriture (`peutEcrire`) ; l'import exige l'écriture sur le
+    // module choisi (`importeursLocauxProvider`).
+    if (!droits.peutLire(ModuleTatacora.importExport)) {
       return const RefusDroitTransverse(message: LibellesCoquille.sansDroit);
     }
+    final accesAdministration = droits.peutLire(ModuleTatacora.parametres);
     final peutEcrire = droits.peutEcrire(ModuleTatacora.parametres);
     final nombreTables = ref.watch(baseLocaleProvider).allTables.length;
 
@@ -332,16 +349,17 @@ class _EcranImportExportState extends ConsumerState<EcranImportExport> {
           runSpacing: AppSpacing.xs,
           children: [
             for (final (i, o) in _onglets.indexed)
-              OngletTransverse(
-                cle: Key('ie-onglet-${o.cle}'),
-                libelle: o.libelle,
-                actif: _onglet == i,
-                onChoix: () => setState(() => _onglet = i),
-              ),
+              if (i == 0 || accesAdministration)
+                OngletTransverse(
+                  cle: Key('ie-onglet-${o.cle}'),
+                  libelle: o.libelle,
+                  actif: _onglet == i,
+                  onChoix: () => setState(() => _onglet = i),
+                ),
           ],
         ),
         const SizedBox(height: AppSpacing.mdPlus), // mb-5
-        switch (_onglet) {
+        switch (accesAdministration ? _onglet : 0) {
           0 => _PanneauImporter(
             peutEcrire: peutEcrire,
             moduleInitial: widget.moduleInitial,
@@ -350,11 +368,7 @@ class _EcranImportExportState extends ConsumerState<EcranImportExport> {
             peutEcrire: peutEcrire,
             nombreTables: nombreTables,
           ),
-          2 => const _PanneauRestaurer(),
-          _ => _PanneauSeeders(
-            peutEcrire: peutEcrire,
-            role: ref.watch(sessionProvider)?.role,
-          ),
+          _ => _PanneauRestaurer(peutEcrire: peutEcrire),
         },
       ],
     );
@@ -419,14 +433,36 @@ class _PanneauImporterState extends ConsumerState<_PanneauImporter> {
           .enregistrerFichier(
             nomSuggere: importeur.nomModele,
             octets: importeur.modeleOctets(),
-            type: TypeFichierEnregistre.csv,
+            type: TypeFichierEnregistre.xlsx,
+          ),
+      cleSucces: const Key('ie-modele-enregistre'),
+    );
+  }
+
+  /// « Carte du Gîte Chez Noël (exemple) » — le modèle du module, PRÉREMPLI
+  /// (copie de `docs/data/`, embarquée) : m6 articles des boissons, m5 boissons,
+  /// m4 plats. Sans stock ni quantité.
+  Future<void> _telechargerExempleGite(ImporteurLocal importeur) async {
+    final octets = (await rootBundle.load(
+      'assets/import/modele_import_${importeur.cle}.xlsx',
+    )).buffer.asUint8List();
+    if (!mounted) return;
+    await executerExport(
+      context,
+      () => ref
+          .read(enregistrementExportProvider)
+          .enregistrerFichier(
+            nomSuggere:
+                'modele_import_${importeur.cle}_carte_gite_chez_noel.xlsx',
+            octets: octets,
+            type: TypeFichierEnregistre.xlsx,
           ),
       cleSucces: const Key('ie-modele-enregistre'),
     );
   }
 
   Future<void> _choisirFichier() async {
-    final lu = await ref.read(selecteurFichiersProvider).ouvrirCsv();
+    final lu = await ref.read(selecteurFichiersProvider).ouvrirTableur();
     if (lu == null || !mounted) return;
     setState(() {
       _fichier = lu;
@@ -469,7 +505,7 @@ class _PanneauImporterState extends ConsumerState<_PanneauImporter> {
           .appliquer(importeur, fichier.octets);
       if (!mounted) return;
       switch (issue) {
-        case ImportFait(:final importees, :final ignorees):
+        case ImportFait(:final importees, :final ignorees, :final bilan):
           relireApresImport(ref, importeur.cle);
           ref
               .read(historiqueImportsProvider.notifier)
@@ -492,13 +528,16 @@ class _PanneauImporterState extends ConsumerState<_PanneauImporter> {
                 behavior: SnackBarBehavior.floating,
                 backgroundColor: AppColors.succes,
                 content: Text(
-                  importees == 0
-                      ? TextesImportExport.importAucuneNouvelle
-                      : TextesImportExport.importFait(
-                          importees,
-                          importeur.nom,
-                          ignorees,
-                        ),
+                  [
+                    importees == 0
+                        ? TextesImportExport.importAucuneNouvelle
+                        : TextesImportExport.importFait(
+                            importees,
+                            importeur.nom,
+                            ignorees,
+                          ),
+                    ?bilan,
+                  ].join(' '),
                   key: const Key('ie-import-fait'),
                 ),
               ),
@@ -638,6 +677,40 @@ class _PanneauImporterState extends ConsumerState<_PanneauImporter> {
                 ),
                 style: _aide,
               ),
+              if (peutEcrire &&
+                  importeur != null &&
+                  const [
+                    'm6-stocks',
+                    'm5-bar',
+                    'm4-restaurant',
+                  ].contains(importeur.cle)) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: InkWell(
+                          key: const Key('ie-modele-gite'),
+                          onTap: () => _telechargerExempleGite(importeur),
+                          child: Text(
+                            TextesImportExport.importerGiteBouton,
+                            style: _aide.copyWith(
+                              fontWeight: FontWeight.bold,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const TextSpan(
+                        text: ' — ${TextesImportExport.importerGiteAide}',
+                      ),
+                    ],
+                  ),
+                  style: _aide,
+                ),
+              ],
             ],
           ),
         ),
@@ -1442,6 +1515,16 @@ class _PanneauSauvegardes extends ConsumerStatefulWidget {
 class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
   bool _enCours = false;
 
+  /// Le nom de la sauvegarde que ce geste vient de produire : le bandeau VERT
+  /// (`sauvegardeGeneree` du composant) ; sinon, le bandeau OR dit celle qui
+  /// n'a jamais été téléchargée.
+  String? _genere;
+
+  static const String _corbeille =
+      r'<path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/>';
+  static const String _traceTelecharger =
+      r'<path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>';
+
   static String _taille(int octets) {
     if (octets >= 1024 * 1024) {
       return '${(octets / (1024 * 1024)).toStringAsFixed(1)} Mo';
@@ -1449,11 +1532,13 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
     return '${(octets / 1024).ceil()} Ko';
   }
 
-  Future<void> _generer() async {
-    if (_enCours) return;
-    setState(() => _enCours = true);
-    final messager = ScaffoldMessenger.of(context);
-    void dire(String texte, Color fond, Key cle) => messager
+  static String _deux(int n) => n.toString().padLeft(2, '0');
+  static String _jour(DateTime d) =>
+      '${_deux(d.day)}/${_deux(d.month)}/${d.year}';
+  static String _heure(DateTime d) => '${_deux(d.hour)}:${_deux(d.minute)}';
+
+  void _dire(String texte, Color fond, Key cle) {
+    ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
@@ -1462,29 +1547,30 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
           content: Text(texte, key: cle),
         ),
       );
+  }
+
+  /// « Générer une sauvegarde de la base » : une copie complète RANGÉE sur le
+  /// poste (`SauvegardesPoste.generer`), puis le bandeau vert.
+  Future<void> _generer() async {
+    if (_enCours) return;
+    setState(() => _enCours = true);
     try {
-      final octets = await ref.read(sauvegardeLocaleProvider).composer();
-      final chemin = await ref
-          .read(enregistrementExportProvider)
-          .enregistrerFichier(
-            nomSuggere: SauvegardeLocale.nomSuggere(),
-            octets: octets,
-            type: TypeFichierEnregistre.sauvegarde,
-          );
-      // Annulé dans la fenêtre : rien n'est écrit, rien n'est dit.
-      if (chemin != null && messager.mounted) {
-        dire(
+      final fichier = await ref.read(sauvegardesPosteProvider).generer();
+      ref.invalidate(fichiersSauvegardeProvider);
+      if (mounted) {
+        setState(() => _genere = fichier.nom);
+        _dire(
           TextesImportExport.sauvegardeGeneree(
-            nomDuFichier(chemin),
-            _taille(octets.length),
+            fichier.nom,
+            _taille(fichier.taille),
           ),
           AppColors.succes,
           const Key('ie-sauvegarde-generee'),
         );
       }
     } on Object catch (e) {
-      if (messager.mounted) {
-        dire(
+      if (mounted) {
+        _dire(
           TextesImportExport.sauvegardeEchec(e),
           AppColors.erreur,
           const Key('ie-sauvegarde-echec'),
@@ -1492,6 +1578,76 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
       }
     } finally {
       if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  /// « Télécharger » : la copie rangée est écrite là où l'opérateur le choisit
+  /// (fenêtre « Enregistrer sous ») ; ce n'est qu'alors qu'elle est marquée
+  /// téléchargée — annuler dans la fenêtre ne met rien à l'abri.
+  Future<void> _telecharger(String nom) async {
+    try {
+      final sauvegardes = ref.read(sauvegardesPosteProvider);
+      final octets = await sauvegardes.lire(nom);
+      final chemin = await ref
+          .read(enregistrementExportProvider)
+          .enregistrerFichier(
+            nomSuggere: nom,
+            octets: octets,
+            type: TypeFichierEnregistre.sauvegarde,
+          );
+      if (chemin == null) return;
+      await sauvegardes.marquerTelechargee(nom);
+      ref.invalidate(fichiersSauvegardeProvider);
+      if (mounted) {
+        if (_genere == nom) setState(() => _genere = null);
+        _dire(
+          TextesImportExport.sauvegardeEnregistree(nomDuFichier(chemin)),
+          AppColors.succes,
+          const Key('ie-sauvegarde-telechargee'),
+        );
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        _dire(
+          TextesImportExport.sauvegardeEchec(e),
+          AppColors.erreur,
+          const Key('ie-sauvegarde-echec'),
+        );
+      }
+    }
+  }
+
+  /// « Retirer de la liste » : la confirmation forte ne s'ouvre QUE pour une
+  /// sauvegarde jamais téléchargée (`retirerSauvegarde` du composant) ; une
+  /// sauvegarde téléchargée se retire directement.
+  Future<void> _retirer(FichierSauvegarde fichier) async {
+    if (!fichier.telechargee) {
+      final confirme = await showDialog<bool>(
+        context: context,
+        barrierColor: AppColors.voileModale,
+        builder: (_) => const _ModaleRetraitSauvegarde(),
+      );
+      if (confirme != true || !mounted) return;
+    }
+    try {
+      await ref.read(sauvegardesPosteProvider).retirer(fichier.nom);
+      ref.invalidate(fichiersSauvegardeProvider);
+      if (mounted) {
+        if (_genere == fichier.nom) setState(() => _genere = null);
+        _dire(
+          TextesImportExport.sauvegardeRetiree,
+          AppColors.succes,
+          const Key('ie-sauvegarde-retiree'),
+        );
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        _dire(
+          TextesImportExport.sauvegardeEchec(e),
+          AppColors.erreur,
+          const Key('ie-sauvegarde-echec'),
+        );
+      }
     }
   }
 
@@ -1521,6 +1677,12 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
     final peutEcrire = widget.peutEcrire;
     final nombreTables = widget.nombreTables;
     final largeur = MediaQuery.sizeOf(context).width;
+    final fichiers =
+        ref.watch(fichiersSauvegardeProvider).value ??
+        const <FichierSauvegarde>[];
+    final enAttente = fichiers.isNotEmpty && !fichiers.first.telechargee
+        ? fichiers.first
+        : null;
     Widget kpi(String libelle, String valeur, {Key? cle}) => CarteTransverse(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -1544,9 +1706,96 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
         ],
       ),
     );
+
+    // Un bandeau de la vue : icône, titre, texte, et « Télécharger » à droite
+    // pour qui écrit.
+    Widget bandeau({
+      required Key cle,
+      required Key cleBouton,
+      required Color fond,
+      required Color bordure,
+      required Color encre,
+      required Color bouton,
+      required String titre,
+      required String texte,
+      required String nom,
+    }) => Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.mdPlus), // mb-5
+      child: EncadreTransverse(
+        key: cle,
+        fond: fond,
+        bordure: bordure,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titre,
+                    style: styleTransverse(
+                      TaillesContenu.t15,
+                      poids: FontWeight.bold,
+                      couleur: encre,
+                    ),
+                  ),
+                  Text(
+                    texte,
+                    style: styleTransverse(TaillesContenu.t13, couleur: encre),
+                  ),
+                ],
+              ),
+            ),
+            if (peutEcrire) ...[
+              const SizedBox(width: AppSpacing.sm),
+              BoutonTransverse(
+                cle: Key(
+                  '${cle.toString().replaceAll(RegExp(r"[\[\]<>']"), '')}-telecharger',
+                ),
+                libelle: TextesImportExport.actionTelecharger,
+                fond: bouton,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                onTap: () => _telecharger(nom),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (_genere != null)
+          bandeau(
+            cle: const Key('ie-bandeau-generee'),
+            cleBouton: const Key('ie-bandeau-generee-telecharger'),
+            fond: AppColors.badgeVertFond,
+            bordure: PaletteTransverse.vert300,
+            encre: PaletteTransverse.texteVert,
+            bouton: AppColors.succes,
+            titre: TextesImportExport.bandeauGenereeTitre,
+            texte: TextesImportExport.bandeauGenereeTexte(_genere!),
+            nom: _genere!,
+          )
+        else if (enAttente != null)
+          bandeau(
+            cle: const Key('ie-bandeau-rappel'),
+            cleBouton: const Key('ie-bandeau-rappel-telecharger'),
+            fond: PaletteMaitre.ambre50,
+            bordure: PaletteMaitre.ambre200,
+            encre: PaletteTransverse.texteOr,
+            bouton: AppColors.gold,
+            titre: TextesImportExport.bandeauRappelTitre,
+            texte: TextesImportExport.bandeauRappelTexte(
+              enAttente.nom,
+              _jour(enAttente.date),
+            ),
+            nom: enAttente.nom,
+          ),
         GrilleTransverse(
           colonnes: largeur >= AppBreakpoints.sm
               ? MesuresTransverses.colonnesKpiSauvegardes
@@ -1558,8 +1807,18 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
               '$nombreTables',
               cle: const Key('ie-kpi-tables'),
             ),
-            kpi(TextesImportExport.kpiSauvegardes, TextesImportExport.tiret),
-            kpi(TextesImportExport.kpiDerniere, TextesImportExport.tiret),
+            kpi(
+              TextesImportExport.kpiSauvegardes,
+              '${fichiers.length}',
+              cle: const Key('ie-kpi-sauvegardes'),
+            ),
+            kpi(
+              TextesImportExport.kpiDerniere,
+              fichiers.isEmpty
+                  ? TextesImportExport.tiret
+                  : _jour(fichiers.first.date),
+              cle: const Key('ie-kpi-derniere'),
+            ),
             kpi(TextesImportExport.kpiRythme, TextesImportExport.tiret),
           ],
         ),
@@ -1599,17 +1858,10 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: MesuresTransverses.texteRythmeSauvegardes,
-          ),
-          child: Text(TextesImportExport.rythmeSurCePoste, style: _aide),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        const CarteTransverse(
+        CarteTransverse(
           padding: EdgeInsets.zero,
           child: TableauTransverse(
-            colonnes: [
+            colonnes: const [
               (
                 titre: TextesImportExport.colFichier,
                 alignement: TextAlign.left,
@@ -1621,12 +1873,269 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
                 alignement: TextAlign.right,
               ),
             ],
-            lignes: [],
-            vide: TextesImportExport.sauvegardesVideSurCePoste,
-            cleVide: Key('ie-sauvegardes-vide'),
+            lignes: [
+              for (final f in fichiers)
+                [
+                  Column(
+                    key: Key('ie-sauvegarde-${f.nom}'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      celluleTexte(
+                        f.nom,
+                        couleur: Ardoise.c700,
+                        poids: FontWeight.w600,
+                        mono: true,
+                      ),
+                      celluleTexte(
+                        '${_taille(f.taille)}${f.telechargee ? '' : ' · ${TextesImportExport.sauvegardeNonTelechargee}'}',
+                        couleur: Ardoise.c400,
+                        taille: TaillesContenu.t12,
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      celluleTexte(_jour(f.date)),
+                      celluleTexte(
+                        _heure(f.date),
+                        couleur: Ardoise.c400,
+                        taille: TaillesContenu.t12,
+                      ),
+                    ],
+                  ),
+                  celluleTexte(TextesImportExport.sauvegardeContenu),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (peutEcrire) ...[
+                        BoutonTransverse(
+                          cle: Key('ie-telecharger-${f.nom}'),
+                          libelle: TextesImportExport.actionTelecharger,
+                          fond: AppColors.navy,
+                          trace: _traceTelecharger,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xxs,
+                          ),
+                          onTap: () => _telecharger(f.nom),
+                        ),
+                        const SizedBox(width: AppSpacing.unit),
+                        Tooltip(
+                          message: TextesImportExport.actionRetirer,
+                          child: InkWell(
+                            key: Key('ie-retirer-${f.nom}'),
+                            onTap: () => _retirer(f),
+                            child: Padding(
+                              padding: const EdgeInsets.all(AppSpacing.xxs),
+                              child: IconeTrace(
+                                trace: _corbeille,
+                                taille: MesuresTransverses.iconePetite,
+                                couleur: Ardoise.c400,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+            ],
+            vide: TextesImportExport.sauvegardesVide,
+            cleVide: const Key('ie-sauvegardes-vide'),
           ),
         ),
+        const SizedBox(height: AppSpacing.sm), // mt-3
+        Text(TextesImportExport.sauvegardesRetention, style: _aide),
       ],
+    );
+  }
+}
+
+/// La confirmation forte de « Retirer de la liste » pour une sauvegarde jamais
+/// téléchargée (`Dialogue.confirmer`) : titre, message, détail, Annuler /
+/// « Retirer quand même ». Rend `true` quand on retire.
+class _ModaleRetraitSauvegarde extends StatelessWidget {
+  const _ModaleRetraitSauvegarde();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      key: const Key('ie-modale-retrait'),
+      backgroundColor: AppColors.neutre0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: Largeurs.maxSm),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                TextesImportExport.retraitTitre,
+                style: styleTransverse(
+                  TaillesContenu.base,
+                  poids: FontWeight.bold,
+                  couleur: AppColors.navy,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                TextesImportExport.retraitMessage,
+                style: styleTransverse(TaillesContenu.t13),
+              ),
+              const SizedBox(height: AppSpacing.unit),
+              Text(
+                TextesImportExport.retraitDetail,
+                style: styleTransverse(
+                  TaillesContenu.t13,
+                  couleur: Ardoise.c500,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.mdPlus),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  BoutonTransverse(
+                    cle: const Key('ie-retrait-annuler'),
+                    libelle: TextesImportExport.annuler,
+                    onTap: () => Navigator.of(context).pop(false),
+                  ),
+                  BoutonTransverse(
+                    cle: const Key('ie-retrait-confirmer'),
+                    libelle: TextesImportExport.retraitConfirmer,
+                    fond: AppColors.erreur,
+                    onTap: () => Navigator.of(context).pop(true),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// La confirmation forte de « Purger » (`import_export.purge_titre`, maquette
+/// l.707-720) : titre, élément en sous-titre, message, détail, Annuler /
+/// « Purger ». Un refus MOTIVÉ du domaine (non archivé, engagé, cité) s'affiche
+/// ICI et la modale reste ouverte (`@error('purge')`). Rend le libellé purgé.
+class _ModalePurge extends StatefulWidget {
+  const _ModalePurge({required this.libelle, required this.purger});
+
+  final String libelle;
+  final Future<String> Function() purger;
+
+  @override
+  State<_ModalePurge> createState() => _ModalePurgeState();
+}
+
+class _ModalePurgeState extends State<_ModalePurge> {
+  String? _refus;
+  bool _enCours = false;
+
+  Future<void> _confirmer() async {
+    if (_enCours) return;
+    setState(() {
+      _enCours = true;
+      _refus = null;
+    });
+    try {
+      final libelle = await widget.purger();
+      if (mounted) Navigator.of(context).pop(libelle);
+    } on RefusArchive catch (refus) {
+      if (mounted) {
+        setState(() {
+          _refus = refus.message;
+          _enCours = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      key: const Key('ie-modale-purge'),
+      backgroundColor: AppColors.neutre0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: Largeurs.maxMd),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                TextesImportExport.purgeTitre,
+                style: styleTransverse(
+                  TaillesContenu.base,
+                  poids: FontWeight.bold,
+                  couleur: AppColors.navy,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.unit),
+              Text(
+                widget.libelle,
+                key: const Key('ie-purge-element'),
+                style: styleTransverse(
+                  TaillesContenu.t13,
+                  couleur: Ardoise.c500,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                TextesImportExport.purgeMessage,
+                style: styleTransverse(
+                  TaillesContenu.t15,
+                  couleur: Ardoise.c600,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.unit),
+              Text(
+                TextesImportExport.purgeDetail,
+                style: styleTransverse(
+                  TaillesContenu.t13,
+                  couleur: Ardoise.c500,
+                ),
+              ),
+              if (_refus != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  _refus!,
+                  key: const Key('ie-purge-refus'),
+                  style: styleTransverse(
+                    TaillesContenu.t12,
+                    couleur: PaletteMaitre.rouge600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.mdPlus),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  BoutonTransverse(
+                    cle: const Key('ie-purge-annuler'),
+                    libelle: TextesImportExport.annuler,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                  BoutonTransverse(
+                    cle: const Key('ie-purge-confirmer'),
+                    libelle: TextesImportExport.purgeConfirmer,
+                    fond: AppColors.erreur,
+                    onTap: _confirmer,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1744,11 +2253,94 @@ class _ModaleExportTableState extends State<_ModaleExportTable> {
   }
 }
 
-class _PanneauRestaurer extends StatelessWidget {
-  const _PanneauRestaurer();
+/// L'onglet « Restaurer » — le registre DÉRIVÉ des unités d'hébergement et des
+/// véhicules `hors_service` (`registre_archives.dart`), sa recherche, son filtre
+/// et son seul geste, « Restaurer ». Aucune table d'archives, ici comme au web.
+class _PanneauRestaurer extends ConsumerStatefulWidget {
+  const _PanneauRestaurer({required this.peutEcrire});
 
+  final bool peutEcrire;
+
+  @override
+  ConsumerState<_PanneauRestaurer> createState() => _PanneauRestaurerState();
+}
+
+class _PanneauRestaurerState extends ConsumerState<_PanneauRestaurer> {
   static const String _retour =
       r'<path stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 109-9 9 9 0 00-6.36 2.64L3 8"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v5h5"/>';
+
+  static const String _poubelle =
+      r'<path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/>';
+
+  final _recherche = TextEditingController();
+  FiltreArchives _filtre = FiltreArchives.restaurables;
+
+  /// `@error('archives')` : le refus de la dernière restauration.
+  String? _refus;
+
+  @override
+  void dispose() {
+    _recherche.dispose();
+    super.dispose();
+  }
+
+  Future<void> _restaurer(EntreeArchive entree) async {
+    setState(() => _refus = null);
+    final messager = ScaffoldMessenger.of(context);
+    try {
+      final libelle = await ref.read(restaurerArchiveProvider)(
+        entree.type,
+        entree.id,
+      );
+      // Les écrans des deux modules relisent leur parc : l'élément y revient.
+      rafraichirListes(ref);
+      rechargerVehicules(ref);
+      messager
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            key: const Key('ie-archive-restauree'),
+            content: Text(MessagesArchives.restauree(libelle)),
+          ),
+        );
+    } on RefusArchive catch (refus) {
+      if (mounted) setState(() => _refus = refus.message);
+    }
+  }
+
+  /// `ouvrirPurge` puis `purgerArchive` : la confirmation forte ; un refus MOTIVÉ
+  /// (engagé, cité, non archivé) s'affiche dans la modale, qui reste ouverte.
+  Future<void> _purger(EntreeArchive entree) async {
+    setState(() => _refus = null);
+    final messager = ScaffoldMessenger.of(context);
+    final libelle = await showDialog<String>(
+      context: context,
+      barrierColor: AppColors.voileModale,
+      builder: (_) => _ModalePurge(
+        libelle: entree.libelle,
+        purger: () => ref.read(purgerArchiveProvider)(entree.type, entree.id),
+      ),
+    );
+    if (libelle == null || !mounted) return;
+    rafraichirListes(ref);
+    rechargerVehicules(ref);
+    messager
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const Key('ie-archive-purgee'),
+          content: Text(MessagesArchives.purgee(libelle)),
+        ),
+      );
+  }
+
+  static String _date(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/'
+      '${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  static String _heure(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:'
+      '${d.minute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -1757,6 +2349,28 @@ class _PanneauRestaurer extends StatelessWidget {
       couleur: PaletteMaitre.bleu900,
       interligne: AppLayout.interligneDetendu,
     );
+    final registre = ref.watch(registreArchivesProvider);
+    // Le bouton de purge n'est offert qu'au SUPER_ADMIN (PO 03/09/2026).
+    final superAdmin = estSuperAdmin(ref.watch(sessionProvider)?.role);
+    final entrees = registre.hasValue
+        ? filtrerArchives(
+            registre.requireValue,
+            filtre: _filtre,
+            recherche: _recherche.text,
+          )
+        : const <EntreeArchive>[];
+
+    Widget cellule(String texte, {bool fort = false}) => Text(
+      texte,
+      style: fort
+          ? styleTransverse(
+              TaillesContenu.t15,
+              poids: FontWeight.w600,
+              couleur: Ardoise.c700,
+            )
+          : styleTransverse(TaillesContenu.t13, couleur: Ardoise.c600),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1787,11 +2401,6 @@ class _PanneauRestaurer extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.unit),
                     Text(TextesImportExport.restaurerTexte, style: bleu),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      TextesImportExport.restaurerSurCePoste,
-                      style: bleu.copyWith(fontWeight: FontWeight.w600),
-                    ),
                   ],
                 ),
               ),
@@ -1799,54 +2408,80 @@ class _PanneauRestaurer extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.mdPlus),
-        Tooltip(
-          message: TextesImportExport.archivesVideSurCePoste,
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  key: const Key('ie-recherche-archives'),
-                  enabled: false,
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                key: const Key('ie-recherche-archives'),
+                controller: _recherche,
+                onChanged: (_) => setState(() {}),
+                style: styleTransverse(TaillesContenu.t15),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: TextesImportExport.rechercheArchives,
+                  filled: true,
+                  fillColor: AppColors.neutre0,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderSide: const BorderSide(color: Ardoise.c200),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.unit,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.neutre0,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: Ardoise.c200),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<FiltreArchives>(
+                  key: const Key('ie-filtre-archives'),
+                  value: _filtre,
                   style: styleTransverse(TaillesContenu.t15),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: TextesImportExport.rechercheArchives,
-                    filled: true,
-                    fillColor: AppColors.neutre0,
-                    disabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: const BorderSide(color: Ardoise.c200),
+                  items: const [
+                    DropdownMenuItem(
+                      value: FiltreArchives.restaurables,
+                      child: Text(TextesImportExport.filtreRestaurables),
                     ),
-                  ),
+                    DropdownMenuItem(
+                      value: FiltreArchives.toutes,
+                      child: Text(TextesImportExport.filtreToutes),
+                    ),
+                    DropdownMenuItem(
+                      value: FiltreArchives.restaurees,
+                      child: Text(TextesImportExport.filtreRestaurees),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _filtre = v);
+                  },
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xsPlus,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.neutre0,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: Ardoise.c200),
-                ),
-                child: Text(
-                  TextesImportExport.filtreRestaurables,
-                  style: styleTransverse(
-                    TaillesContenu.t15,
-                    couleur: Ardoise.c400,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+        if (_refus != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            _refus!,
+            key: const Key('ie-archives-refus'),
+            style: styleTransverse(
+              TaillesContenu.t12,
+              couleur: PaletteMaitre.rouge600,
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
-        const CarteTransverse(
+        CarteTransverse(
           padding: EdgeInsets.zero,
           child: TableauTransverse(
-            colonnes: [
+            colonnes: const [
               (
                 titre: TextesImportExport.colElement,
                 alignement: TextAlign.left,
@@ -1862,561 +2497,95 @@ class _PanneauRestaurer extends StatelessWidget {
                 alignement: TextAlign.right,
               ),
             ],
-            lignes: [],
-            vide: TextesImportExport.archivesVideSurCePoste,
-            cleVide: Key('ie-archives-vide'),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// L'onglet « Réinitialiser » — les trois états de la vue : Production
-/// (encadré rouge), VERROUILLÉ (bascule fermée : cadenas et renvoi aux
-/// Paramètres), OUVERT (bandeau, les deux listes mesurées sur la base, le
-/// bouton « Réinitialiser comme neuf » et sa modale).
-class _PanneauSeeders extends ConsumerStatefulWidget {
-  const _PanneauSeeders({required this.peutEcrire, required this.role});
-
-  final bool peutEcrire;
-  final String? role;
-
-  @override
-  ConsumerState<_PanneauSeeders> createState() => _PanneauSeedersState();
-}
-
-typedef _EtatSeeders = ({
-  bool ouverte,
-  List<String> effacables,
-  List<String> preservees,
-  // Le serveur a été réinitialisé (19/10/2026) : la remise à neuf de CE
-  // poste s'ouvre, même en build production et bascule fermée.
-  DateTime? serveurReinitialiseLe,
-  // Le serveur annonce la phase d'essais en production.
-  bool phaseEssais,
-});
-
-class _PanneauSeedersState extends ConsumerState<_PanneauSeeders> {
-  static const String _cadenas =
-      r'<rect x="3" y="11" width="18" height="11" rx="2"/><path stroke-linecap="round" d="M7 11V7a5 5 0 0110 0v4"/>';
-  static const String _alerte =
-      r'<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>';
-  static const String _corbeille =
-      r'<path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/>';
-
-  late Future<_EtatSeeders> _etat;
-
-  ReinitialisationLocale get _moteur =>
-      ReinitialisationLocale(ref.read(baseLocaleProvider));
-
-  @override
-  void initState() {
-    super.initState();
-    _etat = _lire();
-  }
-
-  // La bascule et les listes sont relues à chaque ouverture de l'onglet et
-  // après chaque réinitialisation, jamais gardées d'une visite à l'autre.
-  Future<_EtatSeeders> _lire() async {
-    final moteur = _moteur;
-    final serveurReinitialiseLe = await moteur.reinitialisationServeur();
-    return (
-      ouverte: serveurReinitialiseLe != null || await moteur.estOuverte(),
-      effacables: await moteur.tablesEffacables(),
-      preservees: await moteur.tablesPreservees(),
-      serveurReinitialiseLe: serveurReinitialiseLe,
-      phaseEssais: await moteur.phaseEssaisServeur(),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<_EtatSeeders>(
-      future: _etat,
-      builder: (context, instantane) {
-        final etat = instantane.data;
-        final reinitialiseLe = etat?.serveurReinitialiseLe;
-        final autorisee = _moteur.estAutorisee || reinitialiseLe != null;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (reinitialiseLe != null) ...[
-              EncadreTransverse(
-                key: const Key('ie-seeders-serveur-reinitialise'),
-                fond: PaletteMaitre.rouge50,
-                bordure: PaletteMaitre.rouge200,
-                child: Text(
-                  TextesReinitialisationServeur.constatee(reinitialiseLe),
-                  style: styleTransverse(
-                    TaillesContenu.t13,
-                    poids: FontWeight.w600,
-                    couleur: PaletteMaitre.rouge900,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.mdPlus),
-            ],
-            if (etat?.phaseEssais ?? false) ...[
-              EncadreTransverse(
-                key: const Key('ie-seeders-phase-essais'),
-                fond: PaletteMaitre.ambre50,
-                bordure: PaletteMaitre.ambre200,
-                child: Text(
-                  TextesImportExport.resetPhaseEssais,
-                  style: styleTransverse(
-                    TaillesContenu.t13,
-                    couleur: PaletteMaitre.ambre900,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.mdPlus),
-            ],
-            if (!autorisee) ...[
-              EncadreTransverse(
-                key: const Key('ie-seeders-production'),
-                fond: PaletteMaitre.rouge50,
-                bordure: PaletteMaitre.rouge200,
-                child: Text(
-                  TextesImportExport.resetEnvironnementProduction,
-                  style: styleTransverse(
-                    TaillesContenu.t13,
-                    couleur: PaletteMaitre.rouge900,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.mdPlus),
-            ],
-            // Pendant la lecture, l'état VERROUILLÉ : une fonction
-            // destructrice n'apparaît pas par défaut d'information.
-            if (etat == null || !etat.ouverte)
-              _verrouille(context)
-            else
-              ..._ouvert(context, etat, autorisee),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _verrouille(BuildContext context) => CarteTransverse(
-    key: const Key('ie-seeders-verrouille'),
-    padding: const EdgeInsets.all(AppSpacing.xl),
-    child: Column(
-      children: [
-        Container(
-          width: MesuresTransverses.cadenasReinitialisation,
-          height: MesuresTransverses.cadenasReinitialisation,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            color: AppColors.badgeGrisFond,
-            shape: BoxShape.circle,
-          ),
-          child: const IconeTrace(
-            trace: _cadenas,
-            taille: AppLayout.iconeTitrePage,
-            couleur: AppColors.neutre400,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(TextesImportExport.seedersVerrouilleTitre, style: _titreCarte),
-        const SizedBox(height: AppSpacing.xxs),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: Largeurs.maxLg),
-          child: Text(
-            TextesImportExport.seedersVerrouilleTexte,
-            textAlign: TextAlign.center,
-            style: styleTransverse(TaillesContenu.t15, couleur: Ardoise.c500),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xsPlus),
-        Wrap(
-          alignment: WrapAlignment.center,
-          children: [
-            Text(
-              '${TextesImportExport.seedersVerrouilleOuvrirAvant} ',
-              style: styleTransverse(TaillesContenu.t13, couleur: Ardoise.c400),
-            ),
-            InkWell(
-              key: const Key('ie-seeders-ouvrir-parametres'),
-              onTap: () => context.go('/parametres'),
-              child: Text(
-                TextesImportExport.seedersVerrouilleOuvrirLien,
-                style: styleTransverse(
-                  TaillesContenu.t13,
-                  poids: FontWeight.w600,
-                  couleur: Ardoise.c400,
-                ).copyWith(decoration: TextDecoration.underline),
-              ),
-            ),
-            Text(
-              '.',
-              style: styleTransverse(TaillesContenu.t13, couleur: Ardoise.c400),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-
-  List<Widget> _ouvert(
-    BuildContext context,
-    _EtatSeeders etat,
-    bool autorisee,
-  ) {
-    Widget liste({
-      required Key cle,
-      required String titre,
-      required String texte,
-      required Color couleurTitre,
-      required Color fond,
-      required Color encre,
-      required List<String> tables,
-      String? vide,
-    }) => CarteTransverse(
-      key: cle,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            titre,
-            style: styleTransverse(
-              TaillesContenu.sm,
-              poids: FontWeight.bold,
-              couleur: couleurTitre,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.unit),
-          Text(texte, style: _aide),
-          const SizedBox(height: AppSpacing.sm),
-          if (tables.isEmpty && vide != null)
-            Text(
-              vide,
-              style: styleTransverse(TaillesContenu.t13, couleur: Ardoise.c400),
-            ),
-          for (final t in tables)
-            Container(
-              margin: const EdgeInsets.only(bottom: AppSpacing.unit),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xxs,
-              ),
-              decoration: BoxDecoration(
-                color: fond,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Text(
-                t,
-                style: styleTransverse(
-                  TaillesContenu.t13,
-                  couleur: encre,
-                  police: AppTextStyles.policeMonospace,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-
-    final vide = liste(
-      cle: const Key('ie-seeders-vide'),
-      titre: TextesImportExport.seedersVideTitre,
-      texte: TextesImportExport.seedersVideTexte,
-      couleurTitre: AppColors.erreur,
-      fond: AppColors.badgeRougeFond,
-      encre: PaletteTransverse.texteRouge,
-      tables: etat.effacables,
-      vide: TextesImportExport.seedersRienAVider,
-    );
-    final conserve = liste(
-      cle: const Key('ie-seeders-conserve'),
-      titre: TextesImportExport.seedersConserveTitre,
-      texte: TextesImportExport.seedersConserveTexte,
-      couleurTitre: AppColors.succes,
-      fond: AppColors.badgeVertFond,
-      encre: PaletteTransverse.texteVert,
-      tables: etat.preservees,
-    );
-    final large = MediaQuery.sizeOf(context).width >= AppBreakpoints.lg;
-
-    return [
-      EncadreTransverse(
-        key: const Key('ie-seeders-bandeau'),
-        fond: AppColors.badgeRougeFond,
-        bordure: PaletteTransverse.bordureRouge,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const IconeTrace(
-              trace: _alerte,
-              taille: MesuresTransverses.iconeModule,
-              couleur: AppColors.erreur,
-              epaisseur: MesuresTransverses.traitAppuye,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    TextesImportExport.seedersBandeauTitre,
-                    style: styleTransverse(
-                      TaillesContenu.t15,
-                      poids: FontWeight.bold,
-                      couleur: PaletteTransverse.texteRouge,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.unit),
-                  Text(
-                    TextesImportExport.seedersBandeauTexteSurCePoste,
-                    style: styleTransverse(
-                      TaillesContenu.t13,
-                      couleur: PaletteTransverse.texteRouge,
-                      interligne: AppLayout.interligneDetendu,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: AppSpacing.mdPlus),
-      if (large)
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: vide),
-            const SizedBox(width: AppSpacing.mdPlus),
-            Expanded(child: conserve),
-          ],
-        )
-      else ...[
-        vide,
-        const SizedBox(height: AppSpacing.mdPlus),
-        conserve,
-      ],
-      if (widget.peutEcrire &&
-          autorisee &&
-          ReinitialisationLocale.estPermisA(widget.role)) ...[
-        const SizedBox(height: AppSpacing.mdPlus),
-        BoutonTransverse(
-          cle: const Key('ie-seeders-bouton'),
-          libelle: TextesImportExport.seedersBouton,
-          fond: AppColors.erreur,
-          trace: _corbeille,
-          taille: TaillesContenu.sm,
-          pleineLargeur: true,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.mdPlus,
-            vertical: AppSpacing.sm,
-          ),
-          onTap: () => _ouvrirModale(etat.effacables.length),
-        ),
-      ],
-    ];
-  }
-
-  Future<void> _ouvrirModale(int nombre) async {
-    final bilan = await showDialog<BilanReinitialisation>(
-      context: context,
-      builder: (_) => _ModaleReinitialisation(
-        nombre: nombre,
-        executer: () => _moteur.executer(role: widget.role),
-      ),
-    );
-    if (!mounted || bilan == null) return;
-    setState(() => _etat = _lire());
-    direTransverse(
-      context,
-      TextesImportExport.seedersFaitSurCePoste(
-        bilan.tablesVidees,
-        bilan.lignesSupprimees,
-      ),
-      cle: const Key('ie-seeders-fait'),
-    );
-  }
-}
-
-/// La modale de la vue : titre, texte, saisie du mot « VIDER », Annuler /
-/// « Vider définitivement » — inerte tant que le mot n'est pas tapé ; le mot
-/// est REVÉRIFIÉ au clic, et le moteur relit bascule, rôle et environnement.
-class _ModaleReinitialisation extends StatefulWidget {
-  const _ModaleReinitialisation({required this.nombre, required this.executer});
-
-  final int nombre;
-  final Future<BilanReinitialisation> Function() executer;
-
-  @override
-  State<_ModaleReinitialisation> createState() =>
-      _ModaleReinitialisationState();
-}
-
-class _ModaleReinitialisationState extends State<_ModaleReinitialisation> {
-  final _saisie = TextEditingController();
-  String? _erreur;
-  bool _enCours = false;
-
-  bool get _motTape =>
-      _saisie.text.trim().toUpperCase() ==
-      TextesImportExport.seedersPhraseConfirmation;
-
-  @override
-  void dispose() {
-    _saisie.dispose();
-    super.dispose();
-  }
-
-  Future<void> _confirmer() async {
-    if (!_motTape) {
-      setState(() => _erreur = TextesImportExport.seedersPhraseInvalide);
-      return;
-    }
-    setState(() {
-      _enCours = true;
-      _erreur = null;
-    });
-    try {
-      final bilan = await widget.executer();
-      if (mounted) Navigator.of(context).pop(bilan);
-    } on ReinitialisationRefusee catch (refus) {
-      if (mounted) {
-        setState(() {
-          _enCours = false;
-          _erreur = refus.message;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final texte = styleTransverse(
-      TaillesContenu.t15,
-      couleur: Ardoise.c600,
-      interligne: AppLayout.interligneDetendu,
-    );
-    return Dialog(
-      key: const Key('ie-seeders-modale'),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: Largeurs.maxLg),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                TextesImportExport.seedersModaleTitre,
-                style: styleTransverse(
-                  TaillesContenu.base,
-                  poids: FontWeight.bold,
-                  couleur: AppColors.erreur,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text:
-                          '${TextesImportExport.seedersModaleTexteAvant(widget.nombre)} ',
-                      style: texte.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const TextSpan(
-                      text: '${TextesImportExport.seedersModaleTexte1}\n\n',
-                    ),
-                    const TextSpan(
-                      text: '${TextesImportExport.seedersModaleTexte2} ',
-                    ),
-                    TextSpan(
-                      text: TextesImportExport.seedersModaleTexte2Fort,
-                      style: texte.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const TextSpan(
-                      text: TextesImportExport.seedersModaleTexte2FinSurCePoste,
-                    ),
-                  ],
-                ),
-                style: texte,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                '${TextesImportExport.seedersConfirmationAvant} '
-                '${TextesImportExport.seedersPhraseConfirmation}',
-                style: styleTransverse(
-                  TaillesContenu.t13,
-                  poids: FontWeight.w600,
-                  couleur: Ardoise.c700,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              TextField(
-                key: const Key('ie-seeders-saisie'),
-                controller: _saisie,
-                autocorrect: false,
-                enableSuggestions: false,
-                onChanged: (_) => setState(() {}),
-                style: styleTransverse(
-                  TaillesContenu.sm,
-                  police: AppTextStyles.policeMonospace,
-                ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  hintText: TextesImportExport.seedersPhraseConfirmation,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                TextesImportExport.seedersConfirmationAide,
-                style: styleTransverse(
-                  TaillesContenu.t12,
-                  couleur: Ardoise.c400,
-                ),
-              ),
-              if (_erreur != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  _erreur!,
-                  key: const Key('ie-seeders-erreur'),
-                  style: styleTransverse(
-                    TaillesContenu.t12,
-                    couleur: PaletteMaitre.rouge600,
-                  ),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.mdPlus),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  BoutonTransverse(
-                    cle: const Key('ie-seeders-annuler'),
-                    libelle: TextesImportExport.annuler,
-                    taille: TaillesContenu.sm,
-                    couleurContour: Ardoise.c200,
-                    couleurTexteContour: Ardoise.c600,
-                    onTap: () => Navigator.of(context).pop(),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
+            lignes: [
+              for (final e in entrees)
+                [
                   Opacity(
-                    opacity: _motTape && !_enCours ? 1 : 0.5,
-                    child: BoutonTransverse(
-                      cle: const Key('ie-seeders-confirmer'),
-                      libelle: TextesImportExport.seedersConfirmer,
-                      fond: AppColors.erreur,
-                      taille: TaillesContenu.sm,
-                      onTap: () {
-                        if (_motTape && !_enCours) _confirmer();
-                      },
-                    ),
+                    key: Key('ie-archive-${e.type.code}-${e.id}'),
+                    // `opacity-60` d'une ligne déjà restaurée.
+                    opacity: e.restaure
+                        ? MesuresArchives.opaciteLigneRestauree
+                        : 1,
+                    child: cellule(e.libelle, fort: true),
+                  ),
+                  cellule(e.type.libelleModule),
+                  e.archiveLe == null
+                      ? cellule(TextesImportExport.tiret)
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            cellule(_date(e.archiveLe!)),
+                            Text(
+                              _heure(e.archiveLe!),
+                              style: styleTransverse(
+                                TaillesContenu.t12,
+                                couleur: Ardoise.c400,
+                              ),
+                            ),
+                          ],
+                        ),
+                  cellule(e.archivePar ?? TextesImportExport.tiret),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (e.restaure)
+                        Container(
+                          key: Key('ie-archive-badge-${e.id}'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xs,
+                            vertical: AppSpacing.unit,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.badgeVertFond,
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Text(
+                            TextesImportExport.badgeRestaure,
+                            style: styleTransverse(
+                              TaillesContenu.t12,
+                              poids: FontWeight.bold,
+                              couleur: AppColors.succes,
+                            ),
+                          ),
+                        )
+                      else if (widget.peutEcrire)
+                        BoutonTransverse(
+                          cle: Key('ie-archive-restaurer-${e.id}'),
+                          libelle: TextesImportExport.actionRestaurer,
+                          fond: AppColors.succes,
+                          trace: _retour,
+                          onTap: () => _restaurer(e),
+                        ),
+                      if (!e.restaure && superAdmin)
+                        Padding(
+                          padding: const EdgeInsets.only(left: AppSpacing.unit),
+                          child: Tooltip(
+                            message: TextesImportExport.actionPurger,
+                            child: InkWell(
+                              key: Key('ie-archive-purger-${e.id}'),
+                              onTap: () => _purger(e),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              child: const Padding(
+                                padding: EdgeInsets.all(AppSpacing.xs),
+                                child: IconeTrace(
+                                  trace: _poubelle,
+                                  taille: MesuresTransverses.iconeBouton,
+                                  couleur: Ardoise.c400,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
-              ),
             ],
+            vide: TextesImportExport.archivesVide,
+            cleVide: const Key('ie-archives-vide'),
           ),
         ),
-      ),
+      ],
     );
   }
 }

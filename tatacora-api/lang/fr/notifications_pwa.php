@@ -36,9 +36,7 @@ return [
     'bandeau_titre' => 'Seul l’e-mail peut réellement partir, et sous conditions.',
     'bandeau_texte' => 'WhatsApp, Android et SMS restent à transmettre à la main : aucun des trois n’est '
         .'contracté, ni configuré. Pour l’e-mail, l’envoi n’a lieu que si l’adresse du destinataire est connue '
-        .'et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée. '
-        .'Un message marqué « envoyé » alors que rien n’est parti serait pire que pas de module du tout : '
-        .'le Gérant croirait son client prévenu.',
+        .'et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée.',
 
     // -------------------------------------------------------------- onglets
     'onglet_file' => 'File d’attente',
@@ -54,7 +52,7 @@ return [
     'kpi_en_attente' => 'En file d’attente',
     'kpi_en_attente_detail' => 'Composés, prêts, non partis',
     'kpi_envoyes' => 'Réellement envoyés',
-    'kpi_envoyes_detail' => 'E-mails partis, comptés en base',
+    'kpi_envoyes_detail' => 'E-mails partis',
     'kpi_traites' => 'Transmis à la main',
     'kpi_traites_detail' => 'Par un opérateur',
     'kpi_abandonnes' => 'Abandonnés',
@@ -71,6 +69,10 @@ return [
     'file_non_envoye' => 'non envoyé',
     'file_envoyer' => 'Envoyer',
     'file_a_parametrer' => 'à paramétrer au déploiement',
+    'file_renvoyer' => 'Renvoyer',
+    'file_tentatives' => 'Tentatives d’envoi : :n',
+    'file_derniere_erreur' => 'Dernière erreur : :erreur',
+    'file_en_echec' => 'Relances automatiques épuisées',
     'file_sans_adresse' => 'Aucune adresse e-mail connue',
     'file_sans_configuration' => 'Aucun relais SMTP réel configuré',
     'file_transmis_bouton' => 'Transmis à la main',
@@ -164,7 +166,7 @@ return [
     'journal_reserve' => 'La colonne « Envoi système » dit « oui » uniquement pour un message que le '
         .'transport a réellement accepté — WhatsApp, Android et SMS restent « non » tant qu’aucun n’est branché.',
     'journal_vide' => 'Aucun message n’est encore parti. '
-        .'Ce journal lit la table réelle des envois — il se remplit dès qu’un e-mail est réellement délivré.',
+        .'Le journal se remplit dès qu’un e-mail est réellement délivré.',
     'col_date' => 'Date',
     'col_destinataire' => 'Destinataire',
     'col_canal' => 'Canal',
@@ -192,19 +194,12 @@ return [
     'canal.email.blocage_leve' => 'Envoi conditionné à une adresse connue pour chaque destinataire.',
     'canal.email.cible' => 'email',
     'canal.android.libelle' => 'Android (push)',
-    'canal.android.blocage' => 'L’application Flutter n’est pas démarrée : aucun appareil n’est enregistré.',
+    'canal.android.blocage' => 'L’application Android n’est pas démarrée : aucun appareil n’est enregistré.',
     'canal.android.cible' => 'appareil',
     'canal.sms.libelle' => 'SMS',
     'canal.sms.blocage' => 'Aucun agrégateur SMS retenu.',
     'canal.sms.cible' => 'telephone',
 
-    'canaux_ordre_titre' => 'Ce qu’il faut lever, dans l’ordre.',
-    'canaux_ordre_texte' => 'Le canal WhatsApp suppose un contrat '
-        .'WhatsApp Business et un numéro vérifié — c’est le plus long à obtenir, et c’est aussi celui '
-        .'que le Gîte utilise déjà à la main. L’e-mail ne demande qu’un relais SMTP. Le canal Android '
-        .'attend l’application Flutter, qui n’est pas démarrée. Le SMS suppose un agrégateur retenu.',
-    'canaux_ordre_suite' => 'Aucun de ces quatre points n’est un développement : ce sont des décisions et des contrats. '
-        .'Les modèles, eux, sont prêts et relisibles dès maintenant.',
 
     // ----------------------------------------------------------------- modale
     'modale_nouveau' => 'Nouveau modèle',
@@ -239,6 +234,7 @@ return [
     'envoi_canal_non_supporte' => 'Seul le canal e-mail peut être envoyé automatiquement pour le moment.',
     'envoi_sans_adresse' => 'Aucune adresse e-mail connue pour ce destinataire — à transmettre à la main.',
     'envoi_sans_configuration' => 'Aucun relais SMTP réel n’est configuré — à transmettre à la main.',
+    'envoi_deja_en_cours' => 'Ce message est déjà en cours d’envoi.',
     'envoi_echec' => 'L’envoi a échoué — le message reste en file, à transmettre à la main si besoin.',
     'envoi_reussi' => 'Message envoyé par e-mail.',
 

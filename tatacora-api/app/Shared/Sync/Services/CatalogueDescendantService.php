@@ -49,7 +49,16 @@ use InvalidArgumentException;
  * limite assumée : une transaction de référentiel tenue plus de cinq
  * secondes (aucune ne l'est : ce sont des écritures d'une ligne).
  *
- * ## Rien n'est jamais retiré du flux
+ * ## Une seule suppression : la purge (A5, 28/10/2026)
+ *
+ * La purge définitive d'une unité d'hébergement ou d'un véhicule archivé
+ * (`SuppressionsDescendantes`, registre fermé) descend comme un élément
+ * `supprime: true` (`donnees` vide), lu dans `suppressions_synchronisation` sous
+ * son propre curseur (`SUPPRESSIONS`), après les tables et avant les
+ * correspondances. Le poste la rejoue SEULEMENT si aucune saisie locale n'y est
+ * rattachée ; sinon il la conserve et le dit au journal de réception.
+ *
+ * ## Rien d'autre n'est jamais retiré du flux
  *
  * Un élément archivé (`articles.actif`, `fournisseurs.actif`,
  * `clients.actif`, unité `hors_service`) DESCEND, marqué `actif: false` : le poste doit savoir
@@ -73,6 +82,18 @@ use InvalidArgumentException;
  * refusée n'avance pas : le jour où le droit est accordé, elle descend
  * depuis le début.
  *
+ * ## Les écritures VALIDÉES descendent (21/10/2026, « Compte de résultat et bilan sur le poste »)
+ *
+ * Le serveur reste le seul comptable (D246) : le poste n'en recopie pas la
+ * comptabilité pour la TENIR, seulement pour LIRE les états financiers
+ * (compte de résultat, bilan, N-1) sans réseau. Seules les écritures VALIDÉES
+ * descendent : une validée ne se modifie ni ne se supprime jamais (RG-11), donc
+ * rien n'y reste périmé — un brouillon, lui, peut disparaître, et « aucun
+ * alignement ne supprime ». Chaque ligne porte déjà son compte (numéro,
+ * libellé, classe), son journal (code) et l'année de son exercice : le poste
+ * n'a ni à résoudre une clé étrangère ni à posséder le plan du serveur. Lecture
+ * sous M10 (`L` ou `C`).
+ *
  * ## Les correspondances de CE poste
  *
  * Un poste qui a perdu la réponse `fusionne_avec` (coupure après traitement)
@@ -92,39 +113,88 @@ class CatalogueDescendantService
     public const CORRESPONDANCES = 'correspondances';
 
     /**
+     * Pseudo-source du curseur pour les SUPPRESSIONS (A5, 28/10/2026) : les
+     * purges d'unités d'hébergement et de véhicules, rendues comme des éléments
+     * `supprime: true` que chaque poste rejoue s'il n'y a rien rattaché.
+     */
+    public const SUPPRESSIONS = 'suppressions';
+
+    /**
+     * L'EMPREINTE de la définition descendue (tables et colonnes). Annoncée à chaque page
+     * (`X-Tatacora-Descente`) : un poste qui en retient une AUTRE repart du début de la
+     * descente, une fois. C'est ce qui rend une colonne ajoutée ici (coût d'une entrée, valeur
+     * d'achat, CMP) visible pour les lignes DÉJÀ descendues, quel que soit l'ordre de mise à
+     * jour du serveur et des postes (constat du PO, 10/11/2026 : postes à jour, valeurs « — »).
+     */
+    public static function empreinte(): string
+    {
+        return substr(hash('sha256', json_encode(self::COLONNES, JSON_THROW_ON_ERROR)), 0, 16);
+    }
+
+    /**
      * Les colonnes de DÉFINITION descendues, table par table, dans l'ordre où
      * un poste doit les écrire (un élément cité avant celui qui le cite).
      *
-     * Écartées délibérément : `articles.prix_achat` et `cout_moyen_pondere`,
-     * `recettes.cout_matiere_calcule` (calculs), `plats.categorie` (refusée en
-     * saisie : la catégorie d'un plat EST le type de son menu), les colonnes
+     * `articles.prix_achat` et `articles.cout_moyen_pondere` descendent depuis le 10/11/2026 comme
+     * VALEURS DE RÉFÉRENCE (poste v57 et v59) : un poste rejoue le CMP des mouvements qui portent un
+     * coût (`mouvements_stock.cout_unitaire`), mais une entrée saisie au web AVANT la colonne n'a
+     * jamais conservé son coût — sans la référence, le poste affichait « — » là où le web dit
+     * 4 000 FCFA. La référence ne sert que tant que le poste n'a AUCUNE entrée valorisée.
+     *
+     * Écartées délibérément : `recettes.cout_matiere_calcule` (calculs), les colonnes
      * d'audit (le poste n'a pas les utilisateurs du serveur).
      *
      * @var array<string, list<string>>
      */
     public const COLONNES = [
         'points_stockage' => ['libelle', 'type'],
-        'articles' => ['libelle', 'categorie', 'unite_mesure', 'point_stockage_id', 'suivi', 'seuil_alerte', 'seuil_reappro', 'actif'],
+        // 09/11/2026 (poste v57) : `prix_achat` descend — la valeur d'achat de référence qu'un
+        // import web a posée s'affiche aussi sur les postes (jamais écrasée localement).
+        'articles' => ['libelle', 'categorie', 'unite_mesure', 'point_stockage_id', 'suivi', 'seuil_alerte', 'seuil_reappro', 'actif', 'prix_achat', 'cout_moyen_pondere'],
         'cartes_boisson' => ['article_id', 'libelle', 'categorie', 'prix_vente', 'unites_vendables_par_unite_stock', 'prix_provisoire', 'prix_corrige_main'],
         'menus' => ['libelle', 'type', 'date_debut', 'date_fin'],
         'recettes' => ['libelle', 'composition_provisoire'],
-        'plats' => ['menu_id', 'recette_id', 'article_id', 'unites_vendables_par_unite_stock', 'libelle', 'prix_vente', 'prix_provisoire', 'prix_corrige_main'],
+        // 27/10/2026 (lot L3) : `categorie` descend (les dix catégories de la carte, écrites
+        // par la PWA et, depuis la v41, par le poste). 30/10/2026 (poste v47) : `description`
+        // (facultative, 500 caractères) descend aussi.
+        'plats' => ['menu_id', 'recette_id', 'article_id', 'unites_vendables_par_unite_stock', 'libelle', 'description', 'prix_vente', 'categorie', 'prix_provisoire', 'prix_corrige_main'],
+        // Lot « indisponibilités de la carte » (21/10/2026) : après les boissons
+        // et les plats qu'elles citent. Le retour (remise à la carte) descend
+        // avec la ligne : une retouche fait avancer le curseur.
+        'indisponibilites_carte' => ['boisson_id', 'plat_id', 'motif', 'commentaire', 'date_indisponibilite', 'date_retour_disponibilite'],
+        // 26/10/2026 : l'HISTORIQUE DES PRIX de la carte, après les boissons et les
+        // plats qu'il cite (`source_id` n'est pas une clé étrangère). Écrit au
+        // seul serveur, par `TraceurHistoriquePrix` (les observateurs des deux
+        // cartes) : le poste ne le POUSSE pas, il le reçoit et l'affiche. Le
+        // login de qui a changé le prix descend en plus (`par`, voir `AUTEURS`).
+        'historique_prix_carte' => ['source', 'source_id', 'champ', 'ancien_prix', 'nouveau_prix', 'created_at'],
         'categories_hebergement' => ['libelle', 'capacite_max', 'tarif_base'],
         'unites_hebergement' => ['categorie_id', 'numero', 'statut'],
         // Lot F6 (18/10/2026) : le plan de salle, pour l'arbitrage des tables.
         'tables_salle' => ['espace', 'numero', 'libelle', 'places', 'actif'],
         'fournisseurs' => ['raison_sociale', 'nom', 'contact', 'telephone', 'email', 'ville', 'ifu', 'categorie', 'conditions_paiement', 'evaluation', 'actif'],
+        // 21/10/2026 : les canaux de réservation, AVANT les réservations qui les
+        // citent (la réservation porte le NOM de son canal). Un canal désactivé
+        // descend, marqué `actif: false` : rien n'est jamais retiré du flux.
+        'canaux_reservation' => ['nom', 'actif'],
         // Lot F3 (décision PO du 16/10/2026) : les TIERS et les SÉJOURS
         // descendent aussi, pour qu'un poste voie les chambres prises par un
         // autre (RG-01) et ses clients. `solde` n'y est pas (calcul) ; le
         // canal non plus (`canal_id` désigne un canal du serveur, le poste ne
         // connaît que des codes) ; ni les colonnes d'audit, ni l'écriture du
         // remboursement (le poste ne tient pas les pièces du serveur).
-        'clients' => ['nom', 'prenom', 'telephone', 'email', 'type_client', 'actif'],
+        // `ifu` (07/11/2026) : l'IFU de la fiche, pour préremplir la facture au poste (lecture seule).
+        'clients' => ['nom', 'prenom', 'telephone', 'email', 'type_client', 'actif', 'ifu'],
+        // 21/10/2026 : les relances de TOUS les postes, après le client qu'elles citent.
+        'relances_clients' => ['client_id', 'date_relance', 'canal', 'montant_reclame', 'promesse', 'commentaire'],
         'reservations' => [
             'client_id', 'unite_id', 'date_arrivee', 'date_depart', 'statut', 'acompte', 'tarif_nuit',
             'remise_type', 'remise_valeur', 'mode_paiement', 'taux_annulation', 'montant_total_annulation',
             'montant_commission_annulation', 'montant_rembourse_annulation', 'date_annulation',
+            // 09/11/2026 : l'annulation descend COMPLÈTE — la façon de saisir le remboursement,
+            // et l'auteur (`par`, voir `serialiser`) : sans eux le poste qui reçoit une
+            // annulation ne la montrait pas (« — » partout).
+            'mode_saisie_remboursement', 'annulee_par_login',
             // Lot 10f : remplacé par le NOM du canal (`serialiser`).
             'canal_id',
         ],
@@ -143,37 +213,60 @@ class CatalogueDescendantService
             // `date_creation` est celle de l'audit — sa RÉCEPTION au serveur.
             'created_at',
         ],
-        'depenses' => ['numero', 'date_transaction', 'tresorerie', 'montant_total', 'libelle'],
+        'depenses' => ['numero', 'date_transaction', 'tresorerie', 'montant_total', 'libelle', 'recu_path', 'recu_sha256', 'recu_taille', 'recu_type'],
         // Lot F6 : l'OCCUPATION des tables (paniers DE TABLE seulement), après
         // la vente qui la libère ; ouverte = occupée.
         'paniers' => ['point_vente', 'table_id', 'statut', 'cloture_at'],
         // Lot F5c : les factures (numérotées par le serveur) et leurs avoirs,
         // après les ventes et les réservations qu'elles portent.
-        'factures' => ['numero', 'origine', 'client_id', 'date_emission', 'montant_ht', 'montant_tva', 'montant_ttc', 'statut'],
-        'avoirs' => ['facture_id', 'numero', 'motif', 'montant', 'date_emission'],
+        // Facturation normalisée (07/11/2026) : le résultat de la normalisation descend avec la
+        // pièce (numéro fiscal, QR, statut, voie, compteur, code MECeF) — jamais un secret.
+        'factures' => [
+            'numero', 'origine', 'client_id', 'date_emission', 'montant_ht', 'montant_tva', 'montant_ttc', 'statut',
+            'numero_mecef', 'qr_code_fiscal', 'code_mecef', 'normalisation_statut', 'normalisation_motif',
+            'normalisation_mode', 'normalisation_compteur', 'normalisee_le',
+            'acheteur_ifu', 'acheteur_nom',
+        ],
+        // Facture PROFORMA (07/11/2026) : numéro du serveur, statut, validité ENREGISTRÉE, lien vers la facture.
+        'proformas' => [
+            'numero', 'annee', 'rang', 'reference', 'statut', 'client_id', 'client_nom', 'client_telephone', 'client_ifu',
+            'objet', 'date_emission', 'ville', 'valide_jusqu_au', 'total', 'facture_id', 'motif_annulation', 'source_module',
+        ],
+        'avoirs' => [
+            'facture_id', 'numero', 'motif', 'montant', 'date_emission',
+            'numero_mecef', 'qr_code_fiscal', 'code_mecef', 'normalisation_statut', 'normalisation_motif',
+            'normalisation_mode', 'normalisation_compteur', 'normalisee_le',
+        ],
         // Lot F5d : les encaissements, après leur facture et leur caisse.
         'paiements' => ['facture_id', 'session_id', 'mode_paiement', 'montant', 'date_paiement', 'statut', 'motif_annulation', 'date_annulation'],
         'commandes_achat' => ['fournisseur_id', 'date_commande', 'statut', 'montant_total', 'date_creation'],
         'bons_reception' => ['commande_id', 'date_reception', 'conformite', 'created_at'],
         'reglements_fournisseur' => ['commande_id', 'montant', 'tresorerie', 'date_reglement', 'statut', 'motif_annulation', 'date_annulation'],
-        'mouvements_stock' => ['article_id', 'point_id', 'type_mouvement', 'quantite', 'motif', 'date_mouvement'],
+        // 09/11/2026 : `cout_unitaire` (coût de l'entrée VALORISÉE, null sinon) descend avec le
+        // mouvement — le poste recalcule CMP, valeur d'achat et valeur de stock en le rejouant.
+        'mouvements_stock' => ['article_id', 'point_id', 'type_mouvement', 'quantite', 'cout_unitaire', 'motif', 'date_mouvement'],
         'circuits' => ['nom', 'theme', 'zone', 'duree', 'prix', 'capacite_max'],
         'guides' => ['nom', 'certification', 'zone_competence', 'tarif_jour'],
         'reservations_tour' => ['circuit_id', 'client_id', 'guide_id', 'date_circuit', 'nb_participants', 'statut'],
         // Audit de couverture (18/10/2026) : le parc M8 et ses contrats.
         'vehicules' => ['immatriculation', 'categorie', 'annee', 'transmission', 'capacite', 'tarif_jour', 'statut'],
-        'contrats_location' => ['vehicule_id', 'client_id', 'guide_id', 'date_debut', 'date_fin', 'numero', 'statut', 'montant'],
+        // 27/10/2026 (lot L3) : `acompte` descend avec `montant` (net, figé) ; le reste dû
+        // en est la différence, jamais une colonne de plus.
+        'contrats_location' => ['vehicule_id', 'client_id', 'guide_id', 'date_debut', 'date_fin', 'numero', 'statut', 'montant', 'acompte'],
+        'entretiens_vehicule' => ['vehicule_id', 'type', 'date', 'cout', 'chauffeur_id'],
         // Audit de couverture (18/10/2026) : M13 — le référentiel des services,
         // le dossier des employés, puis la paie.
         'services' => ['libelle'],
         'employes' => [
-            'matricule', 'nom', 'prenom', 'poste', 'service_id', 'date_embauche', 'numero_cnss', 'type_contrat',
+            'matricule', 'nom', 'prenom', 'email', 'poste', 'service_id', 'date_embauche', 'numero_cnss', 'type_contrat',
             'date_fin_contrat', 'salaire_base', 'statut',
         ],
         'bulletins_paie' => [
             'numero', 'employe_id', 'periode', 'salaire_base', 'total_primes', 'total_retenues', 'cnss_salarie', 'its',
             'charges_patronales_confirmees', 'net_a_payer', 'statut', 'motif_annulation',
         ],
+        'plannings' => ['employe_id', 'service_id', 'date', 'heure_debut', 'heure_fin'],
+        'conges' => ['employe_id', 'type', 'date_debut', 'date_fin', 'statut_validation'],
         'centres_cout' => ['libelle', 'type'],
         // Lot 10e (18/10/2026) : le paramétrage de l'établissement, et les
         // rôles avec leur matrice (`droits`, lue du pivot). Jamais un compte.
@@ -184,6 +277,39 @@ class CatalogueDescendantService
         // Passage d'année (20/10/2026) : les exercices et leur STATUT — une
         // clôture faite au serveur verrouille aussi l'année sur les postes.
         'exercices_comptables' => ['annee', 'date_debut', 'date_fin', 'statut', 'date_cloture'],
+        // 28/10/2026 (D246 rouvert) : le PLAN COMPTABLE, après les exercices et AVANT
+        // les écritures et les pièces qui citent un compte par son numéro. Le poste
+        // reconnaît un compte à son numéro (clé naturelle) et n'en réécrit aucun.
+        'plan_comptable' => ['numero_compte', 'libelle', 'classe', 'nature'],
+        // 21/10/2026 : les écritures VALIDÉES, après leurs exercices. Les champs
+        // `annee`, `code_journal`, `numero_compte`, `libelle_compte` et `classe`
+        // sont ajoutés à la sérialisation (voir `ecrituresDeLaPage`).
+        'ecritures_comptables' => ['exercice_id', 'date_ecriture', 'libelle', 'debit', 'credit', 'numero_piece', 'ecriture_contrepassee_id', 'journal_id', 'compte_id', 'piece_origine_id'],
+        // 09/11/2026 (PO : « une affectation passée au web DOIT apparaître au poste ») :
+        // les AFFECTATIONS DU RÉSULTAT, actives ET contre-passées (`contrepassee_le`), après
+        // leurs exercices et les écritures qu'elles citent. `exercice_id` n'est lu que pour
+        // être rendu en ANNÉE (le poste garde ses propres identifiants d'exercice) ;
+        // `piece_origine_id` est l'identifiant de la pièce du poste d'où elle vient, par
+        // lequel un poste reconnaît SA affectation sans l'afficher deux fois. L'auteur
+        // descend en LOGIN (`AUTEURS`), jamais l'identifiant du compte.
+        'affectations_resultat' => [
+            'exercice_id', 'date_approbation', 'resultat', 'reserve_legale', 'autres_reserves', 'dividendes',
+            'report_a_nouveau_crediteur', 'report_a_nouveau_debiteur', 'piece_affectation', 'piece_origine_id',
+            'affectee_le', 'contrepassee_le',
+        ],
+        // 21/10/2026 : les immobilisations (M10), de tous les postes. Le plan
+        // d'amortissement ne descend pas : il se CALCULE depuis ces colonnes.
+        'immobilisations' => ['code', 'libelle', 'compte_immobilisation', 'valeur_origine', 'date_mise_service', 'duree_annees'],
+        // 21/10/2026 : les inventaires physiques CLÔTURÉS de tous les postes ; leurs
+        // lignes descendent AVEC eux (`ENFANTS`). L'auteur (`utilisateur_id`) ne
+        // descend pas : le poste n'a pas les comptes du serveur.
+        'inventaires' => ['point_id', 'date_inventaire'],
+        // 03/11/2026 (décision du PO : supprimer un compte, avec synchronisation) :
+        // les COMPTES SUPPRIMÉS, et eux seuls (`NON_NULS`). Le LOGIN est la clé
+        // d'appariement (les identifiants diffèrent entre le web et les postes) ;
+        // jamais un mot de passe, un hash, un rôle ni un e-mail. Un poste marque
+        // `supprime_le` sur son compte local de même login — il n'en crée jamais.
+        'utilisateurs' => ['login', 'supprime_le'],
     ];
 
     /**
@@ -198,7 +324,7 @@ class CatalogueDescendantService
      *
      * @var list<string>
      */
-    public const LECTURE_LIBRE = ['parametres_systeme', 'roles', 'exercices_comptables'];
+    public const LECTURE_LIBRE = ['parametres_systeme', 'roles', 'exercices_comptables', 'canaux_reservation', 'utilisateurs'];
 
     /**
      * Tables descendues sans être synchronisables — leur module est déclaré
@@ -218,6 +344,21 @@ class CatalogueDescendantService
         // Passage d'année (20/10/2026) : reçus par tout compte (une vente
         // passe sa pièce dans l'exercice de sa date), écrits au seul serveur.
         'exercices_comptables' => 'M10',
+        // 21/10/2026 : les écritures validées se lisent sous M10.
+        'ecritures_comptables' => 'M10',
+        // 09/11/2026 : l'affectation du résultat est une opération comptable, lue sous M10
+        // (le droit de lecture de la comptabilité, comme les écritures qu'elle a passées).
+        'affectations_resultat' => 'M10',
+    ];
+
+    /**
+     * Les lignes d'une table qui ne descendent que si une colonne vaut une
+     * valeur — les écritures VALIDÉES seules (voir l'entête).
+     *
+     * @var array<string, array{0: string, 1: string}>  table → [colonne, valeur]
+     */
+    public const SEULEMENT = [
+        'ecritures_comptables' => ['statut', 'validee'],
     ];
 
     /**
@@ -228,6 +369,37 @@ class CatalogueDescendantService
      */
     public const NON_NULS = [
         'paniers' => 'table_id',
+        // Seuls les comptes SUPPRIMÉS descendent (jamais la liste des comptes).
+        'utilisateurs' => 'supprime_le',
+    ];
+
+    /**
+     * Les tables dont le module dépend d'une COLONNE de la ligne : table →
+     * colonne de partage et module de chaque valeur. L'historique des prix est
+     * UNE table pour deux cartes — un compte qui ne lit que le bar (M5) ne
+     * reçoit pas les prix des plats (M4), et inversement.
+     *
+     * @var array<string, array{colonne: string, modules: array<string, string>}>
+     */
+    public const MODULES_PAR_VALEUR = [
+        'historique_prix_carte' => ['colonne' => 'source', 'modules' => ['carte_boisson' => 'M5', 'plat' => 'M4']],
+    ];
+
+    /**
+     * L'AUTEUR d'une ligne, résolu en LOGIN et rendu sous `par` : table →
+     * colonne qui porte l'identifiant du compte. Le poste n'a pas les comptes
+     * du serveur ; il reçoit le login, jamais l'identifiant. Colonnes lues en
+     * plus de `COLONNES`, jamais descendues telles quelles.
+     *
+     * @var array<string, string>
+     */
+    public const AUTEURS = [
+        'historique_prix_carte' => 'utilisateur_creation_id',
+        'ventes' => 'utilisateur_id',
+        'affectations_resultat' => 'affectee_par',
+        // L'auteur d'une ANNULATION (`annulee_par_login`, le login LOCAL quand elle vient
+        // d'un poste, sinon le compte du web).
+        'reservations' => 'utilisateur_annulation_id',
     ];
 
     /**
@@ -243,14 +415,18 @@ class CatalogueDescendantService
         'ventes' => ['table' => 'lignes_vente', 'cle' => 'vente_id', 'colonnes' => ['code', 'nom', 'categorie', 'module', 'prix_unitaire', 'quantite', 'montant'], 'ordre' => 'created_at'],
         'depenses' => ['table' => 'lignes_depense', 'cle' => 'depense_id', 'colonnes' => ['libelle', 'compte_charge', 'nature', 'famille', 'montant'], 'ordre' => 'created_at'],
         'factures' => ['table' => 'lignes_facture', 'cle' => 'facture_id', 'colonnes' => ['source_module', 'source_id', 'libelle', 'quantite', 'prix_unitaire', 'prix_catalogue', 'montant'], 'ordre' => 'created_at'],
+        'proformas' => ['table' => 'lignes_proforma', 'cle' => 'proforma_id', 'colonnes' => ['position', 'designation', 'quantite', 'prix_unitaire', 'montant'], 'ordre' => 'position'],
         'commandes_achat' => ['table' => 'lignes_commande_achat', 'cle' => 'commande_id', 'colonnes' => ['article_id', 'quantite_commandee', 'prix_unitaire'], 'ordre' => 'created_at'],
+        // 21/10/2026 : les lignes comptées d'un inventaire (théorique figé au
+        // comptage, constaté, écart) descendent avec leur inventaire.
+        'inventaires' => ['table' => 'lignes_inventaire', 'cle' => 'inventaire_id', 'colonnes' => ['article_id', 'quantite_theorique', 'quantite_constatee', 'ecart'], 'ordre' => 'created_at'],
     ];
 
     /** @var list<string> */
     private const BOOLEENS = ['actif', 'prix_provisoire', 'prix_corrige_main', 'composition_provisoire', 'encaisse'];
 
     /** @var list<string> */
-    private const ENTIERS = ['capacite_max', 'nb_participants'];
+    private const ENTIERS = ['capacite_max', 'nb_participants', 'recu_taille', 'annee', 'rang', 'total'];
 
     /** Les colonnes ENTIÈRES des lignes (les autres restent des chaînes). */
     private const ENTIERS_ENFANTS = ['quantite'];
@@ -268,7 +444,7 @@ class CatalogueDescendantService
     /**
      * Une page du catalogue.
      *
-     * @return array{elements: list<array<string, mixed>>, correspondances: list<array<string, string>>, curseur: string, complet: bool}
+     * @return array{elements: list<array<string, mixed>>, correspondances: list<array<string, string>>, curseur: string, complet: bool, non_lisibles: list<string>}
      *
      * @throws InvalidArgumentException curseur illisible
      */
@@ -283,9 +459,12 @@ class CatalogueDescendantService
         $elements = [];
         $correspondances = [];
         $lisibles = [];
+        $nonLisibles = [];
 
         foreach (array_keys(self::COLONNES) as $table) {
             if (! $this->lisible($utilisateur, $table)) {
+                $nonLisibles[] = $table;
+
                 continue;
             }
 
@@ -303,9 +482,14 @@ class CatalogueDescendantService
 
             [$lignes, $reste] = $this->lire(
                 $this->sansMiroirsDuPoste(
-                    DB::table($table)
-                        ->select(['id', ...self::COLONNES[$table]])
-                        ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table])),
+                    $this->restreintAuxValeursLisibles(
+                        DB::table($table)
+                            ->select(['id', ...self::COLONNES[$table], ...(isset(self::AUTEURS[$table]) ? [self::AUTEURS[$table]] : [])])
+                            ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
+                            ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1])),
+                        $utilisateur,
+                        $table,
+                    ),
                     $table,
                     $posteId,
                 ),
@@ -327,7 +511,42 @@ class CatalogueDescendantService
 
         if ($complet && $restant === 0) {
             $complet = false;
-        } elseif ($complet && $lisibles !== []) {
+        }
+
+        if ($complet && $lisibles !== []) {
+            [$lignes, $reste] = $this->lire(
+                DB::table('suppressions_synchronisation')
+                    ->select(['id', 'table_concernee', 'entite_id'])
+                    ->whereIn('table_concernee', array_values(array_intersect(SuppressionsDescendantes::TABLES, $lisibles))),
+                'created_at',
+                $positions[self::SUPPRESSIONS] ?? null,
+                $horizon,
+                $restant,
+            );
+
+            if ($lignes !== []) {
+                $derniere = end($lignes);
+                $positions[self::SUPPRESSIONS] = [(string) $derniere->filigrane, (string) $derniere->id];
+
+                foreach ($lignes as $ligne) {
+                    $elements[] = [
+                        'table' => (string) $ligne->table_concernee,
+                        'id' => (string) $ligne->entite_id,
+                        'supprime' => true,
+                        'actif' => false,
+                        'modifie_le' => (string) $ligne->filigrane,
+                        'poste_origine' => null,
+                        'donnees' => (object) [],
+                    ];
+                }
+
+                $restant -= count($lignes);
+            }
+
+            $complet = ! $reste;
+        }
+
+        if ($complet && $lisibles !== []) {
             [$lignes, $reste] = $this->lire(
                 DB::table('correspondances_synchronisation')
                     ->select(['id', 'table_concernee', 'id_poste', 'id_serveur'])
@@ -360,7 +579,124 @@ class CatalogueDescendantService
             'correspondances' => $correspondances,
             'curseur' => $this->encoder($positions),
             'complet' => $complet,
+            // Journal d'envoi (26/10/2026) : les tables NON livrées faute de droit.
+            'non_lisibles' => $nonLisibles,
         ];
+    }
+
+    /**
+     * Combien d'éléments restent à livrer à ce poste APRÈS ce curseur, table
+     * par table — ce que l'onglet « Envoi » de la PWA montre comme « restent
+     * à livrer ». Lecture seule ; un curseur illisible compte depuis le début.
+     *
+     * @return array<string, int>
+     */
+    public function restants(User $utilisateur, string $posteId, ?string $curseur): array
+    {
+        try {
+            $positions = $this->decoder($curseur);
+        } catch (InvalidArgumentException) {
+            $positions = [];
+        }
+
+        $horizon = now()->subSeconds(self::HORIZON_SECONDES)->format('Y-m-d H:i:s');
+        $restants = [];
+
+        foreach (array_keys(self::COLONNES) as $table) {
+            if (! $this->lisible($utilisateur, $table)) {
+                continue;
+            }
+
+            $requete = $this->sansMiroirsDuPoste(
+                $this->restreintAuxValeursLisibles(
+                    DB::table($table)
+                        ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
+                        ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1])),
+                    $utilisateur,
+                    $table,
+                ),
+                $table,
+                $posteId,
+            )->whereRaw(self::FILIGRANE . ' < ?', [$horizon]);
+
+            if (isset($positions[$table])) {
+                [$apres, $id] = $positions[$table];
+
+                $requete->where(static function (Builder $w) use ($apres, $id): void {
+                    $w->whereRaw(self::FILIGRANE . ' > ?', [$apres])
+                        ->orWhere(static function (Builder $egal) use ($apres, $id): void {
+                            $egal->whereRaw(self::FILIGRANE . ' = ?', [$apres])->where('id', '>', $id);
+                        });
+                });
+            }
+
+            $restants[$table] = $requete->count();
+        }
+
+        // A5 : les suppressions encore à livrer comptent pour leur table.
+        $lues = array_values(array_intersect(SuppressionsDescendantes::TABLES, array_keys($restants)));
+
+        if ($lues !== []) {
+            $suppressions = DB::table('suppressions_synchronisation')
+                ->whereIn('table_concernee', $lues)
+                ->where('created_at', '<', $horizon);
+
+            if (isset($positions[self::SUPPRESSIONS])) {
+                [$apres, $id] = $positions[self::SUPPRESSIONS];
+
+                $suppressions->where(static function (Builder $w) use ($apres, $id): void {
+                    $w->where('created_at', '>', $apres)
+                        ->orWhere(static function (Builder $egal) use ($apres, $id): void {
+                            $egal->where('created_at', '=', $apres)->where('id', '>', $id);
+                        });
+                });
+            }
+
+            foreach ($suppressions->select('table_concernee', DB::raw('count(*) as n'))->groupBy('table_concernee')->get() as $ligne) {
+                $restants[(string) $ligne->table_concernee] += (int) $ligne->n;
+            }
+        }
+
+        return $restants;
+    }
+
+    /**
+     * Les tables descendantes que ce compte ne lit pas (droit insuffisant),
+     * avec le nombre d'éléments qui existent et ne lui sont donc pas livrés.
+     *
+     * @return array<string, int>
+     */
+    public function nonLivrees(User $utilisateur): array
+    {
+        $manquantes = [];
+
+        foreach (array_keys(self::COLONNES) as $table) {
+            $requete = DB::table($table)
+                ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
+                ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1]));
+
+            if (! $this->lisible($utilisateur, $table)) {
+                $manquantes[$table] = $requete->count();
+
+                continue;
+            }
+
+            // Une table lue en PARTIE (l'historique des prix d'une seule carte) :
+            // ce qui n'est pas livré, ce sont les valeurs d'un module non lu.
+            if (isset(self::MODULES_PAR_VALEUR[$table])) {
+                $illisibles = $this->valeursIllisibles($utilisateur, $table);
+
+                if ($illisibles !== []) {
+                    $nombre = $requete->whereIn(self::MODULES_PAR_VALEUR[$table]['colonne'], $illisibles)->count();
+
+                    if ($nombre > 0) {
+                        $manquantes[$table] = $nombre;
+                    }
+                }
+            }
+        }
+
+        return $manquantes;
     }
 
     /**
@@ -417,9 +753,68 @@ class CatalogueDescendantService
             return true;
         }
 
+        // Une table partagée entre deux modules se lit dès qu'UN des deux est lu ;
+        // les valeurs de l'autre sont écartées de la requête.
+        if (isset(self::MODULES_PAR_VALEUR[$table])) {
+            return $this->valeursLisibles($utilisateur, $table) !== [];
+        }
+
         $module = self::MODULES_HORS_REGISTRE[$table] ?? $this->registre->pour($table)->module();
 
         return in_array($utilisateur->niveauSurModule($module), ['L', 'C'], true);
+    }
+
+    /**
+     * Les valeurs de la colonne de partage dont le module est LU par ce compte.
+     *
+     * @return list<string>
+     */
+    private function valeursLisibles(User $utilisateur, string $table): array
+    {
+        return array_keys(array_filter(
+            self::MODULES_PAR_VALEUR[$table]['modules'],
+            static fn (string $module): bool => in_array($utilisateur->niveauSurModule($module), ['L', 'C'], true),
+        ));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function valeursIllisibles(User $utilisateur, string $table): array
+    {
+        return array_values(array_diff(
+            array_keys(self::MODULES_PAR_VALEUR[$table]['modules']),
+            $this->valeursLisibles($utilisateur, $table),
+        ));
+    }
+
+    private function restreintAuxValeursLisibles(Builder $requete, User $utilisateur, string $table): Builder
+    {
+        if (! isset(self::MODULES_PAR_VALEUR[$table])) {
+            return $requete;
+        }
+
+        return $requete->whereIn(self::MODULES_PAR_VALEUR[$table]['colonne'], $this->valeursLisibles($utilisateur, $table));
+    }
+
+    /**
+     * Le login de l'auteur de chaque ligne de la page — UNE requête.
+     *
+     * @param  list<object>  $lignes
+     * @return array<string, string>  identifiant de compte → login
+     */
+    private function loginsDesAuteurs(string $table, array $lignes): array
+    {
+        if (! isset(self::AUTEURS[$table])) {
+            return [];
+        }
+
+        $colonne = self::AUTEURS[$table];
+        $ids = array_values(array_unique(array_filter(
+            array_map(static fn (object $l): ?string => isset($l->{$colonne}) ? (string) $l->{$colonne} : null, $lignes),
+        )));
+
+        return $ids === [] ? [] : DB::table('utilisateurs')->whereIn('id', $ids)->pluck('login', 'id')->all();
     }
 
     /**
@@ -434,6 +829,14 @@ class CatalogueDescendantService
         $lignesBons = $table === 'bons_reception' ? $this->lignesDesBons($ids) : [];
         $droits = $table === 'roles' ? $this->droitsDesRoles($ids) : [];
         $canaux = $table === 'reservations' ? DB::table('canaux_reservation')->pluck('nom', 'id')->all() : [];
+        $ecritures = $table === 'ecritures_comptables' ? $this->ecrituresDeLaPage($lignes) : [];
+        $anneesAffectations = $table === 'affectations_resultat'
+            ? DB::table('exercices_comptables')
+                ->whereIn('id', array_values(array_unique(array_map(static fn (object $l): string => (string) $l->exercice_id, $lignes))))
+                ->pluck('annee', 'id')
+                ->all()
+            : [];
+        $logins = $this->loginsDesAuteurs($table, $lignes);
         $origines = DB::table('origines_synchronisation')
             ->where('table_concernee', $table)
             ->whereIn('entite_id', $ids)
@@ -459,11 +862,27 @@ class CatalogueDescendantService
             }
 
             $actif = match ($table) {
-                'articles', 'fournisseurs', 'clients', 'tables_salle', 'modeles_notification' => (bool) $donnees['actif'],
+                'articles', 'fournisseurs', 'clients', 'tables_salle', 'modeles_notification', 'canaux_reservation' => (bool) $donnees['actif'],
                 'unites_hebergement', 'vehicules' => $donnees['statut'] !== 'hors_service',
+                // Un compte qui descend est un compte SUPPRIMÉ : jamais actif.
+                'utilisateurs' => false,
                 default => true,
             };
             unset($donnees['actif']);
+
+            // Le reçu d'une dépense (lot L4) : la RÉFÉRENCE seulement — jamais le
+            // chemin du disque, jamais le fichier (téléchargé à la demande par
+            // `GET /sync/depenses/{depense}/recu`). `null` : pas de reçu. Un
+            // reçu joint par l'écran web avant la migration n'a pas
+            // d'empreinte : `sha256`, `taille` et `type` valent alors `null`.
+            if ($table === 'depenses') {
+                $donnees['recu'] = $donnees['recu_path'] === null ? null : [
+                    'sha256' => $donnees['recu_sha256'],
+                    'taille' => $donnees['recu_taille'],
+                    'type' => $donnees['recu_type'],
+                ];
+                unset($donnees['recu_path'], $donnees['recu_sha256'], $donnees['recu_taille'], $donnees['recu_type']);
+            }
 
             if ($table === 'recettes') {
                 $donnees['lignes'] = $compositions[(string) $ligne->id] ?? [];
@@ -486,6 +905,30 @@ class CatalogueDescendantService
                 unset($donnees['canal_id']);
             }
 
+            if ($table === 'ecritures_comptables') {
+                $donnees = [...$donnees, ...($ecritures[(string) $ligne->id] ?? [])];
+            }
+
+            // L'exercice affecté, rendu en ANNÉE (le poste n'a pas nos identifiants).
+            if ($table === 'affectations_resultat') {
+                $donnees['annee'] = (int) ($anneesAffectations[(string) $donnees['exercice_id']] ?? 0);
+                unset($donnees['exercice_id']);
+            }
+
+            // L'auteur, en LOGIN (`null` : saisi sans compte — une tâche
+            // planifiée, une écriture d'avant l'audit).
+            if (isset(self::AUTEURS[$table])) {
+                $auteur = $ligne->{self::AUTEURS[$table]} ?? null;
+                $donnees['par'] = $auteur === null ? null : ($logins[(string) $auteur] ?? null);
+            }
+
+            // Une annulation envoyée par un POSTE : la personne qui l'a saisie, pas le compte
+            // d'appairage du jeton.
+            if ($table === 'reservations') {
+                $donnees['par'] = $donnees['annulee_par_login'] ?? $donnees['par'];
+                unset($donnees['annulee_par_login']);
+            }
+
             $elements[] = [
                 'table' => $table,
                 'id' => (string) $ligne->id,
@@ -500,6 +943,43 @@ class CatalogueDescendantService
         }
 
         return $elements;
+    }
+
+    /**
+     * Pour chaque écriture de la page : l'année de son exercice, le code de son
+     * journal, le numéro, le libellé et la classe de son compte — trois
+     * requêtes pour toute la page, pas trois par ligne.
+     *
+     * @param  list<object>  $lignes
+     * @return array<string, array{annee: int, code_journal: string, numero_compte: string, libelle_compte: string, classe: string}>
+     */
+    private function ecrituresDeLaPage(array $lignes): array
+    {
+        $exercices = DB::table('exercices_comptables')
+            ->whereIn('id', array_values(array_unique(array_map(static fn (object $l): string => (string) $l->exercice_id, $lignes))))
+            ->pluck('annee', 'id');
+        $journaux = DB::table('journaux_comptables')
+            ->whereIn('id', array_values(array_unique(array_map(static fn (object $l): string => (string) $l->journal_id, $lignes))))
+            ->pluck('code', 'id');
+        $comptes = DB::table('plan_comptable')
+            ->whereIn('id', array_values(array_unique(array_map(static fn (object $l): string => (string) $l->compte_id, $lignes))))
+            ->get(['id', 'numero_compte', 'libelle', 'classe'])
+            ->keyBy('id');
+        $parEcriture = [];
+
+        foreach ($lignes as $ligne) {
+            $compte = $comptes->get((string) $ligne->compte_id);
+
+            $parEcriture[(string) $ligne->id] = [
+                'annee' => (int) $exercices->get((string) $ligne->exercice_id, 0),
+                'code_journal' => (string) $journaux->get((string) $ligne->journal_id, ''),
+                'numero_compte' => (string) ($compte?->numero_compte ?? ''),
+                'libelle_compte' => (string) ($compte?->libelle ?? ''),
+                'classe' => (string) ($compte?->classe ?? ''),
+            ];
+        }
+
+        return $parEcriture;
     }
 
     /**
@@ -643,7 +1123,7 @@ class CatalogueDescendantService
             throw new InvalidArgumentException(__('sync.referentiels.curseur_invalide'));
         }
 
-        $sources = [...array_keys(self::COLONNES), self::CORRESPONDANCES];
+        $sources = [...array_keys(self::COLONNES), self::SUPPRESSIONS, self::CORRESPONDANCES];
         $positions = [];
 
         foreach ($contenu['p'] as $source => $position) {

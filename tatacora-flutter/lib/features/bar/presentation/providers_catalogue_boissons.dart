@@ -28,9 +28,14 @@ import '../impression/etat_catalogue_boissons.dart';
 /// 14/09/2026 : il descendait du serveur (PA-129), qui n'existe plus pour ce
 /// poste. Il s'appuie sur [CatalogueDao], seul auteur de
 /// `cartes_boisson_local` — jamais sur un second écrivain.
-final boissonsApiProvider = Provider<BoissonsApi>(
-  (ref) => BoissonsApi(ref.watch(catalogueDaoProvider)),
-);
+final boissonsApiProvider = Provider<BoissonsApi>((ref) {
+  final paniers = ref.watch(panierDaoProvider);
+  return BoissonsApi(
+    ref.watch(catalogueDaoProvider),
+    // L'onglet « Ventes du Bar » : les paniers du poste, calculés ici.
+    sourceVentes: paniers.paniers,
+  );
+});
 
 /* ====================================================================== */
 /* Les filtres — un provider par contrôle du maître                        */
@@ -201,10 +206,9 @@ PageBoissons decouperCommeLeMaitre(
     totalServeur: serveur.total,
     avertissement: tronque
         ? 'Le serveur ne rend que ses ${serveur.elements.length} premières '
-              'boissons sur ${serveur.total} : `BoissonController@index` pose '
-              '`->paginate(50)` en dur et ne lit aucune taille de page. La '
-              'recherche et le décompte ci-dessous portent donc sur cette '
-              'tranche, pas sur le catalogue entier.'
+              'boissons sur ${serveur.total} : la recherche et le décompte '
+              'ci-dessous portent donc sur cette tranche, pas sur le '
+              'catalogue entier.'
         : null,
   );
 }

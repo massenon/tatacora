@@ -6,7 +6,7 @@
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1200px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         <div class="mb-6">
           <div class="flex items-center gap-2.5">
@@ -33,10 +33,6 @@
               <p class="text-white/70 text-[15px] leading-relaxed mt-2.5">{{ __('pwa.aide.presentation_2_avant') }}<strong class="text-white">{{ __('pwa.aide.presentation_2_fort') }}</strong>{{ __('pwa.aide.presentation_2_apres') }}</p>
             </div>
             <div class="space-y-2.5">
-              <div class="rounded-lg px-4 py-3" style="background:rgba(255,255,255,.07)">
-                <p class="text-[12px] text-white/50">{{ __('pwa.aide.version_titre') }}</p>
-                <p class="text-white text-sm font-bold font-mono-tatacora">{{ __('pwa.aide.version_valeur') }}</p>
-              </div>
               <div class="rounded-lg px-4 py-3" style="background:rgba(255,255,255,.07)">
                 <p class="text-[12px] text-white/50">{{ __('pwa.aide.moe_titre') }}</p>
                 <p class="text-white text-sm font-bold">{{ __('pwa.aide.moe_valeur') }}</p>

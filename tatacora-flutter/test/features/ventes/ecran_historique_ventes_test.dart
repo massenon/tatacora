@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
+import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/format/formats.dart';
+import 'package:tatacora_flutter/core/navigation/trace_svg.dart';
+import 'package:tatacora_flutter/core/navigation/traces_titres.dart';
 import 'package:tatacora_flutter/core/theme/app_colors.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/caisse/data/sessions_caisse_dao.dart';
@@ -18,6 +21,9 @@ import 'package:tatacora_flutter/features/facturation/domain/repositories/factur
 import 'package:tatacora_flutter/features/pos/data/panier_dao.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/mode_reglement.dart';
+import 'package:tatacora_flutter/features/auth/domain/session.dart';
+import 'package:tatacora_flutter/features/pos/data/panier_repository_local.dart';
+import 'package:tatacora_flutter/features/pos/presentation/providers_pos.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogue.dart';
 import 'package:tatacora_flutter/features/ventes/domain/entities/vente.dart';
@@ -130,6 +136,7 @@ void main() {
   Future<void> monter(
     WidgetTester tester, {
     Size taille = const Size(1600, 1200),
+    Map<String, String>? droits,
   }) async {
     exportes = [];
     imprimes = [];
@@ -142,6 +149,23 @@ void main() {
       ProviderScope(
         overrides: [
           baseLocaleProvider.overrideWithValue(db),
+          if (droits != null) ...[
+            droitsProvider.overrideWithValue(GardeAcces.depuisJson(droits)),
+            // Celui qui annule : la contre-pièce nomme son auteur (RG-15).
+            sessionProvider.overrideWithBuild(
+              (ref, notifier) => Session(
+                utilisateurId: caissierEssai,
+                login: 'caissier',
+                nom: 'Caissier',
+                role: 'gerant',
+                droits: GardeAcces.depuisJson(droits),
+              ),
+            ),
+            // Le DAO de l'essai, branché sur le moteur de la base d'essai.
+            depotPanierProvider.overrideWithValue(
+              PanierRepositoryLocal(paniers),
+            ),
+          ],
           exporterJournalVentesProvider.overrideWithValue((etat) async {
             exportes.add(etat);
             return 'C:/documents/journal_ventes.csv';
@@ -166,6 +190,26 @@ void main() {
 
   /* ================================================================== */
   group('Ce que l’écran dit de lui-même', () {
+    testWidgets('le titre est précédé de son icône (tracé de la vue)', (
+      tester,
+    ) async {
+      await monter(tester);
+
+      final icone = find.byKey(const Key('ventes-icone-titre'));
+      expect(icone, findsOneWidget);
+      expect(
+        tester.widget<IconeTrace>(icone).trace,
+        TraceIconesTitre.historiqueVentes,
+      );
+      expect(tester.getSize(icone), const Size(24, 24));
+      // L'icône est À GAUCHE du titre, sur la même ligne (`flex items-center`).
+      final titre = find.text('Historique des ventes');
+      expect(
+        tester.getTopLeft(icone).dx,
+        lessThan(tester.getTopLeft(titre).dx),
+      );
+    });
+
     testWidgets('il reprend le sous-titre du maître, au mot', (tester) async {
       await vente();
       await monter(tester);
@@ -182,6 +226,23 @@ void main() {
             'la phrase porte la règle qui commande tout l’écran ; la '
             'reformuler effacerait la règle en même temps que le numéro',
       );
+    });
+
+    testWidgets('l’en-tête du tableau est BLANC sur le fond navy (la vue : '
+        '`text-white/90`), jamais le gris des en-têtes clairs', (tester) async {
+      await monter(tester);
+
+      for (final titre in ['N°', 'DATE', 'POSTE', 'MONTANT', 'ACTIONS']) {
+        final texte = tester.widget<Text>(
+          find
+              .descendant(
+                of: find.byType(TableauVentes),
+                matching: find.text(titre),
+              )
+              .first,
+        );
+        expect(texte.style?.color, AppColors.neutre0, reason: titre);
+      }
     });
 
     testWidgets(
@@ -259,31 +320,103 @@ void main() {
     });
 
     testWidgets(
-      '⚠ « Sans impact stock » n’affiche AUCUN chiffre, et dit pourquoi',
+      '« Sans impact stock » est CHIFFRÉ : zéro quand tous les articles sont '
+      'liés, et la phrase de la vue le dit',
       (tester) async {
         await vente();
         await monter(tester);
 
-        // Afficher `0` reprendrait le détail du maître — « Toutes les ventes
-        // ont décrémenté » — sur un écran qui n'a rien décrémenté du tout.
+        // Un article lié au stock : la vue dit « Toutes les ventes ont
+        // décrémenté » sous un `0` mesuré, plus jamais « Non consulté ».
         final carte = find.byKey(const Key('ventes-kpi-stock'));
         expect(
-          find.descendant(of: carte, matching: find.text('Non consulté')),
-          findsOneWidget,
-        );
-        expect(
           find.descendant(of: carte, matching: find.text('0')),
-          findsNothing,
-        );
-        // La raison, dite en clair (sans « PA-134 » depuis la directive du PO
-        // du 14/10/2026).
-        expect(
-          find.descendant(of: carte, matching: find.text('Non tenu ici')),
           findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: carte,
+            matching: find.text('Toutes les ventes ont décrémenté'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: carte, matching: find.text('Non consulté')),
+          findsNothing,
         );
         expect(
           find.descendant(of: carte, matching: find.textContaining('PA-')),
           findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'une boisson SANS lien au stock : KPI chiffré, badge « stock ✕ » et '
+      'encadré du détail',
+      (tester) async {
+        await (db.update(db.cartesBoissonLocal)
+              ..where((b) => b.id.equals('bsn-33')))
+            .write(const CartesBoissonLocalCompanion(articleId: Value('')));
+        final p = await vente();
+        await monter(tester);
+
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('ventes-kpi-stock')),
+            matching: find.text('1'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('ventes-kpi-stock')),
+            matching: find.text('Articles sans lien au stock'),
+          ),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('vente-badge-stock')), findsOneWidget);
+
+        await tester.tap(find.byKey(Key('vente-ligne-${p.id}')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('vente-detail-stock')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'le détail ANNULE la vente : motif obligatoire, puis « annulée » reste '
+      'au journal',
+      (tester) async {
+        final p = await vente();
+        await monter(tester, droits: const {'M5': 'C', 'ANNULATIONS': 'C'});
+
+        await tester.tap(find.byKey(Key('vente-ligne-${p.id}')));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(
+          find.byKey(const Key('vente-detail-annuler')),
+        );
+        await tester.tap(find.byKey(const Key('vente-detail-annuler')));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('vente-detail-annulation-refus')),
+          findsOneWidget,
+          reason: 'sans motif, le refus est dit',
+        );
+        expect((await paniers.parId(p.id))!.statut, isNot(StatutPanier.annule));
+
+        await tester.enterText(
+          find.byKey(const Key('vente-detail-motif')),
+          'erreur de saisie',
+        );
+        await tester.tap(find.byKey(const Key('vente-detail-annuler')));
+        await tester.pumpAndSettle();
+
+        final apres = (await paniers.parId(p.id))!;
+        expect(apres.statut, StatutPanier.annule);
+        expect(apres.motifAnnulation, 'erreur de saisie');
+        expect(
+          find.byKey(const Key('vente-detail-annulee-message')),
+          findsOneWidget,
         );
       },
     );

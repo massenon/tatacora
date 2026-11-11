@@ -238,12 +238,13 @@ final class CatalogueStocksBarSynchronisationTest extends TestCase
     // ------------------------------------------------------------------- RBAC
 
     /**
-     * M6 en `C` est exigé pour points et articles, M5 en `C` pour la carte :
-     * `receptionniste` (M6 = L) et `magasinier` sur la carte (M5 = L) sont
-     * refusés, chaque refus tracé.
+     * Réécrit le 09/11/2026 (décision du PO) : le serveur ne juge plus le module du compte
+     * d'appairage. `receptionniste` (M6 = L) crée un point et un article, `magasinier` (M5 =
+     * L) crée une boisson à la carte : tout est accepté, aucun refus n'est tracé — le droit
+     * se juge au poste, sur l'utilisateur connecté.
      */
     #[Test]
-    public function sans_ecriture_sur_le_module_rien_n_est_cree_et_le_refus_est_trace(): void
+    public function le_stock_et_le_bar_ne_jugent_pas_le_module_du_compte_d_appairage(): void
     {
         $receptionniste = $this->creerUtilisateur('receptionniste');
         $article = $this->articleServeur('Coca 33cl', 'bouteille');
@@ -252,20 +253,18 @@ final class CatalogueStocksBarSynchronisationTest extends TestCase
             $this->creation('points_stockage', $this->uuid(), ['libelle' => 'Réserve']),
             $this->creation('articles', $this->uuid(), $this->article('Gaz', 'bouteille')),
         ], $receptionniste)
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'))
-            ->assertJsonPath('resultats.1.motif', __('auth.module_refuse'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.1.statut', 'synchronise');
 
         $this->pousser([$this->creation('cartes_boisson', $this->uuid(), [
             'libelle' => 'Coca', 'article_id' => $article->id, 'categorie' => 'importee', 'prix_vente' => '800',
         ])], $this->magasinier)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertSame(0, PointStockage::count());
-        $this->assertSame(1, Article::count());
-        $this->assertSame(0, CarteBoisson::count());
-        $this->assertDatabaseHas('journal_securite', ['utilisateur_id' => $receptionniste->id, 'module_concerne' => 'M6']);
-        $this->assertDatabaseHas('journal_securite', ['utilisateur_id' => $this->magasinier->id, 'module_concerne' => 'M5']);
+        $this->assertSame(1, PointStockage::count());
+        $this->assertSame(2, Article::count());
+        $this->assertSame(1, CarteBoisson::count());
+        $this->assertDatabaseMissing('journal_securite', ['type_evenement' => 'acces_refuse_rbac']);
     }
 
     // ------------------------------------------------------------------ Carte du bar
@@ -327,6 +326,90 @@ final class CatalogueStocksBarSynchronisationTest extends TestCase
      * @param  array<string, mixed>  $complements
      * @return array<string, mixed>
      */
+    // ------------------------------------------------ Le lien au stock du poste
+
+    /**
+     * « Nouvelle boisson » au poste porte l'article ET le conditionnement : un
+     * casier de 24 ne décrémente pas comme une bouteille à l'unité. Le
+     * conditionnement ignoré (« relève de Lier au stock ») laissait le défaut
+     * du schéma (1) sur le serveur, et chaque vente sortait un casier ENTIER.
+     */
+    #[Test]
+    public function une_boisson_creee_au_poste_garde_son_conditionnement(): void
+    {
+        $article = $this->articleServeur('Casier Béninoise', 'casier');
+        $boisson = $this->uuid();
+
+        $this->pousser([$this->creation('cartes_boisson', $boisson, [
+            'libelle' => 'Béninoise 33 cl', 'article_id' => $article->id, 'categorie' => 'locale',
+            'prix_vente' => 700, 'unites_vendables_par_unite_stock' => '24',
+        ])], $this->barman)->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $this->assertSame('24.0000', (string) CarteBoisson::findOrFail($boisson)->unites_vendables_par_unite_stock);
+    }
+
+    #[Test]
+    public function un_conditionnement_nul_a_la_creation_est_rejete_et_rien_n_est_cree(): void
+    {
+        $article = $this->articleServeur('Casier Béninoise', 'casier');
+        $boisson = $this->uuid();
+
+        $this->pousser([$this->creation('cartes_boisson', $boisson, [
+            'libelle' => 'Béninoise 33 cl', 'article_id' => $article->id, 'categorie' => 'locale',
+            'prix_vente' => 700, 'unites_vendables_par_unite_stock' => '0',
+        ])], $this->barman)->assertJsonPath('resultats.0.statut', 'rejete');
+
+        $this->assertNull(CarteBoisson::find($boisson));
+    }
+
+    /**
+     * « Lier au stock » / « Modifier le lien » au poste : l'article et/ou le
+     * conditionnement changent, ensemble ou séparément (le poste n'envoie que
+     * les champs modifiés).
+     */
+    #[Test]
+    public function modifier_le_lien_change_l_article_et_le_conditionnement(): void
+    {
+        $casier = $this->articleServeur('Casier Béninoise', 'casier');
+        $fut = $this->articleServeur('Fût Flag', 'fût');
+        $boisson = app(\App\Domain\Bar\Services\CarteBoissonService::class)->creer([
+            'libelle' => 'Béninoise 33 cl', 'article_id' => $casier->id, 'categorie' => 'locale', 'prix_vente' => 700,
+        ]);
+        $this->assertSame('1.0000', (string) $boisson->fresh()->unites_vendables_par_unite_stock);
+
+        // Le conditionnement seul.
+        $this->pousser([$this->operation('cartes_boisson', 'modification', $boisson->id, [
+            'unites_vendables_par_unite_stock' => '24',
+        ])], $this->barman)->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(['24.0000', $casier->id], [
+            (string) $boisson->fresh()->unites_vendables_par_unite_stock, $boisson->fresh()->article_id,
+        ]);
+
+        // L'article ET le conditionnement : une décimale se garde (un fût).
+        $this->pousser([$this->operation('cartes_boisson', 'modification', $boisson->id, [
+            'article_id' => $fut->id, 'unites_vendables_par_unite_stock' => '66.5',
+        ])], $this->barman)->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(['66.5000', $fut->id], [
+            (string) $boisson->fresh()->unites_vendables_par_unite_stock, $boisson->fresh()->article_id,
+        ]);
+    }
+
+    #[Test]
+    public function un_conditionnement_nul_en_modification_est_rejete_et_la_valeur_reste(): void
+    {
+        $casier = $this->articleServeur('Casier Béninoise', 'casier');
+        $boisson = app(\App\Domain\Bar\Services\CarteBoissonService::class)->creer([
+            'libelle' => 'Béninoise 33 cl', 'article_id' => $casier->id, 'categorie' => 'locale', 'prix_vente' => 700,
+            'unites_vendables_par_unite_stock' => '24',
+        ]);
+
+        $this->pousser([$this->operation('cartes_boisson', 'modification', $boisson->id, [
+            'unites_vendables_par_unite_stock' => '0',
+        ])], $this->barman)->assertJsonPath('resultats.0.statut', 'rejete');
+
+        $this->assertSame('24.0000', (string) $boisson->fresh()->unites_vendables_par_unite_stock);
+    }
+
     private function article(string $libelle, string $unite, array $complements = []): array
     {
         return [

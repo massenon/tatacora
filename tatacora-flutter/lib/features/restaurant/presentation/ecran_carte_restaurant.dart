@@ -6,11 +6,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/donnees_absentes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
+import '../data/rapprochement_plats_stock.dart' show TextesRapprochement;
 import '../data/restaurant_api.dart';
 import '../domain/entities/carte_restaurant.dart';
+import '../domain/entities/plat.dart' show CategorieCarte;
 import 'providers_restaurant.dart';
 import 'widgets/coquille_restaurant.dart';
 import 'widgets/corps_carte_commun.dart';
@@ -30,7 +31,7 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// Une seule colonne qui défile d'un bloc (`p-5 lg:p-8`, `max-w-[1500px]`,
 /// corps l.72-73), puis : l'en-tête et ses CINQ boutons (l.75-144), l'accordéon
 /// des six indicateurs (l.163-209), les TROIS onglets (l.212-227), la barre de
-/// filtres (l.230), le bandeau du rayon (l.260), l'avertissement de point de
+/// filtres (l.230), l'avertissement de point de
 /// stockage (l.267-275), enfin le panneau de l'onglet courant. L'ossature est
 /// celle de la carte du bar : `corps_carte_commun.dart`, UN seul auteur pour
 /// les deux rayons, comme la vue.
@@ -54,44 +55,49 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// ([RestaurantRecu], [RestaurantRefuse], [RestaurantInjoignable]) ; seule la
 /// deuxième existe encore (un droit de lecture manquant).
 ///
+/// ## « Lier au stock » et « Délier » SONT portés (21/10/2026, schéma v36)
+///
+/// Le lien direct plat -> article de stock existe : `plats_local.article_id` +
+/// `unites_vendables` (le conditionnement, « 24 » pour un casier), écrits par
+/// `RestaurantDao.lierAuStock` / `delierDuStock` seuls, enfilés en modification du
+/// plat (`article_id` + `unites_vendables_par_unite_stock`, `null` des deux pour
+/// délier) et redescendus par `AligneurCatalogue`. Le lien l'emporte sur la fiche
+/// (comme `DeductionStockCuisineService`) : portions = solde du point cuisine ×
+/// conditionnement. Les jetons de refus des modales « Lier au stock » et
+/// « Délier » sont retirés : un bloc rendu ne se déclare pas refusé. « Prix » et
+/// « Historique des prix » sont portés depuis la v38 (section suivante).
+///
+/// ## « Prix » et « Historique des prix » SONT portés (26/10/2026, schéma v38)
+///
+/// Le serveur trace chaque changement de prix (`historique_prix_carte`, par les
+/// observateurs des deux cartes) ; ce poste en tient la table miroir
+/// (`historique_prix_carte_local`, `HistoriquePrixCarteDao` seul écrivain). Le
+/// bouton « Prix » ([ouvrirModalePrixPlat], droit d'écriture M4) change le prix
+/// SEUL par `RestaurantDao.modifierPrix` : le changement est tracé dans la même
+/// transaction (`_enfilerPlat`) puis enfilé en modification du plat. Le bouton
+/// « Historique des prix » (lecture) ouvre la modale partagée du bar, nourrie par
+/// `historiquePrixPlatProvider`. Les traces des autres postes et de la PWA
+/// redescendent (`AligneurCatalogue._historiquePrix`) ; la trace d'un changement
+/// fait ici est ADOPTÉE à celle du serveur plutôt que doublée. Les jetons de
+/// refus des deux modales sont retirés : un bloc rendu ne se déclare pas refusé.
+///
 /// ## Ce que cet écran REFUSE de rendre, et pourquoi (09/10/2026)
 ///
-/// Les cinq modales ouvertes par les boutons de ligne sont des blocs entiers de
-/// la vue. Toutes écrivent une disponibilité, un lien direct à un article ou
-/// une trace de prix (`indisponibilites_carte`, un lien et son conditionnement,
-/// `historique_prix_carte`), ou lisent des tables que ce poste ne détient pas
-/// (`ventes`). Raison datée du 09/10/2026, REVUE à la livraison de la source
-/// locale de M4 (v14) : cette source porte les menus, les fiches, la
-/// composition et les plats — aucune de ces trois tables-là. Les boutons de
-/// ligne affichent le message de `core/donnees_absentes.dart` (voir
-/// [VueCarteDuJour]).
+/// Les modales restantes sont des blocs entiers de la vue que le corps partagé
+/// des cartes ne pose pas sur cette page (voir la section suivante). Le retrait
+/// de la carte a sa modale (`modale_retrait_carte.dart`, rendue par
+/// [VueCarteDuJour] et écrite par `IndisponibilitesCarteDao`) : son jeton de
+/// refus est retiré le 27/10/2026, un bloc rendu ne se déclare pas refusé.
 ///
-/// ## L'onglet « Ventes du Restaurant » : rendu, SANS donnée (09/10/2026)
+/// ## L'onglet « Ventes du Restaurant » : CALCULÉ sur ce poste (26/10/2026)
 ///
-/// Il était refusé en bloc (jeton de refus du bloc « ventes », retiré le
-/// 09/10/2026 : le copier ici le ferait revivre). Le motif
-/// reste vrai — **vérifié le 09/10/2026 contre les tables locales** : rien ne
-/// sert ce relevé. `ventes_bar_local` / `lignes_vente_bar_local` ne portent que
-/// le bar (clé étrangère vers `cartes_boisson_local`, ni statut validée/annulée
-/// ni utilisateur). `paniers_local` porte bien des lignes `moduleSource = M4`
-/// (le panier accepte bar et restaurant), mais ce sont des lignes de CAISSE
-/// sans le stock du jour, le statut ni l'utilisateur que le tableau de la vue
-/// exige, et `pieces_facturation_local` n'est qu'un registre de factures. Les
-/// exposer comme « ventes du restaurant » serait inventer un relevé de ventes
-/// M4 ; le relevé serveur des ventes M4 est un autre objet, que ce poste ne
-/// détient pas.
-///
-/// Mais ce motif refuse la DONNÉE, pas le cadre : la vue montre toujours ses
-/// filtres, son titre, ses neuf colonnes et sa ligne de total, même sans une
-/// seule vente. L'onglet les rend donc ([VueVentesRestaurant]), sans un seul
-/// chiffre, et chaque geste dit pourquoi il ne produit rien. Le refus de bloc
-/// est retiré : un bloc rendu ne se déclare pas refusé.
-///
-///  - blade-refuse:restaurant/carte#modale:modal-lieraustock
-///  - blade-refuse:restaurant/carte#modale:modal-retirerdelacartedujour
-///  - blade-refuse:restaurant/carte#modale:modal-delier
-///  - blade-refuse:restaurant/carte#modale:commun.modale_prix_titre
-///  - blade-refuse:restaurant/carte#modale:modale_historique_prix.titre
+/// ⚠ Le texte du 09/10/2026 (« rendu SANS donnée », « rien ne sert ce relevé »)
+/// est PÉRIMÉ : les lignes de vente du rayon sont calculées sur les paniers du
+/// poste, les siens et ceux des autres postes que la descente lui a rendus
+/// (`ventes/domain/lignes_vente_du_rayon.dart`, réplique de
+/// `LignesVenteDuRayonService`), avec statut, numéro `V-` et auteur (v38). Les
+/// filtres, les neuf colonnes, la ligne de total et les exports lisent ce relevé
+/// ([VueVentesRestaurant]).
 ///
 /// ## « Nouvelle boisson » n'est PAS un refus : la vue ne la rend jamais ici
 ///
@@ -107,8 +113,9 @@ import 'widgets/vue_ventes_restaurant.dart';
 ///
 /// ## Ce que la vue rend et que cet écran ne peut PAS rendre, sans être un bloc
 ///
-///  - la colonne « Disponible » et la colonne « Réserve » : aucune table ne les
-///    porte, elles rendent « — » avec leur raison (voir [VueCarteDuJour]) ;
+///  - la colonne « Réserve » : aucun calcul de réserve n'est écrit sur ce
+///    poste, elle rend « — » avec sa raison (voir [VueCarteDuJour]) ; la colonne
+///    « Disponible » est servie depuis la v31 (`indisponibilites_carte_local`) ;
 ///  - l'avertissement « stock non consulté » (l.277-283) : une lecture locale ne
 ///    « échoue » pas ; un point cuisine absent, lui, est DIT (l.267-275) ;
 ///  - « Rapprocher automatiquement » : la vue ne le pose que sur le bar ;
@@ -122,17 +129,12 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// compteur « Prix provisoires », et le libellé de la fiche technique dans
 /// « Article de stock ».
 ///
-/// ## Le bandeau reprend le texte de la VUE, au mot
+/// ## Le bandeau d'information du rayon n'existe plus (PO, 30/10/2026)
 ///
-/// Jusqu'au 09/10/2026 il remplaçait deux phrases du maître archivé (« Cette
-/// fiche n'existe pas… », « rattaché à la main… ») par une formulation propre
-/// à ce client, au motif que `plats` n'aurait aucune colonne d'article. La vue
-/// Blade fait foi (PA-182) et `restaurant/carte.blade.php` l.11-13 écrit
-/// l'inverse : `plats.article_id` est nullable, le lien direct est
-/// l'exception. Le motif avait cessé d'être vrai (PA-144) ; le texte de la vue
-/// est rétabli. La dernière phrase (« Un plat peut néanmoins être rattaché à la
-/// main… ») décrit un geste de la PWA que ce poste n'offre pas : le bouton
-/// « Lier au stock » le dit au clic, au lieu que l'écran le taise.
+/// Le bandeau jaune de la vue (« Un plat n'est pas un article de stock… »)
+/// est retiré sur la vue ET sur ce poste, sur demande du Product Owner. Il
+/// n'est ni refusé ni différé : il n'existe plus nulle part, et aucune clé de
+/// langue ne le porte.
 class EcranCarteRestaurant extends ConsumerWidget {
   const EcranCarteRestaurant({super.key});
 
@@ -167,9 +169,7 @@ class EcranCarteRestaurant extends ConsumerWidget {
         // vérité unique de `donnees_absentes.dart`.
         RestaurantInjoignable<CarteRestaurant>() => _PageSansDonnees(
           cle: const Key('carte-restaurant-hors-ligne'),
-          texte: donneeNonDisponible(
-            'La carte et les fiches du restaurant (M4)',
-          ),
+          texte: donneeNonDisponible('La carte et les fiches du restaurant'),
           icone: Icons.help_outline,
         ),
       },
@@ -223,13 +223,31 @@ class _PageAvecDonnees extends ConsumerWidget {
         ),
         const _Onglets(),
         const _Filtres(),
-        _Bandeau(indicateurs: carte.indicateurs),
+        // Le bandeau jaune « Un plat n'est pas un article de stock… » est RETIRÉ,
+        // web et poste, sur demande du Product Owner du 30/10/2026.
         if (carte.sansPointCuisine)
           const AvertissementCarte(
             cle: Key('carte-restaurant-sans-point-cuisine'),
             // `carte_pwa.restaurant.point_absent`, au mot (l.267-275).
             texte:
                 "Aucun point de stockage de type « cuisine » n'est encore déclaré : le stock vendable ne peut pas être calculé, et aucun chiffre n'est affiché. Ce qui dort au magasin n'est pas servi en salle.",
+          ),
+        // Un ÉCHEC de lecture se NOMME (`$stocksNonConsultes > 0`, corps l.278-283) :
+        // il ne se replie ni sur zéro ni sur une liste vide, « 0 » se lirait
+        // « rupture ». Sur ce poste, la lecture est locale : l'échec n'est
+        // possible que pour un plat dont le motif d'absence de stock n'est pas
+        // du registre (`MotifSansStock.inconnu`) — on ne sait pas lire son
+        // stock, le chiffre est absent, il n'est pas nul.
+        if (carte.lignes.any(
+          (l) =>
+              l.portionsVendables == null &&
+              l.motifSansStock == MotifSansStock.inconnu,
+        ))
+          const AvertissementCarte(
+            cle: Key('carte-restaurant-stock-non-consulte'),
+            // `carte_pwa.commun.stock_non_consulte_detail`, au mot.
+            texte:
+                "Le stock de cet article n'a pas pu être lu : le chiffre est absent, il n'est pas nul.",
           ),
         switch (onglet) {
           OngletCarte.carteDuJour =>
@@ -269,14 +287,19 @@ class _PageAvecDonnees extends ConsumerWidget {
         cle: const Key('carte-restaurant-kpi-articles'),
         libelle: 'Articles à la carte',
         valeur: '${k.plats}',
-        // Le détail de la vue est « N disponible(s) » : il n'existe pas.
+        detail: k.disponibles == null ? null : '${k.disponibles} disponible(s)',
         raison: k.raisonAbsence('disponibles'),
       ),
       CarteKpi(
         cle: const Key('carte-restaurant-kpi-retires'),
         libelle: 'Retirés du jour',
-        valeur: CarteIndicateurRestaurant.absent,
-        accent: Ardoise.c400,
+        valeur: k.indisponibles == null
+            ? CarteIndicateurRestaurant.absent
+            : '${k.indisponibles}',
+        // `$k['indisponibles'] > 0 ? 'text-amber-600' : 'text-slate-400'`.
+        accent: (k.indisponibles ?? 0) > 0
+            ? PaletteMaitre.ambre600
+            : Ardoise.c400,
         detail: 'Rupture ou retrait',
         raison: k.raisonAbsence('indisponibles'),
       ),
@@ -411,9 +434,23 @@ class _EnTete extends ConsumerWidget {
         // aucun clic (Article 3.3). Une NAVIGATION, pas une action.
         BoutonEnteteCarte(
           key: const Key('carte-restaurant-vers-plats'),
-          libelle: 'Plats, fiches techniques & menus',
+          libelle: TextesCorpsCarte.lienCatalogue,
           style: StyleBoutonEntete.plein,
           onPressed: () => context.go('/restaurant/plats'),
+        ),
+        // « Rapprocher les plats du stock » (corps l.139-152, ajout du PO du
+        // 09/11/2026) : le rattrapage des plats importés sans lien. Relie
+        // chaque plat à l'article de stock de même nom au point Cuisine, crée
+        // les articles manquants, n'écrit ni prix ni quantité.
+        BoutonEnteteCarte(
+          key: const Key('carte-restaurant-rapprocher'),
+          libelle: TextesRapprochement.bouton,
+          style: StyleBoutonEntete.or,
+          onPressed: () async {
+            final phrase = await ref.read(rapprocherLesPlatsProvider)();
+            if (!context.mounted) return;
+            _dire(context, phrase, 'carte-restaurant-rapprocher-fait');
+          },
         ),
       ],
     );
@@ -465,21 +502,13 @@ class _EnTete extends ConsumerWidget {
     // vue que ce poste n'avait pas à retirer. Aucun fichier n'est produit.
     final surVentes =
         ref.read(ongletCarteRestaurantProvider) == OngletCarte.ventes;
+    // L'onglet des ventes s'exporte lui-même (calculé sur ce poste).
+    if (surVentes) return exporterVentesRestaurant(context, ref);
     final format = await choisirFormatExport(
       context,
-      titre: surVentes
-          ? 'Exporter — Ventes du Restaurant'
-          : 'Exporter — Carte du restaurant',
+      titre: 'Exporter — Carte du restaurant',
     );
     if (format == null || !context.mounted) return;
-
-    if (surVentes) {
-      return _dire(
-        context,
-        donneeNonDisponible(ventesRestaurantAbsentes),
-        'carte-restaurant-export-ventes-absentes',
-      );
-    }
 
     if (donnees.lignes.isEmpty) {
       return _dire(context, TextesExport.vide, 'carte-restaurant-export-vide');
@@ -530,7 +559,7 @@ class _EnTete extends ConsumerWidget {
 }
 
 /* ====================================================================== */
-/* Onglets, filtres, bandeau — corps l.211-265                             */
+/* Onglets, filtres — corps l.211-265                             */
 /* ====================================================================== */
 
 /// Les trois onglets — `flex flex-wrap gap-1.5 mb-4` (l.212).
@@ -573,14 +602,14 @@ class _Filtres extends ConsumerWidget {
       cleRecherche: const Key('carte-restaurant-recherche'),
       onRecherche: (v) =>
           ref.read(rechercheCarteRestaurantProvider.notifier).definir(v),
-      categorie: ListeFiltre<CategoriePlat?>(
+      categorie: ListeFiltre<CategorieCarte?>(
         cleListe: const Key('carte-restaurant-filtre-categorie'),
         largeur: AppLayout.filtreCategorieCarteRestaurant,
         valeur: ref.watch(categorieCarteRestaurantProvider),
         options: [
           // L'option vide de la vue (`toutes_categories`, l.240).
           const (null, 'Toutes les catégories'),
-          for (final c in CategoriePlat.values) (c, c.libelle),
+          for (final c in CategorieCarte.values) (c, c.libelle),
         ],
         onChange: (c) =>
             ref.read(categorieCarteRestaurantProvider.notifier).definir(c),
@@ -600,67 +629,6 @@ class _Filtres extends ConsumerWidget {
             ref.read(etatCarteRestaurantProvider.notifier).definir(e);
           }
         },
-      ),
-    );
-  }
-}
-
-/// Le bandeau du rayon — `carte-module.js` archivé l.76-85, vue
-/// `restaurant/carte.blade.php` l.43-52 : encadré « amber » (`#FFFBEB` /
-/// `#FDE68A` / `#78350F`), `rounded-xl p-3.5 mb-4`.
-///
-/// Le texte est celui de la vue, au mot (voir l'en-tête de l'écran).
-/// Chaque fragment est UN littéral : le comparateur coupe la phrase de la vue à
-/// ses balises `<strong>`, et cherche chaque morceau.
-class _Bandeau extends StatelessWidget {
-  const _Bandeau({required this.indicateurs});
-
-  final IndicateursCarte indicateurs;
-
-  @override
-  Widget build(BuildContext context) {
-    final fort = styleContenuCarte(
-      TaillesContenu.t13,
-      poids: FontWeight.bold,
-      couleur: PaletteMaitre.ambre900,
-    );
-
-    return KeyedSubtree(
-      key: const Key('carte-restaurant-bandeau'),
-      child: EncadreCarte(
-        fond: PaletteMaitre.ambre50,
-        bordure: PaletteMaitre.ambre200,
-        enfant: Text.rich(
-          TextSpan(
-            style: styleContenuCarte(
-              TaillesContenu.t13,
-              couleur: PaletteMaitre.ambre900,
-            ),
-            children: [
-              // `carte_pwa.restaurant.bandeau_titre`.
-              TextSpan(
-                text:
-                    "Un plat n'est pas un article de stock : c'est une recette. ",
-                style: fort,
-              ),
-              // `carte_pwa.restaurant.bandeau_texte`.
-              const TextSpan(text: 'Décrémenter un « Poulet DG » suppose une '),
-              TextSpan(text: 'fiche technique', style: fort),
-              const TextSpan(
-                text:
-                    " (EF-M4-02) indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. ",
-              ),
-              TextSpan(
-                text: 'Conséquence portée ici plutôt que masquée :',
-                style: fort,
-              ),
-              TextSpan(
-                text:
-                    " ${indicateurs.sansLien} article(s) sur ${indicateurs.plats} ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple.",
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

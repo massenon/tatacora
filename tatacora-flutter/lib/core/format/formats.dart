@@ -85,3 +85,10 @@ String formaterDate(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/'
     '${d.month.toString().padLeft(2, '0')}/'
     '${d.year}';
+
+/// Date et heure `d/m/Y H:i` — le `format('d/m/Y H:i')` du serveur (échéance du
+/// mot de passe temporaire, 29/10/2026).
+String formaterDateHeure(DateTime d) =>
+    '${formaterDate(d)} '
+    '${d.hour.toString().padLeft(2, '0')}:'
+    '${d.minute.toString().padLeft(2, '0')}';

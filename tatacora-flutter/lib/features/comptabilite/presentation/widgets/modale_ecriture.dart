@@ -1,3 +1,5 @@
+// Vue Blade maîtresse (PA-183) : pwa/comptabilite/hub.blade.php
+// (la modale « Passer écriture », `etatFormulaire === 'piece'`).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
 import '../../../transverse/presentation/widgets/briques_transverses.dart';
 import '../../data/moteur_comptable.dart';
+import '../../domain/cloture_exercice.dart' show journauxReserves;
 import '../../domain/entities/comptabilite.dart';
 import '../../domain/montant_comptable.dart';
 import '../../domain/refus_comptable.dart';
@@ -40,6 +43,9 @@ abstract final class TextesModaleEcriture {
   static const String colDebit = 'Débit';
   static const String colCredit = 'Crédit';
   static const String colEcart = 'Écart';
+
+  /// `comptabilite_pwa.piece_ecart` : « Écart de :montant. » — UNE phrase.
+  static String pieceEcart(String montant) => 'Écart de $montant.';
   static const String centreDuCompte = '—';
   static const String tiret = '—';
   static const String totaux = 'Totaux';
@@ -265,16 +271,19 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
             centreId: l.centreId,
           ),
       ],
+      // La saisie du hub est celle du COMPTABLE : elle passe aussi dans un
+      // exercice EN CLÔTURE — ses écritures d'inventaire. Les modules, eux,
+      // restent à `ouvert` (`Hub::enregistrerPiece` du serveur).
+      statutsExerciceAdmis: const {
+        StatutExercice.ouvert,
+        StatutExercice.enCloture,
+      },
     );
     final auteurId = ref.read(sessionProvider)?.utilisateurId ?? '';
 
     try {
       final moteur = await ref.read(moteurComptableProvider.future);
-      if (valider) {
-        await moteur.passerEtValider(demande, auteurId: auteurId);
-      } else {
-        await moteur.passer(demande, auteurId: auteurId);
-      }
+      await moteur.saisirPiece(demande, auteurId: auteurId, valider: valider);
     } on RefusComptable catch (e) {
       if (!mounted) return;
       setState(() {
@@ -496,7 +505,12 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
               decoration: _decoration(),
               hint: Text(TextesModaleEcriture.choisir, style: valeur),
               items: [
-                for (final j in widget.journaux)
+                // Les journaux CL et AN, seule la clôture les écrit : une pièce
+                // passée à la main au journal CL disparaîtrait des états, qui
+                // l'excluent (`ClotureExerciceService::JOURNAUX_RESERVES`).
+                for (final j in widget.journaux.where(
+                  (j) => !journauxReserves.contains(j.code),
+                ))
                   DropdownMenuItem(
                     value: j.code,
                     child: Text(
@@ -720,7 +734,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
     );
   }
 
-  /// « Écart : X » en rouge, ou « Pièce équilibrée. » en vert — la pastille
+  /// « Écart de X. » en rouge, ou « Pièce équilibrée. » en vert — la pastille
   /// de la vue, toujours affichée pour que l'écart se lise en continu.
   Widget _pastilleEcart(int ecart) {
     final equilibree = ecart == 0 && _totalDebit > 0;
@@ -749,7 +763,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
       child: Text(
         equilibree
             ? TextesModaleEcriture.pieceEquilibree
-            : '${TextesModaleEcriture.colEcart} : ${_montant(ecart.abs())}',
+            : TextesModaleEcriture.pieceEcart(_montant(ecart.abs())),
         style: styleTransverse(Tailles.t12, couleur: texte),
       ),
     );

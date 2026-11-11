@@ -62,9 +62,10 @@ final class EtatDepenses {
   /// Les colonnes du fichier : les six du tableau qui ont une source sur ce
   /// poste, « Comptabilisation » du serveur, puis « Pièce comptable ».
   ///
-  /// La septième colonne du tableau, « Pièces » (le reçu), est absente : aucun
-  /// reçu ne peut être joint sur ce poste, et une colonne vide sur toutes les
-  /// lignes n'apprend rien. Le motif est dit en mention.
+  /// La septième colonne du tableau, « Pièces » (le reçu et son état), est
+  /// absente, comme à l'export du serveur (`DepensesExport` : sept colonnes dont
+  /// « Comptabilisation », jamais le reçu) : un fichier image ne se range pas
+  /// dans une cellule. Le motif est dit en mention.
   static const List<String> entetes = [
     'Date',
     'Libellé',
@@ -99,8 +100,8 @@ final class EtatDepenses {
         'comptable existe. Une dépense « non comptabilisée » manque au grand '
         'livre, à la balance et au compte de résultat tant que sa pièce n\'a '
         'pas été passée.',
-    'Aucun reçu n\'est joint : ce poste n\'a pas de sélecteur de fichier. La '
-        'colonne « Pièces » du tableau n\'est donc pas exportée.',
+    'Les reçus joints ne figurent pas dans ce fichier : la colonne « Pièces » '
+        'du tableau (le reçu et son état) n\'est pas exportée.',
     'Une dépense portant plusieurs achats rend ses natures et ses comptes '
         'distincts dans la même cellule, comme à l\'écran.',
   ];

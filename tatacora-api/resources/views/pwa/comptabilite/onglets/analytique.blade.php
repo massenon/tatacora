@@ -58,9 +58,7 @@
     <div class="rounded-xl p-3.5 mb-4" style="background:#FFFBEB;border:1px solid #FDE68A">
       <p class="text-[13px]" style="color:#78350F">
         <strong>Aucune charge de structure n'est répartie.</strong>
-        Les charges imputées au centre ADM y restent. Une clé de répartition (au chiffre d'affaires,
-        aux nuitées, à la surface) est une <strong>décision de gestion</strong>, pas une constante technique :
-        la choisir ici rendrait le bar bénéficiaire ou déficitaire selon une règle que personne n'aurait validée.
+        Les charges imputées au centre ADM y restent.
         Les résultats par centre sont donc des <strong>marges sur coûts directs</strong>, pas des résultats nets.
       </p>
     </div>

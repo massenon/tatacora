@@ -10,6 +10,7 @@ import '../../../core/impression/entete_etablissement.dart';
 import '../../../core/impression/texte_ticket.dart';
 import '../../../core/impression/visas.dart';
 import '../domain/entities/carte_restaurant.dart';
+import '../domain/entities/plat.dart' show CategorieCarte;
 
 /// Les documents de la carte du restaurant — `m4-restaurant-carte.html`
 /// l.35-45.
@@ -171,6 +172,32 @@ final class EtatCarteRestaurant {
     return document.save();
   }
 
+  /// Les groupes de la fiche des prix, dans l'ordre de la vue
+  /// (`EcranDeCarte::grouperParCategorie`) : les catégories du registre dans SON
+  /// ordre, puis les clés hors registre (dont les plats sans catégorie,
+  /// « Autres »). Dans un groupe, le libellé. Une catégorie sans plat n'est pas
+  /// imprimée : un intitulé seul laisserait croire à un oubli.
+  static List<(String, List<LigneCarteRestaurant>)> groupesDeLaFiche(
+    List<LigneCarteRestaurant> lignes,
+  ) {
+    int rang(LigneCarteRestaurant l) =>
+        l.categorie?.index ?? CategorieCarte.values.length;
+
+    final triees = [...lignes]
+      ..sort((a, b) {
+        final parRang = rang(a).compareTo(rang(b));
+        if (parRang != 0) return parRang;
+        final parCle = a.categorieBrute.compareTo(b.categorieBrute);
+        return parCle != 0 ? parCle : a.libelle.compareTo(b.libelle);
+      });
+
+    final groupes = <String, List<LigneCarteRestaurant>>{};
+    for (final l in triees) {
+      groupes.putIfAbsent(l.categorieLibelle, () => []).add(l);
+    }
+    return [for (final e in groupes.entries) (e.key, e.value)];
+  }
+
   /// La **fiche des prix** : un document qui se lit, groupé par catégorie.
   ///
   /// **Les plats sans tarif en sont écartés, et leur nombre est rendu.** La
@@ -182,27 +209,13 @@ final class EtatCarteRestaurant {
     List<LigneCarteRestaurant> lignes, {
     EnteteEtablissement entete = const EnteteEtablissement(),
   }) async {
-    final retenues =
-        lignes
-            .where(
-              (l) =>
-                  formaterMontantDecimal(l.prixVente, suffixe: devise) != null,
-            )
-            .toList()
-          ..sort((a, b) {
-            final parCategorie = a.categorieLibelle.compareTo(
-              b.categorieLibelle,
-            );
-            return parCategorie != 0
-                ? parCategorie
-                : a.libelle.compareTo(b.libelle);
-          });
+    final retenues = lignes
+        .where(
+          (l) => formaterMontantDecimal(l.prixVente, suffixe: devise) != null,
+        )
+        .toList(growable: false);
     final ecartes = lignes.length - retenues.length;
-
-    final parCategorie = <String, List<LigneCarteRestaurant>>{};
-    for (final l in retenues) {
-      parCategorie.putIfAbsent(l.categorieLibelle, () => []).add(l);
-    }
+    final parCategorie = groupesDeLaFiche(retenues);
 
     final document = pw.Document();
     document.addPage(
@@ -215,15 +228,13 @@ final class EtatCarteRestaurant {
         ),
         footer: (c) => piedA4(c.pageNumber, c.pagesCount),
         build: (contexte) => [
-          for (final entree in parCategorie.entries) ...[
+          for (final entree in parCategorie) ...[
             pw.Text(
-              texteTicket(
-                entree.key.isEmpty ? 'Autres' : entree.key.toUpperCase(),
-              ),
+              texteTicket(entree.$1.toUpperCase()),
               style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 4),
-            for (final l in entree.value)
+            for (final l in entree.$2)
               pw.Padding(
                 padding: const pw.EdgeInsets.only(bottom: 2),
                 child: pw.Row(

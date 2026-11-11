@@ -32,12 +32,18 @@ use RuntimeException;
  */
 class CanalReservationService
 {
-    public function ajouter(string $nom): CanalReservation
+    /**
+     * @param  string|null  $id  l'UUID né sur un poste (synchronisation) : le
+     *                           canal garde l'identifiant sous lequel le poste
+     *                           le connaît ; `null` : tiré par le modèle.
+     */
+    public function ajouter(string $nom, ?string $id = null): CanalReservation
     {
         $nom = $this->normaliser($nom);
         $this->refuserSiDoublon($nom);
 
         return CanalReservation::create([
+            ...($id === null ? [] : ['id' => $id]),
             'nom' => $nom,
             'actif' => true,
         ]);

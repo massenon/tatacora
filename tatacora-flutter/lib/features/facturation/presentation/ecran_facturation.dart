@@ -1,7 +1,10 @@
 // Vue Blade maîtresse (PA-183) : pwa/facturation/facturation.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/di/providers.dart' show droitsProvider;
+import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -12,10 +15,15 @@ import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/tableau_tatacora.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../domain/certification_mecef.dart';
+import '../domain/textes_proforma.dart';
+import '../domain/textes_registre_facture.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../impression/etat_registre_factures.dart';
 import '../impression/ticket_facture.dart';
 import 'providers_facturation.dart';
+import 'widgets/dialogue_avoir.dart';
+import '../domain/mode_facturation.dart';
+import 'widgets/normalisation_piece.dart';
 import 'widgets/vue_ticket.dart';
 
 // L'annulation par avoir vit dans son fichier de modale (`Tailles` déclarées,
@@ -286,6 +294,12 @@ class _BarreRegistreState extends ConsumerState<_BarreRegistre> {
                 onChanged: (m) =>
                     ref.read(moduleFiltreProvider.notifier).definir(m),
               ),
+              // Factures proforma (PO, 07/11/2026) : écran propre, document non fiscal.
+              _Bouton(
+                cle: const Key('facturation-proformas'),
+                libelle: TextesProforma.ui['proformas_lien']!,
+                onTap: () => context.go('/facturation/proformas'),
+              ),
               _Bouton(
                 cle: const Key('facturation-exporter'),
                 libelle: 'Exporter',
@@ -333,29 +347,56 @@ class _BarreRegistreState extends ConsumerState<_BarreRegistre> {
   /// filtrée est vide. » plutôt que de produire un document d'une page
   /// blanche.
   Future<void> _exporter(BuildContext context) async {
+    final terme = ref.read(rechercheFactureProvider).trim();
+    final module = ref.read(moduleFiltreProvider);
+    final origine = ref.read(origineFiltreeProvider);
+    final selection = ref.read(selectionFacturesProvider);
+    final affichees =
+        ref.read(registreProvider).value ?? const <PieceFacturation>[];
+
+    // La SÉLECTION restreint le périmètre — le conseil de la modale d'export
+    // de la vue (« utilisez la case à cocher du tableau pour n'exporter qu'une
+    // sélection »). Les cases ne portent que sur des pièces AFFICHÉES : un
+    // filtre qui change vide la sélection.
+    final pieces = selection.isEmpty
+        ? affichees
+        : [
+            for (final p in affichees)
+              if (selection.contains(p.id)) p,
+          ];
+
+    // « Périmètre : … » — la ligne que la vue dit sous le titre de la modale
+    // (`pwa.facturation.export_sous_titre`) ET sur le document (PA-119).
+    final perimetre = descriptionDuPerimetre(
+      terme: terme,
+      activite: module,
+      origine: origine,
+      nombreSelectionnees: selection.isEmpty ? null : pieces.length,
+    );
+
+    final par = await ref.read(certifieParProvider.future);
+    if (!context.mounted) return;
     final format = await choisirFormatExport(
       context,
       titre: 'Exporter — Registre des factures',
+      sousTitre: 'Périmètre : $perimetre',
     );
     if (format == null || !context.mounted) return;
 
-    final pieces =
-        ref.read(registreProvider).value ?? const <PieceFacturation>[];
-    final origine = ref.read(origineFiltreeProvider);
     final etat = EtatRegistreFactures(
       pieces: pieces,
       // Le filtre est DIT sur le document : sans cette mention, un extrait se
       // lirait comme un registre complet, et c'est sur un registre qu'on
       // rapproche une caisse.
-      filtre: origine == null
-          ? 'Toutes origines'
-          : 'Origine : ${origine.libelle}',
+      filtre: perimetre,
+      normalisable: par != CertifiePar.rien,
     );
     if (etat.estVide) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Rien à exporter : la liste filtrée est vide.',
+            'Rien à exporter : aucune facture ne correspond aux filtres '
+            'affichés.',
             key: Key('facturation-export-vide'),
           ),
         ),
@@ -378,6 +419,29 @@ class _BarreRegistreState extends ConsumerState<_BarreRegistre> {
         borderRadius: BorderRadius.circular(AppRadius.roundedLg),
         borderSide: BorderSide(color: couleur),
       );
+}
+
+/// La phrase « Périmètre » de l'export — `Facturation::descriptionDuFiltre()` :
+/// la recherche, l'activité, la sélection, jointes par « · », et « Aucun
+/// filtre — tout le registre » quand rien ne restreint (PA-119 : « aucun
+/// filtre » se DIT aussi, jamais rien).
+///
+/// L'origine est un filtre du POSTE (la vue n'en a pas) : elle est dite elle
+/// aussi, car un export qui la tairait se lirait comme le registre entier.
+String descriptionDuPerimetre({
+  required String terme,
+  required ModuleFacturable? activite,
+  required OrigineFacture? origine,
+  required int? nombreSelectionnees,
+}) {
+  final parts = <String>[
+    if (terme.isNotEmpty) 'recherche « $terme »',
+    if (activite != null) 'activité ${activite.libelle}',
+    if (origine != null) 'origine ${origine.libelle}',
+    if (nombreSelectionnees != null)
+      '$nombreSelectionnees pièce(s) sélectionnée(s)',
+  ];
+  return parts.isEmpty ? 'Aucun filtre — tout le registre' : parts.join(' · ');
 }
 
 /// `text-[13px] border border-slate-300 rounded-lg px-2.5 py-1.5`
@@ -439,20 +503,22 @@ class _Bouton extends StatelessWidget {
 
 /// La rangée de compteurs (`px-4 py-2.5 border-b bg-slate-50`) : pièces,
 /// avoirs, montant, et la mention de certification — **dérivée des pièces**
-/// (PA-119/PA-61), jamais figée : elle dit « non certifiées, démonstration »
-/// tant qu'aucune pièce ne porte un vrai numéro MECeF.
-class _Compteurs extends StatelessWidget {
+/// (PA-119/PA-61), jamais figée. Décision du PO du 07/11/2026 : en mode DÉSACTIVÉ (facture
+/// simple), AUCUNE mention ; en boîtier / e-MECeF, « aucune pièce normalisée » tant qu'aucune
+/// pièce ne porte un vrai numéro MECeF, puis le décompte.
+class _Compteurs extends ConsumerWidget {
   const _Compteurs({required this.pieces});
 
   final List<PieceFacturation> pieces;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final normalise =
+        (ref.watch(certifieParProvider).value ?? CertifiePar.rien) !=
+        CertifiePar.rien;
     final avoirs = pieces.where((p) => p.estAvoir).length;
     final montant = pieces.fold<int>(0, (t, p) => t + p.montantTotal);
-    final certifiees = pieces
-        .where((p) => CertificationMecef.estReelle(p.numeroMecef))
-        .length;
+    final certifiees = pieces.where((p) => p.estNormalisee).length;
 
     // Le libellé et sa valeur sont deux textes distincts, comme les deux
     // nœuds de la vue (`Pièces <strong>0</strong>`).
@@ -501,21 +567,22 @@ class _Compteurs extends StatelessWidget {
             'Montant',
             TicketFacture.montant(montant),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('MECeF — ', style: styleMecef),
-              Text(
-                certifiees == 0
-                    ? 'non certifiées, démonstration'
-                    : '$certifiees pièce(s) certifiée(s)',
-                key: const Key('facturation-bandeau-mecef'),
-                style: styleMecef.copyWith(fontWeight: FontWeight.bold),
-              ),
-              if (certifiees > 0)
-                Text(' sur ${pieces.length} affichée(s)', style: styleMecef),
-            ],
-          ),
+          if (normalise)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('MECeF — ', style: styleMecef),
+                Text(
+                  certifiees == 0
+                      ? 'aucune pièce normalisée'
+                      : '$certifiees pièce(s) certifiée(s)',
+                  key: const Key('facturation-bandeau-mecef'),
+                  style: styleMecef.copyWith(fontWeight: FontWeight.bold),
+                ),
+                if (certifiees > 0)
+                  Text(' sur ${pieces.length} affichée(s)', style: styleMecef),
+              ],
+            ),
         ],
       ),
     );
@@ -524,9 +591,41 @@ class _Compteurs extends StatelessWidget {
 
 /// Le tableau du registre — les colonnes du maître, dans son ordre, aux
 /// largeurs relevées dans le navigateur (`<table class="w-full">`, `px-4
-/// py-2.5`). La case de sélection du maître n'est pas rendue (aucun geste de
-/// groupe côté client) ; sa largeur est réservée pour que les colonnes tombent
-/// où elles tombent dans la vue.
+/// py-2.5`).
+///
+/// ## La case de sélection est rendue (14/10/2026 → 21/10/2026)
+///
+/// La vue pose une case par ligne et une case d'en-tête « Tout sélectionner »
+/// (`wire:model.live="toutSelectionne"`, l.147-149) : elles ne servent qu'à
+/// RESTREINDRE l'export au périmètre coché — aucun geste de groupe n'écrit.
+/// Cocher la case d'en-tête coche les pièces de la PAGE affichée, comme
+/// `updatedToutSelectionne` ; un filtre qui change vide la sélection
+/// ([SelectionFacturesNotifier]).
+///
+/// ## La colonne d'actions de la vue
+///
+/// Dernière colonne, entête vide : « Facture A4 » (le document fiscal garde son
+/// bouton par ligne) puis « Avoir » (RG-03, la seule correction). « Avoir »
+/// exige le droit d'écriture sur M2 et n'est pas offert sur une pièce déjà
+/// annulée ni sur un avoir — annuler un avoir ferait une facture positive que
+/// personne n'a émise.
+///
+/// ## Le « N avoir(s) » de la vue
+///
+/// À côté du statut, `pwa.facturation.avoirs_rattaches` : le nombre d'avoirs
+/// rattachés à la facture. Compté sur le registre ENTIER
+/// ([avoirsParFactureProvider]), filtres exclus.
+///
+/// ## La forme DOCUMENT de la vue n'est pas rendue (écart nommé)
+///
+/// La vue pose une seconde table, `hidden print:block`, rendue à l'impression du
+/// navigateur (l.236-285) : « N° MECeF », « Client », « Services combinés »,
+/// « Date », « Montant TTC », « Mode de paiement », « Statut ». Ce poste
+/// n'imprime pas l'écran : son papier est l'export PDF de « Exporter »
+/// (`EtatRegistreFactures`, colonnes de `pdf.facturation-registre`). Les trois
+/// intitulés propres à cette forme document — « N° MECeF », « Services
+/// combinés » et « Montant TTC » — sont donc NOMMÉS ici et non rendus : la
+/// mesure les compte « nommés comme refusés », pas « portés ».
 class _Registre extends ConsumerWidget {
   const _Registre({required this.pieces});
 
@@ -548,6 +647,27 @@ class _Registre extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    return _corps(context, ref);
+  }
+
+  Widget _corps(BuildContext context, WidgetRef ref) {
+    final selection = ref.watch(selectionFacturesProvider);
+    final avoirs = ref.watch(avoirsParFactureProvider).value ?? const {};
+    final peutEcrire = ref
+        .watch(droitsProvider)
+        .niveau(ModuleTatacora.m2Facturation)
+        .peutEcrire;
+    final idsPage = [for (final p in pieces) p.id];
+    final toutCoche = idsPage.isNotEmpty && idsPage.every(selection.contains);
+    final filtreApplique =
+        ref.watch(origineFiltreeProvider) != null ||
+        ref.watch(moduleFiltreProvider) != null ||
+        ref.watch(rechercheFactureProvider).trim().isNotEmpty;
+    // Lu seulement quand le registre est vide et sans filtre.
+    final horsExercice = pieces.isEmpty && !filtreApplique
+        ? ref.watch(facturesHorsExerciceProvider).value
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -555,6 +675,25 @@ class _Registre extends ConsumerWidget {
           color: AppColors.navy,
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsPlus),
           child: _Rangee(
+            // `#crud-case-tout` : la case d'en-tête de la vue.
+            debut: Checkbox(
+              key: const Key('facturation-tout-selectionner'),
+              semanticLabel: 'Tout sélectionner',
+              value: toutCoche,
+              side: const BorderSide(color: AppColors.neutre0),
+              checkColor: AppColors.navy,
+              fillColor: WidgetStateProperty.resolveWith(
+                (etats) => etats.contains(WidgetState.selected)
+                    ? AppColors.neutre0
+                    : null,
+              ),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              onChanged: pieces.isEmpty
+                  ? null
+                  : (v) => ref
+                        .read(selectionFacturesProvider.notifier)
+                        .definirPage(idsPage, coche: v ?? false),
+            ),
             cellules: [
               for (final t in _titres)
                 Text(
@@ -592,11 +731,45 @@ class _Registre extends ConsumerWidget {
                   'Essayez de modifier votre recherche ou vos filtres.',
                   style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
                 ),
-                Text(
-                  'Aucune facture émise. Encaissez au point de vente ou '
-                  'clôturez un séjour.',
-                  style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
-                ),
+                // Sans filtre seulement, comme au web : « aucune facture » et
+                // « aucun résultat pour ce filtre » appellent des gestes opposés.
+                if (!filtreApplique) ...[
+                  Text(
+                    'Aucune facture émise. Encaissez au point de vente ou '
+                    'clôturez un séjour.',
+                    style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
+                  ),
+                  // Écart daté du PO (09/11/2026) : une réservation ne crée pas
+                  // de facture ; on le dit, avec le chemin vers les proformas.
+                  Text(
+                    TextesRegistreFacture.registreVideAide,
+                    key: const Key('facturation-registre-vide-aide'),
+                    textAlign: TextAlign.center,
+                    style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  _Bouton(
+                    cle: const Key('facturation-registre-vide-proformas'),
+                    libelle: TextesRegistreFacture.registreVideLien,
+                    onTap: () => context.go('/facturation/proformas'),
+                  ),
+                  if (horsExercice != null && horsExercice.nombre > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text(
+                        TextesRegistreFacture.horsExercice(
+                          nombre: horsExercice.nombre,
+                          annee: horsExercice.annee,
+                        ),
+                        key: const Key('facturation-registre-hors-exercice'),
+                        textAlign: TextAlign.center,
+                        style: _t(
+                          TaillesContenu.t13,
+                          couleur: PaletteMaitre.ambre700,
+                        ),
+                      ),
+                    ),
+                ],
               ],
             ),
           )
@@ -604,8 +777,8 @@ class _Registre extends ConsumerWidget {
           for (final piece in pieces)
             InkWell(
               key: Key('facturation-piece-${piece.id}'),
-              // Le ticket, son impression, la facture A4 et l'annulation par
-              // avoir restent atteignables depuis la ligne.
+              // Le ticket, son impression, la facture A4 et l'avoir restent
+              // atteignables depuis la ligne.
               onTap: () => afficherTicket(context, piece),
               child: Container(
                 decoration: const BoxDecoration(
@@ -614,7 +787,24 @@ class _Registre extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(
                   vertical: AppSpacing.xsPlus,
                 ),
-                child: _Rangee(cellules: _cellules(piece)),
+                child: _Rangee(
+                  debut: Checkbox(
+                    key: Key('facturation-coche-${piece.id}'),
+                    semanticLabel: 'Sélectionner cette ligne',
+                    value: selection.contains(piece.id),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    onChanged: (_) => ref
+                        .read(selectionFacturesProvider.notifier)
+                        .basculer(piece.id),
+                  ),
+                  cellules: _cellules(
+                    context,
+                    ref,
+                    piece,
+                    avoirs: avoirs[piece.numero] ?? 0,
+                    peutEcrire: peutEcrire,
+                  ),
+                ),
               ),
             ),
       ],
@@ -624,14 +814,27 @@ class _Registre extends ConsumerWidget {
   /// Une ligne — `ligneFacture()` du maître. Le numéro en police à chasse fixe,
   /// la date et les activités en ardoise, le montant en gras (rouge s'il est
   /// négatif : un avoir), « — » quand la donnée n'existe pas.
-  static List<Widget> _cellules(PieceFacturation piece) {
+  static List<Widget> _cellules(
+    BuildContext context,
+    WidgetRef ref,
+    PieceFacturation piece, {
+    required int avoirs,
+    required bool peutEcrire,
+  }) {
     final activites = piece.lignes
         .map((l) => l.module.libelle)
         .toSet()
         .join(', ');
 
+    final statut = piece.avoirDe != null
+        ? PastilleStatut.neutre('avoir de ${piece.avoirDe}')
+        : piece.estAnnulee
+        ? const PastilleStatut.refus('annulée')
+        : const PastilleStatut.succes('émise');
+
     return [
-      CelluleTableau(piece.numero, monospace: true),
+      // PO (09/11/2026) : le numéro fiscal quand la pièce est normalisée, sinon le numéro interne et sa légende.
+      _CelluleNumero(piece),
       CelluleTableau(formaterDate(piece.dateEmission), secondaire: true),
       CelluleTableau(piece.clientNom),
       CelluleTableau(piece.origine.libelle, secondaire: true),
@@ -642,31 +845,165 @@ class _Registre extends ConsumerWidget {
         couleur: piece.montantTotal < 0 ? CouleursTableau.montantNegatif : null,
       ),
       CelluleTableau(piece.modePaiement ?? '—', secondaire: true),
-      if (piece.avoirDe != null)
-        PastilleStatut.neutre('avoir de ${piece.avoirDe}')
-      else if (piece.estAnnulee)
-        const PastilleStatut.refus('annulée')
-      else
-        const PastilleStatut.succes('émise'),
-      const SizedBox.shrink(),
+      // La pastille du statut, puis « N avoir(s) » (`avoirs_rattaches`) quand la
+      // facture en porte.
+      Wrap(
+        spacing: AppSpacing.unit,
+        runSpacing: AppSpacing.unit,
+        children: [
+          statut,
+          // AJOUT de ce poste (07/11/2026, facturation normalisée) : l'état de la
+          // normalisation, dérivé du statut réellement rangé sur la pièce.
+          IndicateurNormalisation(
+            key: Key('facturation-normalisation-${piece.id}'),
+            piece: piece,
+          ),
+          if (avoirs > 0)
+            PastilleStatut.neutre(
+              '$avoirs avoir(s)',
+              key: Key('facturation-avoirs-${piece.id}'),
+            ),
+        ],
+      ),
+      // La colonne d'actions (`no-print`, entête vide) : « Facture A4 » puis
+      // « Avoir ».
+      Wrap(
+        spacing: AppSpacing.unit,
+        children: [
+          _BoutonLigne(
+            cle: Key('facturation-ligne-a4-${piece.id}'),
+            libelle: 'Facture A4',
+            onTap: () => imprimerLaFactureA4Depuis(context, ref, piece),
+          ),
+          // AJOUT de ce poste (07/11/2026) : « Normaliser » / « Réessayer » /
+          // « Vérifier », seulement quand ce poste certifie par son boîtier.
+          if (peutEcrire && !piece.estNormalisee)
+            BoutonNormaliser(
+              cle: Key('facturation-ligne-normaliser-${piece.id}'),
+              piece: piece,
+            ),
+          if (peutEcrire && !piece.estAnnulee && piece.avoirDe == null)
+            _BoutonLigne(
+              cle: Key('facturation-ligne-avoir-${piece.id}'),
+              libelle: 'Avoir',
+              plein: true,
+              onTap: () => emettreUnAvoir(context, piece),
+            ),
+        ],
+      ),
     ];
   }
 }
 
+/// La colonne « N° » : le numéro fiscal seul, ou le numéro interne suivi de la légende discrète « n° interne »
+/// (`pwa.facturation.numero_interne`, au web comme ici).
+class _CelluleNumero extends StatelessWidget {
+  const _CelluleNumero(this.piece);
+
+  final PieceFacturation piece;
+
+  @override
+  Widget build(BuildContext context) {
+    final numero = CelluleTableau(
+      piece.numeroRegistre,
+      monospace: true,
+      key: Key('facturation-numero-${piece.id}'),
+    );
+    if (!piece.numeroRegistreEstInterne) return numero;
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppSpacing.unit,
+      children: [
+        numero,
+        Tooltip(
+          message: TextesRegistreFacture.numeroInterne,
+          child: Text(
+            TextesRegistreFacture.numeroInterne,
+            key: Key('facturation-numero-interne-${piece.id}'),
+            style: _t(TaillesContenu.t10, couleur: AppColors.neutre400),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// `text-[11px] font-semibold px-2 py-0.5 rounded` — le bouton de ligne :
+/// « Facture A4 » (bordé) et « Avoir » (marine, `bg-[var(--navy)] text-white`).
+class _BoutonLigne extends StatelessWidget {
+  const _BoutonLigne({
+    required Key cle,
+    required this.libelle,
+    required this.onTap,
+    this.plein = false,
+  }) : super(key: cle);
+
+  final String libelle;
+  final VoidCallback onTap;
+  final bool plein;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: plein ? AppColors.navy : Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadius.rounded),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.rounded),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xs,
+            vertical: AppSpacing.demi,
+          ),
+          decoration: plein
+              ? null
+              : BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.rounded),
+                  border: Border.all(color: AppColors.neutre300),
+                ),
+          child: Text(
+            libelle,
+            softWrap: false,
+            maxLines: 1,
+            style: _t(
+              TaillesContenu.t11,
+              poids: FontWeight.w600,
+              couleur: plein ? AppColors.neutre0 : AppColors.neutre500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Une rangée de cellules `px-4`, aux parts de largeur de la vue, après la
-/// colonne réservée à la case de sélection.
+/// colonne de la case de sélection.
 class _Rangee extends StatelessWidget {
-  const _Rangee({required this.cellules});
+  const _Rangee({required this.cellules, required this.debut});
 
   final List<Widget> cellules;
+
+  /// Le contenu de la colonne de sélection (`w-10`) : la case.
+  final Widget debut;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const SizedBox(width: AppLayout.colonneSelection),
+        SizedBox(
+          width: AppLayout.colonneSelection,
+          child: Align(alignment: Alignment.centerLeft, child: debut),
+        ),
         for (var i = 0; i < cellules.length; i++)
-          Expanded(
+          _CelluleFixeOuSouple(
+            // N° et actions : largeur FIXE (le N° tient sur une ligne, « Facture A4 » et « Avoir » ne
+            // passent plus à la ligne lettre par lettre) ; les autres colonnes se partagent le reste.
+            largeurFixe: i == 0
+                ? AppLayout.colonneNumeroFacture
+                : i == 8
+                ? AppLayout.colonneActionsFacture
+                : null,
             flex: _Registre._parts[i],
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
@@ -693,3 +1030,21 @@ Future<void> afficherTicket(BuildContext context, PieceFacturation piece) =>
       context: context,
       builder: (context) => VueTicket(piece: piece),
     );
+
+/// Une colonne du registre : [largeurFixe] si elle en a une, sinon une part (`flex`) du reste.
+class _CelluleFixeOuSouple extends StatelessWidget {
+  const _CelluleFixeOuSouple({
+    required this.largeurFixe,
+    required this.flex,
+    required this.child,
+  });
+
+  final double? largeurFixe;
+  final int flex;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => largeurFixe == null
+      ? Expanded(flex: flex, child: child)
+      : SizedBox(width: largeurFixe, child: child);
+}

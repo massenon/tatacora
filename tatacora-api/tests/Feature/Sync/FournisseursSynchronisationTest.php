@@ -97,21 +97,22 @@ final class FournisseursSynchronisationTest extends TestCase
      * (M7 = 'L') sont refusés, et chaque refus est tracé.
      */
     #[Test]
-    public function sans_ecriture_sur_m7_aucun_fournisseur_n_est_synchronise(): void
+    public function un_fournisseur_n_est_pas_juge_sur_le_module_du_compte_d_appairage(): void
     {
+        // Décision du PO du 09/11/2026 : `receptionniste` et `comptable` (M7 sans écriture)
+        // voient leur fournisseur accepté ; le droit se juge au poste, aucun refus n'est tracé.
         foreach (['receptionniste', 'comptable'] as $role) {
             $utilisateur = $this->creerUtilisateur($role);
 
             $this->synchroniser([$this->creation((string) Str::uuid(), ['raison_sociale' => 'Fournisseur ' . $role])], $utilisateur)
-                ->assertJsonPath('resultats.0.statut', 'rejete')
-                ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
+                ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-            $this->assertDatabaseHas('journal_securite', [
-                'type_evenement' => 'acces_refuse_rbac', 'utilisateur_id' => $utilisateur->id, 'module_concerne' => 'M7',
+            $this->assertDatabaseMissing('journal_securite', [
+                'type_evenement' => 'acces_refuse_rbac', 'utilisateur_id' => $utilisateur->id,
             ]);
         }
 
-        $this->assertSame(0, Fournisseur::count());
+        $this->assertSame(2, Fournisseur::count());
     }
 
     // ------------------------------------------------------------ Fusion sur clé naturelle
@@ -303,15 +304,17 @@ final class FournisseursSynchronisationTest extends TestCase
      * l'écran PWA. Le droit `C` sur M7 ne suffit pas.
      */
     #[Test]
-    public function un_role_sans_droit_d_archivage_ne_range_pas_un_fournisseur(): void
+    public function l_archivage_d_un_fournisseur_ne_juge_pas_le_compte_d_appairage(): void
     {
+        // La règle d'archivage de la directive du 03/09/2026 (`DroitArchivageService`) reste celle
+        // du web et du poste ; le serveur ne la juge plus (décision du PO du 09/11/2026). Les verrous
+        // d'engagement du service, eux, tiennent (test suivant).
         $serveur = $this->fournisseurServeur('Quincaillerie Centrale');
 
         $this->synchroniser([$this->operation('modification', $serveur->id, ['actif' => false])])
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('pwa.archivage.refus_bascule'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertTrue($serveur->fresh()->actif);
+        $this->assertFalse($serveur->fresh()->actif);
     }
 
     /**

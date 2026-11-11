@@ -111,7 +111,7 @@
         --}}
         <div class="hidden print:block mb-6 border-b-2 border-[var(--navy)] pb-4">
           <h2 class="text-xl font-bold" style="color:var(--navy)">TATACORA AFRIQUE — GÎTE CHEZ NOËL</h2>
-          <p class="text-xs text-slate-600 mt-1">{{ __('stocks_pwa.liste.titre') }} — {{ now()->format('d/m/Y H:i') }}</p>
+          <p class="text-xs text-slate-600 mt-1">{{ __('stocks_pwa.liste.titre') }} — {{ \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i') }}</p>
         </div>
 
         {{-- ===================== EN-TÊTE DE PAGE — maître l.22-38 ===================== --}}
@@ -231,7 +231,7 @@
 
             <button type="button" wire:click="ouvrirImport"
                     class="text-[12px] px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('stocks_pwa.liste.importer') }}</button>
-            <button type="button" wire:click="telechargerModeleCsv"
+            <button type="button" wire:click="telechargerModele"
                     class="text-[12px] px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('stocks_pwa.liste.modele') }}</button>
             {{-- ⚠ DÉROGATION PO du 01/09/2026 — les deux boutons du maître
                  (`m6-stocks.html` l.65-66, « Excel » / « PDF ») sont
@@ -749,7 +749,7 @@
                   largeur="560px">
       <div>
         <label class="block text-[11px] font-semibold text-slate-500 mb-1">{{ __('stocks_pwa.import.fichier') }}</label>
-        <input type="file" accept=".csv,text/csv" wire:model="fichierImport"
+        <input type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" wire:model="fichierImport"
                class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5">
         <p class="text-[11px] text-slate-400 mt-1">{{ __('stocks_pwa.import.colonnes', ['colonnes' => implode(' ; ', App\Pwa\Livewire\Stocks\Stocks::COLONNES_IMPORT)]) }}</p>
         @error('fichierImport') <p class="text-[11px] text-red-600 mt-1">{{ $message }}</p> @enderror

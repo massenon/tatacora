@@ -166,6 +166,13 @@ DB::beginTransaction();
 try {
     (new RolePermissionSeeder())->run();
 
+    // Le comptable a les droits du gerant (PO 10/11/2026) : le role « qui ne ECRIT pas sur la caisse »
+    // du scenario est un role d'ESSAI (M5 en lecture seule), pose comme `TestCase::poserLeRoleLecteurDEssai`.
+    $lecteur = Role::create(['id' => (string) \Illuminate\Support\Str::uuid(), 'libelle' => 'lecteur']);
+    $lecteur->permissions()->syncWithoutDetaching(
+        \App\Shared\Rbac\Models\Permission::query()->where('module', 'M5')->where('action', 'lire')->pluck('id')->all()
+    );
+
     foreach ($scenario['ops'] as $op) {
         try {
             switch ($op['op']) {

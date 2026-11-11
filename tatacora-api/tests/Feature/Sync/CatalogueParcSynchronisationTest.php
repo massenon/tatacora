@@ -107,12 +107,13 @@ final class CatalogueParcSynchronisationTest extends TestCase
     }
 
     /**
-     * Adapté le 15/10/2026 (décision PO « offline-first total ») : la
-     * modification du parc n'est plus refusée par principe — elle l'est SANS
-     * le droit d'écriture sur M1, et appliquée par le service avec lui.
+     * Adapté le 15/10/2026 (décision PO « offline-first total ») : la modification du
+     * parc passe par le service. Réécrit le 09/11/2026 (décision du PO) : le serveur ne
+     * juge plus le droit M1 du compte d'appairage — `cuisine` (M1 = '-') et `comptable`
+     * (M1 = 'L') voient leur saisie acceptée, le droit se juge au poste.
      */
     #[Test]
-    public function sans_ecriture_sur_m1_le_parc_ne_remonte_pas_et_ne_se_modifie_pas(): void
+    public function le_parc_se_synchronise_sans_juger_le_module_du_compte_d_appairage(): void
     {
         $categorie = CategorieHebergement::create(['libelle' => 'Chambre', 'capacite_max' => 2, 'tarif_base' => '20000.00']);
 
@@ -120,16 +121,16 @@ final class CatalogueParcSynchronisationTest extends TestCase
         foreach (['cuisine', 'comptable'] as $role) {
             $this->pousser([
                 $this->creation('unites_hebergement', $this->uuid(), ['numero' => 'X-' . $role, 'categorie_id' => $categorie->id]),
-                $this->operation('categories_hebergement', 'modification', $categorie->id, ['tarif_base' => 1]),
+                $this->operation('categories_hebergement', 'modification', $categorie->id, ['tarif_base' => 1000 + strlen($role)]),
             ], $this->creerUtilisateur($role))
-                ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'))
-                ->assertJsonPath('resultats.1.motif', __('auth.module_refuse'));
+                ->assertJsonPath('resultats.0.statut', 'synchronise')
+                ->assertJsonPath('resultats.1.statut', 'synchronise');
         }
 
-        $this->assertSame(0, UniteHebergement::count());
-        $this->assertSame('20000.00', (string) $categorie->fresh()->tarif_base);
+        $this->assertSame(2, UniteHebergement::count());
+        $this->assertSame('1009.00', (string) $categorie->fresh()->tarif_base);
 
-        // Avec le droit : appliquée, partielle — la capacité ne bouge pas.
+        // Partielle : la capacité ne bouge pas.
         $this->pousser([$this->operation('categories_hebergement', 'modification', $categorie->id, ['tarif_base' => 25000])], $this->receptionniste)
             ->assertJsonPath('resultats.0.statut', 'synchronise');
 

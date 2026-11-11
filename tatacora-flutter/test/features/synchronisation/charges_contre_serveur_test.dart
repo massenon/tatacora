@@ -118,6 +118,9 @@ void main() {
       'creation vehicules',
       'creation contrats_location',
       'creation employes',
+      'creation plannings',
+      'creation conges',
+      'modification conges',
       'creation sejours',
       'creation ventes',
       'modification sejours',
@@ -130,6 +133,11 @@ void main() {
       'creation parametres_systeme',
       'creation roles',
       'modification roles',
+      'creation immobilisations',
+      'creation canaux_reservation',
+      'modification canaux_reservation',
+      'modification canaux_reservation',
+      'creation ventes',
     ]);
     expect(resultats, hasLength(operations.length));
   });
@@ -216,6 +224,96 @@ void main() {
     expect('${r['matricule']}', isNotEmpty);
     final ecrit = serveur('employes', s.employe);
     expect((ecrit['nom'], ecrit['salaire_base']), ('HOUNSOU', '150000.00'));
+    // L'e-mail facultatif (v45) monte normalisé (trim, minuscules) et le vrai
+    // serveur l'écrit sur la fiche.
+    expect(ecrit['email'], 'marceline.hounsou@exemple.bj');
+  });
+
+  test('M13 (21/10/2026) : le créneau est écrit par PlanningService, la '
+      'demande de congé est acceptée puis REFUSÉE et conservée', () {
+    final p = resultatDe('plannings', 'creation', s.planning);
+    expect(p['statut'], 'synchronise', reason: '$p');
+    final ecrit = serveur('plannings', s.planning);
+    expect('${ecrit['date']}'.substring(0, 10), '2026-10-23');
+    expect('${ecrit['heure_debut']}', startsWith('08:00'));
+
+    final c = resultatDe('conges', 'creation', s.conge);
+    expect(c['statut'], 'synchronise', reason: '$c');
+    final decision = resultatDe('conges', 'modification', s.conge);
+    expect(decision['statut'], 'synchronise', reason: '$decision');
+    final conge = serveur('conges', s.conge);
+    expect(conge['statut_validation'], 'refuse');
+    expect(conge['validateur_id'], isNotNull);
+  });
+
+  test('immobilisation (21/10/2026) : écrite par ImmobilisationService sous '
+      'l’UUID du poste, le code du serveur revient, la valeur en centimes '
+      'devient des francs décimaux', () {
+    final r = resultatDe('immobilisations', 'creation', s.immobilisation);
+    expect(r['statut'], 'synchronise', reason: '$r');
+    expect(r['code'], 'IMMO-2026-00001');
+    final ecrit = serveur('immobilisations', s.immobilisation);
+    expect(
+      (
+        ecrit['libelle'],
+        ecrit['valeur_origine'],
+        ecrit['duree_annees'],
+        ecrit['compte_immobilisation'],
+      ),
+      ('Toyota Land Cruiser Prado', '12000000.00', 5, '231'),
+    );
+    expect('${ecrit['date_mise_service']}', startsWith('2026-03-20'));
+  });
+
+  test('canaux de réservation (21/10/2026) : le canal naît sous l’UUID du '
+      'poste par CanalReservationService, se renomme par son ancien nom, se '
+      'désactive', () {
+    for (final type in ['creation', 'modification']) {
+      final r = resultatDe('canaux_reservation', type, s.canal);
+      expect(r['statut'], 'synchronise', reason: '$r');
+    }
+    final ecrit = serveur('canaux_reservation', s.canal);
+    expect((ecrit['nom'], '${ecrit['actif']}'), ('Agence Sahel', '0'));
+    expect(ecrit['id'], s.canal);
+  });
+
+  test('remise du panier (21/10/2026) : le serveur dérive le MÊME net, '
+      'encaisse 2 970 F et passe sa pièce dessus', () {
+    final charge =
+        operations.singleWhere(
+              (o) => o['entite_id'] == s.venteRemise,
+            )['payload']
+            as Map;
+    expect(
+      (charge['remise_type'], charge['remise_valeur']),
+      ('pourcentage', '10.00'),
+    );
+    // Le total annoncé est le NET (3 300 − 330) : le serveur le confronte.
+    expect(charge['montant_cloture'], 2970);
+    final r = resultatDe('ventes', 'creation', s.venteRemise);
+    expect(r['statut'], 'synchronise', reason: '$r');
+    expect(r['montant_total'], '2970.00');
+    expect(serveur('ventes', s.venteRemise)['montant_total'], '2970.00');
+  });
+
+  test('MENTION client du comptoir : la charge porte `client_nom`, le serveur '
+      'l’accepte et la range en `ventes.client_mention`, telle quelle', () {
+    final charge =
+        operations.singleWhere(
+              (o) => o['entite_id'] == s.venteRemise,
+            )['payload']
+            as Map;
+    expect(charge['client_nom'], mentionDuComptoir);
+    expect(
+      resultatDe('ventes', 'creation', s.venteRemise)['statut'],
+      'synchronise',
+    );
+    expect(
+      serveur('ventes', s.venteRemise)['client_mention'],
+      mentionDuComptoir,
+    );
+    // Une vente sans mention n'en reçoit pas : `null`, jamais une chaîne vide.
+    expect(serveur('ventes', s.vente)['client_mention'], isNull);
   });
 
   test('règlement fournisseur (audit) : écrit par le service, à la date du '

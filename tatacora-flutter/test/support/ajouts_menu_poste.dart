@@ -28,19 +28,13 @@ typedef AjoutMenuPoste = ({
 });
 
 /// Le registre. La clé est le libellé de l'entrée.
-const Map<String, AjoutMenuPoste> ajoutsMenuPoste = {
-  'Comptes utilisateurs': (
-    groupe: 'Pilotage & administration',
-    apres: 'Rôles & Permissions',
-    date: '14/10/2026',
-    raison:
-        'Lot J2, directive du PO : la PWA n’a AUCUN écran de gestion des '
-        'comptes (ni composant `app/Pwa`, ni vue, ni route `pwa.*`) ; sur ce '
-        'poste sans serveur, c’est le seul endroit où un administrateur crée, '
-        'désactive ou réinitialise un compte. Réservée aux rôles '
-        'd’administration (`rolesExiges`).',
-  ),
-};
+///
+/// VIDE depuis le 29/10/2026 : « Comptes utilisateurs » (Lot J2, 14/10/2026) était
+/// le seul ajout du poste ; la PWA l'a portée elle-même (option A du PO, mot de
+/// passe perdu SANS e-mail : `pwa.comptes-utilisateurs`, entrée du menu juste
+/// après « Rôles & Permissions »). La déclaration était périmée, comme ce fichier
+/// le prévoit, et a été retirée. Le registre reste, prêt pour le prochain ajout.
+const Map<String, AjoutMenuPoste> ajoutsMenuPoste = {};
 
 /// La page d'origine que porte un ajout du poste dans
 /// `navigation_tatacora.dart` — il n'a pas de page de la vue.

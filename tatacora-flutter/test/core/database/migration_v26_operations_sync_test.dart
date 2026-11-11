@@ -114,6 +114,19 @@ void main() {
       ...tablesAjouteesEnV27,
       ...tablesAjouteesEnV28,
       ...tablesAjouteesEnV29,
+      ...tablesAjouteesEnV31,
+      ...tablesAjouteesEnV32,
+      ...tablesAjouteesEnV33,
+      ...tablesAjouteesEnV34,
+      ...tablesAjouteesEnV35,
+      ...tablesAjouteesEnV37,
+      ...tablesAjouteesEnV38,
+      ...tablesAjouteesEnV39,
+      ...tablesAjouteesEnV40,
+      ...tablesAjouteesEnV44,
+      ...tablesAjouteesEnV46,
+      ...tablesAjouteesEnV52,
+      ...tablesAjouteesEnV53,
     });
     expect(
       await compte(apres, 'operations_sync_local'),
@@ -160,6 +173,9 @@ void main() {
       'id_serveur',
       'cree_le',
       'synchronise_le',
+      // v38 (26/10/2026) : l'auteur et le poste de l'écriture, nullables.
+      'auteur_login',
+      'poste_nom',
     ]);
     expect(colonnes['seq']!.pk, 1);
     for (final obligatoire in [
@@ -219,11 +235,14 @@ void main() {
           "('$uuid', 'clients', 'c', '$type', '{}', 'h', 0"
           "${statut == null ? '' : ", '$statut'"})",
         );
-    await expectLater(inserer('u-1', 'suppression'), throwsA(anything));
+    // Le registre des types est FERMÉ : un type inconnu est refusé. (« suppression »
+    // en fait partie depuis la v43 — la purge d'une unité ou d'un véhicule.)
+    await expectLater(inserer('u-1', 'effacement'), throwsA(anything));
     await expectLater(inserer('u-1', 'creation', 'perdu'), throwsA(anything));
     await inserer('u-1', 'creation');
     await expectLater(inserer('u-1', 'creation'), throwsA(anything));
-    expect(await compte(apres, 'operations_sync_local'), 1);
+    await inserer('u-2', 'suppression');
+    expect(await compte(apres, 'operations_sync_local'), 2);
     await apres.close();
   });
 

@@ -4,7 +4,7 @@
 ///
 /// Ordre et classes de la vue : `relative hidden md:block mr-3` ; la boîte
 /// `flex items-center gap-2 bg-white/10 border border-white/15 rounded-lg px-3
-/// py-1.5 w-64 focus-within:border-white/40`, sa loupe 14 px, le champ
+/// py-1.5 w-[125px] focus-within:border-white/40`, sa loupe 14 px, le champ
 /// `text-xs text-white placeholder-white/40` ; le panneau `absolute left-0
 /// top-11 w-[420px] max-w-[90vw] bg-white rounded-xl shadow-2xl border
 /// border-slate-100`, ouvert au focus et à la saisie, refermé par un clic
@@ -29,6 +29,8 @@ import '../../../core/theme/app_durations.dart';
 import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/mesures_fenetre.dart';
+import '../../../core/fenetre/libelles_fenetre.dart';
 import '../data/recherche_globale_dao.dart';
 import '../domain/recherche_globale.dart';
 
@@ -39,7 +41,12 @@ final rechercheGlobaleDaoProvider = Provider<RechercheGlobaleDao>(
 
 /// Le champ et son panneau.
 class RechercheGlobaleBarre extends ConsumerStatefulWidget {
-  const RechercheGlobaleBarre({super.key});
+  const RechercheGlobaleBarre({this.iconeSeule = false, super.key});
+
+  /// Fenêtre étroite (repli par priorité de la barre supérieure, 09/11/2026) :
+  /// une icône de 32 px ; elle ouvre le champ PAR-DESSUS la barre, avec le même
+  /// panneau de résultats.
+  final bool iconeSeule;
 
   @override
   ConsumerState<RechercheGlobaleBarre> createState() => _EtatRechercheGlobale();
@@ -50,6 +57,10 @@ class _EtatRechercheGlobale extends ConsumerState<RechercheGlobaleBarre> {
   final _focus = FocusNode();
   final _portail = OverlayPortalController();
   final _lien = LayerLink();
+
+  /// Le champ déplié par-dessus la barre (mode icône) : le panneau s'y accroche.
+  final _lienChamp = LayerLink();
+  bool _deplie = false;
   final _groupe = Object();
   Timer? _attente;
 
@@ -81,6 +92,13 @@ class _EtatRechercheGlobale extends ConsumerState<RechercheGlobaleBarre> {
 
   void _fermer() {
     if (_portail.isShowing) _portail.hide();
+    if (_deplie) setState(() => _deplie = false);
+  }
+
+  /// Mode icône : déplie le champ et lui donne le focus.
+  void _deplier() {
+    setState(() => _deplie = true);
+    _ouvrir();
   }
 
   /// `@input="ouvert = true"` puis la relecture après 250 ms de calme.
@@ -169,7 +187,7 @@ class _EtatRechercheGlobale extends ConsumerState<RechercheGlobaleBarre> {
 
     final champ = Container(
       key: const Key('recherche-globale'),
-      width: MesuresBarreSuperieure.champRecherche,
+      width: widget.iconeSeule ? null : MesuresBarreSuperieure.champRecherche,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm, // px-3
         vertical: AppSpacing.xxs, // py-1.5
@@ -196,6 +214,7 @@ class _EtatRechercheGlobale extends ConsumerState<RechercheGlobaleBarre> {
           Expanded(
             child: TextField(
               key: const Key('recherche-globale-champ'),
+              autofocus: widget.iconeSeule,
               controller: _champ,
               focusNode: _focus,
               onChanged: _saisie,
@@ -217,6 +236,8 @@ class _EtatRechercheGlobale extends ConsumerState<RechercheGlobaleBarre> {
                   fontSize: Tailles.t12,
                   height: Tailles.interligneXsHorsMain,
                   letterSpacing: 0,
+                  // `text-ellipsis` de la vue : l'invite ne déborde jamais.
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
@@ -224,6 +245,49 @@ class _EtatRechercheGlobale extends ConsumerState<RechercheGlobaleBarre> {
         ],
       ),
     );
+
+    if (widget.iconeSeule) {
+      return TapRegion(
+        groupId: _groupe,
+        onTapOutside: (_) => _fermer(),
+        child: OverlayPortal(
+          controller: _portail,
+          overlayChildBuilder: (context) => _deplie
+              ? Positioned.fill(
+                  child: Stack(
+                    children: [
+                      _champDeplie(context, champ),
+                      _panneau(context, _lienChamp),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(),
+          child: Tooltip(
+            message: LibellesCoquille.rechercheInvite,
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                key: const Key('recherche-globale-icone'),
+                onTap: _deplier,
+                child: SizedBox(
+                  width: MesuresFenetre.hauteurMinimale,
+                  height: MesuresFenetre.hauteurMinimale,
+                  child: Center(
+                    child: IconeTrace(
+                      trace: TracesCoquille.loupe,
+                      taille: AppLayout.iconeBarreSuperieure,
+                      couleur: blanc.withValues(
+                        alpha: OpacitesBarreSuperieure.loupe,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return TapRegion(
       groupId: _groupe,
@@ -233,7 +297,7 @@ class _EtatRechercheGlobale extends ConsumerState<RechercheGlobaleBarre> {
         link: _lien,
         child: OverlayPortal(
           controller: _portail,
-          overlayChildBuilder: (context) => _panneau(context),
+          overlayChildBuilder: (context) => _panneau(context, _lien),
           child: Padding(
             padding: const EdgeInsets.only(right: AppSpacing.sm), // mr-3
             child: champ,
@@ -245,7 +309,57 @@ class _EtatRechercheGlobale extends ConsumerState<RechercheGlobaleBarre> {
 
   /// Le panneau. Rien n'est rendu tant que le champ est vide (la vue le
   /// masque, `style="display:none"`).
-  Widget _panneau(BuildContext context) {
+  /// Mode icône : le champ occupe la largeur de la fenêtre, à la place de la
+  /// barre, et son panneau de résultats s'accroche dessous.
+  Widget _champDeplie(BuildContext context, Widget champ) {
+    return Positioned(
+      left: 0,
+      right: 0,
+      top: 0,
+      height: AppLayout.hauteurBarreSuperieure,
+      child: TapRegion(
+        groupId: _groupe,
+        child: ColoredBox(
+          color: AppColors.navy,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            child: CompositedTransformTarget(
+              link: _lienChamp,
+              child: Row(
+                children: [
+                  Expanded(child: champ),
+                  Tooltip(
+                    message: LibellesFenetre.fermerRecherche,
+                    child: InkWell(
+                      key: const Key('recherche-globale-fermer'),
+                      onTap: _reinitialiser,
+                      child: SizedBox(
+                        width: MesuresFenetre.hauteurMinimale,
+                        height: MesuresFenetre.hauteurMinimale,
+                        child: Center(
+                          child: IconeTrace(
+                            trace: TracesFenetre.fermer,
+                            taille: MesuresFenetre.icone,
+                            epaisseur: MesuresFenetre.epaisseurTrace,
+                            couleur: AppColors.neutre0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _panneau(BuildContext context, LayerLink lien) {
     if (_champ.text.trim().isEmpty) return const SizedBox.shrink();
     final largeur =
         MediaQuery.sizeOf(context).width *
@@ -255,7 +369,7 @@ class _EtatRechercheGlobale extends ConsumerState<RechercheGlobaleBarre> {
       left: 0,
       top: 0,
       child: CompositedTransformFollower(
-        link: _lien,
+        link: lien,
         showWhenUnlinked: false,
         offset: const Offset(
           0,

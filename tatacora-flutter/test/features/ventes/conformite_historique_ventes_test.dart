@@ -263,52 +263,49 @@ void main() {
       );
     });
 
-    test(
-      '⚠ le registre d’activités du client est PLUS LARGE que celui qu’encaisse '
-      'le serveur',
-      () {
-        // `VenteService::MODULES_ENCAISSABLES` ne connaît que M4 et M5 : le
-        // serveur n'encaisse au comptoir que du bar et du restaurant. Le panier
-        // de ce client accepte en plus M8 et M9 (règle 4 : bar, restaurant,
-        // tourisme et location tiennent dans la même addition). Le filtre suit
-        // le registre du CLIENT.
-        final modules = RegExp(r"'(M[0-9]+)'")
-            .allMatches(
-              venteService().substring(
+    test('⚠ le registre d’activités du client est CELUI qu’encaisse le serveur '
+        '(tourisme et location encaissables depuis le 22/10/2026)', () {
+      // `VenteService::MODULES_ENCAISSABLES` vaut M4, M5, M8, M9 depuis le
+      // 22/10/2026 (directive du PO : tourisme et location encaissables au
+      // comptoir) : le registre du client et celui du serveur COÏNCIDENT.
+      // Avant cette date le client était plus large (M8 et M9 offerts au
+      // panier, refusés à la clôture) ; l'écart est refermé.
+      final modules = RegExp(r"'(M[0-9]+)'")
+          .allMatches(
+            venteService().substring(
+              venteService().indexOf('const MODULES_ENCAISSABLES'),
+              venteService().indexOf(
+                ';',
                 venteService().indexOf('const MODULES_ENCAISSABLES'),
-                venteService().indexOf(
-                  ';',
-                  venteService().indexOf('const MODULES_ENCAISSABLES'),
-                ),
               ),
-            )
-            .map((m) => m.group(1)!)
-            .toSet();
+            ),
+          )
+          .map((m) => m.group(1)!)
+          .toSet();
 
-        expect(modules, isNotEmpty);
-        final duClient = ModuleVendable.values.map((m) => m.code).toSet();
+      expect(modules, isNotEmpty);
+      final duClient = ModuleVendable.values.map((m) => m.code).toSet();
 
-        expect(
-          modules.difference(duClient),
-          isEmpty,
-          reason:
-              'le serveur encaisse une activité que ce client ne sait pas '
-              'porter : une vente s’afficherait sans activité',
-        );
-        expect(
-          duClient.difference(modules),
-          isNotEmpty,
-          reason:
-              'l’élargissement est délibéré et documenté ; s’il disparaissait, '
-              'c’est que `ModuleVendable` aurait rétréci',
-        );
+      expect(
+        modules.difference(duClient),
+        isEmpty,
+        reason:
+            'le serveur encaisse une activité que ce client ne sait pas '
+            'porter : une vente s’afficherait sans activité',
+      );
+      expect(
+        duClient.difference(modules),
+        isEmpty,
+        reason:
+            'le client offre une activité que le serveur n’encaisse pas : '
+            'elle serait refusée à la synchronisation',
+      );
 
-        // ⚠ Et M1 n'est offert NULLE PART : la nuitée est engagée à la
-        // réservation, pas encaissée au comptoir.
-        expect(duClient, isNot(contains('M1')));
-        expect(modules, isNot(contains('M1')));
-      },
-    );
+      // ⚠ Et M1 n'est offert NULLE PART : la nuitée est engagée à la
+      // réservation, pas encaissée au comptoir.
+      expect(duClient, isNot(contains('M1')));
+      expect(modules, isNot(contains('M1')));
+    });
 
     test(
       '⚠ le libellé de M8 diverge de la PWA, et il n’y a QU’UN registre',
@@ -496,23 +493,18 @@ void main() {
       );
     });
 
-    test('le badge « stock ✕ » de la vue existe, et n’est pas porté', () {
-      // L'écart est réel des deux côtés : la vue le pose, ce client ne le
-      // rend pas, et il le NOMME. Sans ce cas, quelqu'un le rajouterait un jour
-      // sans savoir qu'il ne s'afficherait jamais.
+    test('le badge « stock ✕ » de la vue existe, et EST porté', () {
+      // Porté depuis le 21/10/2026 : la vue le pose sur les lignes sans lien
+      // au stock, et `table_ventes.dart` le rend (clé `vente-badge-stock`).
       expect(_texteVisible(maitre()), contains('stock ✕'));
 
-      // Le panneau « Ce que cet écran ne rend pas » n'est plus affiché (Phase 2,
-      // 08/10/2026) : le refus est NOMMÉ dans l'en-tête de `table_ventes.dart`
-      // (commentaire, relu ici en brut). Depuis le 14/10/2026 (directive du
-      // PO), aucune référence interne « PA-134 » n'est plus affichée : la carte
-      // « Sans impact stock » dit « Non tenu ici ».
-      final enTete = File(
+      final table = File(
         'lib/features/ventes/presentation/widgets/table_ventes.dart',
       ).readAsStringSync();
-      expect(enTete, contains('Le badge « stock ✕ »'));
+      expect(table, contains("'stock ✕'"));
+      expect(table, contains('vente-badge-stock'));
       expect(codeDart(), isNot(contains('PA-134')));
-      expect(codeDart(), contains('Non tenu ici'));
+      expect(codeDart(), contains('Toutes les ventes ont décrémenté'));
     });
   });
 

@@ -656,6 +656,17 @@ class _ModaleCheckoutState extends ConsumerState<_ModaleCheckout> {
 /* « Payer » — `modale_payer` (l.1649-1683)                                */
 /* ====================================================================== */
 
+/// Les modes du `<select>` de la modale, aux mots de la vue
+/// (`pwa.clients.mode_especes|mode_mobile_money|mode_carte|mode_virement`) :
+/// le registre est rendu ICI, au fichier qui porte la modale, plutôt que lu
+/// dans l'entité — les libellés de la vue se relisent là où ils s'affichent.
+const Map<ModePaiementFacture, String> _libellesModesRecouvrement = {
+  ModePaiementFacture.especes: 'Espèces',
+  ModePaiementFacture.mobileMoney: 'Mobile Money',
+  ModePaiementFacture.carte: 'Carte',
+  ModePaiementFacture.virement: 'Virement bancaire',
+};
+
 /// `Accueil::ouvrirRecouvrementDuJour` / `confirmerRecouvrementDuJour` : le
 /// reste dû de la facture pré-rempli (`$facture->resteDu()`, la chaîne du
 /// serveur), « Espèces » par défaut, puis `EncaissementFactureService::
@@ -785,7 +796,8 @@ class _ModalePayerState extends ConsumerState<_ModalePayer> {
               key: const Key('tdb-payer-mode'),
               valeur: _mode,
               choix: [
-                for (final m in ModePaiementFacture.values) (m, m.libelle),
+                for (final m in ModePaiementFacture.values)
+                  (m, _libellesModesRecouvrement[m] ?? m.libelle),
               ],
               onChange: (m) {
                 if (m != null) setState(() => _mode = m);

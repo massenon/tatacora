@@ -78,7 +78,7 @@
             <span class="flex items-center gap-1.5 text-[13px]">
               <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
               <strong style="color:var(--navy)">{{ __('pos_pwa.comptant.caisse_ouverte', ['point' => PosComptant::POINT_CAISSE]) }}</strong>
-              <span class="text-slate-400">{{ __('pos_pwa.comptant.caisse_depuis', ['heure' => $session->date_ouverture->format('H:i')]) }}</span>
+              <span class="text-slate-400">{{ __('pos_pwa.comptant.caisse_depuis', ['heure' => \App\Shared\Support\HeureLocale::formater($session->date_ouverture, 'H:i')]) }}</span>
               {{--
                   ⚠ BUG CORRIGÉ (01/09/2026) — cette durée était un horodatage
                   FIGÉ au rendu serveur : « depuis 07:00 » restait affiché tel
@@ -308,9 +308,6 @@
               <span class="text-[9px] leading-none font-bold px-1 py-0.5 rounded" style="background:#FDF3E0;color:#B8891E">{{ __('pos_pwa.comptant.composition_provisoire_marque') }}</span>
               {{ __('pos_pwa.comptant.composition_provisoire_legende') }}
             </p>
-
-            {{-- ECART DECLARE ET DATE — voir `pos_pwa.comptant.sans_prix_provisoire`. --}}
-            <p class="mt-1.5 text-[11px] text-slate-400">{{ __('pos_pwa.comptant.sans_prix_provisoire') }}</p>
           </div>
         </section>
 
@@ -345,8 +342,6 @@
               @endif
             </p>
             <p class="text-[11px] text-slate-400 mt-0.5">{{ __('pos_pwa.comptant.panier_choisir') }}</p>
-            {{-- PA-161 : ce que le panier tient VRAIMENT, ni plus ni moins. --}}
-            <p class="text-[11px] text-slate-400 mt-0.5">{{ __('pos_pwa.comptant.panier_sur_ce_poste') }}</p>
           </div>
 
           <div class="flex-1 overflow-y-auto">
@@ -446,7 +441,7 @@
                     registre client. Voir `PosComptant::$clientMention`.
                 --}}
                 <label for="client-vente" class="block text-[11px] font-semibold text-slate-500 mb-1">{{ __('pos_pwa.comptant.client') }}</label>
-                <input id="client-vente" type="text" wire:model="clientMention"
+                <input id="client-vente" type="text" wire:model="clientMention" maxlength="255"
                        placeholder="{{ __('pos_pwa.comptant.client_mention_aide') }}"
                        class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2 bg-white">
               </div>
@@ -606,7 +601,7 @@
             @forelse ($ventesDeLaSession as $venteLigne)
               <tr class="border-b border-slate-100" wire:key="jour-{{ $venteLigne->id }}">
                 <td class="py-2 px-2 font-mono-tatacora text-[11px] text-slate-500">{{ $venteLigne->numero }}</td>
-                <td class="py-2 px-2 text-slate-500">{{ $venteLigne->created_at?->format('H:i') }}</td>
+                <td class="py-2 px-2 text-slate-500">{{ \App\Shared\Support\HeureLocale::formater($venteLigne->created_at, 'H:i') }}</td>
                 <td class="py-2 px-2 text-slate-500">{{ $venteLigne->table ?? '—' }}</td>
                 <td class="py-2 px-2 text-slate-500">{{ $modesPaiement[$venteLigne->mode_paiement] ?? $venteLigne->mode_paiement }}</td>
                 <td class="py-2 px-2 text-right font-medium tabular-nums text-slate-800">{{ MontantFcfa::format((string) $venteLigne->montant_total) }}</td>

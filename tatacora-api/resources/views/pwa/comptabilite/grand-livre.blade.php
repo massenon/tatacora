@@ -28,7 +28,7 @@
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1100px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         @include('pwa.comptabilite.partials.en-tete', [
             'tailleRetour' => 'text-[15px]',
@@ -109,6 +109,19 @@
                 <div class="py-16 text-center text-slate-400 text-sm">Ce compte n'a aucun mouvement sur l'exercice.</div>
               @endif
             </div>
+
+            @if ($grandLivre !== null && $grandLivre->soldeOuverture !== null)
+              @php($ouvertureProvisoire = $grandLivre->ouvertureProvisoire)
+  <div id="soldes-grand-livre" class="text-[13px] text-slate-600 mt-3 flex flex-wrap gap-x-6 gap-y-1">
+    <span>{{ __('pwa.comptabilite.solde_ouverture') }} :
+      <strong>{{ MontantFcfa::format(ltrim((string) $grandLivre->soldeOuverture, '-')) }} {{ MontantFcfa::estNegatif((string) $grandLivre->soldeOuverture) ? 'C' : 'D' }}</strong></span>
+    <span>{{ __('pwa.comptabilite.solde_cloture') }} :
+      <strong>{{ MontantFcfa::format(ltrim((string) $grandLivre->soldeCloture, '-')) }} {{ MontantFcfa::estNegatif((string) $grandLivre->soldeCloture) ? 'C' : 'D' }}</strong></span>
+  </div>
+  @if ($ouvertureProvisoire)
+    <p class="text-[12px] text-blue-800 mt-1">{{ __('pwa.comptabilite.ouverture_provisoire', ['annee' => $grandLivre->anneeOuverture]) }}</p>
+  @endif
+            @endif
 
             @if ($grandLivre !== null && $grandLivre->soldeOuverture === null)
               {{-- PA-148, cas `article7_le_solde_d_ouverture_est_inconnu_jamais_zero`.

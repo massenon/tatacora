@@ -278,6 +278,7 @@ final class OccurrenceDetectee {
     required this.reference,
     required this.destinataire,
     required this.variables,
+    this.adresseEmail,
   });
 
   /// L'identité STABLE de l'occurrence — « ce séjour-là ».
@@ -289,6 +290,11 @@ final class OccurrenceDetectee {
 
   final String destinataire;
   final Map<String, String> variables;
+
+  /// L'adresse e-mail RÉELLE du client, quand elle est connue — jamais le nom
+  /// d'affichage ([destinataire]). `null` : aucune adresse lue, l'e-mail ne
+  /// peut pas partir (le message reste à transmettre à la main).
+  final String? adresseEmail;
 }
 
 /// Les occurrences du jour pour ce déclencheur.
@@ -311,6 +317,7 @@ List<OccurrenceDetectee> detecterOccurrences({
   required DeclencheurNotification declencheur,
   required List<Reservation> reservations,
   required DateTime aujourdHui,
+  Map<String, String> emailsClients = const {},
 }) {
   final demain = aujourdHui.add(const Duration(days: 1));
 
@@ -322,6 +329,7 @@ List<OccurrenceDetectee> detecterOccurrences({
             OccurrenceDetectee(
               reference: '${declencheur.code}:${r.id}',
               destinataire: r.clientNom,
+              adresseEmail: emailsClients[r.clientId],
               variables: {
                 'client': r.clientNom,
                 'date_arrivee': formaterDate(r.periode.arrivee),
@@ -338,6 +346,7 @@ List<OccurrenceDetectee> detecterOccurrences({
             OccurrenceDetectee(
               reference: '${declencheur.code}:${r.id}',
               destinataire: r.clientNom,
+              adresseEmail: emailsClients[r.clientId],
               variables: {
                 'client': r.clientNom,
                 'date_depart': formaterDate(r.periode.depart),

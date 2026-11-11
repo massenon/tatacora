@@ -60,11 +60,21 @@ class _BandeauIncoherent extends StatelessWidget {
           const Icon(Icons.warning_amber_rounded, color: AppColors.erreur),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
-            child: Text(
-              'Cette fiche NE VAUT PAS JUSTIFICATIF : le cumul des mouvements '
-              'ne correspond pas au stock théorique. Un mouvement a été '
-              'écrit hors de l’écriture dédiée, donc sans le contrôle de '
-              'disponibilité.',
+            child: Text.rich(
+              TextSpan(
+                children: const [
+                  // Les mots de la vue (`incoherence`, `incoherence_detail`) :
+                  // le titre en gras, puis la phrase — lue AVANT les chiffres.
+                  TextSpan(
+                    text: 'Incohérence détectée.',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextSpan(
+                    text:
+                        ' Le solde progressif ne retombe pas sur le stock théorique. Un mouvement a été écrit hors du moteur de stock — ce document ne doit pas servir de justificatif.',
+                  ),
+                ],
+              ),
               style: Theme.of(
                 context,
               ).textTheme.labelMedium?.copyWith(color: AppColors.erreur),
@@ -150,7 +160,7 @@ class _Recapitulatif extends StatelessWidget {
               ),
               _Poste(
                 cle: 'valeur',
-                libelle: 'Valeur',
+                libelle: 'Valeur du stock théorique',
                 valeur: formaterFcfa(int.parse(fiche.valeurStockTheorique)),
                 accent: true,
               ),
@@ -210,8 +220,9 @@ class _Lignes extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           // « Aucun mouvement » n'est pas « pas de données » : le stock initial
-          // reste le stock théorique, et c'est une information.
-          'Aucun mouvement sur cette période — le stock théorique est celui du '
+          // reste le stock théorique, et c'est une information. La phrase de la
+          // vue (`aucun_mouvement`), puis ce qu'elle laisse entendre.
+          'Aucun mouvement sur cette période. Le stock théorique est celui du '
           'début de période.',
           style: Theme.of(context).textTheme.bodySmall,
           textAlign: TextAlign.center,
@@ -246,7 +257,13 @@ class _Lignes extends StatelessWidget {
               // widgets (piège 10).
               DataRow(
                 cells: [
-                  DataCell(Text(l.date, key: Key('fiche-ligne-$index'))),
+                  DataCell(
+                    Text(
+                      // `d/m/Y H:i`, comme la vue (l.400).
+                      dateHeureDeLaVue(l.date),
+                      key: Key('fiche-ligne-$index'),
+                    ),
+                  ),
                   DataCell(
                     Text(
                       // La décision de forcer une rupture se lit ICI : la

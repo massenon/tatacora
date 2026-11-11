@@ -14,7 +14,7 @@ void main() {
   setUp(() => base = AppDatabase.enMemoire());
   tearDown(() => base.close());
 
-  test('les 62 tables du périmètre offline sont créées', () async {
+  test('les 72 tables du périmètre offline sont créées', () async {
     // `allTables` reflète ce que Drift a réellement généré, pas ce qu'on
     // croit avoir déclaré.
     //
@@ -142,8 +142,42 @@ void main() {
     // 61 → 62 le 18/10/2026 : `occupations_tables_local` (v29, lot F6 —
     // l'occupation des tables par les autres postes ; auteur :
     // `AligneurCatalogue`).
-    expect(base.allTables.length, 62);
-    expect(base.schemaVersion, 29);
+    //
+    // 73 → 74 le 26/10/2026 : `historique_prix_carte_local` (v38 — l'historique
+    // des prix de la carte ; auteur : `HistoriquePrixCarteDao`).
+    //
+    // 74 → 75 le 26/10/2026 : `boite_envoi_emails_local` (v39 — la boîte
+    // d'envoi des e-mails de notification ; auteur : `BoiteEnvoiEmailsDao`).
+    //
+    // 75 → 76 : `clotures_exercices_local` (v40, la clôture d'exercice).
+    //
+    // v45 (28/10/2026) : deux colonnes (`email` d'un employé et d'un compte),
+    // AUCUNE table — le compte reste 77.
+    //
+    // 77 → 78 le 29/10/2026 : `journal_securite_local` (v46 — les gestes
+    // sensibles sur les comptes, mot de passe perdu SANS e-mail ; auteur :
+    // `JournalSecuriteDao`).
+    //
+    // v47 (30/10/2026) : une colonne (`description` d'un plat), AUCUNE table —
+    // le compte reste 78.
+    //
+    // v48 (03/11/2026, suppression de compte), v49 (profil) et v50
+    // (normalisation MECeF) : des COLONNES seulement, AUCUNE table — 78.
+    //
+    // v51 (07/11/2026, IFU du client) : des COLONNES seulement — 78.
+    // v52 (07/11/2026, facture proforma) : TROIS tables neuves (`proformas_local`,
+    // `lignes_proforma_local`, `sequences_proforma_local`) — 81.
+    //
+    // v53 (09/11/2026, affectations du résultat reçues) : UNE table neuve
+    // (`affectations_resultat_local`) — 82.
+    // v54 (09/11/2026, trois droits transverses ouverts à tous) : AUCUNE table — 82.
+    // v56 (09/11/2026, le coût des entrées de stock descend) : AUCUNE table — 82.
+    expect(base.allTables.length, 82);
+    // v57 (09/11/2026, valeur d'achat de référence) : UNE colonne nullable
+    // (`articles_local.prix_achat_reference`), AUCUNE table — 82.
+    // v58 (09/11/2026, l'auteur d'une annulation reçue) : UNE colonne nullable
+    // (`reservations_local.auteur_annulation_login`), AUCUNE table — 82.
+    expect(base.schemaVersion, 59);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

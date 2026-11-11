@@ -50,7 +50,7 @@ class ParametresEtablissementSeeder extends Seeder
         ['entreprise_raison_sociale', 'TATACORA AFRIQUE Gîte Chez Noël', null],
         ['entreprise_promoteur', 'NABOGOU Noel', null],
         ['communication_whatsapp', '0197355974', null],
-        ['entreprise_site_web', 'https://tatacora.com/', null],
+        ['entreprise_site_web', 'https://tatacora.com', null],
         ['email_smtp_hote', 'mail.logirestock.digitonpro.com', null],
         ['email_smtp_port', '587', null],
         // Vide dans le script ; « TLS » selon la directive PO du 14/10/2026.

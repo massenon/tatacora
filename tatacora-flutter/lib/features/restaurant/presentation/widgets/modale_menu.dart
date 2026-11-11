@@ -237,9 +237,7 @@ class _ModaleMenuState extends ConsumerState<_ModaleMenu> {
           const SizedBox(height: AppSpacing.xs),
           const Text(
             // `menu_aide_dates`.
-            "Facultatives : un menu permanent n'a pas de saison. Une fin "
-            'antérieure au début est refusée — la carte ne rendrait jamais '
-            'aucun plat.',
+            "Facultatives : un menu permanent n'a pas de saison. Une fin antérieure au début est refusée — la carte ne rendrait jamais aucun plat.",
             style: TextesModaleRestaurant.aide,
           ),
         ],

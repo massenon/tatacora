@@ -7,6 +7,7 @@ namespace App\Domain\Carte\Services;
 use App\Domain\Bar\Models\CarteBoisson;
 use App\Domain\Carte\Models\IndisponibiliteCarte;
 use App\Domain\Restaurant\Models\Plat;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -59,6 +60,8 @@ class DisponibiliteCarteService
         string $motif,
         ?string $commentaire = null,
         ?string $utilisateurId = null,
+        ?string $id = null,
+        ?CarbonInterface $date = null,
     ): IndisponibiliteCarte {
         if (! array_key_exists($motif, IndisponibiliteCarte::MOTIFS)) {
             // Registre fermé : un motif inconnu serait accepté par la colonne
@@ -70,7 +73,7 @@ class DisponibiliteCarteService
         $auteur = $this->auteur($utilisateurId);
         $colonne = $this->colonneCible($article);
 
-        return DB::transaction(function () use ($article, $colonne, $motif, $commentaire, $auteur): IndisponibiliteCarte {
+        return DB::transaction(function () use ($article, $colonne, $motif, $commentaire, $auteur, $id, $date): IndisponibiliteCarte {
             $enCours = IndisponibiliteCarte::query()
                 ->where($colonne, $article->getKey())
                 ->enCours()
@@ -85,12 +88,14 @@ class DisponibiliteCarteService
             }
 
             return IndisponibiliteCarte::create([
+                // Synchronisation (21/10/2026) : l'UUID et l'instant du POSTE.
+                ...($id !== null ? ['id' => $id] : []),
                 $colonne => $article->getKey(),
                 'motif' => $motif,
                 // Un commentaire vide n'est pas un commentaire : le stocker
                 // ferait apparaître une ligne de précision vide à l'écran.
                 'commentaire' => $this->commentaireOuNull($commentaire),
-                'date_indisponibilite' => now(),
+                'date_indisponibilite' => $date ?? now(),
                 'utilisateur_id' => $auteur,
             ]);
         });
@@ -104,11 +109,12 @@ class DisponibiliteCarteService
     public function rendreDisponible(
         CarteBoisson|Plat $article,
         ?string $utilisateurId = null,
+        ?CarbonInterface $date = null,
     ): IndisponibiliteCarte {
         $auteur = $this->auteur($utilisateurId);
         $colonne = $this->colonneCible($article);
 
-        return DB::transaction(function () use ($article, $colonne, $auteur): IndisponibiliteCarte {
+        return DB::transaction(function () use ($article, $colonne, $auteur, $date): IndisponibiliteCarte {
             $enCours = IndisponibiliteCarte::query()
                 ->where($colonne, $article->getKey())
                 ->enCours()
@@ -124,7 +130,7 @@ class DisponibiliteCarteService
             }
 
             $enCours->update([
-                'date_retour_disponibilite' => now(),
+                'date_retour_disponibilite' => $date ?? now(),
                 'utilisateur_retour_id' => $auteur,
             ]);
 

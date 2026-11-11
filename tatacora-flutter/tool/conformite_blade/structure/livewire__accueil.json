@@ -294,7 +294,7 @@
             },
             {
                 "type": "h2",
-                "texte": "📋 Récapitulatif de la journée — jeudi 8 octobre"
+                "texte": "📋 Récapitulatif de la journée — lundi 26 octobre"
             },
             {
                 "type": "p",
@@ -315,10 +315,6 @@
             {
                 "type": "p",
                 "texte": "Encaissé aujourd'hui"
-            },
-            {
-                "type": "p",
-                "texte": "Ventes encaissées du jour — les acomptes de réservation ne portent aucune date de règlement au schéma."
             },
             {
                 "type": "h2",

@@ -89,7 +89,7 @@
 
     <main class="flex-1 overflow-y-auto">
       {{-- maquette l.18 — 1100 px, la largeur du maître. --}}
-      <div class="max-w-[1100px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         {{-- maquette l.20-26 — l'engrenage et le titre sur une même ligne. --}}
         <div class="mb-6">
@@ -165,6 +165,15 @@
                       'colspan' => $ligne['definition']->cle === ReportHeaderService::CLE_ADRESSE,
                   ])
                 @endif
+                @if ($ligne['definition']->cle === 'facture_signature_affichee')
+                  <div class="sm:col-span-2 rounded-lg border border-slate-100 p-4" id="signature-cachet" data-bloc="signature-cachet">
+                    <p class="text-[15px] font-semibold text-slate-700">{{ __('pwa.parametres.signature_cachet_bloc_titre') }}</p>
+                    <p class="text-[13px] text-slate-500 mt-1 mb-3">{{ __('pwa.parametres.signature_cachet_bloc_aide') }}</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      @include('pwa.transverse.partials.images-signature-cachet')
+                    </div>
+                  </div>
+                @endif
               @endforeach
 
               <div class="sm:col-span-2 pt-3 mt-1 border-t border-slate-100"><h3 class="text-sm font-bold text-slate-700 mb-1">{{ __('pwa.parametres.section_legal') }}</h3></div>
@@ -180,6 +189,55 @@
               @foreach (($groupesOnglet['fiscalite'] ?? []) as $ligne)
                 @include('pwa.transverse._parametre_ligne', ['ligne' => $ligne, 'colspan' => false])
               @endforeach
+
+              {{-- FACTURATION NORMALISÉE (MECeF) — section ajoutée le 07/11/2026
+                   (décision du PO : trois modes, un réglage au serveur, descendu
+                   aux postes en lecture). Le mode et les réglages non secrets sont
+                   des lignes du registre ; le JETON e-MECeF, lui, est un secret :
+                   chiffré, jamais rendu, jamais descendu. Modification réservée aux
+                   Administrateurs. structure-ajout:parametres.html#mecef --}}
+              <div class="sm:col-span-2 pt-3 mt-1 border-t border-slate-100"><h3 class="text-sm font-bold text-slate-700 mb-1">{{ __('pwa.parametres.section_mecef') }}</h3></div>
+              @foreach (($groupesOnglet['mecef'] ?? []) as $ligne)
+                @include('pwa.transverse._parametre_ligne', ['ligne' => $ligne, 'colspan' => false, 'peutEcrire' => $peutSaisirSecret])
+              @endforeach
+
+              <div class="groupe-champ sm:col-span-2" id="mecef-jeton" data-panneau="mecef-jeton">
+                <p class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.mecef_jeton_libelle') }}</p>
+                {{-- La SAISIE du jeton vit dans une modale (aucun champ au premier GET,
+                     Article 6) ; l'écran ne montre que l'ÉTAT. --}}
+                @if ($peutSaisirSecret)
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" wire:click="ouvrirSaisieJetonMecef" wire:loading.attr="disabled"
+                            class="btn px-3 py-2.5 rounded-lg bg-[var(--navy)] text-white text-[13px] font-semibold">{{ __('pwa.parametres.mecef_jeton_invite') }}</button>
+                    @if ($etatJetonMecef['renseigne'])
+                      <button type="button" wire:click="demanderEffacementJetonMecef" wire:loading.attr="disabled"
+                              class="btn px-3 py-2.5 rounded-lg border border-slate-200 text-[13px] font-semibold text-slate-600">{{ __('pwa.parametres.mecef_jeton_effacer') }}</button>
+                    @endif
+                  </div>
+                @endif
+                @error('jetonMecef') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+                <p class="text-[13px] text-slate-600 mt-1.5">
+                  @if ($etatJetonMecef['renseigne'])
+                    {{ __('pwa.parametres.mecef_jeton_renseigne', ['date' => \App\Shared\Support\HeureLocale::formater($etatJetonMecef['modifie_le'], 'd/m/Y H:i') ?? '—']) }}
+                  @else
+                    {{ __('pwa.parametres.mecef_jeton_absent') }}
+                  @endif
+                </p>
+                @unless ($peutSaisirSecret)
+                  <p class="text-[12px] text-slate-400 mt-1">{{ __('pwa.parametres.mecef_jeton_reserve') }}</p>
+                @endunless
+                <p class="text-[12px] text-slate-400 mt-1.5">{{ __('pwa.parametres.mecef_jeton_mention') }}</p>
+              </div>
+
+              <div class="sm:col-span-2">
+                @if ($peutSaisirSecret)
+                  <button type="button" wire:click="testerConnexionMecef" wire:loading.attr="disabled"
+                          class="btn px-4 py-2.5 rounded-lg border border-slate-200 text-[15px] font-semibold text-slate-600">{{ __('pwa.parametres.mecef_test_bouton') }}</button>
+                @endif
+                @if ($resultatTestMecef !== null)
+                  <p class="text-[13px] mt-2 font-semibold" style="color:{{ $resultatTestMecef['succes'] ? '#1B5E20' : '#8C1D1D' }}">{{ $resultatTestMecef['detail'] }}</p>
+                @endif
+              </div>
             </div>
 
         @elseif ($onglet === 'communication')
@@ -192,30 +250,10 @@
                 @include('pwa.transverse._parametre_ligne', ['ligne' => $whatsapp, 'colspan' => false])
               @endif
 
-              {{-- « Clé API WhatsApp Business » (maquette l.73-74) — rendue en
-                   ligne, REFUSÉE comme valeur : un secret n'entre jamais dans
-                   `parametres_systeme` (voir l'entête, #communication). --}}
-              <div class="groupe-champ">
-                <p class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.communication_cle_api_libelle') }}</p>
-                <p class="text-[13px] font-mono-tatacora px-2.5 py-1 rounded bg-slate-100 text-slate-400 inline-block">—</p>
-                <p class="text-[12px] text-slate-400 mt-1.5">{{ __('pwa.parametres.communication_cle_api_mention') }}</p>
-              </div>
-
               @php($siteWeb = $ligneDe($groupesOnglet['entreprise'] ?? [], ReportHeaderService::CLE_SITE_WEB))
               @if ($siteWeb !== null)
                 @include('pwa.transverse._parametre_ligne', ['ligne' => $siteWeb, 'colspan' => true])
               @endif
-
-              {{-- « Message de bienvenue » (maquette l.77-78) — non porté : les
-                   messages automatiques vivent dans les MODÈLES du module
-                   Notifications (`modeles_notification`, un texte par
-                   déclencheur et par canal) ; une seconde source de texte ici
-                   divergerait de la première. Motif daté du 02/09/2026. --}}
-              <div class="groupe-champ sm:col-span-2">
-                <p class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.communication_message_libelle') }}</p>
-                <p class="text-[13px] font-mono-tatacora px-2.5 py-1 rounded bg-slate-100 text-slate-400 inline-block">—</p>
-                <p class="text-[12px] text-slate-400 mt-1.5">{{ __('pwa.parametres.communication_message_mention') }}</p>
-              </div>
             </div>
 
         @elseif ($onglet === 'email')
@@ -253,7 +291,7 @@
                 @endif
                 <p class="text-[13px] text-slate-600 mt-1.5">
                   @if ($etatMotDePasseSmtp['renseigne'])
-                    {{ __('pwa.parametres.email_motdepasse_renseigne', ['date' => $etatMotDePasseSmtp['modifie_le']?->format('d/m/Y H:i') ?? '—', 'par' => $etatMotDePasseSmtp['par'] ?? '—']) }}
+                    {{ __('pwa.parametres.email_motdepasse_renseigne', ['date' => \App\Shared\Support\HeureLocale::formater($etatMotDePasseSmtp['modifie_le'], 'd/m/Y H:i') ?? '—', 'par' => $etatMotDePasseSmtp['par'] ?? '—']) }}
                   @else
                     {{ __('pwa.parametres.email_motdepasse_absent') }}
                   @endif
@@ -281,6 +319,9 @@
                   <p class="text-[13px] mt-2 font-semibold" style="color:{{ $resultatTestEmail['succes'] ? '#1B5E20' : '#8C1D1D' }}">
                     {{ $resultatTestEmail['detail'] }}
                   </p>
+                  @if (! empty($resultatTestEmail['aide']))
+                    <p class="text-[13px] mt-1 text-slate-600">{{ $resultatTestEmail['aide'] }}</p>
+                  @endif
                 @endif
               </div>
             </div>
@@ -314,6 +355,7 @@
                   @endif
                 </div>
               </div>
+              @include('pwa.transverse.partials.images-signature-cachet')
               {{-- maquette l.121-130 — la charte, DÉJÀ en lecture seule au
                    maître, couleurs en dur comme chez lui (chap. 9.3.1). --}}
               <div class="sm:col-span-2 pt-2">
@@ -479,7 +521,6 @@
                  réel ne disparaît). --}}
             <div class="mt-5 pt-4 border-t border-slate-100">
               <h3 class="text-sm font-bold text-slate-700 mb-1">{{ __('pwa.parametres.section_social') }}</h3>
-              <p class="text-[12px] text-slate-400 mb-3">{{ __('pwa.parametres.section_hors_onglet') }}</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 @foreach (($groupesOnglet['social'] ?? []) as $ligne)
                   @include('pwa.transverse._parametre_ligne', ['ligne' => $ligne, 'colspan' => false])
@@ -488,13 +529,14 @@
             </div>
             <div class="mt-5 pt-4 border-t border-slate-100">
               <h3 class="text-sm font-bold text-slate-700 mb-1">{{ __('pwa.parametres.section_exploitation') }}</h3>
-              <p class="text-[12px] text-slate-400 mb-3">{{ __('pwa.parametres.section_hors_onglet') }}</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 @foreach (($groupesOnglet['exploitation'] ?? []) as $ligne)
                   @include('pwa.transverse._parametre_ligne', ['ligne' => $ligne, 'colspan' => false])
                 @endforeach
               </div>
             </div>
+
+            @include('pwa.transverse.partials.reinitialisation-donnees-test')
 
             {{-- maquette l.194-202 — le rappel du maître, avec son lien réel. --}}
             <div class="mt-5 pt-4 border-t border-slate-100">
@@ -533,6 +575,10 @@
       </div>
     </main>
   </div>
+
+  @if ($etatFormulaire === 'reinitialisation')
+    @include('pwa.transverse.partials.reinitialisation-modale')
+  @endif
 
   {{-- MODALE D'ÉDITION — derrière `@if`, jamais rendue au premier GET. --}}
   @if ($etatFormulaire === 'parametre' && $definitionEditee !== null)
@@ -619,6 +665,27 @@
 
   {{-- MODALE LOGO / FAVICON — le téléversement RÉEL (02/09/2026). Le champ
        `type="file"` ne vit QUE derrière ce `@if` (`RefuseLaSaisie`). --}}
+  @if (in_array($etatFormulaire, ['signature', 'cachet'], true))
+    @php($champImage = $etatFormulaire === 'signature' ? 'signatureTeleversee' : 'cachetTeleverse')
+    <x-pwa.modale
+        :titre="__('pwa.parametres.apparence_'.$etatFormulaire.'_bouton')"
+        :sousTitre="__('pwa.parametres.apparence_champ_image')"
+        largeur="440px">
+      <form wire:submit.prevent="{{ $etatFormulaire === 'signature' ? 'enregistrerSignature' : 'enregistrerCachet' }}" class="space-y-4">
+        <div>
+          <input type="file" wire:model="{{ $champImage }}" accept="image/png,image/jpeg,image/webp"
+                 class="champ w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
+          <div wire:loading wire:target="{{ $champImage }}" class="text-[12px] text-slate-400 mt-1">{{ __('pwa.parametres.apparence_televersement') }}</div>
+          @error($champImage) <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" wire:click="fermerModales" class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
+          <button type="submit" class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold">{{ __('parametres_pwa.enregistrer') }}</button>
+        </div>
+      </form>
+    </x-pwa.modale>
+  @endif
+
   @if ($etatFormulaire === 'logo' || $etatFormulaire === 'favicon')
     @php($estLogo = $etatFormulaire === 'logo')
     <x-pwa.modale
@@ -700,6 +767,37 @@
                 class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
         <button type="button" wire:click="retablirTables"
                 class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold">{{ __('pwa.parametres.tables_retablir_confirmer') }}</button>
+      </div>
+    </x-pwa.modale>
+  @endif
+
+  {{-- SAISIE du jeton e-MECeF — modale ; le champ est vidé dès l'enregistrement. --}}
+  @if ($saisieJetonMecef)
+    <x-pwa.modale :titre="__('pwa.parametres.mecef_jeton_libelle')" largeur="460px">
+      <form wire:submit="enregistrerJetonMecef" class="space-y-4">
+        <div>
+          <label for="jeton-mecef" class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.mecef_jeton_invite') }}</label>
+          <input id="jeton-mecef" type="password" autocomplete="new-password" wire:model="jetonMecef"
+                 class="champ w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
+          @error('jetonMecef') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" wire:click="fermerModales" class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
+          <button type="submit" class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold">{{ __('pwa.parametres.mecef_jeton_enregistrer') }}</button>
+        </div>
+      </form>
+    </x-pwa.modale>
+  @endif
+
+  {{-- CONFIRMATION « Effacer le jeton e-MECeF ? » — modale du dépôt, jamais `wire:confirm`. --}}
+  @if ($confirmationEffacerJetonMecef)
+    <x-pwa.modale :titre="__('pwa.parametres.mecef_jeton_effacer_titre')" largeur="420px">
+      <p class="text-sm text-slate-600">{{ __('pwa.parametres.mecef_jeton_effacer_message') }}</p>
+      <div class="flex justify-end gap-3 pt-4">
+        <button type="button" wire:click="$set('confirmationEffacerJetonMecef', false)"
+                class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
+        <button type="button" wire:click="effacerJetonMecef"
+                class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold">{{ __('pwa.parametres.mecef_jeton_effacer_confirmer') }}</button>
       </div>
     </x-pwa.modale>
   @endif

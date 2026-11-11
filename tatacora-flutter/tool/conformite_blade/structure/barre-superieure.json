@@ -17,7 +17,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -30,6 +30,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -59,7 +67,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -72,6 +80,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -106,16 +122,16 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
                     "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Synchroniser les postes"
                 },
                 {
                     "type": "a",
@@ -145,7 +161,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -158,6 +174,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -213,7 +237,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -238,6 +262,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -267,7 +299,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -292,6 +324,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -331,6 +371,10 @@
                 },
                 {
                     "type": "a",
+                    "texte": "Synchroniser les postes"
+                },
+                {
+                    "type": "a",
                     "texte": "Aide & À propos"
                 },
                 {
@@ -357,7 +401,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -382,6 +426,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -437,7 +489,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -462,6 +514,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -491,7 +551,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -516,6 +576,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -550,16 +618,16 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
                     "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Synchroniser les postes"
                 },
                 {
                     "type": "a",
@@ -589,7 +657,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -614,6 +682,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -669,7 +745,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -694,6 +770,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -723,7 +807,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -748,6 +832,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -782,16 +874,16 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
                     "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Synchroniser les postes"
                 },
                 {
                     "type": "a",
@@ -821,7 +913,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -846,6 +938,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -901,7 +1001,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -914,6 +1014,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -943,7 +1051,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -956,6 +1064,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -990,16 +1106,16 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
                     "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Synchroniser les postes"
                 },
                 {
                     "type": "a",
@@ -1029,7 +1145,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1042,6 +1158,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1097,7 +1221,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1122,6 +1246,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1151,7 +1283,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1176,6 +1308,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1215,6 +1355,10 @@
                 },
                 {
                     "type": "a",
+                    "texte": "Synchroniser les postes"
+                },
+                {
+                    "type": "a",
                     "texte": "Aide & À propos"
                 },
                 {
@@ -1241,7 +1385,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1266,6 +1410,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1321,7 +1473,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1334,6 +1486,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1363,7 +1523,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1376,6 +1536,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1410,12 +1578,8 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "span",
@@ -1424,6 +1588,10 @@
                 {
                     "type": "info-bulle",
                     "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "a",
+                    "texte": "Synchroniser les postes"
                 },
                 {
                     "type": "a",
@@ -1453,7 +1621,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1466,6 +1634,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1517,7 +1693,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1542,6 +1718,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1571,7 +1755,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1596,6 +1780,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1630,16 +1822,16 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
                     "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Synchroniser les postes"
                 },
                 {
                     "type": "a",
@@ -1669,7 +1861,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1694,6 +1886,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1749,7 +1949,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1774,6 +1974,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1803,7 +2011,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1828,6 +2036,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1862,16 +2078,16 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
                     "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Synchroniser les postes"
                 },
                 {
                     "type": "a",
@@ -1901,7 +2117,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1926,6 +2142,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1981,7 +2205,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -1994,6 +2218,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2019,7 +2251,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -2032,6 +2264,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2058,16 +2298,16 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
                     "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Synchroniser les postes"
                 },
                 {
                     "type": "a",
@@ -2097,7 +2337,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -2110,6 +2350,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2161,7 +2409,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -2186,6 +2434,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2215,7 +2471,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -2240,6 +2496,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2279,6 +2543,10 @@
                 },
                 {
                     "type": "a",
+                    "texte": "Synchroniser les postes"
+                },
+                {
+                    "type": "a",
                     "texte": "Aide & À propos"
                 },
                 {
@@ -2305,7 +2573,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -2330,6 +2598,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2385,7 +2661,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -2398,6 +2674,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2427,7 +2711,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -2440,6 +2724,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2474,16 +2766,16 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
                     "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Synchroniser les postes"
                 },
                 {
                     "type": "a",
@@ -2513,7 +2805,7 @@
                 },
                 {
                     "type": "p",
-                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                    "texte": "Système de gestion Intégré"
                 },
                 {
                     "type": "info-bulle",
@@ -2526,6 +2818,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",

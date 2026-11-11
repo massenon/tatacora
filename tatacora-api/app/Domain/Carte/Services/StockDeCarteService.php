@@ -97,7 +97,12 @@ final class StockDeCarteService
      *
      * @return array{stock: array<string, mixed>|null, reserve: string|null}
      */
-    public function etat(?Article $articleStock, ?string $conversion, ?PointStockage $point): array
+    public function etat(
+        ?Article $articleStock,
+        ?string $conversion,
+        ?PointStockage $point,
+        bool $illimiteSiVide = false,
+    ): array
     {
         if ($articleStock === null || $conversion === null) {
             return ['stock' => null, 'reserve' => null];
@@ -123,8 +128,14 @@ final class StockDeCarteService
             'solde' => $solde,
             'unites_vendables' => self::unitesVendables($solde, $conversion),
             'sous_seuil' => bccomp($solde, (string) ($articleStock->seuil_alerte ?? '0'), self::PRECISION_STOCK) <= 0,
-            'rupture' => bccomp($solde, '0', self::PRECISION_STOCK) <= 0,
+            // 09/11/2026 (PO) : un PLAT n'est JAMAIS en rupture — vendable, stock illimité par
+            // défaut ; seules les BOISSONS passent en rupture ($illimiteSiVide = vrai pour un plat).
+            'rupture' => ! $illimiteSiVide && bccomp($solde, '0', self::PRECISION_STOCK) <= 0,
+            'illimite' => $illimiteSiVide && bccomp($solde, '0', self::PRECISION_STOCK) <= 0,
         ];
+        if ($illimiteSiVide && $stock['illimite']) {
+            $stock['sous_seuil'] = false;
+        }
 
         if (! array_key_exists($identifiant, $this->totaux)) {
             try {

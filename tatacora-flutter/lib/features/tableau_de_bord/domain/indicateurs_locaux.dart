@@ -42,6 +42,7 @@ import '../../hebergement/domain/entities/service_reservation.dart';
 import '../../hebergement/domain/entities/unite_hebergement.dart';
 import '../../rh/domain/entities/employe.dart';
 import '../../stocks/domain/entities/etat_stock.dart';
+import 'entities/tableau_de_bord.dart' show PointMensuel;
 import 'periode_locale.dart';
 
 int _ordinal(DateTime d) =>
@@ -292,3 +293,75 @@ int facturesImpayeesDansLaFenetre(
   final e = c.piece.dateEmission;
   return fenetre.contientComme(DateTime(e.year, e.month, e.day));
 }).length;
+
+/// Une ligne d'écriture VALIDÉE de classe 6 (charge), pour « Dépenses
+/// cumulées » : sa date `AAAA-MM-JJ`, son débit et son crédit en centimes.
+final class ChargeDatee {
+  const ChargeDatee({
+    required this.date,
+    required this.debitCentimes,
+    required this.creditCentimes,
+  });
+
+  final String date;
+  final int debitCentimes;
+  final int creditCentimes;
+}
+
+/// « Dépenses cumulées » de la fenêtre, en centimes —
+/// `TableauDeBordService::depensesCumulees` : la somme DÉBIT − CRÉDIT des
+/// écritures validées de classe 6 dont la date tombe dans la fenêtre (un
+/// crédit de compte de charge est un avoir fournisseur, il vient en
+/// diminution). Les brouillons ne comptent pas (RG-12) : la liste reçue ne
+/// porte que des lignes validées.
+int depensesCumuleesCentimes(
+  List<ChargeDatee> charges,
+  FenetreTableauDeBord fenetre,
+) {
+  var total = 0;
+  for (final c in charges) {
+    final jour = DateTime.tryParse(c.date);
+    if (jour == null) continue;
+    // `whereBetween` du serveur : les DEUX bornes incluses, la fin comprise —
+    // une écriture du 1er du mois suivant tombe donc aussi dans le mois qui
+    // précède (particularité du serveur, répliquée comme pour les encaissements).
+    if (!fenetre.contientComme(DateTime(jour.year, jour.month, jour.day))) {
+      continue;
+    }
+    total += c.debitCentimes - c.creditCentimes;
+  }
+  return total;
+}
+
+/// `TableauDeBordService::serieMensuelle` : pour chacun des [mois] derniers
+/// mois (du plus ANCIEN au plus récent), le chiffre d'affaires encaissé et les
+/// dépenses — calculés par les MÊMES fonctions que la bande d'indicateurs, pour
+/// que la courbe et la bande ne puissent pas se contredire. Ancré au premier du
+/// mois : retrancher des mois à un 31 déborderait (relevé du 31/08/2026).
+List<PointMensuel> serieMensuelleLocale({
+  required List<PaiementFacture> encaissements,
+  required List<ChargeDatee> charges,
+  required int mois,
+  required DateTime reference,
+}) {
+  final nombre = mois < 1 ? 1 : (mois > 12 ? 12 : mois);
+  final premier = DateTime(reference.year, reference.month, 1);
+  final points = <PointMensuel>[];
+  for (var i = nombre - 1; i >= 0; i--) {
+    final debut = DateTime(premier.year, premier.month - i, 1);
+    final fin = DateTime(debut.year, debut.month + 1, 1);
+    final fenetre = FenetreTableauDeBord.entre(debut, fin);
+    points.add(
+      PointMensuel(
+        mois:
+            '${debut.year.toString().padLeft(4, '0')}-'
+            '${debut.month.toString().padLeft(2, '0')}',
+        chiffreAffaires: centiemesEnChaine(
+          chiffreAffairesEncaisseCentimes(encaissements, fenetre),
+        ),
+        depenses: centiemesEnChaine(depensesCumuleesCentimes(charges, fenetre)),
+      ),
+    );
+  }
+  return points;
+}

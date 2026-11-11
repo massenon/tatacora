@@ -3,196 +3,196 @@
   "roles": {
     "achats": {
       "barre": [
-        10,
+        12,
         7
       ],
       "menu": [
-        21,
+        23,
         17
       ],
       "cloche": [
-        16,
+        18,
         7
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "administrateur": {
       "barre": [
-        13,
+        15,
         10
       ],
       "menu": [
-        22,
-        19
+        25,
+        20
       ],
       "cloche": [
-        19,
+        21,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "barman": {
       "barre": [
-        13,
+        15,
         10
       ],
       "menu": [
-        24,
+        26,
         20
       ],
       "cloche": [
-        19,
+        21,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "comptable": {
       "barre": [
-        13,
+        15,
         10
       ],
       "menu": [
-        24,
+        26,
         20
       ],
       "cloche": [
-        19,
+        21,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "cuisine": {
       "barre": [
-        10,
+        12,
         7
       ],
       "menu": [
-        21,
+        23,
         17
       ],
       "cloche": [
-        16,
+        18,
         7
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "gerant": {
       "barre": [
-        13,
+        15,
         10
       ],
       "menu": [
-        22,
-        19
+        25,
+        20
       ],
       "cloche": [
-        19,
+        21,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "guide": {
       "barre": [
-        10,
+        12,
         7
-      ],
-      "menu": [
-        22,
-        19
-      ],
-      "cloche": [
-        15,
-        7
-      ],
-      "enTrop": 3
-    },
-    "magasinier": {
-      "barre": [
-        13,
-        10
       ],
       "menu": [
         24,
-        20
-      ],
-      "cloche": [
-        19,
-        10
-      ],
-      "enTrop": 3
-    },
-    "receptionniste": {
-      "barre": [
-        13,
-        10
-      ],
-      "menu": [
-        24,
-        20
-      ],
-      "cloche": [
-        19,
-        10
-      ],
-      "enTrop": 3
-    },
-    "rh": {
-      "barre": [
-        9,
-        6
-      ],
-      "menu": [
-        19,
-        15
-      ],
-      "cloche": [
-        15,
-        6
-      ],
-      "enTrop": 4
-    },
-    "super_admin": {
-      "barre": [
-        13,
-        10
-      ],
-      "menu": [
-        22,
-        19
-      ],
-      "cloche": [
-        19,
-        10
-      ],
-      "enTrop": 3
-    },
-    "vehicules": {
-      "barre": [
-        10,
-        7
-      ],
-      "menu": [
-        21,
         17
       ],
       "cloche": [
-        16,
+        17,
         7
       ],
+      "enTrop": 2
+    },
+    "magasinier": {
+      "barre": [
+        15,
+        10
+      ],
+      "menu": [
+        26,
+        20
+      ],
+      "cloche": [
+        21,
+        10
+      ],
+      "enTrop": 2
+    },
+    "receptionniste": {
+      "barre": [
+        15,
+        10
+      ],
+      "menu": [
+        26,
+        20
+      ],
+      "cloche": [
+        21,
+        10
+      ],
+      "enTrop": 2
+    },
+    "rh": {
+      "barre": [
+        11,
+        6
+      ],
+      "menu": [
+        21,
+        15
+      ],
+      "cloche": [
+        17,
+        6
+      ],
       "enTrop": 3
+    },
+    "super_admin": {
+      "barre": [
+        15,
+        10
+      ],
+      "menu": [
+        25,
+        20
+      ],
+      "cloche": [
+        21,
+        10
+      ],
+      "enTrop": 2
+    },
+    "vehicules": {
+      "barre": [
+        12,
+        7
+      ],
+      "menu": [
+        23,
+        17
+      ],
+      "cloche": [
+        18,
+        7
+      ],
+      "enTrop": 2
     }
   },
   "total": {
     "barre": [
-      140,
+      164,
       104
     ],
     "menu": [
-      266,
-      222
+      293,
+      223
     ],
     "cloche": [
-      211,
+      235,
       104
     ]
   }

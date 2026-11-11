@@ -10,7 +10,7 @@
             },
             {
                 "type": "p",
-                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
+                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés."
             },
             {
                 "type": "onglet",
@@ -26,11 +26,6 @@
                 "type": "onglet",
                 "texte": "Restaurer",
                 "cle": "restaurer"
-            },
-            {
-                "type": "onglet",
-                "texte": "Réinitialiser les données de test",
-                "cle": "seeders"
             },
             {
                 "type": "h2",
@@ -86,7 +81,7 @@
             },
             {
                 "type": "p",
-                "texte": "Le modèle porte les colonnes exactes et une ligne d'exemple. Il est généré depuis la même déclaration que le contrôle : il ne peut pas s'en écarter. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en ."
+                "texte": "Le modèle est un classeur Excel : une colonne par champ, une ligne d'exemple, et une feuille « Aide » qui détaille chaque colonne. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en ."
             },
             {
                 "type": "h2",
@@ -94,7 +89,7 @@
             },
             {
                 "type": "p",
-                "texte": "Formats acceptés : CSV (séparateur point-virgule ou virgule)."
+                "texte": "Formats acceptés : classeur Excel .xlsx (recommandé) ou CSV (séparateur point-virgule, virgule ou tabulation). Les colonnes sont repérées par leur nom."
             },
             {
                 "type": "p",
@@ -122,7 +117,7 @@
             },
             {
                 "type": "p",
-                "texte": "Enregistrez en CSV UTF-8. Sans cet encodage, les accents deviennent illisibles à la relecture."
+                "texte": "Enregistrez en classeur Excel (.xlsx). Les colonnes sont repérées par leur nom ; le CSV reste accepté en secours."
             },
             {
                 "type": "p",
@@ -152,7 +147,7 @@
             },
             {
                 "type": "p",
-                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
+                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés."
             },
             {
                 "type": "onglet",
@@ -170,13 +165,12 @@
                 "cle": "restaurer"
             },
             {
-                "type": "onglet",
-                "texte": "Réinitialiser les données de test",
-                "cle": "seeders"
+                "type": "p",
+                "texte": "Tables en base"
             },
             {
                 "type": "p",
-                "texte": "Tables en base"
+                "texte": "104"
             },
             {
                 "type": "p",
@@ -238,7 +232,7 @@
             },
             {
                 "type": "p",
-                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
+                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés."
             },
             {
                 "type": "onglet",
@@ -254,11 +248,6 @@
                 "type": "onglet",
                 "texte": "Restaurer",
                 "cle": "restaurer"
-            },
-            {
-                "type": "onglet",
-                "texte": "Réinitialiser les données de test",
-                "cle": "seeders"
             },
             {
                 "type": "p",
@@ -307,52 +296,6 @@
             {
                 "type": "td",
                 "texte": "Aucun élément archivé ne correspond."
-            }
-        ],
-        "seeders": [
-            {
-                "type": "h1",
-                "texte": "Import & Export"
-            },
-            {
-                "type": "p",
-                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
-            },
-            {
-                "type": "onglet",
-                "texte": "Importer les données",
-                "cle": "importer"
-            },
-            {
-                "type": "onglet",
-                "texte": "Sauvegardes de la base",
-                "cle": "sauvegardes"
-            },
-            {
-                "type": "onglet",
-                "texte": "Restaurer",
-                "cle": "restaurer"
-            },
-            {
-                "type": "onglet",
-                "texte": "Réinitialiser les données de test",
-                "cle": "seeders"
-            },
-            {
-                "type": "p",
-                "texte": "Réinitialisation désactivée"
-            },
-            {
-                "type": "p",
-                "texte": "Cette fonction vide les jeux de données de démonstration. Elle reste fermée par défaut : laissée ouverte sur une base d'exploitation réelle, elle détruirait le travail de l'entreprise."
-            },
-            {
-                "type": "p",
-                "texte": "Un administrateur peut l'ouvrir dans ."
-            },
-            {
-                "type": "a",
-                "texte": "Paramètres › Activation & Sécurité"
             }
         ]
     }

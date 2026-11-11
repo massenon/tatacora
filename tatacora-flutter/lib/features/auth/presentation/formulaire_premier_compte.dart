@@ -6,7 +6,11 @@ import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/mesures_connexion.dart';
 import '../../parametres/data/parametres_depot_local.dart';
+import '../../transverse/presentation/widgets/modale_secret_unique.dart';
+import '../impression/feuille_code_secours.dart';
+import '../domain/mot_de_passe_perdu.dart';
 import '../domain/session_repository.dart';
 
 /// La création du **premier compte**, sur un poste vierge.
@@ -70,7 +74,7 @@ class _EtatFormulairePremierCompte
     super.dispose();
   }
 
-  /// `C` sur les seize modules — écrits un par un, volontairement.
+  /// `C` sur les seize modules et les trois droits transverses — écrits un par un, volontairement.
   static const Map<String, String> _droitsAdministrateur = {
     'M1': 'C',
     'M2': 'C',
@@ -88,6 +92,10 @@ class _EtatFormulairePremierCompte
     'M14': 'C',
     'ROLES': 'C',
     'PARAM': 'C',
+    // Les trois entrées de menu ouvertes à tous (09/11/2026) : `C` pour l'administrateur.
+    'SYNCHRO': 'C',
+    'APPAIRAGE': 'C',
+    'IMPORT_EXPORT': 'C',
   };
 
   Future<void> _creer() async {
@@ -128,6 +136,42 @@ class _EtatFormulairePremierCompte
           ),
         );
       }
+      // LE CODE DE SECOURS (29/10/2026, option A du PO) : le premier compte est
+      // l'administrateur ; s'il perd son mot de passe, personne d'autre ne peut le
+      // réinitialiser. Le code à usage unique est affiché UNE seule fois — copier,
+      // imprimer, ranger au coffre —, seul son dérivé est stocké. Un échec n'empêche
+      // pas d'entrer : l'administrateur en génère un depuis « Mon profil → Code de
+      // secours ».
+      String? codeSecours;
+      try {
+        codeSecours = await ref
+            .read(codeSecoursProvider)
+            .poser(login: _login.text);
+      } on Object catch (e, pile) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: e,
+            stack: pile,
+            library: 'tatacora',
+            context: ErrorDescription(
+              'en posant le code de secours du premier compte',
+            ),
+          ),
+        );
+      }
+      if (codeSecours != null && mounted) {
+        final code = codeSecours;
+        final login = _login.text.trim().toLowerCase();
+        await ouvrirModaleSecretUnique(
+          context,
+          titre: MessagesMotDePassePerdu.codeSecoursAfficheTitre,
+          secret: code,
+          consigne: MessagesMotDePassePerdu.codeSecoursConsigne,
+          libelleFermer: MessagesMotDePassePerdu.codeSecoursFermer,
+          surImprimer: () => ref.read(imprimerCodeSecoursProvider)(code, login),
+          prefixeCle: 'premier-compte-code',
+        );
+      }
       // On enchaîne sur la connexion : demander de ressaisir ce qu'on vient de
       // taper serait une friction gratuite au premier contact avec le logiciel.
       await ref
@@ -154,7 +198,7 @@ class _EtatFormulairePremierCompte
             style: TextStyle(
               color: AppColors.navy,
               fontFamily: AppTextStyles.police,
-              fontSize: Tailles.t20,
+              fontSize: MesuresConnexion.tailleTitre,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -166,7 +210,7 @@ class _EtatFormulairePremierCompte
             style: TextStyle(
               color: AppColors.neutre500,
               fontFamily: AppTextStyles.police,
-              fontSize: Tailles.t15,
+              fontSize: MesuresConnexion.tailleTexte,
             ),
           ),
 
@@ -229,7 +273,7 @@ class _EtatFormulairePremierCompte
                 style: TextStyle(
                   color: AppColors.erreur,
                   fontFamily: AppTextStyles.police,
-                  fontSize: Tailles.t15,
+                  fontSize: MesuresConnexion.tailleTexte,
                 ),
               ),
             ),
@@ -238,6 +282,13 @@ class _EtatFormulairePremierCompte
           const SizedBox(height: AppSpacing.md),
           ElevatedButton(
             onPressed: _enCours ? null : _creer,
+            style: ElevatedButton.styleFrom(
+              textStyle: TextStyle(
+                fontFamily: AppTextStyles.police,
+                fontSize: MesuresConnexion.tailleBouton,
+                fontWeight: MesuresConnexion.poidsBouton,
+              ),
+            ),
             child: _enCours
                 ? const SizedBox(
                     height: 18,
@@ -258,7 +309,7 @@ class _EtatFormulairePremierCompte
             style: TextStyle(
               color: AppColors.neutre500,
               fontFamily: AppTextStyles.police,
-              fontSize: Tailles.t13,
+              fontSize: MesuresConnexion.tailleTexte,
             ),
           ),
         ],
@@ -289,15 +340,34 @@ class _EtatFormulairePremierCompte
           style: TextStyle(
             color: AppColors.neutre700,
             fontFamily: AppTextStyles.police,
-            fontSize: Tailles.t15,
-            fontWeight: FontWeight.w600,
+            fontSize: MesuresConnexion.tailleEtiquette,
+            fontWeight: MesuresConnexion.poidsEtiquette,
           ),
         ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controleur,
           obscureText: masque,
-          decoration: InputDecoration(hintText: indication),
+          // Texte de base du projet (13 px) : sans `style`, Material rend la
+          // saisie à 16 px (09/11/2026, demande du PO).
+          style: TextStyle(
+            fontFamily: AppTextStyles.police,
+            fontSize: MesuresConnexion.tailleTexte,
+            color: AppColors.neutre900,
+          ),
+          decoration: InputDecoration(
+            hintText: indication,
+            hintStyle: TextStyle(
+              fontFamily: AppTextStyles.police,
+              fontSize: MesuresConnexion.tailleTexte,
+              color: AppColors.neutre500,
+            ),
+            errorStyle: TextStyle(
+              fontFamily: AppTextStyles.police,
+              fontSize: MesuresConnexion.tailleTexte,
+              color: AppColors.erreur,
+            ),
+          ),
           validator: valider,
         ),
       ],

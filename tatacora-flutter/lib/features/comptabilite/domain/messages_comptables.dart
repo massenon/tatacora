@@ -70,7 +70,7 @@ abstract final class MessagesComptables {
     'depenses.exercice_clos':
         "L'exercice :annee est :statut : aucune écriture ne peut plus y être ajoutée. Datez la pièce sur un exercice ouvert, ou faites rouvrir celui-ci.",
     'depenses.centre_absent':
-        "Le compte :numero ne porte aucun centre de coût par défaut, et aucun centre n'a été précisé. RG-12 rend le centre de coût obligatoire : sans lui, la comptabilité analytique serait fausse sans qu'aucun total ne bouge.",
+        "Le compte :numero ne porte aucun centre de coût par défaut, et aucun centre n'a été précisé. Le centre de coût est obligatoire : sans lui, la comptabilité analytique serait faussée.",
   };
 
   /// La phrase de la clé [cle], variables remplacées.
@@ -86,6 +86,12 @@ abstract final class MessagesComptables {
         'Clé de langue comptable inconnue.',
       );
     }
+    return remplacer(gabarit, variables);
+  }
+
+  /// Le remplacement des variables d'un gabarit, tel que Laravel le fait —
+  /// partagé avec `MessagesCloture` (une seule règle de remplacement).
+  static String remplacer(String gabarit, Map<String, String> variables) {
     final noms = variables.keys.toList()
       ..sort((a, b) => b.length.compareTo(a.length));
     var texte = gabarit;
@@ -127,7 +133,7 @@ abstract final class PhrasesDuPoste {
 
   static const auteurAbsent =
       'Aucune écriture comptable sans auteur : chaque pièce nomme celui qui '
-      "l'a passée (RG-15).";
+      "l'a passée.";
 
   static String montantIllisible(String valeur) =>
       "Montant illisible : « $valeur ». Un montant s'écrit avec des chiffres "

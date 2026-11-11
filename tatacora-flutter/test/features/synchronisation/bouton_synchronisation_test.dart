@@ -144,7 +144,7 @@ void main() {
 
     Future<FauxTransport> monter(
       WidgetTester tester, {
-      Map<String, String> droits = const {'PARAM': 'C'},
+      Map<String, String> droits = const {'PARAM': 'C', 'SYNCHRO': 'L'},
       String role = 'administrateur',
     }) async {
       tester.view
@@ -283,8 +283,9 @@ void main() {
       );
     });
 
-    testWidgets('« Voir le détail » mène à /synchronisation ; absent pour un '
-        'compte sans accès à Paramètres, qui peut quand même synchroniser', (
+    testWidgets('« Voir le détail » mène à /synchronisation (droit SYNCHRO, '
+        'lecture pour tous les rôles par défaut depuis le 09/11/2026) ; absent '
+        'sans ce droit, le compte pouvant quand même synchroniser', (
       tester,
     ) async {
       await monter(tester);
@@ -296,7 +297,7 @@ void main() {
       expect(find.byKey(const Key('modale-synchronisation')), findsNothing);
     });
 
-    testWidgets('sans droit sur Paramètres : pas de détail, mais le bouton '
+    testWidgets('sans le droit SYNCHRO : pas de détail, mais le bouton '
         'd’envoi est actif', (tester) async {
       await monter(tester, droits: const {'M5': 'C'}, role: 'barman');
       await tester.tap(find.byKey(const Key('bouton-synchronisation')));

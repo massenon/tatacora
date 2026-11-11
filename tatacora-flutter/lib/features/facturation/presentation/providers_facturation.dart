@@ -2,17 +2,30 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
 import '../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/bloc_signature_a4.dart';
 import '../../../core/impression/entete_parametree.dart';
+import '../../parametres/data/parametres_dao.dart';
+import '../data/images_document_poste.dart';
+import '../domain/reglages_documents.dart';
 import '../../../core/theme/app_assets.dart';
 import '../../auth/domain/session.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
 import '../../pos/domain/entities/panier.dart';
 import '../data/facture_dao.dart';
 import '../data/facture_repository_local.dart';
+import '../data/lecteur_mode_facturation.dart';
+import '../data/service_facturation_en_ligne.dart';
+import '../data/service_normalisation.dart';
+import '../domain/acheteur_facture.dart';
+import '../domain/mode_facturation.dart';
+import '../../synchronisation/presentation/providers_synchronisation.dart';
+import 'package:drift/drift.dart' show Variable;
+import '../../transverse/data/configuration_poste.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../impression/etat_registre_factures.dart';
 import '../domain/repositories/facture_repository.dart';
@@ -30,6 +43,135 @@ import '../impression/facture_a4.dart';
 
 final factureDaoProvider = Provider<FactureDao>(
   (ref) => FactureDao(ref.watch(baseLocaleProvider)),
+);
+
+/// La normalisation par le boîtier CC300 de CE poste (07/11/2026). Aucune requête
+/// tant que le mode effectif du poste n'est pas « boîtier ». Remplaçable par un
+/// test (faux pilote).
+final serviceNormalisationProvider = Provider<ServiceNormalisation>(
+  (ref) => ServiceNormalisation(
+    ref.watch(baseLocaleProvider),
+    lecteur: LecteurModeFacturation(
+      ref.watch(baseLocaleProvider),
+      lecteur: LecteurConfigurationPoste(
+        chemin: ref.watch(cheminConfigurationPosteProvider),
+      ),
+    ),
+  ),
+);
+
+/// Les gestes qui ne se font QU'EN LIGNE (07/11/2026) : l'avoir d'une facture normalisée, et la
+/// normalisation e-MECeF demandée au serveur. Remplaçable par un test (faux serveur).
+final serviceFacturationEnLigneProvider = Provider<ServiceFacturationEnLigne>(
+  (ref) => ServiceFacturationEnLigne(
+    transport: ref.watch(transportSynchronisationProvider),
+    url: ref.watch(urlServeurSynchronisationProvider),
+    base: ref.watch(baseLocaleProvider),
+    demonstration: ref.watch(synchronisationInterditeProvider),
+    lecteur: LecteurConfigurationPoste(
+      chemin: ref.watch(cheminConfigurationPosteProvider),
+    ),
+    envoyerLaFile: () async {
+      await ref.read(syncManagerProvider).synchroniserMaintenant();
+    },
+    descendre: () async {
+      await ref.read(syncManagerProvider).synchroniserDescenteSeule();
+    },
+  ),
+);
+
+/// L'ACHETEUR saisi pour la PROCHAINE facture du POS au comptoir (décision du PO du 07/11/2026) :
+/// posé par le dialogue « IFU du client », lu par l'encaissement, remis à zéro après l'émission.
+final acheteurFactureProvider =
+    NotifierProvider<AcheteurFactureNotifier, AcheteurFacture>(
+      AcheteurFactureNotifier.new,
+    );
+
+final class AcheteurFactureNotifier extends Notifier<AcheteurFacture> {
+  @override
+  AcheteurFacture build() => AcheteurFacture.aucun;
+
+  void poser(AcheteurFacture acheteur) => state = acheteur;
+
+  void reinitialiser() => state = AcheteurFacture.aucun;
+}
+
+/// Ce que ce poste FAIT pour normaliser : le boîtier, le serveur (e-MECeF, en ligne), ou rien
+/// (mode désactivé = facture simple, sans bouton). Relu à chaque affichage.
+final certifieParProvider = FutureProvider.autoDispose<CertifiePar>((
+  ref,
+) async {
+  final etat = await LecteurModeFacturation(
+    ref.watch(baseLocaleProvider),
+    lecteur: LecteurConfigurationPoste(
+      chemin: ref.watch(cheminConfigurationPosteProvider),
+    ),
+  ).lire();
+  return etat.certifiePar;
+});
+
+/// L'IFU retenu sur la fiche d'un client (descendu du serveur), `null` si aucun : il préremplit
+/// l'IFU de la facture.
+Future<String?> ifuDeLaFiche(WidgetRef ref, String? clientId) async {
+  if (clientId == null) return null;
+  final base = ref.read(baseLocaleProvider);
+  final ligne = await base
+      .customSelect(
+        'SELECT ifu FROM clients_local WHERE id = ?',
+        variables: [Variable<String>(clientId)],
+      )
+      .getSingleOrNull();
+  final ifu = ligne?.data['ifu'];
+  return ifu is String && ifu.trim().isNotEmpty ? ifu.trim() : null;
+}
+
+/// « Normaliser maintenant », APRÈS l'émission : le boîtier de ce poste, ou le serveur (e-MECeF)
+/// quand le poste est en ligne. JAMAIS bloquant : toute issue, échec compris, devient une phrase ;
+/// la facture reste émise, « en attente », rejouable par le bouton « Normaliser ».
+Future<String?> normaliserMaintenant(
+  WidgetRef ref,
+  PieceFacturation piece,
+) async {
+  try {
+    final par = await ref.read(certifieParProvider.future);
+    switch (par) {
+      case CertifiePar.rien:
+        return null;
+      case CertifiePar.boitier:
+        final r = await ref
+            .read(serviceNormalisationProvider)
+            .normaliser(piece.id);
+        return switch (r) {
+          NormalisationFaite(:final piece) when piece.estNormalisee =>
+            'Facture ${piece.numero} normalisée.',
+          NormalisationFaite(:final piece) =>
+            'Facture émise, normalisation en attente : '
+                '${piece.normalisationMotif ?? 'à relancer avec « Normaliser »'}',
+          DejaNormalisee() => null,
+          NormalisationIgnoree() => null,
+        };
+      case CertifiePar.serveur:
+        final r = await ref
+            .read(serviceFacturationEnLigneProvider)
+            .normaliserParLeServeur(piece.id);
+        return switch (r) {
+          NormalisationServeur(:final piece) when piece.estNormalisee =>
+            'Facture ${piece.numero} normalisée.',
+          NormalisationServeur(:final motif) =>
+            'Facture émise, normalisation en attente : ${motif ?? 'à relancer'}',
+          RefusEnLigne(:final phrase) =>
+            'Facture émise, normalisation en attente : $phrase',
+          AvoirCree() => null,
+        };
+    }
+  } on Object catch (e) {
+    return 'Facture émise, normalisation en attente : $e';
+  }
+}
+
+/// Ce poste certifie-t-il par son boîtier ? Relu à chaque affichage du registre.
+final boitierActifProvider = FutureProvider.autoDispose<bool>(
+  (ref) => ref.watch(serviceNormalisationProvider).boitierActif(),
 );
 
 final depotFactureProvider = Provider<FactureRepository>(
@@ -53,12 +195,14 @@ final facturerProvider = Provider<Facturer>(
 /// L'aiguillage repose sur `typeVente`, **le même attribut** qui distingue les
 /// deux POS. Il n'y a donc aucune information nouvelle à tenir à jour.
 final emettrePourPanierProvider =
-    Provider<Future<PieceFacturation> Function(Panier)>(
-      (ref) => (panier) async {
+    Provider<
+      Future<PieceFacturation> Function(Panier, {AcheteurFacture acheteur})
+    >(
+      (ref) => (panier, {acheteur = AcheteurFacture.aucun}) async {
         final facturer = ref.read(facturerProvider);
 
         if (panier.typeVente == TypeVente.comptant) {
-          return facturer.emettreAuComptant(panier);
+          return facturer.emettreAuComptant(panier, acheteur: acheteur);
         }
 
         final reservationId = panier.reservationId;
@@ -85,7 +229,41 @@ final emettrePourPanierProvider =
         return facturer.emettrePourSejour(
           panier: panier,
           reservation: reservation,
+          acheteur: acheteur,
         );
+      },
+    );
+
+/// « Payer séparément » : l'émission de la facture des SEULES consommations d'un
+/// séjour (`Facturer.emettreConsommationsDuSejour`). Le même aiguillage que
+/// [emettrePourPanierProvider], pour un panier de séjour uniquement.
+final emettreConsommationsPourPanierProvider =
+    Provider<
+      Future<PieceFacturation> Function(Panier, {AcheteurFacture acheteur})
+    >(
+      (ref) => (panier, {acheteur = AcheteurFacture.aucun}) async {
+        final reservationId = panier.reservationId;
+        if (panier.typeVente != TypeVente.surSejour || reservationId == null) {
+          throw StateError(
+            'Seul un panier de séjour se facture sans son hébergement.',
+          );
+        }
+        final reservation = await ref
+            .read(depotReservationProvider)
+            .parId(reservationId);
+        if (reservation == null) {
+          throw StateError(
+            'La réservation $reservationId est introuvable localement : les '
+            'consommations ne peuvent pas être facturées à son client.',
+          );
+        }
+        return ref
+            .read(facturerProvider)
+            .emettreConsommationsDuSejour(
+              panier: panier,
+              reservation: reservation,
+              acheteur: acheteur,
+            );
       },
     );
 
@@ -144,6 +322,36 @@ final logoEtablissementProvider = FutureProvider<Uint8List?>((ref) async {
     return null;
   }
 });
+
+/// Les réglages des documents (activités, ville, référence, signataire, interrupteurs), descendus du
+/// serveur en lecture — relus à CHAQUE édition (autoDispose) : un réglage changé au serveur figure
+/// sur le document suivant, sans redémarrer le poste.
+final reglagesDocumentsProvider = FutureProvider.autoDispose<ReglagesDocuments>(
+  (ref) async => ReglagesDocuments.depuis(
+    Map<String, String?>.of(
+      await ParametresDao(ref.read(baseLocaleProvider)).lireTout(),
+    ),
+  ),
+);
+
+/// Le bloc signature d'un document A4 : `null` quand l'interrupteur est sur Non (ni nom, ni
+/// images) ; sinon nom, fonction et les images descendues, s'il y en a (PO, 07/11/2026).
+Future<BlocSignatureA4?> composerBlocSignature(
+  T Function<T>(ProviderListenable<T>) lire, {
+  required String? raisonSociale,
+  ReglagesDocuments? reglages,
+}) async {
+  final r =
+      reglages ??
+      await lire<Future<ReglagesDocuments>>(reglagesDocumentsProvider.future);
+  if (!r.signatureAffichee) return null;
+  return BlocSignatureA4.depuis(
+    r,
+    raisonSociale: raisonSociale ?? 'TATACORA AFRIQUE',
+    signature: await lire(signatureDocumentProvider.future),
+    cachet: await lire(cachetDocumentProvider.future),
+  );
+}
 
 /* ====================================================================== */
 /* Filtres — des COLONNES, jamais des entrepôts                            */
@@ -206,6 +414,72 @@ final class _ModuleFiltreNotifier extends Notifier<ModuleFacturable?> {
 
   void definir(ModuleFacturable? module) => state = module;
 }
+
+/// La SÉLECTION du registre — identifiants cochés (`Facturation::$selection`).
+///
+/// Elle n'écrit rien : c'est le périmètre que « Exporter » reprend, comme le
+/// conseil de la modale d'export de la vue (« utilisez la case à cocher du
+/// tableau pour n'exporter qu'une sélection »).
+///
+/// ## Un filtre qui change la remet à zéro
+///
+/// La vue la vide quand la recherche ou l'activité change (`updated()`) : sans
+/// cela, une sélection faite sous un filtre précédent survivrait, invisible, et
+/// l'export porterait sur des lignes que personne ne voit (PA-119). Le notifier
+/// LIT les trois filtres du poste (recherche, activité, origine) : en changer un
+/// reconstruit l'état, donc le vide.
+final selectionFacturesProvider =
+    NotifierProvider<SelectionFacturesNotifier, Set<String>>(
+      SelectionFacturesNotifier.new,
+    );
+
+final class SelectionFacturesNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() {
+    ref
+      ..watch(rechercheFactureProvider)
+      ..watch(moduleFiltreProvider)
+      ..watch(origineFiltreeProvider);
+    return const {};
+  }
+
+  void basculer(String id) {
+    final suivant = {...state};
+    if (!suivant.remove(id)) suivant.add(id);
+    state = suivant;
+  }
+
+  /// La case d'en-tête : coche (ou décoche) les pièces de la PAGE affichée.
+  void definirPage(Iterable<String> ids, {required bool coche}) {
+    final suivant = {...state};
+    if (coche) {
+      suivant.addAll(ids);
+    } else {
+      suivant.removeAll(ids);
+    }
+    state = suivant;
+  }
+
+  void vider() => state = const {};
+}
+
+/// Combien d'avoirs chaque facture porte, par NUMÉRO de la facture — le
+/// `facture->avoirs->count()` de la vue (« 2 avoir(s) » à côté du statut).
+///
+/// Lu sur le registre ENTIER, filtres exclus : l'avoir d'une facture peut ne
+/// pas passer la recherche tapée, et le décompte de la facture ne doit pas
+/// bouger avec elle.
+final avoirsParFactureProvider = FutureProvider<Map<String, int>>((ref) async {
+  // Relu après chaque écriture du registre.
+  ref.watch(registreProvider);
+  final pieces = await ref.watch(depotFactureProvider).pieces();
+  final decompte = <String, int>{};
+  for (final p in pieces) {
+    final de = p.avoirDe;
+    if (de != null) decompte[de] = (decompte[de] ?? 0) + 1;
+  }
+  return decompte;
+});
 
 /* ====================================================================== */
 /* Lectures                                                                */
@@ -278,7 +552,10 @@ final registreProvider = FutureProvider<List<PieceFacturation>>((ref) async {
           return false;
         }
         if (terme.isNotEmpty) {
-          final champs = '${p.numero} ${p.clientNom}'.toLowerCase();
+          // Le numéro interne ET le numéro fiscal : une facture non normalisée n'a que le premier, une normalisée
+          // est citée par le second (comme la recherche du registre web).
+          final champs = '${p.numero} ${p.numeroMecef ?? ''} ${p.clientNom}'
+              .toLowerCase();
           if (!champs.contains(terme)) return false;
         }
         // `any` et non `every` : une facture qui recouvre une chambre ET des
@@ -290,6 +567,26 @@ final registreProvider = FutureProvider<List<PieceFacturation>>((ref) async {
       })
       .toList(growable: false);
 });
+
+/// Combien de factures existent HORS de l'exercice consulté — l'explication d'un registre vide qui n'est pas
+/// « aucune facture » : le sélecteur d'exercice borne ce qui se lit, et l'écran doit le dire plutôt que taire.
+/// Les avoirs ne comptent pas (au web, ils sont une autre table). `annee` : celle de l'exercice consulté.
+final facturesHorsExerciceProvider = FutureProvider<({int nombre, int annee})?>(
+  (ref) async {
+    ref.watch(registreProvider);
+    final exercice = ref.watch(exerciceConsulteProvider);
+    if (exercice == null) return null;
+    final pieces = await ref.watch(depotFactureProvider).pieces();
+    final nombre = pieces
+        .where(
+          (p) =>
+              p.avoirDe == null &&
+              !dansLExercice(exercice, p.dateEmission.toIso8601String()),
+        )
+        .length;
+    return (nombre: nombre, annee: exercice.annee);
+  },
+);
 
 final kpisFacturationProvider = FutureProvider<KpisFacturation>(
   (ref) => KpisFacturation.calculer(ref.watch(depotFactureProvider)),

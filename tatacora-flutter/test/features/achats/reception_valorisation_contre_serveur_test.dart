@@ -34,14 +34,18 @@ import '../comptabilite/support/outils_comptabilite.dart';
 /// que, sur le MÊME scénario, le poste et le serveur rendent les mêmes stocks,
 /// les mêmes coûts, les mêmes derniers prix et les mêmes valeurs.
 ///
-/// ## Ce que le test épingle aussi : deux phrases FAUSSES du serveur
+/// ## Ce que le test épingle aussi : les phrases du serveur sont VRAIES
 ///
-/// Le message de succès (`achats_pwa.appro.reception_enregistree`) dit « stock et
-/// coût moyen pondéré mis à jour », et le sous-titre de l'onglet Réceptions « une
+/// Jusqu'au 09/11/2026 le serveur DISAIT le contraire de ce qu'il fait : le
+/// message de succès (`achats_pwa.appro.reception_enregistree`) annonçait « stock
+/// et coût moyen pondéré mis à jour », le sous-titre de l'onglet Réceptions « une
 /// entrée de stock valorisée au prix de la commande, qui a recalculé le coût
-/// moyen pondéré ». Le même scénario montre que le coût n'a pas bougé. Le test
-/// le ÉCRIT : le jour où le serveur corrige l'une ou l'autre, il échoue et force
-/// à retirer l'écart du ticket (D266). Aucune de ces phrases n'est corrigée ici.
+/// moyen pondéré » et l'aide de la modale « met à jour le coût moyen pondéré au
+/// prix de cette commande ». Le même scénario montre que le coût n'a pas bougé :
+/// la règle d'honnêteté prévaut (D265/D276), les trois phrases du web ont été
+/// remplacées par la phrase vraie, identique à celle du poste. Le test exécute le
+/// serveur, relève que le coût n'a pas bougé, et exige que NI le web NI le poste
+/// n'affirme le contraire : le jour où le web réintroduit la fausseté, il rougit.
 ///
 /// ## Le « coût 0.0000 » du serveur et le « — » du poste
 ///
@@ -202,27 +206,42 @@ void main() {
     expect(_a(apres, 'a3')['stock'], '30.00');
   });
 
-  test('le serveur DIT le contraire de ce qu’il fait (D266) — épinglé', () {
+  test('le serveur DIT ce qu’il fait : phrases VRAIES, identiques au poste '
+      '(D266 → D276 soldé)', () {
     final lib =
         (serveur[0] as Map<String, dynamic>)['libelles']
             as Map<String, dynamic>;
-    // Les deux phrases fausses, telles que le serveur les écrit.
+    // Les phrases du serveur, telles qu'il les écrit aujourd'hui : elles ne
+    // prétendent plus que la réception touche au coût.
     expect(
       lib['reception_enregistree'],
-      contains('coût moyen pondéré mis à jour'),
+      'Réception enregistrée (:conformite) — stock mis à jour.',
     );
     expect(
       lib['receptions_detail'],
-      contains('valorisée au prix de la commande'),
+      'Chaque réception a généré une entrée de stock, non valorisée : le coût '
+      "moyen pondéré de l'article n'est pas recalculé à la réception.",
     );
     expect(
       lib['form_avertissement_double'],
-      contains('met à jour le coût moyen'),
+      "La réception génère l'entrée de stock ; le coût moyen pondéré n'est pas "
+      'recalculé à la réception. Ne saisissez pas le stock une seconde fois '
+      "dans l'écran Stocks : la quantité serait comptée deux fois.",
     );
-    // Et le poste ne les REPRODUIT PAS (D276, décision du Lead : la règle
-    // d'honnêteté de l'argent prévaut sur la fidélité littérale) : aucun
-    // gabarit de succès n'est porté, aucune des trois affirmations n'est dans
-    // le code rendu du module.
+    for (final phrase in lib.values.cast<String>()) {
+      for (final fausse in const [
+        'valorisée au prix de la commande',
+        'recalculé le coût moyen',
+        'met à jour le coût moyen',
+        'coût moyen pondéré mis à jour',
+      ]) {
+        expect(phrase, isNot(contains(fausse)), reason: fausse);
+      }
+    }
+    // Et le poste ne reproduit aucune fausseté (D276, décision du Lead : la
+    // règle d'honnêteté de l'argent) : aucun gabarit de succès n'est porté,
+    // aucune des affirmations fausses n'est dans le code rendu du module, et
+    // les deux phrases du poste sont celles du serveur (conformite_achats_test).
     // R-G (D285) : tout `lib/`, plus le seul module des achats.
     // Balayage non vide, et qui dépasse réellement M7 : le même plancher que
     // `conformite_achats_test.dart` (R6 du contrôle du 12/10/2026). Un
@@ -249,20 +268,22 @@ void main() {
     ]) {
       expect(code, isNot(contains(fausse)), reason: fausse);
     }
-    // Preuve que ces phrases mentent : le même scénario, le coût n'a pas bougé.
+    // Preuve que les anciennes phrases mentaient : le même scénario, le coût n'a
+    // pas bougé.
     final apres = _etat(serveur, scenario, rang: 4);
     expect(_a(apres, 'a1')['cmp'], '500.0000');
   });
 
-  test('la modale se ferme sans erreur au serveur comme au poste ; le message '
-      'de succès du serveur n’est PAS porté (D276)', () {
+  test('la modale se ferme sans erreur au serveur comme au poste ; le poste '
+      'n’a aucun toast de succès', () {
     final i = scenario.indexWhere((o) => o['op'] == 'reception_pwa');
     final s = serveur[i] as Map<String, dynamic>;
     expect(s['modale_fermee'], isTrue);
     expect(s['erreurs'], isEmpty);
-    // Le serveur affiche un succès qui ment sur le coût...
-    expect(s['succes'], contains('coût moyen pondéré mis à jour'));
-    // ...le poste, lui, ferme la modale et ne dit rien de tel.
+    // Le serveur affiche un succès désormais vrai (le stock, pas le coût)...
+    expect(s['succes'], contains('stock mis à jour'));
+    expect(s['succes'], isNot(contains('coût moyen')));
+    // ...le poste, lui, ferme la modale sans toast.
     expect(local[i]['modale_fermee'], isTrue);
     expect(local[i].containsKey('succes'), isFalse);
   });
@@ -504,8 +525,8 @@ Future<List<Map<String, Object?>>> _rejouerSurLePoste(
 Map<String, Object?> _normaliserServeur(Map<String, dynamic> brut) {
   final r = Map<String, Object?>.from(brut);
   if (r.containsKey('libelles')) return {'libelles': 'rien'};
-  // Le message de succès du serveur n'est pas porté (D276) : il affirme une
-  // mise à jour du coût moyen pondéré que la réception ne fait pas.
+  // Le message de succès du serveur n'est pas porté : le poste n'a aucun toast
+  // de réception (la modale se ferme et rend le bon).
   r.remove('succes');
   if (r['refus'] != null) {
     return {'refus': 'RuntimeException', 'message': r['message']};

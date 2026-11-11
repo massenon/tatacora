@@ -200,10 +200,37 @@ void main() {
     // `@elseif ($onglet === 'tables')` de `transverse/parametres.blade.php`
     // (l.322), dans `<main>` (fermé l.507) — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_espaces_tables.dart',
-    // L'onglet « Synchronisation » (lot F2a, 15/10/2026) : un AJOUT du poste,
-    // rendu dans la carte du formulaire de Paramètres comme les autres
-    // onglets, donc dans `<main>` — échelle EFFECTIVE.
+    // La section « Appairage du poste » (ex-onglet des Paramètres, déplacée le 09/11/2026 dans l'écran
+    // « Appairage Postes » du menu) (lot F2a, 15/10/2026) : un AJOUT du poste, rendue dans la carte de
+    // l'écran, donc dans `<main>` — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_synchronisation.dart',
+    // Les cartes « Adresse du serveur » et « Synchronisation automatique »
+    // (29/10/2026) : portées par l'onglet ci-dessus, dans `<main>` — échelle
+    // EFFECTIVE.
+    'lib/features/parametres/presentation/widgets/cartes_adresse_serveur.dart',
+    // La section « Réinitialiser les données de test » (09/11/2026, revenue d'Import & Export) :
+    // dans l'onglet « Activation & Sécurité » de Paramètres, donc dans `<main>` — échelle
+    // EFFECTIVE (sa modale vivait déjà dans le fichier d'Import & Export, classé dans ce camp).
+    'lib/features/parametres/presentation/widgets/section_reinitialisation.dart',
+    // L'indicateur d'état et le bouton « Normaliser / Réessayer » du registre des
+    // factures (07/11/2026) : dans la cellule « Statut » et la colonne d'actions de
+    // la vue de la facturation, dans `<main>` — échelle EFFECTIVE.
+    'lib/features/facturation/presentation/widgets/normalisation_piece.dart',
+    // La section « Facturation normalisée (MECeF) » (07/11/2026) : le jeton (mention),
+    // le réglage local et la carte du boîtier, dans la carte du panneau
+    // `@if ($onglet === 'identite')` de la vue de Paramètres, dans `<main>` —
+    // échelle EFFECTIVE.
+    'lib/features/parametres/presentation/widgets/section_facturation_normalisee.dart',
+    // L'onglet « Logo & Apparence » (21/10/2026) : le panneau
+    // `@elseif ($onglet === 'apparence')` de la vue de Paramètres, dans
+    // `<main>` — échelle EFFECTIVE. Sa modale n'emploie que les styles de
+    // `TextesModaleRestaurant`.
+    'lib/features/parametres/presentation/widgets/onglet_apparence.dart',
+    // L'onglet « Canaux de réservation » et le bouton « Envoyer un email de
+    // test » (21/10/2026) : les panneaux `@elseif ($onglet === 'canaux')` et
+    // `'email'` de la vue de Paramètres, dans `<main>` — échelle EFFECTIVE.
+    'lib/features/parametres/presentation/widgets/onglet_canaux.dart',
+    'lib/features/parametres/presentation/widgets/bouton_email_test.dart',
     // Le champ « Mot de passe SMTP » de l'onglet Email (SMTP) (19/10/2026) :
     // le bloc `groupe-champ` du panneau `@elseif ($onglet === 'email')` de
     // la vue de Paramètres, dans `<main>` — échelle EFFECTIVE.
@@ -250,6 +277,9 @@ void main() {
     // écran n° 5) : corps de page ; le ticket ouvert depuis une ligne est une
     // fenêtre (`vue_ticket.dart`), hors de ce classement.
     'lib/features/facturation/presentation/ecran_facturation.dart',
+    // Factures proforma (07/11/2026) : l'écran et le bouton des modules sont dans le `<main>`.
+    'lib/features/facturation/presentation/ecran_proformas.dart',
+    'lib/features/facturation/presentation/widgets/bouton_creer_proforma.dart',
     // Carte du bar, reprise sur la vue le 08/10/2026 (Phase 2) : corps de
     // page (en-tête, indicateurs, onglets, filtres, bandeaux). Ses modales
     // vivent dans `widgets/modale_*.dart`, classées dans l'autre camp.
@@ -311,6 +341,26 @@ void main() {
     // Les écrans portés le 14/10/2026 (PA-204, D417–D423) : corps de page,
     // dans le `<main>` de leur vue (`comptabilite/hub`, `transverse/*`).
     'lib/features/comptabilite/presentation/ecran_comptabilite.dart',
+    'lib/features/comptabilite/presentation/widgets/envoi_anciennes_pieces.dart',
+    'lib/features/comptabilite/presentation/widgets/onglets_etats_financiers.dart',
+    // Onglets « Grand livre » et « Analytique » (26/10/2026) : corps de page,
+    // dans le `<main>` de `comptabilite/hub`.
+    'lib/features/comptabilite/presentation/widgets/onglets_grand_livre_analytique.dart',
+    // Onglets « Plan comptable » et « Clôtures » (21/10/2026) : corps de page,
+    // dans le `<main>` de `comptabilite/hub` ; leurs modales sont dans
+    // `modales_hub_comptabilite.dart`, classé dans l'autre camp.
+    'lib/features/comptabilite/presentation/widgets/onglets_plan_clotures.dart',
+    // Écran « Correspondance des comptes » et onglet « Clôtures » du poste
+    // (26/10/2026) : corps de page, dans le `<main>` de leur vue
+    // (`comptabilite/correspondance-comptes`, `comptabilite/hub`).
+    'lib/features/comptabilite/presentation/ecran_correspondance_comptes.dart',
+    'lib/features/comptabilite/presentation/widgets/onglet_clotures.dart',
+    // Carte « Affectation du résultat » (09/11/2026) : corps de page de l'onglet
+    // « Clôtures », dans le `<main>` de `comptabilite/hub`.
+    'lib/features/comptabilite/presentation/widgets/carte_affectation.dart',
+    // Onglet « Immobilisations » (21/10/2026) : corps de page, dans le `<main>`
+    // de `comptabilite/hub` ; ses modales sont dans `modales_immobilisations.dart`.
+    'lib/features/comptabilite/presentation/widgets/onglet_immobilisations.dart',
     'lib/features/transverse/presentation/ecran_aide_a_propos.dart',
     'lib/features/transverse/presentation/ecran_contact_editeur.dart',
     'lib/features/transverse/presentation/ecran_import_export.dart',
@@ -330,6 +380,10 @@ void main() {
     // vue) : une page sous la coquille, bâtie des briques transverses, sans
     // modale — échelle EFFECTIVE.
     'lib/features/synchronisation/presentation/ecran_synchronisation.dart',
+    // La partie « Réception » de ce même écran (26/10/2026, AJOUT du PO, aucune
+    // vue) : ses cartes, compteurs, filtres et liste sont des corps de page —
+    // échelle EFFECTIVE. Ses modales sont dans `modales_reception.dart`.
+    'lib/features/synchronisation/presentation/partie_reception.dart',
     // Le bouton standard (D432, 14/10/2026) : barres d'action des pages, dans
     // `<main>` — `text-[13px]` y rend 12,5. Une modale lui passe `Tailles.t13`.
     'lib/shared_widgets/bouton_standard.dart',
@@ -338,6 +392,9 @@ void main() {
   /// Rendu **hors** du contenu de page. Échelle déclarée. Chaque entrée porte
   /// sa raison : sans elle, la liste redeviendrait un décret.
   const horsContenuDePage = <String, String>{
+    'lib/core/navigation/actualisation_ecran.dart':
+        'Menu contextuel « Actualiser » (demande du PO du 26/10/2026) : une '
+        'surcouche du châssis, posée au-dessus de la page, hors `<main>`.',
     'lib/core/router/coquille_application.dart':
         'Châssis. `#shell-topbar`, `#shell-banniere` et `#shell-sidebar` sont '
         'des frères de `<main>` dans chaque page sous coquille.',
@@ -346,14 +403,37 @@ void main() {
         '`<main>`.',
     'lib/features/auth/presentation/ecran_demarrage.dart':
         '`demarrage.blade.php` est la seconde page sans `<main>`.',
+    'lib/features/auth/presentation/voile_verrou_session.dart':
+        'Châssis. Le voile de verrouillage est monté par `layouts/pwa` comme '
+        'frère de `<main>` (`@livewire(VerrouSession)`), `fixed inset-0` : le '
+        'remappage de `app.css` ne l atteint pas.',
     'lib/features/auth/presentation/formulaire_premier_compte.dart':
         'Rendu par l écran de connexion, donc hors `<main>` comme lui.',
+    // Mot de passe perdu SANS e-mail (29/10/2026, option A du PO) : les deux
+    // écrans « invité » reprennent la carte de la connexion, qui n a pas de
+    // `<main>` ; les fenêtres du secret et du code de secours sont des modales,
+    // hors `</main>` comme toutes celles des vues.
+    'lib/features/auth/presentation/ecran_changement_mot_de_passe.dart':
+        '`livewire/changement-mot-de-passe-obligatoire.blade.php` reprend la '
+        'carte de la connexion : aucune balise `<main>`.',
+    'lib/features/auth/presentation/ecran_code_secours.dart':
+        '`livewire/code-secours.blade.php` reprend la carte de la connexion : '
+        'aucune balise `<main>`.',
+    'lib/features/transverse/presentation/widgets/modale_secret_unique.dart':
+        'Modale — la fenêtre du secret affiché une seule fois, hors `</main>`.',
+    'lib/features/transverse/presentation/widgets/modale_code_secours.dart':
+        'Modale — « Générer un code de secours » de Mon profil, hors `</main>`.',
+    'lib/shared_widgets/affichage_secret_unique.dart':
+        'Rendu DANS une modale (le secret affiché une seule fois) ou sur la '
+        'carte de la connexion : hors `<main>` dans les deux cas.',
     'lib/features/ventes/presentation/widgets/dialogue_detail_vente.dart':
         'Modale. Les conteneurs de modales des vues sont hors `</main>`.',
     'lib/features/facturation/presentation/widgets/vue_ticket.dart':
         'Modale — ouverte par `showDialog` dans `afficherTicket`.',
     'lib/features/facturation/presentation/widgets/dialogue_avoir.dart':
         'Modale — `AlertDialog` d annulation par avoir, hors `<main>`.',
+    'lib/features/facturation/presentation/widgets/dialogues_proforma.dart':
+        'Modales — saisie du brouillon et motif d annulation d une proforma, hors `<main>`.',
     'lib/features/restaurant/presentation/widgets/textes_modale_restaurant.dart':
         'Modales. Celles de `restaurant/restauration.blade.php` et de '
         '`carte/corps.blade.php` sont posées après `</main>` : le remappage '
@@ -364,6 +444,9 @@ void main() {
         'Modale. Le formulaire de `depenses/depenses.blade.php` (`<x-pwa.modale>`, '
         'l.324-511) est posé après `</main>` : le remappage typographique ne '
         'l atteint pas.',
+    'lib/features/depenses/presentation/widgets/dialogue_recu_depense.dart':
+        'Fenetre d affichage du recu (lot L4) : une modale, hors `</main>`, '
+        'comme la modale de saisie de la meme vue.',
     'lib/features/hebergement/presentation/widgets/modale_unite.dart':
         'Modale de création et d édition d une unité, hors `</main>` dans '
         '`hebergement/plan.blade.php`.',
@@ -375,6 +458,15 @@ void main() {
         'archivage et bulletin (cinq `<x-pwa.modale>` de `rh/paie.blade.php`, '
         'toutes hors `</main>`). Ce fichier ne porte QUE leurs styles, pour '
         'que la frontière de la vue reste une frontière de fichiers.',
+    'lib/features/pos/presentation/widgets/modales_comptant.dart':
+        'Modales de `pos/comptant.blade.php` — « Vente encaissée », journal '
+        'du jour, annulation, « Stock insuffisant » —, toutes posées après '
+        '`</main>` : le remappage typographique ne les atteint pas.',
+    'lib/features/facturation/presentation/widgets/champs_acheteur_facture.dart':
+        'Bloc « acheteur » (IFU du client, nom, « Retenir pour ce client », « Normaliser '
+        'maintenant », décision du PO du 07/11/2026) et dialogue « Facture » du '
+        'comptoir : posés dans des modales (`<x-pwa.modale>` de `pos/heberges.blade.php`), '
+        'hors `</main>`.',
     'lib/features/pos/presentation/widgets/modale_cloture_sejour.dart':
         'Modale « Clôturer avant le départ ? » de `pos/heberges.blade.php` '
         '(`<x-pwa.modale>`, l.291-369), posée après `</main>` : le remappage '
@@ -387,6 +479,22 @@ void main() {
         'Modale « Ajouter un recouvrement » de `crm/clients-creances.blade.php` '
         '(`<x-pwa.modale>`, après `</main>` l.594) : le remappage typographique '
         'ne l atteint pas.',
+    'lib/features/crm/presentation/widgets/modale_historique_client.dart':
+        'Modale « Historique d un client » de `crm/clients-creances.blade.php` '
+        '(`<x-pwa.modale>`, après `</main>` l.594) : le remappage '
+        'typographique ne l atteint pas.',
+    'lib/features/crm/presentation/widgets/modale_relance.dart':
+        'Modale « Tracer une relance » de `crm/clients-creances.blade.php` '
+        '(`<x-pwa.modale>`, après `</main>` l.594) : le remappage '
+        'typographique ne l atteint pas.',
+    'lib/features/crm/presentation/dialogue_nouveau_client.dart':
+        'Modale « Ajouter un client » de `hebergement/reservations.blade.php` '
+        '(`<x-pwa.modale>`, l.745-784), posée après `</main>` (l.341) : le '
+        'remappage typographique ne l atteint pas.',
+    'lib/features/hebergement/presentation/widgets/modale_reservation_rapide.dart':
+        'Modale « Réservation rapide » de `hebergement/hebergement.blade.php` '
+        '(`<x-pwa.modale>`, l.560-628), posée hors `</main>` : le remappage '
+        'typographique ne l atteint pas.',
     'lib/features/hebergement/presentation/widgets/modale_annulation_reservation.dart':
         'Modale « Annuler la réservation » de `hebergement/reservations.blade.php` '
         '(`<x-pwa.modale>`, l.793-879), posée après `</main>` (l.341) : le '
@@ -404,6 +512,10 @@ void main() {
     'lib/features/achats/presentation/widgets/modale_archivage_achats.dart':
         'Modale de confirmation d archivage (`<x-pwa.modale-archivage>`, '
         'l.504-511), posée après `</main>`.',
+    'lib/features/stocks/presentation/widgets/modales_inventaire.dart':
+        'Modales « Enregistrer le comptage » et « Inventaire incomplet » de '
+        '`stocks/inventaires.blade.php` (`<x-pwa.modale>`, l.674-714), posées '
+        'après `</main>` : le remappage typographique ne les atteint pas.',
     'lib/features/tableau_de_bord/presentation/widgets/modale_stocks_critiques.dart':
         'Modale « Articles sous le seuil d alerte » de la vue d accueil '
         '(`<x-pwa.modale>`, l.1689-1719), posée après `</main>` (l.1392) : le '
@@ -413,6 +525,10 @@ void main() {
         '(`partials/acces-rapide`) sont inclus APRÈS `</main>` dans les onze '
         'vues qui les portent (ex. `livewire/accueil.blade.php` l.1752, '
         '`</main>` l.1392) : le remappage typographique ne les atteint pas.',
+    'lib/features/alertes/presentation/modales_ouverture.dart':
+        'Châssis. Les deux modales d ouverture de session sont posées par '
+        'l hôte de la coquille, comme la modale `AlertesOuvertureModales` du '
+        'serveur (A2, 27/10/2026) : contenu de dialogue à l échelle de la vue.',
     'lib/features/alertes/presentation/cloche_notifications.dart':
         'Châssis. La cloche et son panneau vivent dans la barre supérieure '
         '(`partials/barre-superieure`, frère de `<main>`), lot B du 14/10/2026.',
@@ -456,9 +572,27 @@ void main() {
         '`comptabilite_pwa.modale_piece_titre` de `comptabilite/hub.blade.php` '
         '(l.292), posée après `</main>` (l.283). Rendue sur l échelle '
         'effective jusqu au 15/10/2026 : ramenée à la déclarée.',
+    'lib/features/comptabilite/presentation/widgets/modales_etats_comptables.dart':
+        'Fenêtres « Tableau des flux de trésorerie », « Notes annexes » et '
+        '« États financiers » (pages séparées de la vue, ouvertes depuis les '
+        'tuiles du hub par `showDialog`) : des fenêtres, hors du contenu de '
+        'page.',
+    'lib/features/comptabilite/presentation/widgets/modales_immobilisations.dart':
+        'Modales « Nouvelle immobilisation » et « Plan » de '
+        '`comptabilite/hub.blade.php` (`<x-pwa.modale>`, `etatFormulaire` '
+        '`immo` et `planAmortissement`), posées après `</main>`.',
+    'lib/features/comptabilite/presentation/widgets/modales_hub_comptabilite.dart':
+        'Modales « Créer un compte » et « Ouvrir un exercice » de '
+        '`comptabilite/hub.blade.php` (`<x-pwa.modale>`, `etatFormulaire` '
+        '`compte` et `exercice`), posées après `</main>` : le remappage '
+        'typographique ne les atteint pas.',
     'lib/features/parametres/presentation/widgets/cadre_modale_parametre.dart':
         'Fenêtre « Modifier » de Paramètres (compacte, PO du 14/10/2026), '
         'ouverte par `showDialog` : une modale, hors du contenu de page.',
+    'lib/features/synchronisation/presentation/modales_reception.dart':
+        'Détail, « Corriger » et formulaire de correction de la charge de '
+        'l\'écran de synchronisation (ajout du PO du 26/10/2026, sans vue) : '
+        'des fenêtres ouvertes par `showDialog`, hors du contenu de page.',
     'lib/features/transverse/presentation/widgets/modales_comptes.dart':
         'Modales de « Comptes utilisateurs » (ajout du PO du 14/10/2026, sans '
         'vue) : des fenêtres ouvertes par `showDialog`, hors du contenu de '

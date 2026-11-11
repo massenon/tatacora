@@ -1,10 +1,9 @@
 // Vue Blade maîtresse (PA-183) : pwa/stocks/stocks.blade.php
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/fichiers/lecture_tableur.dart';
 import '../../../../core/fichiers/selecteur_fichiers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -54,7 +53,7 @@ class _ModaleImportState extends ConsumerState<_ModaleImport> {
   int _creesCumules = 0;
 
   Future<void> _choisir() async {
-    final lu = await ref.read(selecteurFichiersProvider).ouvrirCsv();
+    final lu = await ref.read(selecteurFichiersProvider).ouvrirTableur();
     if (lu == null || !mounted) return;
     setState(() {
       _fichier = lu;
@@ -67,7 +66,7 @@ class _ModaleImportState extends ConsumerState<_ModaleImport> {
     final fichier = _fichier;
     if (fichier == null) {
       // La règle `required` du serveur sur `fichierImport`.
-      setState(() => _erreur = "Choisissez d'abord le fichier CSV à importer.");
+      setState(() => _erreur = "Choisissez d'abord le fichier à importer.");
       return;
     }
     setState(() {
@@ -75,13 +74,13 @@ class _ModaleImportState extends ConsumerState<_ModaleImport> {
       _erreur = null;
     });
 
-    String contenu;
+    final List<List<String>> tableau;
     try {
-      contenu = utf8.decode(fichier.octets);
-    } on FormatException {
+      tableau = lireTableur(fichier.octets);
+    } on TableurIllisible catch (e) {
       setState(() {
         _enCours = false;
-        _erreur = TextesImportArticles.fichierIllisible;
+        _erreur = e.message;
       });
       return;
     }
@@ -90,7 +89,7 @@ class _ModaleImportState extends ConsumerState<_ModaleImport> {
     final points = await api.points();
     const uuid = Uuid();
     final bilan = await importerArticles(
-      contenu: contenu,
+      tableau: tableau,
       points: points,
       nouvelId: uuid.v4,
       enregistrer: (saisie) => enregistrerArticleImporte(api, saisie),

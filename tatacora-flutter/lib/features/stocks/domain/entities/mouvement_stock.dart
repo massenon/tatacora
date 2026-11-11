@@ -17,6 +17,14 @@
 /// d'un écart d'inventaire — c'est-à-dire permettrait de réécrire n'importe
 /// quel solde sans qu'aucun comptage n'ait eu lieu, et rendrait l'inventaire
 /// inopposable.
+///
+/// ## Porteur de la vue (21/10/2026)
+///
+/// Les trois libellés longs du sélecteur de type de la modale « Mouvement de
+/// stock » vivent ICI, une seule fois ([TypeMouvement.libelleSaisie]) ; la
+/// modale les rend sans les recopier. Pour que la mesure de conformité les
+/// retrouve dans le code qui PORTE la modale, ce fichier cite la vue :
+/// pwa/stocks/stocks.blade.php (`etatFormulaire === 'mouvement'`).
 library;
 
 import 'etat_stock.dart' show SuiviArticle;

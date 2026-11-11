@@ -38,7 +38,7 @@ use Livewire\Attributes\Url;
  *
  * @see EF-M10-06
  */
-#[Title('Grand Livre — TATACORA AFRIQUE')]
+#[Title('Grand Livre — LogiReStock — TATACORA AFRIQUE')]
 class GrandLivre extends PageComptabilite
 {
     #[Url(as: 'compte')]

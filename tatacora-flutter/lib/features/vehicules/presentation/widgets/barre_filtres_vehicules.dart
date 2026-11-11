@@ -310,47 +310,37 @@ class _BarreFiltresVehiculesState extends ConsumerState<BarreFiltresVehicules> {
   }
 }
 
-/// Le filtre « Contrats actifs / Tous / Annulés » (l.66-70).
-///
-/// ÉCART DÉLIBÉRÉ — `prototype_v2/pages/m8-locations.html` l.66-70.
-/// Le maître : une liste à trois options, `actif` sélectionnée par défaut.
-/// Ici : la liste garde ses trois options **et son ordre**, mais elle est
-/// inerte, et un texte à côté dit pourquoi.
-/// Raison : `contrats_location` n'a **aucune colonne `statut`** (PA-50). Les
-/// trois options désignent le même ensemble — tous les contrats. Une liste
-/// active qui rendrait les mêmes lignes sur les trois choix ferait chercher un
-/// défaut de filtre ; une liste retirée masquerait que le maître en pose un.
-class _FiltreStatutContrat extends StatelessWidget {
+/// Le filtre « Contrats actifs / Tous / Annulés » (l.66-70) — ACTIF depuis la
+/// v38 (26/10/2026) : `contrats_location_local.statut` existe, et la liste rend
+/// des lignes différentes selon le choix, comme `contratsFiltres()` de la vue
+/// (`actif` : tout sauf `annule` ; vide : tous ; `annule` : les annulés). Les
+/// trois libellés et leur ordre sont ceux de la vue ; `actif` est le choix par
+/// défaut.
+class _FiltreStatutContrat extends ConsumerWidget {
   const _FiltreStatutContrat();
 
   @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message:
-          // Sans code interne ni nom de table (directive du PO, 14/10/2026).
-          'Un contrat ne peut pas être annulé sur ce poste : les trois '
-          'options désignent le même ensemble.',
-      child: SizedBox(
-        width: AppLayout.filtreStatutVehicules,
-        child: DropdownButtonFormField<String>(
-          key: const Key('vehicules-filtre-statut'),
-          initialValue: 'actif',
-          isExpanded: true,
-          style: TextesRestaurant.petitCrud,
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: _remplissageChamp,
-            border: OutlineInputBorder(),
-          ),
-          // Les trois libellés du maître, dans son ordre.
-          items: const [
-            DropdownMenuItem(value: 'actif', child: Text('Contrats actifs')),
-            DropdownMenuItem(value: '', child: Text('Tous')),
-            DropdownMenuItem(value: 'annule', child: Text('Annulés')),
-          ],
-          // Inerte, et non grisé : le maître pose la liste, on la montre.
-          onChanged: null,
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SizedBox(
+      width: AppLayout.filtreStatutVehicules,
+      child: DropdownButtonFormField<String>(
+        key: const Key('vehicules-filtre-statut'),
+        initialValue: ref.watch(statutContratsProvider),
+        isExpanded: true,
+        style: TextesRestaurant.petitCrud,
+        decoration: const InputDecoration(
+          isDense: true,
+          contentPadding: _remplissageChamp,
+          border: OutlineInputBorder(),
         ),
+        // Les trois libellés de la vue, dans son ordre.
+        items: const [
+          DropdownMenuItem(value: 'actif', child: Text('Contrats actifs')),
+          DropdownMenuItem(value: '', child: Text('Tous')),
+          DropdownMenuItem(value: 'annule', child: Text('Annulés')),
+        ],
+        onChanged: (v) =>
+            ref.read(statutContratsProvider.notifier).definir(v ?? 'actif'),
       ),
     );
   }
