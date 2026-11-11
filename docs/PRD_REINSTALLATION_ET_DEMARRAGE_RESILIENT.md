@@ -1,5 +1,9 @@
 # PRD — Réinstallation et démarrage résilient du poste (« le logiciel ne s'ouvre pas »)
 
+> **Note du 11/11/2026 :** ce document décrit l'état au 28/10/2026 (schéma v44) ; état actuel : voir `CLAUDE.md` (racine) et `RESTE_A_FAIRE.md`. Points devenus faux :
+> - livré (RESTE_A_FAIRE, section E : R1 à R3 cochés) : le statut « brouillon » est dépassé ;
+> - schéma actuel du poste : v59.
+
 > Statut : **brouillon à valider par le Product Owner** (28/10/2026). Origine : retour
 > d'expérience d'un autre projet (AgriERP, même pile Flutter + Drift/SQLite) : après
 > désinstallation puis réinstallation sur un ancien PC, le processus tourne mais aucune

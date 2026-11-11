@@ -27,6 +27,12 @@ La connexion Internet tombe parfois, donc le poste fonctionne **entièrement hor
 
 ---
 
+## Documentation technique
+
+Spécifications, procédure de mise en production et reste à faire : voir [`docs/README.md`](docs/README.md).
+
+---
+
 ## Fonctionnalités principales
 
 ### 📊 Tableau de bord

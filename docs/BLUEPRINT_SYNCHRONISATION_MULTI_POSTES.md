@@ -1,5 +1,10 @@
 # Blueprint — Synchronisation multi-postes de TATACORA, et comment la refaire ailleurs
 
+> **Note du 11/11/2026 :** ce document décrit l'état au 29/10/2026 ; état actuel : voir `CLAUDE.md` (racine) et `RESTE_A_FAIRE.md`. Points devenus faux :
+> - période de synchronisation : **1 minute** par défaut (demande du serveur lue toutes les 30 s), et non 5 minutes ;
+> - schéma du poste : **v59** ; le serveur ne juge plus les droits/modules du compte d'appairage (seule la liste fermée `OperationsSensibles` est réservée, 09/11/2026) ;
+> - WebSocket/Pusher restent écartés (hébergement mutualisé cPanel, cron + interrogation).
+
 > **Nature du document** : guide de référence réutilisable, écrit à partir du code réel de la branche
 > `claude/quirky-johnson-2pbs4t` (commit de départ `18005b9`, 29/10/2026). Chaque affirmation clé cite
 > `fichier:ligne` ; ce qui **n'existe pas** dans le code est dit comme tel (§1.5). Aucune valeur secrète

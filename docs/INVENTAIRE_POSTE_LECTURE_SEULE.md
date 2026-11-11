@@ -1,5 +1,9 @@
 # Inventaire du poste : écrans en lecture seule ou partiels, par rapport au web
 
+> **Note du 11/11/2026 :** ce document décrit l'état au 27/10/2026 (schéma v40, 76 tables) ; état actuel : voir `CLAUDE.md` (racine) et `RESTE_A_FAIRE.md`. Points devenus faux :
+> - schéma actuel du poste : v59 ;
+> - le poste n'est plus en « lecture seule » (l'inventaire lui-même le constate : 0 écran) ; comptable = droits du gérant depuis le 09/11/2026.
+
 Date : 27/10/2026. Branche `claude/quirky-johnson-2pbs4t`. L'inventaire a été mesuré
 sans modification de code, à la **v40, 76 tables**. **Mise à jour du lot L3-S + L3
 (27/10/2026, décisions D1 et D2 du PO) : A6, A7, A8 et A10 sont LIVRÉS**, schéma

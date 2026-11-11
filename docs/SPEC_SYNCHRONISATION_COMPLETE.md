@@ -1,5 +1,9 @@
 # Spécification — Synchronisation complète entre postes (lots F4 à F7)
 
+> **Note du 11/11/2026 :** ce document décrit l'état au 17/10/2026 ; état actuel : voir `CLAUDE.md` (racine) et `RESTE_A_FAIRE.md`. Points devenus faux :
+> - cadence « toutes les 5 minutes » remplacée par 1 minute par défaut (demande lue toutes les 30 s) ; convergence ≤ 10 min dépassée en pratique ;
+> - schéma du poste actuel : v59.
+
 **Produit :** TATACORA — Gîte Chez Noël, Natitingou (Bénin)
 **Demande du Product Owner :** 17/10/2026 — « on doit avoir aussi les ventes, dépenses, caisses, commandes et réceptions, les activités et réservations liées au tourisme, les deux modules POS vente et POS hébergés des autres postes, et en synchronisation. NE PLUS LIMITER. » « Deux PC était une illustration : on peut aller à 3, 4, 5 postes. »
 **Branche :** `claude/quirky-johnson-2pbs4t` — PR vers `main` à ouvrir une fois les lots de cette spécification livrés et corrigés.
