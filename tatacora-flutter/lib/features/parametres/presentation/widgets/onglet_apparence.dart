@@ -1,5 +1,4 @@
 // Vue Blade maîtresse (PA-183) : pwa/transverse/parametres.blade.php
-import '../../../facturation/data/images_document_poste.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -12,29 +11,43 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
+import '../../../../core/di/providers.dart';
+import '../../../../core/rbac/garde_acces.dart';
+import '../../../facturation/data/depot_images_document.dart';
+import '../../../facturation/data/images_document_poste.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
 import '../../../restaurant/presentation/widgets/corps_carte_commun.dart';
 import '../../../restaurant/presentation/widgets/textes_modale_restaurant.dart';
+import '../../../transverse/domain/comptes_utilisateurs.dart';
 import '../../data/apparence_poste.dart';
 
 /// Les mots de l'onglet « Logo & Apparence » — `lang/fr/pwa.php`,
 /// `parametres.apparence_*` et `parametres.charte_*`, au mot.
 abstract final class TextesOngletApparence {
-  /// Signature et cachet des factures et proformas (PO, 07/11/2026) : DÉPOSÉS au serveur, reçus ici
-  /// en LECTURE (`pwa.parametres.apparence_signature_titre`, `_cachet_titre`, `_image_absente`).
+  /// Signature et cachet des factures et proformas (PO, 07/11/2026), DÉPOSÉS depuis le poste
+  /// ou le web (PO, 11/11/2026) : `pwa.parametres.apparence_signature_titre`, `_bouton`,
+  /// `_enregistre`, `_retire`, `apparence_cachet_*`, `apparence_retirer`, `_image_absente`.
   static const signatureTitre = 'Signature du signataire';
   static const cachetTitre = "Cachet de l'entreprise";
   static const imageAbsente = 'Aucune image déposée.';
+  static const signatureBouton = 'Changer la signature';
+  static const cachetBouton = 'Changer le cachet';
+  static const retirer = 'Retirer';
+  static const signatureEnregistree =
+      "Signature remplacée — l'ancien fichier n'est pas conservé.";
+  static const cachetEnregistre =
+      "Cachet remplacé — l'ancien fichier n'est pas conservé.";
+  static const signatureRetiree =
+      "Signature retirée — les documents n'impriment plus que le nom et la fonction.";
+  static const cachetRetire = 'Cachet retiré.';
 
   /// Le bloc sous l'interrupteur « Afficher la signature et le cachet sur les factures »
-  /// (`pwa.parametres.signature_cachet_bloc_titre`). Écart ASSUMÉ avec la vue (PO 10/11/2026) :
-  /// le web DÉPOSE les images (import, remplacer, retirer) ; le poste ne dépose rien, il montre
-  /// ce qu'il a reçu et dit où se déposent les images.
+  /// (`pwa.parametres.signature_cachet_bloc_titre`, `_aide`). Depuis le 11/11/2026 le poste
+  /// DÉPOSE aussi les images (administrateurs, comme au web) : plus aucune phrase « se déposent
+  /// depuis la version web ».
   static const blocSignatureCachetTitre = 'Signature et cachet';
   static const blocSignatureCachetAide =
       "Images des factures A4 et des proformas, jamais du ticket : PNG, JPG ou WebP, réduites à 400 Ko. Elles ne s'impriment que si l'interrupteur ci-dessus est activé.";
-  static const blocSignatureCachetDepot =
-      'Elles se déposent depuis la version web ; ce poste les reçoit par la synchronisation.';
 
   static const logoTitre = "Logo de l'entreprise";
   static const logoBouton = 'Changer le logo';
@@ -138,17 +151,13 @@ class OngletApparence extends ConsumerWidget {
       ),
     );
 
-    final signature = ref.watch(signatureDocumentProvider).value;
-    final cachet = ref.watch(cachetDocumentProvider).value;
-    final colonneSignature = _BlocImageRecue(
+    final colonneSignature = const BlocImageDocument(
       cle: 'apparence-signature',
-      titre: TextesOngletApparence.signatureTitre,
-      octets: signature,
+      nature: ImageDocument.signature,
     );
-    final colonneCachet = _BlocImageRecue(
+    final colonneCachet = const BlocImageDocument(
       cle: 'apparence-cachet',
-      titre: TextesOngletApparence.cachetTitre,
-      octets: cachet,
+      nature: ImageDocument.cachet,
     );
 
     final large = MediaQuery.sizeOf(context).width >= AppBreakpoints.sm;
@@ -220,23 +229,86 @@ class OngletApparence extends ConsumerWidget {
   }
 }
 
-/// La signature ou le cachet des documents A4, REÇUS du serveur (jamais déposés ici) : l'image,
-/// ou « Aucune image déposée. ».
-class _BlocImageRecue extends StatelessWidget {
-  const _BlocImageRecue({
-    required this.cle,
-    required this.titre,
-    required this.octets,
-  });
+/// La signature ou le cachet des documents A4 (11/11/2026, décision du PO) : l'aperçu — ou
+/// « Aucune image déposée. » —, et, pour un ADMINISTRATEUR qui écrit sur PARAM, « Changer … »
+/// (fenêtre « Ouvrir » native) et « Retirer », comme `images-signature-cachet.blade.php`.
+///
+/// Le choix s'enregistre tout de suite : l'image est validée (type lu des octets), réduite à
+/// 400 Ko au besoin, rangée sur ce poste puis enfilée au serveur (`DepotImagesDocumentPoste`).
+/// Un refus se dit sous l'aperçu et ne change rien. Un non-administrateur voit l'image sans bouton.
+class BlocImageDocument extends ConsumerStatefulWidget {
+  const BlocImageDocument({super.key, required this.cle, required this.nature});
 
   final String cle;
-  final String titre;
-  final Uint8List? octets;
+  final ImageDocument nature;
 
   @override
-  Widget build(BuildContext context) => _Bloc(
-    titre: titre,
-    enfant: octets == null
+  ConsumerState<BlocImageDocument> createState() => _BlocImageDocumentState();
+}
+
+class _BlocImageDocumentState extends ConsumerState<BlocImageDocument> {
+  String? _refus;
+  bool _occupe = false;
+
+  bool get _signature => widget.nature == ImageDocument.signature;
+
+  FutureProvider<Uint8List?> get _fournisseur =>
+      _signature ? signatureDocumentProvider : cachetDocumentProvider;
+
+  Future<void> _changer() async {
+    final fichier = await ref
+        .read(selecteurFichiersProvider)
+        .ouvrirImage(extensions: extensionsImageDocument);
+    if (fichier == null || !mounted) return;
+    await _faire(
+      () => ref
+          .read(depotImagesDocumentProvider)
+          .deposer(widget.nature, fichier.octets),
+      _signature
+          ? TextesOngletApparence.signatureEnregistree
+          : TextesOngletApparence.cachetEnregistre,
+    );
+  }
+
+  Future<void> _retirer() => _faire(
+    () => ref.read(depotImagesDocumentProvider).retirer(widget.nature),
+    _signature
+        ? TextesOngletApparence.signatureRetiree
+        : TextesOngletApparence.cachetRetire,
+  );
+
+  Future<void> _faire(Future<void> Function() geste, String message) async {
+    setState(() {
+      _occupe = true;
+      _refus = null;
+    });
+    try {
+      await geste();
+      ref.invalidate(_fournisseur);
+      if (!mounted) return;
+      setState(() => _occupe = false);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(message, key: Key('${widget.cle}-toast'))),
+        );
+    } on RefusImageDocument catch (r) {
+      if (!mounted) return;
+      setState(() {
+        _occupe = false;
+        _refus = r.message;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final octets = ref.watch(_fournisseur).value;
+    final peut =
+        ref.watch(droitsProvider).peutEcrire(ModuleTatacora.parametres) &&
+        peutAdministrerComptes(ref.watch(sessionProvider)?.role);
+    final cle = widget.cle;
+    final apercu = octets == null
         ? Text(
             TextesOngletApparence.imageAbsente,
             key: Key('$cle-absente'),
@@ -255,10 +327,59 @@ class _BlocImageRecue extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-              child: Image.memory(octets!, fit: BoxFit.contain),
+              child: Image.memory(octets, fit: BoxFit.contain),
             ),
+          );
+    return _Bloc(
+      titre: _signature
+          ? TextesOngletApparence.signatureTitre
+          : TextesOngletApparence.cachetTitre,
+      enfant: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              apercu,
+              if (peut)
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    BoutonStandard(
+                      key: Key('$cle-changer'),
+                      libelle: _signature
+                          ? TextesOngletApparence.signatureBouton
+                          : TextesOngletApparence.cachetBouton,
+                      onPressed: _occupe ? null : _changer,
+                    ),
+                    if (octets != null)
+                      BoutonStandard(
+                        key: Key('$cle-retirer'),
+                        libelle: TextesOngletApparence.retirer,
+                        onPressed: _occupe ? null : _retirer,
+                      ),
+                  ],
+                ),
+            ],
           ),
-  );
+          if (_refus != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              _refus!,
+              key: Key('$cle-refus'),
+              style: styleContenuCarte(
+                TaillesContenu.t13,
+                couleur: AppColors.erreur,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _Bloc extends StatelessWidget {
@@ -508,15 +629,13 @@ class _ModaleImageState extends ConsumerState<_ModaleImage> {
   }
 }
 
-/// Sous l'interrupteur de signature (Paramètres › Identité & Légal) : signature et cachet REÇUS du
-/// serveur, en lecture, avec la phrase qui dit où les déposer.
-class BlocSignatureCachetRecus extends ConsumerWidget {
-  const BlocSignatureCachetRecus({super.key});
+/// Sous l'interrupteur de signature (Paramètres › Identité & Légal) : signature et cachet, avec
+/// leur dépôt, leur remplacement et leur retrait (administrateurs).
+class BlocSignatureCachet extends ConsumerWidget {
+  const BlocSignatureCachet({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final signature = ref.watch(signatureDocumentProvider).value;
-    final cachet = ref.watch(cachetDocumentProvider).value;
     return Container(
       key: const Key('bloc-signature-cachet'),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -541,26 +660,18 @@ class BlocSignatureCachetRecus extends ConsumerWidget {
             key: const Key('bloc-signature-cachet-aide'),
             style: styleContenuCarte(TaillesContenu.t13, couleur: Ardoise.c500),
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            TextesOngletApparence.blocSignatureCachetDepot,
-            key: const Key('bloc-signature-cachet-depot'),
-            style: styleContenuCarte(TaillesContenu.t13, couleur: Ardoise.c500),
-          ),
           const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.lg,
             runSpacing: AppSpacing.md,
             children: [
-              _BlocImageRecue(
+              BlocImageDocument(
                 cle: 'signature-sous-interrupteur',
-                titre: TextesOngletApparence.signatureTitre,
-                octets: signature,
+                nature: ImageDocument.signature,
               ),
-              _BlocImageRecue(
+              BlocImageDocument(
                 cle: 'cachet-sous-interrupteur',
-                titre: TextesOngletApparence.cachetTitre,
-                octets: cachet,
+                nature: ImageDocument.cachet,
               ),
             ],
           ),

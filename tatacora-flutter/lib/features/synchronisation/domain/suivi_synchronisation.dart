@@ -174,6 +174,17 @@ String? libelleDocument(OperationSync o) {
             '($a)',
       _ => null,
     },
+    // 11/11/2026 : le dépôt ou le retrait de la signature / du cachet des documents.
+    TableSynchronisee.depotsImagesDocument => switch ((
+      t('nature'),
+      t('action'),
+    )) {
+      ('signature', 'retirer') => 'Retrait de la signature',
+      ('cachet', 'retirer') => 'Retrait du cachet',
+      ('signature', _) => 'Dépôt de la signature',
+      ('cachet', _) => 'Dépôt du cachet',
+      _ => null,
+    },
     _ => t('libelle'),
   };
 }

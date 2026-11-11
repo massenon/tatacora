@@ -1,5 +1,7 @@
 # Passage d'année et clôture d'exercice (SYSCOHADA révisé)
 
+Mis à jour le 11/11/2026 (relu en entier ; §4 ter corrigé : la forme juridique se règle aussi au poste).
+
 Décisions du Product Owner du 20/10/2026 : clôture **annuelle** ;
 réouverture réservée **au comptable** ; archive au format **SYSCOHADA révisé
 / DGI Bénin**.
@@ -147,7 +149,7 @@ La clôture de N-1 laisse son résultat en 131 (bénéfice) ou 139 (perte), repo
 
 ### La forme juridique commande les règles
 
-Réglage **Paramètres > Entreprise > « Forme juridique »** (`forme_juridique`) : `entreprise_individuelle` (**défaut, celui du Gîte**), `sarl`, `sa`. Décision du PO du 09/11/2026 : « le Gîte est une entreprise individuelle ». Modifiable par l'**administrateur** seulement, **au serveur** (le poste le reçoit en lecture, comme le mode de facturation) ; **refusé tant qu'une affectation du résultat est active** (« contre-passez d'abord l'affectation… »). Une valeur absente ou inconnue vaut entreprise individuelle (le sens prudent).
+Réglage « Forme juridique » (`forme_juridique`, groupe `entreprise` des Paramètres, web ET poste) : `entreprise_individuelle` (**défaut, celui du Gîte**), `sarl`, `sa`. Décision du PO du 09/11/2026 : « le Gîte est une entreprise individuelle ». Modifiable par l'**administrateur** seulement, **au web comme au poste** (décision du 09/11/2026 : écriture enfilée au poste, et le serveur ne l'accepte que si le compte du jeton d'appairage est administrateur, sinon `droit_manquant` lisible dans « À traiter » ; liste fermée `OperationsSensibles`) ; **refusé tant qu'une affectation du résultat est active** (« contre-passez d'abord l'affectation… »). Une valeur absente ou inconnue vaut entreprise individuelle (le sens prudent).
 
 | | Entreprise individuelle | SARL / SA |
 |---|---|---|
@@ -181,7 +183,7 @@ Le plan comptable du dépôt porte `104 Compte de l'exploitant` avec ses sous-co
 
 ### Poste
 
-La pièce part comme une pièce saisie à la main avec sa ventilation (poste `compte_exploitant` compris) ; le serveur la passe par son service (mêmes refus, mêmes phrases : un dividende dans la pièce d'un poste d'entreprise individuelle est refusé) et refuse une pièce qui ne correspond pas à la sienne. La contre-passation part comme une demande `annuler_affectation` (`motif`, `reference_decision` facultative). Le poste calcule **les mêmes règles** hors ligne (`affectation_resultat.dart`, `affectation_resultat_locale.dart`), avec **les mêmes phrases** (`messages_affectation.dart`, relues du web par un test). La forme descend comme un paramètre ordinaire (aucun changement de schéma, **v53 inchangée**) ; sans elle, le poste est en entreprise individuelle.
+La pièce part comme une pièce saisie à la main avec sa ventilation (poste `compte_exploitant` compris) ; le serveur la passe par son service (mêmes refus, mêmes phrases : un dividende dans la pièce d'un poste d'entreprise individuelle est refusé) et refuse une pièce qui ne correspond pas à la sienne. La contre-passation part comme une demande `annuler_affectation` (`motif`, `reference_decision` facultative). Le poste calcule **les mêmes règles** hors ligne (`affectation_resultat.dart`, `affectation_resultat_locale.dart`), avec **les mêmes phrases** (`messages_affectation.dart`, relues du web par un test). La forme se règle au poste et descend comme un paramètre ordinaire (aucun changement de schéma, **v53 inchangée** ; le schéma courant est v59) ; sans elle, le poste est en entreprise individuelle.
 
 ### Une affectation passée au web (ou par un autre poste) apparaît sur chaque poste (schéma poste v53)
 
@@ -215,7 +217,7 @@ seule :
 | `motif` | pour `rouvrir` : dix caractères au moins |
 
 `GestionnaireDemandesCloture` rejoue `ClotureExerciceService` **comme le fait
-l'onglet de la PWA**, avec les droits du compte appairé : mêmes refus, mêmes
+l'onglet de la PWA** (la clôture figure parmi les opérations réservées de `OperationsSensibles` : droit comptable ; le serveur ne juge pas les autres modules du compte appairé) : mêmes refus, mêmes
 phrases (ordre des exercices, brouillons, balance, rôle du comptable pour la
 réouverture, motif). La demande acceptée est consignée (`demandes_cloture_exercice` :
 issue, pièces, résultat, empreinte de l'archive que le SERVEUR a produite) et

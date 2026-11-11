@@ -111,6 +111,8 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             'demandes_cloture_exercice',
             // 03/11/2026 : les comptes — la SUPPRESSION seule (par le login).
             'utilisateurs',
+            // 11/11/2026 : dépôt / retrait de la signature et du cachet depuis un poste.
+            'depots_images_document',
         ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {

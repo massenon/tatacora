@@ -51,8 +51,8 @@ class JournalReceptionService
      */
     public const TABLE_RECUS_DEPENSES = 'recus_depenses';
 
-    /** Les clés de la charge dont la valeur n'est jamais conservée. */
-    private const CLES_SECRETES = '/mot_de_passe|secret|jeton|token|password/i';
+    /** Les clés de la charge dont la valeur n'est jamais conservée (les octets d'une image : jusqu'à 530 Ko de base64). */
+    private const CLES_SECRETES = '/mot_de_passe|secret|jeton|token|password|octets_base64/i';
 
     /**
      * Enregistre (ou met à jour, en cas de renvoi) l'opération reçue.

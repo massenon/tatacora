@@ -1,5 +1,7 @@
 # Spécification — Sélecteur d'exercice comptable (web + poste)
 
+> **Note du 11/11/2026 — document HISTORIQUE** : spécification livrée le 20/10/2026 (`ExerciceConsulte.php`, `exercice_consulte.dart` et `SelecteurExerciceBarre` existent), corps conservé. Seuls le début et les conclusions ont été relus ce jour-là ; le code fait foi (le poste est aujourd'hui au schéma v59).
+
 > Statut : **validé et livré** (web + poste) le 20/10/2026. Décisions du PO :
 > les factures, les achats et la paie suivent aussi le sélecteur (Q1 = oui) ;
 > il est visible pour tous les rôles qui ouvrent ces écrans (Q3 = oui).

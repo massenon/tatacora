@@ -1,5 +1,7 @@
 # Installateur Windows d'une application Flutter (Inno Setup) — guide et prompt réutilisable
 
+> **Note du 11/11/2026 — document HISTORIQUE** : guide et prompt tirés de `installer/tatacora.iss` et `build_windows.bat`, corps conservé. Seul le début et la fin ont été relus ce jour-là ; l'installateur du dépôt fait foi. La recette de l'installation, de la mise à jour et de la désinstallation sur un vrai poste est validée par le PO (D1 et D5, `RESTE_A_FAIRE.md`).
+
 > Tiré de `tatacora-flutter/installer/tatacora.iss` et `tatacora-flutter/build_windows.bat`
 > (LogiReStock). Le bloc `text` de la fin se colle tel quel à Claude dans l'autre projet.
 

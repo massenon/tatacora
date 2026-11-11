@@ -5,6 +5,8 @@
 > Les vérifications techniques sont dans
 > [`VERIFICATIONS_APRES_MISE_EN_PRODUCTION.md`](VERIFICATIONS_APRES_MISE_EN_PRODUCTION.md).
 
+> Mis à jour le 11/11/2026 : relu en entier et confronté à `ReinitialisationDonneesTestService` (listes vidé / gardé, archives de clôture, génération des données), `VerificationProductionService` et `config/tatacora.php`. Depuis, la synchronisation des postes est automatique chaque minute (la demande du serveur est lue toutes les 30 s) : « Synchroniser maintenant » sert à forcer un passage, pas à en obtenir un.
+
 ## Comment ça marche (en deux phrases)
 
 Pendant la **phase d'essais**, on saisit de vraies opérations sur le vrai

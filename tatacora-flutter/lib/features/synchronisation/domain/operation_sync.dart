@@ -168,7 +168,13 @@ enum TableSynchronisee {
     'utilisateurs',
     accepteModification: false,
     accepteSuppression: true,
-  );
+  ),
+
+  /// 11/11/2026 (décision du PO : téléverser la signature et le cachet DEPUIS LE POSTE) :
+  /// un GESTE — dépôt (nature, type, octets en base64, 400 Ko au plus) ou retrait — sous un
+  /// identifiant propre au geste. Création seule ; le serveur range l'image par le service
+  /// de l'écran web et ne juge pas le module du compte d'appairage.
+  depotsImagesDocument('depots_images_document', accepteModification: false);
 
   const TableSynchronisee(
     this.nomServeur, {

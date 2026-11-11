@@ -1275,6 +1275,28 @@ Map<String, Object?> chargeDemandeCloture({
   'reference_decision': ?referenceDecision,
 };
 
+/// `depots_images_document` (création seule, 11/11/2026) — le DÉPÔT de la signature ou du
+/// cachet des documents A4 fait depuis le poste : la [nature] (`signature` ou `cachet`), le
+/// type MIME lu des octets, et le contenu en base64 (400 Ko au plus avant encodage — le poste
+/// réduit avant d'enfiler). `GestionnaireImagesDocument` (serveur) range l'image par
+/// `ApparenceEtablissementService`, comme l'écran web.
+Map<String, Object?> chargeDepotImageDocument({
+  required String nature,
+  required String typeMime,
+  required String octetsBase64,
+}) => {
+  'nature': nature,
+  'action': 'deposer',
+  'type_mime': typeMime,
+  'octets_base64': octetsBase64,
+};
+
+/// `depots_images_document` — le RETRAIT de la [nature] (`signature` ou `cachet`).
+Map<String, Object?> chargeRetraitImageDocument({required String nature}) => {
+  'nature': nature,
+  'action': 'retirer',
+};
+
 /// `articles` (modification) — l'archivage (`false`) ou la restauration
 /// (`true`) : le serveur l'applique par `ReferentielArticleService`, sous ses
 /// verrous (stock, commande en cours, carte, recette) et la règle de droits

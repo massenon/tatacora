@@ -1,6 +1,6 @@
 # Guide des modèles d'import Excel (carte du Gîte Chez Noël)
 
-Mis à jour le 09/11/2026. Les trois modèles préremplis sont dans `docs/data/` (copies
+Mis à jour le 11/11/2026 (relu en entier ; colonnes, alias, effectifs 9 + 81 + 9 + 81 et copies identiques vérifiés dans le code et les classeurs). Les trois modèles préremplis sont dans `docs/data/` (copies
 identiques octet pour octet dans `tatacora-flutter/assets/import/`, relues par un test) :
 
 | Fichier | Contenu | Ordre |
@@ -25,7 +25,7 @@ Aucun prix, aucune quantité n'est inventé : tout ce que l'affiche ne dit pas r
 |---|---|---|
 | Point de stockage (aussi lu : « Point Stock », « Point de stock », « Point ») | m4, m5, m6 | point de rattachement de l'article (Bar, Cuisine, Magasin général…) ; « Cuisine » est créé s'il n'existe pas |
 | Seuil d'alerte (aussi lu : « Seuil ») | m4, m5, m6 | seuil de l'article créé ; vide = 0 |
-| Valeur d'achat | m4, m5, m6 | valeur d'achat de RÉFÉRENCE de l'article (jamais une quantité ni un mouvement) ; vide = « — » |
+| Valeur d'achat (aussi lu : « Valeur achat ») | m4, m5, m6 | valeur d'achat de RÉFÉRENCE de l'article (jamais une quantité ni un mouvement) ; vide = « — » |
 | Article de stock lié | m5 | facultatif depuis le 09/11/2026 : vide, la boisson se rapproche de l'article de même nom (créé s'il manque) |
 
 Les apostrophes droites et typographiques (Excel) se valent dans les en-têtes.
@@ -37,7 +37,7 @@ Les apostrophes droites et typographiques (Excel) se valent dans les en-têtes.
 - **m4** crée les plats, puis relie CHAQUE plat à l'article de stock de même nom au point
   Cuisine (créé s'il manque) : « N plats rapprochés du stock ». Le plat devient « stock
   vendable » (1 assiette = 1 unité de stock), solde à ZÉRO tant qu'aucune entrée n'est saisie.
-  Un plat dont la fiche technique a des ingrédients n'est jamais relié.
+  Un plat dont la fiche technique a des ingrédients n'est jamais relié. Un plat n'est jamais en rupture et sa vente n'est jamais refusée pour manque de stock (décision du PO, 09-10/11/2026) : le stock peut passer sous zéro, l'inventaire le corrige ; seules les boissons sont refusées en rupture.
 - **Ré-import** : jamais de doublon, jamais d'écrasement (ligne existante ignorée ; un article
   repris n'est que COMPLÉTÉ : point vide, valeur d'achat vide — jamais un prix, un seuil ou un
   stock déjà saisis). Un fichier entièrement déjà importé répond « Aucune ligne ajoutée ».

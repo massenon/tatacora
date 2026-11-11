@@ -279,10 +279,7 @@ class _PageState extends ConsumerState<_Page> {
               _Cellule(pleine: d.cle == _cleAdresse, enfant: ligne(d)),
               // Juste SOUS l'interrupteur de signature : les images (PO 10/11/2026).
               if (d.cle == ClesReglagesDocuments.signatureAffichee)
-                const _Cellule(
-                  pleine: true,
-                  enfant: BlocSignatureCachetRecus(),
-                ),
+                const _Cellule(pleine: true, enfant: BlocSignatureCachet()),
             ],
             const _TitreSection('Informations légales & fiscales', filet: true),
             for (final d in legal) _Cellule(enfant: ligne(d)),

@@ -13,10 +13,19 @@ import '../../facturation/data/images_document_poste.dart';
 import 'transport_synchronisation.dart';
 
 class TelechargementImagesDocument {
-  TelechargementImagesDocument(this._transport, this._images);
+  TelechargementImagesDocument(
+    this._transport,
+    this._images, [
+    this._enSuspens,
+  ]);
 
   final TransportSynchronisation _transport;
   final ImagesDocumentPoste _images;
+
+  /// Les natures dont un dépôt ou un retrait FAIT DEPUIS CE POSTE n'est pas encore accusé
+  /// (11/11/2026) : la descente les laisse en paix — le serveur ne connaît pas encore l'image
+  /// du poste, et la lui substituer effacerait ce que l'utilisateur vient de déposer.
+  final Future<Set<ImageDocument>> Function()? _enSuspens;
 
   /// Rend le nombre d'images mises à jour (ou retirées).
   Future<int> rafraichir({
@@ -44,8 +53,10 @@ class TelechargementImagesDocument {
     final data = issue.corps?['data'];
     if (data is! Map) return 0;
 
+    final suspens = await _enSuspens?.call() ?? const <ImageDocument>{};
     var changees = 0;
     for (final i in ImageDocument.values) {
+      if (suspens.contains(i)) continue;
       final brute = data[i.nom];
       if (brute == null) {
         if (await _images.lire(i) != null) {
