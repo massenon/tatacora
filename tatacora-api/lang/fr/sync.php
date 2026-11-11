@@ -141,6 +141,14 @@ return [
     'parametres' => [
         'valeur_non_scalaire' => 'Paramètres refusés : valeur illisible pour :cles.',
     ],
+    'images_document' => [
+        'nature_inconnue' => 'Image refusée : la nature doit être « signature » ou « cachet ».',
+        'action_inconnue' => 'Image refusée : le geste doit être « deposer » ou « retirer ».',
+        'contenu_illisible' => 'Image refusée : le contenu n\'est pas lisible (base64 attendu).',
+        'type_non_admis' => 'Image refusée : le fichier doit être une image PNG, JPG ou WebP (type lu des octets, jamais du nom).',
+        'type_annonce_different' => 'Image refusée : le type annoncé (:annonce) n\'est pas celui du fichier (:reel).',
+        'trop_lourde' => 'Image refusée : elle dépasse 400 Ko (le poste la réduit avant l\'envoi).',
+    ],
     'roles' => [
         'module_inconnu' => 'Rôle refusé : module(s) inconnu(s) du serveur : :modules.',
     ],

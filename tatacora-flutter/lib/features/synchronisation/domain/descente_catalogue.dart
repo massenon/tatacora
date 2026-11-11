@@ -253,6 +253,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   // 03/11/2026 : les comptes supprimés au serveur (le login seul).
   'utilisateurs' => 'Comptes supprimés',
   'demandes_cloture_exercice' => 'Demandes de clôture d’exercice',
+  'depots_images_document' => 'Signature et cachet des documents',
   _ => nom,
 };
 

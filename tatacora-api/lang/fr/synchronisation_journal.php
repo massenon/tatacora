@@ -80,6 +80,7 @@ return [
         'canaux_reservation' => 'Canal de réservation',
         'inventaires' => 'Inventaire',
         'demandes_cloture_exercice' => 'Demande de clôture d\'exercice',
+        'depots_images_document' => 'Signature ou cachet des documents',
         'historique_prix_carte' => 'Changement de prix de la carte',
         'avoirs' => 'Avoir',
         'services' => 'Service',

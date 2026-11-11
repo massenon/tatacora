@@ -24,6 +24,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireFactures;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
 use App\Shared\Sync\Gestionnaires\GestionnaireImmobilisations;
+use App\Shared\Sync\Gestionnaires\GestionnaireImagesDocument;
 use App\Shared\Sync\Gestionnaires\GestionnaireIndisponibilitesCarte;
 use App\Shared\Sync\Gestionnaires\GestionnaireInventaires;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
@@ -195,6 +196,10 @@ class RegistreSynchronisation
         // 03/11/2026 : les comptes — la SUPPRESSION seule (par le login), jamais une
         // création ni un mot de passe. L'autorité est vérifiée par le moteur.
         'utilisateurs' => GestionnaireUtilisateurs::class,
+        // 11/11/2026 : le DÉPÔT ou le RETRAIT de la signature et du cachet des documents A4,
+        // faits depuis un poste (création seule, un geste = une opération). Même service
+        // que l'écran web ; aucun droit du compte d'appairage n'est jugé (OperationsSensibles inchangée).
+        'depots_images_document' => GestionnaireImagesDocument::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

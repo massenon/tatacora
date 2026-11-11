@@ -20,6 +20,7 @@ import '../data/envoi_recus_depenses.dart';
 import '../data/operations_sync_dao.dart';
 import '../data/service_adresse_serveur.dart';
 import '../data/service_appairage.dart';
+import '../../facturation/data/depot_images_document.dart';
 import '../../facturation/data/images_document_poste.dart';
 import '../data/sync_manager.dart';
 import '../data/telechargement_images_document.dart';
@@ -267,6 +268,7 @@ final syncManagerProvider = Provider<SyncManager>((ref) {
     images: TelechargementImagesDocument(
       ref.watch(transportSynchronisationProvider),
       ref.watch(imagesDocumentPosteProvider),
+      ref.watch(depotImagesDocumentProvider).naturesEnSuspens,
     ),
   );
 });
