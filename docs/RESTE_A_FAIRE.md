@@ -65,3 +65,19 @@
 - [x] **G3** PDF A4 du poste (`proforma_a4.dart`, vert = `PaletteMaitre.vert700`), impression par `Printing.layoutPdf`, classé dans `pdf_directive_test`.
 - [x] **G4** Boutons « Créer une proforma » (location, tourisme, hébergement, restauration pour événement : proforma vide, aucun module événement n'existe) avec le même préremplissage que le web ; signature et cachet sur la facture A4 du poste selon l'interrupteur.
 - [x] **G5** Essai terrain D7 (une proforma réelle sur un vrai poste, comparée au modèle papier).
+
+## État au 11/11/2026
+
+**Fait (liste courte)** : poste hors ligne au schéma v59 ; synchronisation automatique chaque minute (demande lue toutes les 30 s) avec redescente automatique ; réservations multi-chambres (migration serveur `2026_11_10_100000`) ; règle d'annulation (`REGLE_ANNULATION_RESERVATION.md`) ; plats jamais refusés à la vente ; total TTC d'une facture = somme des prix vendus, créances sans tickets du comptoir ; heure locale du Bénin au web (`HeureLocale`) ; pied d'impression sans « Projet PAEB » ; comptable = droits du gérant, barman au socle (`roles:realigner-socle`) ; menus Synchronisation / Appairage Postes / Import & Export ouverts à tous ; comptabilité SYSCOHADA (affectation du résultat selon la forme juridique). Tests : PHP ~2 700, Flutter 5 831 + 24 ignorés (`--concurrency=1` après `migrate:fresh` de `tatacora_test`).
+
+**Reste**
+- Manuel : captures manquantes (3 cadres « à fournir » + 2 captures Inno Setup).
+- Facture de 5 850 FCFA du « Client de passage » : écart non expliqué.
+- Comparaison écran par écran poste/web sur un scénario complet : non faite.
+- Points comptables à valider par l'expert : 1181/1291, réserve légale, ordre d'imputation d'une perte, TAFIRE, compte 465, 1041/1042.
+- Essais réels du boîtier CC300 et d'e-MECeF.
+- Mots de passe exposés : à changer.
+- `.env` de production : `SESSION_SECURE_COOKIE=true`, `TRUSTED_PROXIES=*`, `LOG_LEVEL=error`.
+- Cron cPanel `schedule:run` chaque minute (`LISTE_DES_CRON_JOBS_CPANEL.md`).
+- Occupation et statistiques multi-chambres limitées à la chambre principale (hors taux d'occupation du serveur, qui compte déjà les chambres supplémentaires).
+- Procédure : `MISE_EN_PRODUCTION.md`.
