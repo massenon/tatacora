@@ -220,7 +220,7 @@ final class ImportExportActionsTest extends TestCase
      * pourquoi `ouvrirExport()` ne l'emploie pas.
      */
     #[Test]
-    public function un_role_en_lecture_sur_param_peut_exporter_une_table(): void
+    public function un_role_en_ecriture_sur_import_export_peut_exporter_une_table(): void
     {
         $this->actingAs($this->utilisateur('gerant'));
 

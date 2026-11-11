@@ -93,13 +93,17 @@ final class PosComptantPrestationsTest extends TestCase
     #[Test]
     public function le_catalogue_du_comptoir_ne_propose_ni_circuit_ni_vehicule_ni_leurs_rayons(): void
     {
-        Livewire::test(PosComptant::class)
+        $composant = Livewire::test(PosComptant::class)
             ->assertSee('Béninoise 65cl')
             ->assertDontSee('Cascades de Kota')
             ->assertDontSee('AB-123-CD')
-            ->assertDontSee('Tourisme')
-            ->assertDontSee('Location')
             ->assertDontSee('Tourisme & location');
+
+        // Le CATALOGUE seul : depuis le 11/11/2026 la barre latérale du gérant porte « Tourisme »
+        // et « Véhicules & Locations » (plus de masquage par rôle) — elle n'est pas le catalogue.
+        $sansMenu = (string) preg_replace('#<aside id="sidebar".*?</aside>#s', '', $composant->html());
+        $this->assertStringNotContainsString('Tourisme', $sansMenu);
+        $this->assertStringNotContainsString('Location', $sansMenu);
     }
 
     #[Test]

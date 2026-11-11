@@ -375,21 +375,22 @@ void main() {
       expect(classe, isNot(contains('routeMasqueePourRole')));
     });
 
-    test('la barre latérale, ELLE, cache au gérant les quatre routes de '
-        '« Aller à » que le panneau lui montre (D346 : l’incohérence est '
-        'relue au serveur, pas supposée)', () {
-      final menu = VueBlade.fichier('app/Pwa/Support/MenuLateral.php');
-      final bloc = RegExp(
-        r"'gerant'\s*=>\s*\[([^\]]*)\]",
-      ).firstMatch(menu)?.group(1);
-      expect(bloc, isNotNull, reason: 'ROUTES_MASQUEES_PAR_ROLE introuvable');
+    test('la barre latérale ne masque PLUS rien par nom de rôle : les quatre '
+        'routes de « Aller à » sont au menu du gérant (RBAC seul, relu au '
+        'serveur)', () {
+      // Hors commentaires : le fichier garde la trace datée de la suppression.
+      final menu = VueBlade.fichier(
+        'app/Pwa/Support/MenuLateral.php',
+      ).replaceAll(RegExp(r'^\s*(//|\*|/\*).*$', multiLine: true), '');
+      expect(menu, isNot(contains('ROUTES_MASQUEES_PAR_ROLE')));
+      expect(menu, isNot(contains('routeMasqueePourRole')));
       for (final route in const [
         'pwa.clients',
         'pwa.facturation',
         'pwa.comptabilite.hub',
         'pwa.etats.studio',
       ]) {
-        expect(bloc, contains("'$route'"), reason: route);
+        expect(menu, contains("'route' => '$route'"), reason: route);
         expect(
           raccourcisUniversels.any((e) => e.routePwa == route),
           isTrue,

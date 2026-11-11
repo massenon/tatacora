@@ -80,7 +80,10 @@ final class EntreesMenuOuvertesATousTest extends TestCase
 
         foreach (RolePermissionSeeder::MATRICE as $role => $droits) {
             foreach (RolePermissionSeeder::DROITS_OUVERTS_A_TOUS as $code) {
-                $attendu = in_array($role, ['administrateur', 'super_admin'], true) ? 'C' : 'L';
+                // IMPORT_EXPORT : `C` aussi pour le gérant et le comptable (PO 11/11/2026, le CRUD
+                // de la page suit ce droit) ; SYNCHRO et APPAIRAGE : `C` pour l'administration seule.
+                $attendu = in_array($role, ['administrateur', 'super_admin'], true)
+                    || ($code === 'IMPORT_EXPORT' && in_array($role, ['gerant', 'comptable'], true)) ? 'C' : 'L';
                 $this->assertSame($attendu, $droits[$code], "$role / $code");
                 $this->assertSame($attendu, $this->compte($role)->niveauSurModule($code), "$role / $code en base");
             }
@@ -105,13 +108,14 @@ final class EntreesMenuOuvertesATousTest extends TestCase
     }
 
     #[Test]
-    public function le_gerant_n_est_plus_prive_de_ces_trois_entrees(): void
+    public function le_gerant_voit_ces_trois_entrees_comme_tout_role(): void
     {
-        foreach (['pwa.import-export', 'pwa.synchronisation-postes', 'pwa.synchronisation'] as $route) {
-            $this->assertNotContains($route, MenuLateral::ROUTES_MASQUEES_PAR_ROLE['gerant']);
+        // 11/11/2026 : plus aucun masquage par nom de rôle — la barre ne suit que le RBAC.
+        $routes = $this->routes($this->compte('gerant'));
+        foreach (['pwa.import-export', 'pwa.synchronisation-postes', 'pwa.synchronisation', 'pwa.parametres'] as $route) {
+            $this->assertContains($route, $routes);
         }
-        // Les masquages du 03/09/2026 qui restent valables : Paramètres, Rôles…
-        $this->assertContains('pwa.parametres', MenuLateral::ROUTES_MASQUEES_PAR_ROLE['gerant']);
+        $this->assertFalse(defined(MenuLateral::class.'::ROUTES_MASQUEES_PAR_ROLE'), 'Le masquage par nom de rôle est supprimé.');
     }
 
     #[Test]

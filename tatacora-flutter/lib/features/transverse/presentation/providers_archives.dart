@@ -26,13 +26,13 @@ final registreArchivesProvider = FutureProvider.autoDispose<RegistreArchives>(
   (ref) => ref.watch(archivesPosteProvider).registre(),
 );
 
-/// `restaurerArchive` : le niveau `C` du module (Paramètres, `MODULE` du
+/// `restaurerArchive` : le niveau `C` du module (Import & Export, `MODULE` du
 /// composant) est relu à l'instant du geste, puis l'élément est remis en place
 /// par l'écrivain de son module. Rend le libellé de l'élément.
 final restaurerArchiveProvider =
     Provider<Future<String> Function(TypeArchive, String)>(
       (ref) => (type, id) async {
-        if (!ref.read(droitsProvider).peutEcrire(ModuleTatacora.parametres)) {
+        if (!ref.read(droitsProvider).peutEcrire(ModuleTatacora.importExport)) {
           throw const RefusArchive(MessagesArchives.droitManquant);
         }
         final libelle = await ref
@@ -44,7 +44,7 @@ final restaurerArchiveProvider =
     );
 
 /// `purgerArchive` : le rôle `super_admin` (`exigerSuperAdmin`) PUIS le niveau
-/// `C` du module Paramètres (`exigerEcriture`) sont relus à l'instant du geste,
+/// `C` du module Import & Export (`exigerEcriture`) sont relus à l'instant du geste,
 /// dans l'ordre de l'écran ; l'élément est alors purgé par l'écrivain de son
 /// module, qui enfile la `suppression`. Rend le libellé de l'élément.
 final purgerArchiveProvider =
@@ -53,7 +53,7 @@ final purgerArchiveProvider =
         if (!estSuperAdmin(ref.read(sessionProvider)?.role)) {
           throw const RefusArchive(MessagesArchives.superAdminRequis);
         }
-        if (!ref.read(droitsProvider).peutEcrire(ModuleTatacora.parametres)) {
+        if (!ref.read(droitsProvider).peutEcrire(ModuleTatacora.importExport)) {
           throw const RefusArchive(MessagesArchives.droitManquant);
         }
         final libelle = await ref.read(archivesPosteProvider).purger(type, id);

@@ -116,8 +116,7 @@ void main() {
       await monter(
         tester,
         droits: const {
-          'PARAM': 'C',
-          'IMPORT_EXPORT': 'L',
+          'IMPORT_EXPORT': 'C',
           'M3': 'C',
           'M8': 'C',
           'M6': 'L',
@@ -133,10 +132,7 @@ void main() {
 
     testWidgets('aucun module en écriture : la liste est vide et l’écran le '
         'dit', (tester) async {
-      await monter(
-        tester,
-        droits: const {'PARAM': 'C', 'IMPORT_EXPORT': 'L', 'M3': 'L'},
-      );
+      await monter(tester, droits: const {'IMPORT_EXPORT': 'C', 'M3': 'L'});
       expect(optionsModule(tester), isEmpty);
       expect(find.byKey(const Key('ie-aucun-module')), findsOneWidget);
     });
@@ -291,16 +287,29 @@ void main() {
     },
   );
 
-  testWidgets('un rôle qui ne fait que VOIR la page (IMPORT_EXPORT en L, PARAM '
-      'fermé) n’a que « Importer » : ni sauvegarde, ni restauration', (
+  testWidgets('un rôle qui ne fait que VOIR la page (IMPORT_EXPORT en L, même '
+      'avec PARAM en C) n’a que « Importer » : ni sauvegarde, ni restauration', (
     tester,
   ) async {
-    await monter(tester, droits: const {'IMPORT_EXPORT': 'L', 'M3': 'L'});
+    await monter(
+      tester,
+      droits: const {'PARAM': 'C', 'IMPORT_EXPORT': 'L', 'M3': 'C'},
+    );
     expect(find.byKey(const Key('ie-onglet-importer')), findsOneWidget);
+    // Lecture seule : aucun module en écriture n'est offert à l'import non plus.
+    expect(find.byKey(const Key('ie-modele')), findsNothing);
     expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsNothing);
     expect(find.byKey(const Key('ie-onglet-restaurer')), findsNothing);
     expect(find.text('Sauvegardes de la base'), findsNothing);
     expect(find.text('Restaurer'), findsNothing);
+  });
+
+  testWidgets('IMPORT_EXPORT en C suffit (PARAM fermé) : les trois onglets '
+      'sont là, le CRUD suit CE droit et non Paramètres', (tester) async {
+    await monter(tester, droits: const {'IMPORT_EXPORT': 'C', 'M3': 'C'});
+    expect(find.byKey(const Key('ie-onglet-importer')), findsOneWidget);
+    expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsOneWidget);
+    expect(find.byKey(const Key('ie-onglet-restaurer')), findsOneWidget);
   });
 
   testWidgets('sans le droit IMPORT_EXPORT, la page est refusée (la visibilité '

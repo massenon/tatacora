@@ -81,3 +81,5 @@
 - Cron cPanel `schedule:run` chaque minute (`LISTE_DES_CRON_JOBS_CPANEL.md`).
 - Occupation et statistiques multi-chambres limitées à la chambre principale (hors taux d'occupation du serveur, qui compte déjà les chambres supplémentaires).
 - Procédure : `MISE_EN_PRODUCTION.md`.
+- 11/11/2026 : masquage d'interface du gérant (03/09/2026) supprimé, web et poste ; la barre ne suit que le RBAC. Les bases EXISTANTES ne changent que par les droits en base : `php artisan roles:realigner-socle --role=gerant --role=comptable --dry-run` puis sans `--dry-run`, ou l'écran Rôles & Permissions.
+- 11/11/2026 : `IMPORT_EXPORT` = `C` pour gérant et comptable, CRUD d'Import & Export piloté par ce droit (web et poste) ; les bases existantes l'appliquent par le même `roles:realigner-socle --role=gerant --role=comptable`.

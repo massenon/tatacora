@@ -609,9 +609,9 @@ void main() {
       );
     });
 
-    // Le gérant a `C` partout ; la barre latérale lui cache `pwa.clients`,
-    // `pwa.facturation`, `pwa.comptabilite.hub` et `pwa.etats.studio`
-    // (`ROUTES_MASQUEES_PAR_ROLE`) — le panneau de la vue, non (D346).
+    // Le gérant a `C` partout : le panneau lui montre `pwa.clients`, `pwa.facturation`,
+    // `pwa.comptabilite.hub` et `pwa.etats.studio`, et depuis le 11/11/2026 la barre latérale
+    // aussi (plus aucun masquage par rôle).
     testWidgets('le GÉRANT voit les QUATRE destinations de « Aller à » que '
         'la barre latérale lui cache, et « Générer un état » sur l’accueil '
         '(incohérence du serveur, reproduite et nommée)', (tester) async {

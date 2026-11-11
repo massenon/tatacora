@@ -465,11 +465,26 @@ void main() {
       );
     });
 
-    testWidgets('sans le droit d\'écrire sur Paramètres : le registre se lit, '
-        'AUCUN bouton « Restaurer »', (tester) async {
-      await monter(tester, droits: const {'PARAM': 'L', 'IMPORT_EXPORT': 'L'});
-      expect(find.text('U1'), findsOneWidget);
-      expect(find.text('Restaurer'), findsOneWidget, reason: 'seul l\'onglet');
+    testWidgets('sans l\'écriture sur Import & Export (11/11/2026) : ni onglet '
+        'Restaurer ni bouton « Restaurer »', (tester) async {
+      tester.view
+        ..physicalSize = const Size(1600, 2600)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: surchargesImport(
+            db,
+            droits: const {'PARAM': 'C', 'IMPORT_EXPORT': 'L'},
+          ),
+          child: MaterialApp(
+            theme: AppTheme.clair,
+            home: const Scaffold(body: EcranImportExport()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('ie-onglet-restaurer')), findsNothing);
       expect(
         find.byKey(Key('ie-archive-restaurer-${ids['U1']}')),
         findsNothing,

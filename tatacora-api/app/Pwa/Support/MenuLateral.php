@@ -32,45 +32,17 @@ final class MenuLateral
         'parametres' => '<circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c.14.31.22.65.22 1V10c.66 0 1 .34 1 1v2c0 .66-.34 1-1 1z"/>',
     ];
 
-    /**
-     * Routes MASQUEES de la barre laterale pour un role donne — directive du
-     * Product Owner du 03/09/2026 : le gerant ne doit pas VOIR Tourisme,
-     * Vehicules, Comptabilite, Personnel & Paie, le groupe Pilotage &
-     * administration ni Clients & facturation.
-     *
-     * ⚠ C'est un masquage d'INTERFACE (niveau 1 du RBAC), pas un retrait de
-     * droits — la matrice du gerant reste inchangee, DELIBEREMENT : M10
-     * porte a la fois « Comptabilite » (a masquer) et « Depense courante »
-     * (que le gerant garde, c'est son geste quotidien) — passer par la
-     * matrice masquerait les deux ou aucun. Retirer un DROIT passe par
-     * l'ecran Roles & Permissions, jamais par ce registre. Les routes
-     * restent servies a qui les connait, sous leurs gardes normales.
-     *
-     * @var array<string, list<string>>
-     */
-    public const ROUTES_MASQUEES_PAR_ROLE = [
-        'gerant' => [
-            'pwa.tourisme',
-            'pwa.vehicules',
-            'pwa.comptabilite.hub',
-            'pwa.paie',
-            'pwa.etats.studio',
-            'pwa.notifications',
-            'pwa.roles-permissions',
-            'pwa.comptes-utilisateurs',
-            'pwa.parametres',
-            'pwa.clients',
-            'pwa.facturation',
-        ],
-    ];
-
-    private static function routeMasqueePourRole(?\App\Models\User $utilisateur, string $route): bool
-    {
-        $role = $utilisateur?->role?->libelle;
-
-        return $role !== null
-            && in_array($route, self::ROUTES_MASQUEES_PAR_ROLE[$role] ?? [], true);
-    }
+    // 11/11/2026 (PO) : le masquage d'interface PAR NOM DE ROLE (decision du
+    // 03/09/2026 : le gerant ne voyait ni Tourisme, ni Vehicules, ni
+    // Comptabilite, ni Personnel & Paie, ni Pilotage & administration) est
+    // CADUC et SUPPRIME (`ROUTES_MASQUEES_PAR_ROLE`, `routeMasqueePourRole`).
+    // Il masquait des modules que le role porte a `C` ; « Mettre a jour les
+    // roles » ne pouvait donc pas les faire apparaitre. La barre laterale est
+    // pilotee UNIQUEMENT par le RBAC : un module a `-` est masque, `L` ou `C`
+    // est visible (`moduleAccessible`). Seule exception : une entree qui exige
+    // un ROLE precis (cle `roles_exiges` de NAVIGATION, aujourd'hui « Comptes
+    // utilisateurs », reservee aux roles d'administration comme sur le poste
+    // — `DestinationMenu.rolesExiges`).
 
     public const NAVIGATION = [
         ['epingle' => true, 'nom' => 'Tableau de bord', 'icone' => 'dashboard', 'module' => 'M11', 'badge' => 'Tous modules', 'route' => 'pwa.accueil'],
@@ -136,13 +108,17 @@ final class MenuLateral
             // (`SYNCHRO`, `IMPORT_EXPORT`, `APPAIRAGE`, `L` pour tous — voir
             // `RolePermissionSeeder::DROITS_OUVERTS_A_TOUS`) ne commandent que la
             // VISIBILITÉ ; les gestes sensibles gardent leurs gardes. Le gérant les
-            // voit aussi : elles ne sont plus dans `ROUTES_MASQUEES_PAR_ROLE`.
+            // voit aussi (le masquage par role a ete supprime le 11/11/2026).
             ['nom' => 'Import & Export', 'icone' => 'import', 'module' => 'IMPORT_EXPORT', 'route' => 'pwa.import-export'],
             ['nom' => 'Rôles & Permissions', 'icone' => 'roles', 'module' => 'ROLES', 'route' => 'pwa.roles-permissions'],
             // 29/10/2026 (PO, option A du « mot de passe perdu ») : la liste des comptes et
             // « Réinitialiser le mot de passe ». Même entrée, même icône (les
             // personnes) que sur le poste Windows.
-            ['nom' => 'Comptes utilisateurs', 'icone' => 'crm', 'module' => 'ROLES', 'route' => 'pwa.comptes-utilisateurs'],
+            //
+            // 11/11/2026 : `roles_exiges` — l'entree exige le droit ROLES ET l'un des
+            // roles d'administration (= `User::ROLES_ADMINISTRATION`, recopie litterale : le registre est lu hors autoload par les gardes du poste ; `MenuLateralParRoleTest` les confronte). Seule
+            // entree dans ce cas ; le masquage par nom de role n'existe plus.
+            ['nom' => 'Comptes utilisateurs', 'icone' => 'crm', 'module' => 'ROLES', 'route' => 'pwa.comptes-utilisateurs', 'roles_exiges' => ['administrateur', 'super_admin']],
             ['nom' => 'Paramètres', 'icone' => 'parametres', 'module' => 'PARAM', 'route' => 'pwa.parametres'],
             // 21/10/2026 (demande du PO) : « Postes & Appairage » a son entrée de menu,
             // en plus de celle du menu de compte. Depuis le 09/11/2026, l'entrée
@@ -190,9 +166,11 @@ final class MenuLateral
                     continue;
                 }
 
-                // Masquage PAR ROLE, en plus du masquage par module — voir le
-                // registre ROUTES_MASQUEES_PAR_ROLE et sa raison datee.
-                if (self::routeMasqueePourRole($utilisateur, $item['route'])) {
+                // Une entree qui EXIGE un role precis (`roles_exiges`) garde cette
+                // exigence en plus du droit sur son module. Aucun autre masquage
+                // par nom de role (supprime le 11/11/2026).
+                if (isset($item['roles_exiges'])
+                    && ! in_array((string) $utilisateur?->role?->libelle, $item['roles_exiges'], true)) {
                     continue;
                 }
 

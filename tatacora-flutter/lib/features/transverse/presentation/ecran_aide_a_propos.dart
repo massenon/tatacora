@@ -1063,7 +1063,7 @@ class _Ressources extends StatelessWidget {
               // (« hors périmètre ») ; sur ce poste l'import existe — onglet
               // « Importer les données » d'Import & Export, où chaque module
               // a son modèle. La carte y mène.
-              onTap: () => aller(ModuleTatacora.parametres, '/import-export'),
+              onTap: () => aller(ModuleTatacora.importExport, '/import-export'),
             ),
             carte(
               cle: const Key('aide-ressource-journal-audit'),

@@ -1251,12 +1251,16 @@ final class PosPwaTest extends TestCase
 
         $this->actingAs($this->gerant);
 
-        Livewire::test(PosHeberges::class)
+        $composant = Livewire::test(PosHeberges::class)
             ->set('selectedReservationId', $reservation->id)
             ->assertDontSee('Cascades de Kota')
-            ->assertDontSee('AB-123-CD')
-            ->assertDontSee('Tourisme')
-            ->assertDontSee('Location');
+            ->assertDontSee('AB-123-CD');
+
+        // Le CATALOGUE seul : la barre latérale du gérant porte « Tourisme » et « Véhicules &
+        // Locations » depuis le 11/11/2026 (plus de masquage par rôle).
+        $sansMenu = (string) preg_replace('#<aside id="sidebar".*?</aside>#s', '', $composant->html());
+        $this->assertStringNotContainsString('Tourisme', $sansMenu);
+        $this->assertStringNotContainsString('Location', $sansMenu);
     }
 
     #[Test]

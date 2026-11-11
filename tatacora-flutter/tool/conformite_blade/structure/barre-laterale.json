@@ -658,25 +658,25 @@
         },
         "comptable": {
             "droits": {
-                "M1": "L",
-                "M2": "L",
-                "M3": "L",
-                "M4": "L",
-                "M5": "L",
-                "M6": "L",
-                "M7": "L",
-                "M8": "L",
-                "M9": "L",
+                "M1": "C",
+                "M2": "C",
+                "M3": "C",
+                "M4": "C",
+                "M5": "C",
+                "M6": "C",
+                "M7": "C",
+                "M8": "C",
+                "M9": "C",
                 "M10": "C",
-                "M11": "L",
-                "M12": "-",
-                "M13": "L",
+                "M11": "C",
+                "M12": "C",
+                "M13": "C",
                 "M14": "C",
-                "ROLES": "-",
-                "PARAM": "-",
+                "ROLES": "L",
+                "PARAM": "L",
                 "SYNCHRO": "L",
                 "APPAIRAGE": "L",
-                "IMPORT_EXPORT": "L"
+                "IMPORT_EXPORT": "C"
             },
             "barre": {
                 "entrees": [
@@ -933,12 +933,42 @@
                     {
                         "type": "entree",
                         "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Notifications",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/notifications",
+                        "icone": "7c1e5d16"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
                         "nom": "Import & Export",
                         "badge": null,
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/import-export",
                         "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Rôles & Permissions",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/roles-permissions",
+                        "icone": "c494d96d"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Paramètres",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/parametres",
+                        "icone": "cf62b51c"
                     },
                     {
                         "type": "entree",
@@ -1136,7 +1166,7 @@
                 "PARAM": "L",
                 "SYNCHRO": "L",
                 "APPAIRAGE": "L",
-                "IMPORT_EXPORT": "L"
+                "IMPORT_EXPORT": "C"
             },
             "barre": {
                 "entrees": [
@@ -1217,6 +1247,31 @@
                     },
                     {
                         "type": "groupe",
+                        "nom": "CLIENTS & FACTURATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Clients & Créances",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/clients",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Facturation",
+                        "badge": "MECeF",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/facturation",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "groupe",
                         "nom": "STOCKS & ACHATS",
                         "actif": false
                     },
@@ -1287,8 +1342,58 @@
                     },
                     {
                         "type": "groupe",
+                        "nom": "TOURISME & VÉHICULES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Tourisme",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/tourisme",
+                        "icone": "82108748"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Véhicules & Locations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/vehicules",
+                        "icone": "dc1e0eb1"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "FINANCE",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "FINANCE",
+                        "nom": "Comptabilité",
+                        "badge": "SYSCOHADA",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/comptabilite",
+                        "icone": "adea5acf"
+                    },
+                    {
+                        "type": "groupe",
                         "nom": "RESSOURCES HUMAINES",
                         "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESSOURCES HUMAINES",
+                        "nom": "Personnel & Paie",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/paie",
+                        "icone": "4be7147d"
                     },
                     {
                         "type": "entree",
@@ -1308,12 +1413,52 @@
                     {
                         "type": "entree",
                         "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Notifications",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/notifications",
+                        "icone": "7c1e5d16"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
                         "nom": "Import & Export",
                         "badge": null,
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/import-export",
                         "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Rôles & Permissions",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/roles-permissions",
+                        "icone": "c494d96d"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Paramètres",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/parametres",
+                        "icone": "cf62b51c"
                     },
                     {
                         "type": "entree",

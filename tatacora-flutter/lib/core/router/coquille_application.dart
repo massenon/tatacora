@@ -1165,9 +1165,9 @@ class _BarreLaterale extends ConsumerWidget {
     final routeActive = GoRouterState.of(context).uri.path;
 
     /// `MenuLateral::pour()` : l'entrée **disparaît** sur `-`, elle n'est pas
-    /// grisée. Premier des trois niveaux RBAC de RG-16. Et le masquage PAR
-    /// RÔLE (`ROUTES_MASQUEES_PAR_ROLE`, Phase 1B) : le gérant ne voit pas les
-    /// onze entrées que la vue lui cache.
+    /// grisée. Premier des trois niveaux RBAC de RG-16. Aucun masquage par nom de
+    /// rôle depuis le 11/11/2026 : la barre se reconstruit à chaque changement des
+    /// droits de la session (`droitsProvider` est surveillé par `watch`).
     ///
     /// La règle vit dans `navigation_tatacora.dart` ([destinationVisible]) :
     /// la garde du routeur en lit la moitié « accès » ([destinationAccessible]),

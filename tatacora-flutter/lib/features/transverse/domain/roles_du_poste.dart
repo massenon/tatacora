@@ -243,7 +243,7 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_INTITULE': '-',
     'SYNCHRO': 'L',
     'APPAIRAGE': 'L',
-    'IMPORT_EXPORT': 'L',
+    'IMPORT_EXPORT': 'C',
   },
   'receptionniste': {
     'M1': 'C',
@@ -468,7 +468,7 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_INTITULE': '-',
     'SYNCHRO': 'L',
     'APPAIRAGE': 'L',
-    'IMPORT_EXPORT': 'L',
+    'IMPORT_EXPORT': 'C',
   },
 };
 

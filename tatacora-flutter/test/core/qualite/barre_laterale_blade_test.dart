@@ -19,7 +19,7 @@ import '../../support/structure_rendue.dart';
 ///
 ///  1. la SÉQUENCE des textes (groupes, entrées, badges), dans l'ordre ;
 ///  2. l'ENSEMBLE des entrées visibles — où se voit le masquage par rôle
-///     (`MenuLateral::ROUTES_MASQUEES_PAR_ROLE`) ;
+///     (supprimé le 11/11/2026 : RBAC seul) ;
 ///  3. l'ÉTAT ACTIF — une et une seule entrée allumée par page ;
 ///  4. la PARTITION des icônes — quelles entrées partagent le même dessin ;
 ///  5. les entrées INERTES (sans route) et le pied (identité, déconnexion).

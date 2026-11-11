@@ -41,7 +41,6 @@ import '../../ventes/presentation/providers_ventes.dart';
 import '../../vehicules/presentation/providers_vehicules.dart';
 import '../../tourisme/domain/departs.dart';
 import '../../tourisme/presentation/providers_tourisme.dart';
-import '../../../core/navigation/navigation_tatacora.dart';
 import '../domain/analytique_locale.dart' show decimaleDeCentimes;
 import '../domain/modules_pilotage.dart';
 import '../data/pilotage_api.dart';
@@ -100,7 +99,7 @@ export '../domain/indicateurs_locaux.dart' show mentionStockSansCout;
 /// | Créances clients | `creances.dart` (encaissements écrits depuis le lot 5, D234) | établi depuis le 12/10/2026 (D282) |
 /// | « À traiter » : créances, factures non soldées, réservations en attente | `totauxCreances` (droit M3) et la bande M11 | établi depuis le 12/10/2026 (R3, D289) |
 /// | Créances par ancienneté (graphique) | `creancesParAnciennete` (`modules_pilotage.dart`), réplique d'`Accueil::creancesParAnciennete` | établi depuis le 13/10/2026 (D370), confronté au serveur ; « Non consulté » sans droit M3 |
-/// | Cartes Véhicules, Tourisme, Personnel & paie, Clients & créances | M8, M9, M13, M3 (`modules_pilotage.dart`) | établies depuis le 13/10/2026 (D370) ; chacune gardée par le droit de lecture ET le masquage par rôle de la barre latérale ([carteModuleVisible]) |
+/// | Cartes Véhicules, Tourisme, Personnel & paie, Clients & créances | M8, M9, M13, M3 (`modules_pilotage.dart`) | établies depuis le 13/10/2026 (D370) ; chacune gardée par le droit de lecture de son module, rien d'autre ([carteModuleVisible] ; plus de masquage par rôle depuis le 11/11/2026) |
 ///
 /// Un refus du maître reste déclaré, par son jeton `maitre-refuse:` à
 /// l'endroit où il aurait vécu ([_CarteReserves]) : la réserve « N ligne(s)
@@ -232,15 +231,16 @@ final horlogeTableauDeBordProvider = Provider<DateTime Function()>(
 ///
 /// `null` sans droit de lecture sur M13 : le chiffre n'est ni zéro ni absent, il
 /// n'a pas été lu — la carte dit « Non consulté », comme la vue.
-final masseSalarialePilotageProvider = FutureProvider.autoDispose<TotauxLivre?>(
-  (ref) async {
-    if (!ref.read(droitsProvider).peutLire(ModuleTatacora.m13Rh)) return null;
-    final maintenant = ref.read(horlogeTableauDeBordProvider)();
-    final periode =
-        '${maintenant.year}-${maintenant.month.toString().padLeft(2, '0')}';
-    return ref.read(livreDePaieServiceProvider).totaux(periode);
-  },
-);
+final masseSalarialePilotageProvider = FutureProvider.autoDispose<TotauxLivre?>((
+  ref,
+) async {
+  // `watch` (11/11/2026) : un rôle modifié puis descendu recalcule la carte sans reconnexion.
+  if (!ref.watch(droitsProvider).peutLire(ModuleTatacora.m13Rh)) return null;
+  final maintenant = ref.read(horlogeTableauDeBordProvider)();
+  final periode =
+      '${maintenant.year}-${maintenant.month.toString().padLeft(2, '0')}';
+  return ref.read(livreDePaieServiceProvider).totaux(periode);
+});
 
 /// Les dépenses courantes de la fenêtre affichée — `DepenseService::filtrer`
 /// du serveur : `date_transaction` entre `du` et `au` INCLUS, où `au` est la
@@ -317,27 +317,18 @@ final analytiquePilotageProvider =
       return ref.watch(pilotageApiProvider).analytique(exercice.donnee.id);
     });
 
-/// La visibilité d'une carte « Par module » — `MenuLateral::peutVoirRoute` :
-/// le droit de LECTURE du module, puis le masquage par rôle de la barre
-/// latérale (`ROUTES_MASQUEES_PAR_ROLE`, le gérant ne voit pas Tourisme,
-/// Véhicules, Personnel ni Clients). Une carte non autorisée n'est jamais
-/// calculée puis masquée.
-bool carteModuleVisible(Ref ref, ModuleTatacora module, String entreeMenu) {
-  if (!ref.read(droitsProvider).peutLire(module)) return false;
-  final role = ref.read(sessionProvider)?.role ?? '';
-  return !entreeMasqueePourRole(role, entreeMenu);
-}
+/// La visibilité d'une carte « Par module » — `MenuLateral::peutVoirRoute` : le droit de LECTURE
+/// du module, et rien d'autre (le masquage par nom de rôle de la barre latérale est supprimé
+/// depuis le 11/11/2026). Une carte non autorisée n'est jamais calculée puis masquée.
+bool carteModuleVisible(Ref ref, ModuleTatacora module) =>
+    ref.watch(droitsProvider).peutLire(module);
 
 /// La carte « Location de véhicules » (M8) — `Accueil::moduleVehicules`, sur
 /// la fenêtre [aujourd'hui, aujourd'hui + 14 jours] de l'écran M8.
 final vehiculesPilotageProvider = FutureProvider.autoDispose<ModuleVehicules?>((
   ref,
 ) async {
-  if (!carteModuleVisible(
-    ref,
-    ModuleTatacora.m8Vehicules,
-    'Véhicules & Locations',
-  )) {
+  if (!carteModuleVisible(ref, ModuleTatacora.m8Vehicules)) {
     return null;
   }
   final dao = ref.read(vehiculeDaoProvider);
@@ -355,7 +346,7 @@ final vehiculesPilotageProvider = FutureProvider.autoDispose<ModuleVehicules?>((
 final tourismePilotageProvider = FutureProvider.autoDispose<AgregatsDeparts?>((
   ref,
 ) async {
-  if (!carteModuleVisible(ref, ModuleTatacora.m9Tourisme, 'Tourisme')) {
+  if (!carteModuleVisible(ref, ModuleTatacora.m9Tourisme)) {
     return null;
   }
   final maintenant = ref.read(horlogeTableauDeBordProvider)();
@@ -378,7 +369,8 @@ final tourismePilotageProvider = FutureProvider.autoDispose<AgregatsDeparts?>((
 /// de lecture sur M3 : la vue dit alors « Non consulté ».
 final creancesAnciennetePilotageProvider =
     FutureProvider.autoDispose<List<TrancheCreance>?>((ref) async {
-      if (!ref.read(droitsProvider).peutLire(ModuleTatacora.m3Crm)) return null;
+      if (!ref.watch(droitsProvider).peutLire(ModuleTatacora.m3Crm))
+        return null;
       final creances = await ref.watch(creancesProvider.future);
       return creancesParAnciennete(
         creances,
@@ -2126,15 +2118,10 @@ class _GrilleModules extends ConsumerWidget {
     final compta = ref.watch(comptaPilotageProvider).value;
     final vehicules = ref.watch(vehiculesPilotageProvider).value;
     final tourisme = ref.watch(tourismePilotageProvider).value;
-    final role = ref.watch(sessionProvider)?.role ?? '';
-    // « Personnel & paie » : `$paie !== null` (droit M13) ET l'entrée du menu.
-    final paie = !entreeMasqueePourRole(role, 'Personnel & Paie')
-        ? ref.watch(masseSalarialePilotageProvider).value
-        : null;
-    // « Clients & créances » : les tranches (droit M3) ET l'entrée du menu.
-    final tranches = !entreeMasqueePourRole(role, 'Clients & Créances')
-        ? ref.watch(creancesAnciennetePilotageProvider).value
-        : null;
+    // « Personnel & paie » : `$paie !== null` (droit M13, relu par le fournisseur).
+    final paie = ref.watch(masseSalarialePilotageProvider).value;
+    // « Clients & créances » : les tranches (droit M3, relu par le fournisseur).
+    final tranches = ref.watch(creancesAnciennetePilotageProvider).value;
     final creances = tranches == null
         ? null
         : ref.watch(creancesProvider).value;

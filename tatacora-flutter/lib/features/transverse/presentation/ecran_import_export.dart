@@ -323,17 +323,18 @@ class _EcranImportExportState extends ConsumerState<EcranImportExport> {
   @override
   Widget build(BuildContext context) {
     final droits = ref.watch(droitsProvider);
-    // 09/11/2026 (PO) : la page est au menu de TOUS les rôles — le droit transverse
-    // `IMPORT_EXPORT` (lecture par défaut) ne commande que sa VISIBILITÉ. Les onglets
-    // « Sauvegardes de la base » et « Restaurer » exigent en plus la lecture de
-    // `Paramètres` (comme au serveur : un rôle sans `PARAM` n'a que « Importer ») et
-    // chaque geste son écriture (`peutEcrire`) ; l'import exige l'écriture sur le
-    // module choisi (`importeursLocauxProvider`).
+    // 11/11/2026 (PO) : le CRUD de la page suit le droit transverse `IMPORT_EXPORT`, modifiable à
+    // l'écran Rôles & Permissions (`L` : page en lecture seule, onglet « Importer » sans geste ;
+    // `C` : import, sauvegardes, export, restauration), plus `Paramètres` ni un nom de rôle. Les
+    // onglets « Sauvegardes de la base » et « Restaurer » exigent `C` (une sauvegarde est la copie
+    // intégrale de la base, et `L` est accordé à tous). L'import exige en plus l'écriture sur le
+    // module choisi (`importeursLocauxProvider`). Le droit est RELU à chaque changement de la
+    // session (`droitsProvider`) : une descente de rôle change la page sans reconnexion.
     if (!droits.peutLire(ModuleTatacora.importExport)) {
       return const RefusDroitTransverse(message: LibellesCoquille.sansDroit);
     }
-    final accesAdministration = droits.peutLire(ModuleTatacora.parametres);
-    final peutEcrire = droits.peutEcrire(ModuleTatacora.parametres);
+    final peutEcrire = droits.peutEcrire(ModuleTatacora.importExport);
+    final accesAdministration = peutEcrire;
     final nombreTables = ref.watch(baseLocaleProvider).allTables.length;
 
     return PageTransverse(

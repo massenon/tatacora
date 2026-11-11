@@ -272,9 +272,9 @@ final class ConformiteMaquettePwaTest extends TestCase
     #[Test]
     public function la_coquille_reprend_la_barre_superieure_le_menu_et_le_voile_mobile(): void
     {
-        // Administrateur et plus gerant depuis le 03/09/2026 : le PO masque
-        // au gerant plusieurs groupes du menu (ROUTES_MASQUEES_PAR_ROLE) —
-        // ce cas verifie la coquille COMPLETE, il lui faut un role complet.
+        // Administrateur : ce cas verifie la coquille COMPLETE, il lui faut un
+        // role complet (le masquage par nom de role du gerant a ete supprime le
+        // 11/11/2026 ; la barre ne suit plus que le RBAC).
         $this->actingAs($this->creerUtilisateur('administrateur'));
 
         $html = (string) $this->get('/pwa')->assertOk()->getContent();
@@ -381,11 +381,9 @@ final class ConformiteMaquettePwaTest extends TestCase
 
         // Contre-epreuve : ces memes entrees existent pour un role qui y a droit.
         // Sans elle, un menu vide par erreur ferait passer le test ci-dessus.
-        // ⚠ ADMINISTRATEUR et plus gerant depuis le 03/09/2026 : la
-        // directive PO masque au gerant Facturation, Personnel & Paie et
-        // Comptabilite (MenuLateral::ROUTES_MASQUEES_PAR_ROLE, tenu par
-        // MenuLateralParRoleTest) — la contre-epreuve « un role plein voit
-        // tout » a besoin d'un role qui voit reellement tout.
+        // ADMINISTRATEUR : la contre-epreuve « un role plein voit tout » a
+        // besoin d'un role qui voit reellement tout (barre par role tenue par
+        // MenuLateralParRoleTest, contre la matrice du seeder).
         $this->actingAs($this->creerUtilisateur('administrateur', 'actif', 'autre.compte'));
         $htmlComplet = (string) $this->get('/pwa')->assertOk()->getContent();
         foreach (['Tableau de bord', 'Stocks', 'Facturation', 'Personnel &amp; Paie', 'Comptabilité'] as $attendu) {

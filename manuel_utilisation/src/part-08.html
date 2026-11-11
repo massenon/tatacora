@@ -256,9 +256,8 @@
   <span class="note info">
     <span class="icone">ℹ️</span>
     <span class="titre">Information</span>
-    <strong>Le menu masque certains écrans au gérant, même si ses droits les permettent.</strong> Sur décision de la Direction, le menu du gérant ne montre ni Tourisme, ni Véhicules &amp; Locations, ni Comptabilité, ni Personnel &amp; Paie, ni États &amp; Rapports,
-    ni Notifications, ni Clients &amp; Créances, ni Facturation, ni le groupe d'administration. C'est un masquage d'interface, pas un retrait de droits : la matrice du gérant reste inchangée.
-    Pour retirer réellement un droit, passez par la matrice.
+    <strong>Le menu suit uniquement les droits du rôle.</strong> Un module à « - » n'apparaît pas dans le menu ; un module à « L » (lecture) ou « C » (écriture) y apparaît. Aucun écran n'est masqué à un rôle « par son nom » : le gérant, dont les modules M1 à M14 sont à « C », voit donc Tourisme, Véhicules &amp; Locations, Comptabilité, Personnel &amp; Paie, Congés &amp; Plannings, États &amp; Rapports, Notifications, Clients &amp; Créances et Facturation, ainsi que Rôles &amp; Permissions et Paramètres en lecture seule. Seul « Comptes utilisateurs » reste réservé aux administrateurs.
+    Quand l'administrateur modifie un rôle (ou utilise « Rétablir le socle »), le menu des comptes concernés se met à jour sans déconnexion : à la page suivante sur le web, après la prochaine synchronisation sur le poste.
   </span>
   <figure>
     <img src="../captures/roles-permissions.png" alt="La matrice des permissions : modules et rôles.">

@@ -170,7 +170,12 @@ void main() {
       for (final code in droitsOuvertsATous) {
         expect(
           e.value[code],
-          rolesAdministrationProfil.contains(e.key) ? 'C' : 'L',
+          // IMPORT_EXPORT : `C` aussi pour le gérant et le comptable (PO 11/11/2026).
+          rolesAdministrationProfil.contains(e.key) ||
+                  (code == 'IMPORT_EXPORT' &&
+                      const {'gerant', 'comptable'}.contains(e.key))
+              ? 'C'
+              : 'L',
           reason: '${e.key} / $code',
         );
       }

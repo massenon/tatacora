@@ -66,7 +66,7 @@ class RolePermissionSeeder extends Seeder
      * « Import & Export » sont au menu latéral de TOUS les rôles, par défaut.
      * Trois droits TRANSVERSES, hors écran comme `ANNULATIONS` (la matrice de
      * « Rôles & Permissions » ne les affiche pas) : `L` pour tous les rôles —
-     * il suffit de VOIR la page —, `C` pour les rôles d'administration.
+     * il suffit de VOIR la page —, `C` pour les rôles d'administration, le gérant et le comptable (11/11/2026 : le CRUD de la page suit ce droit).
      * Le droit ne gouverne QUE la visibilité de la page et du menu : chaque
      * ACTION sensible garde sa propre garde (révoquer un poste, demander la
      * synchronisation des postes, sauvegardes, restauration, réinitialisation,
@@ -85,7 +85,7 @@ class RolePermissionSeeder extends Seeder
         // MECeF) : meme le super_admin passe par le geste metier.
         'super_admin'    => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'C','PARAM'=>'C','ANNULATIONS'=>'C','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'C','SYNCHRO'=>'C','APPAIRAGE'=>'C','IMPORT_EXPORT'=>'C'],
         'administrateur' => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'C','PARAM'=>'C','ANNULATIONS'=>'C','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'C','SYNCHRO'=>'C','APPAIRAGE'=>'C','IMPORT_EXPORT'=>'C'],
-        'gerant'         => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'L','PARAM'=>'L','ANNULATIONS'=>'C','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
+        'gerant'         => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'L','PARAM'=>'L','ANNULATIONS'=>'C','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'C'],
         'receptionniste' => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'L','M5'=>'L','M6'=>'L','M7'=>'-','M8'=>'L','M9'=>'L','M10'=>'-','M11'=>'L','M12'=>'L','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'L','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
         'cuisine'        => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'C','M5'=>'-','M6'=>'C','M7'=>'-','M8'=>'-','M9'=>'-','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
         'barman'         => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'C','M6'=>'C','M7'=>'-','M8'=>'-','M9'=>'-','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
@@ -94,7 +94,7 @@ class RolePermissionSeeder extends Seeder
         'vehicules'      => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'C','M9'=>'L','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
         'guide'          => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'L','M9'=>'C','M10'=>'-','M11'=>'-','M12'=>'-','M13'=>'-','M14'=>'-','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
         'rh'             => ['M1'=>'-','M2'=>'-','M3'=>'-','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'-','M9'=>'-','M10'=>'L','M11'=>'L','M12'=>'-','M13'=>'C','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
-        'comptable'      => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'L','PARAM'=>'L','ANNULATIONS'=>'C','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
+        'comptable'      => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'L','PARAM'=>'L','ANNULATIONS'=>'C','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'C'],
     ];
 
     public function run(): void

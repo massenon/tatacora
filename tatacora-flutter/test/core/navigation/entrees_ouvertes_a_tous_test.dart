@@ -55,7 +55,11 @@ void main() {
       final droits = GardeAcces.depuisJson(socleRbacCdcf[role]!);
       for (final e in _entrees.entries) {
         final (route, code) = e.value;
-        final attendu = {'administrateur', 'super_admin'}.contains(role)
+        // IMPORT_EXPORT : `C` aussi pour le gérant et le comptable (PO 11/11/2026).
+        final attendu =
+            {'administrateur', 'super_admin'}.contains(role) ||
+                (code == 'IMPORT_EXPORT' &&
+                    {'gerant', 'comptable'}.contains(role))
             ? NiveauAcces.complet
             : NiveauAcces.lecture;
         expect(
@@ -77,11 +81,17 @@ void main() {
         );
       }
     }
-    // Le gérant n'est plus privé de ces trois entrées (les autres masquages restent).
-    for (final nom in _entrees.keys) {
-      expect(nomsMasquesParRole['gerant'], isNot(contains(nom)));
+    // 11/11/2026 : plus aucun masquage par nom de rôle — le gérant voit ces trois entrées ET
+    // Paramètres (PARAM = L), parce que la barre ne suit que le RBAC.
+    final droitsGerant = GardeAcces.depuisJson(socleRbacCdcf['gerant']!);
+    for (final nom in [..._entrees.keys, 'Paramètres']) {
+      final d = toutesLesDestinations.singleWhere((x) => x.nom == nom);
+      expect(
+        destinationVisible(d, droits: droitsGerant, role: 'gerant'),
+        isTrue,
+        reason: '$nom doit être au menu du gérant',
+      );
     }
-    expect(nomsMasquesParRole['gerant'], contains('Paramètres'));
   });
 
   test('MUTATION : retirer le droit par défaut d’un rôle lui retire l’entrée '
