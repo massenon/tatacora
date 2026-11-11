@@ -665,10 +665,10 @@ void main() {
     });
 
     test('« Super Admin » (casse de la session) purge ; sans l’écriture sur '
-        'Paramètres, non', () async {
+        'Import & Export, non', () async {
       expect(
         await purgerEn('super_admin', const {
-          'PARAM': 'L',
+          'PARAM': 'C',
           'IMPORT_EXPORT': 'L',
         }),
         MessagesArchives.droitManquant,
@@ -805,22 +805,34 @@ void main() {
       expect(await file(), isEmpty);
     });
 
-    testWidgets('sans le droit d’écrire sur Paramètres, la purge est refusée '
-        'au geste (le serveur répond 403)', (tester) async {
-      await monter(tester, droits: const {'PARAM': 'L', 'IMPORT_EXPORT': 'L'});
-      await tester.tap(find.byKey(purger('U-OK')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('ie-purge-confirmer')));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 200)),
-      );
-      await tester.pumpAndSettle();
-      expect(
-        tester.widget<Text>(find.byKey(const Key('ie-purge-refus'))).data,
-        MessagesArchives.droitManquant,
-      );
-      expect(await existe('U-OK'), isTrue);
-    });
+    testWidgets(
+      'sans l’écriture sur Import & Export (11/11/2026 : le droit de la '
+      'page, plus Paramètres), l’onglet Restaurer n’est pas offert : aucune '
+      'purge à tenter (le refus au geste est prouvé par le fournisseur)',
+      (tester) async {
+        tester.view
+          ..physicalSize = const Size(1600, 2600)
+          ..devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: surchargesImport(
+              db,
+              droits: const {'PARAM': 'C', 'IMPORT_EXPORT': 'L'},
+              role: 'super_admin',
+            ),
+            child: MaterialApp(
+              theme: AppTheme.clair,
+              home: const Scaffold(body: EcranImportExport()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('ie-onglet-restaurer')), findsNothing);
+        expect(find.byKey(purger('U-OK')), findsNothing);
+        expect(await existe('U-OK'), isTrue);
+      },
+    );
 
     testWidgets('une ligne « déjà restaurée » n’offre pas la purge', (
       tester,

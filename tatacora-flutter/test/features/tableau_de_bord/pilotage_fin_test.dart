@@ -229,10 +229,30 @@ void main() {
     expect(find.byKey(const Key('pilotage-module-m9')), findsOneWidget);
   });
 
-  testWidgets('le gérant : les quatre cartes masquées comme dans la vue', (
+  testWidgets('le gérant voit les quatre cartes : plus de masquage par rôle '
+      '(11/11/2026), seul le droit de lecture du module décide', (
     tester,
   ) async {
     await monter(tester, role: 'gerant');
+    for (final m in ['m8', 'm9', 'm13', 'm3']) {
+      expect(find.byKey(Key('pilotage-module-$m')), findsOneWidget, reason: m);
+    }
+  });
+
+  testWidgets('sans droit de lecture, la carte n\u2019est pas rendue, quel que '
+      'soit le rôle (le RBAC seul)', (tester) async {
+    await monter(
+      tester,
+      role: 'gerant',
+      droits: const {
+        'M3': '-',
+        'M8': '-',
+        'M9': '-',
+        'M10': 'L',
+        'M11': 'C',
+        'M13': '-',
+      },
+    );
     for (final m in ['m8', 'm9', 'm13', 'm3']) {
       expect(find.byKey(Key('pilotage-module-$m')), findsNothing, reason: m);
     }

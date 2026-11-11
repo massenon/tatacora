@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/features/hebergement/data/catalogue_services_dao.dart';
@@ -182,7 +181,7 @@ void main() {
 
       final operations = await OperationsSyncDao(db).operations(entiteId: 'r2');
       final creation = jsonDecode(operations.first.payload) as Map;
-      final lignes = (creation['lignes'] as List).cast<Map>();
+      final lignes = (creation['lignes'] as List).cast<Map<String, dynamic>>();
       expect(lignes.map((l) => l['source_id']), ['u-2']);
       expect(lignes.single['service'], 'hebergement');
       expect(creation['unite_id'], 'u-1');

@@ -51,19 +51,18 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *   phase d'essais), la phrase « VIDER » à retaper et le journal d'audit vivent
  *   dans l'onglet « Activation & Sécurité » de `Parametres`, INCHANGÉS.
  *
- * ## Qui voit quoi (09/11/2026, PO : « Import & Export » au menu de TOUS les rôles)
+ * ## Qui voit quoi (11/11/2026, PO : le CRUD de la page suit le droit `IMPORT_EXPORT`)
  *
- * Le droit transverse `IMPORT_EXPORT` (lecture pour tous) ne commande que la
- * VISIBILITÉ de la page. Chaque geste garde sa garde :
- * - les onglets « Sauvegardes de la base » et « Restaurer » (génération,
- *   téléchargement, retrait, export d'une table, restauration, purge) exigent
- *   la lecture de `PARAM` (gérant) et, pour toute ÉCRITURE, son écriture
- *   (administrateurs) : un rôle sans `PARAM` ne les voit pas et les actions
- *   refusent (403) ;
- * - l'import (modèle, contrôle, confirmation) exige l'écriture sur
- *   `PARAM` (`exigerEcriture(self::MODULE)`, garde figée par
- *   `PwaEcritureAutoriseeTest`) : un rôle sans ce droit voit la fiche des
- *   colonnes attendues et l'historique, sans bouton d'import.
+ * `IMPORT_EXPORT` en `L` : la page s'ouvre en LECTURE SEULE (fiche des colonnes attendues,
+ * historique, bandeau « Accès lecture seule »), sans onglets de sauvegarde ni geste. En `C`
+ * (gérant, comptable, administrateurs par défaut) : import (modèle, contrôle, confirmation),
+ * génération / retrait / téléchargement de sauvegarde, export d'une table, restauration. Le droit
+ * est relu à CHAQUE requête (aucun cache) : un droit passé de `C` à `L` change la page à la
+ * requête suivante, sans reconnexion. L'import d'un module exige en plus l'ÉCRITURE du module
+ * importé (`ModuleImport::$module`). Gardes conservées, par sécurité : la purge définitive reste
+ * réservée au super administrateur, et la réinitialisation des données de test reste dans
+ * Paramètres (administrateurs). Le téléchargement d'une sauvegarde (copie intégrale de la base)
+ * et l'export de table exigent `C`, jamais `L` : le droit de lecture est ouvert à tous les rôles.
  *
  * @see LARAVEL_PWA.md §1, §3
  * @see DIRECTIVE_CONFORMITE_100.md Article 3.3, Article 8
@@ -74,8 +73,12 @@ class ImportExport extends PageTransverse
     use FormulaireModal;
     use WithFileUploads;
 
-    /** Le module RBAC de l'écran — `data-module="PARAM"` au maître. */
-    public const MODULE = 'PARAM';
+    /**
+     * Le module RBAC de l'écran : le droit transverse `IMPORT_EXPORT` (11/11/2026, PO), modifiable
+     * à l'écran Rôles & Permissions — `L` voit la page en lecture seule, `C` agit (import,
+     * sauvegardes, export, restauration). Ce n'est plus `PARAM` ni un nom de rôle.
+     */
+    public const MODULE = 'IMPORT_EXPORT';
 
     public const ONGLETS = ['importer', 'sauvegardes', 'restaurer'];
 
@@ -223,6 +226,7 @@ class ImportExport extends PageTransverse
             return;
         }
 
+        $this->exigerEcritureDuModuleImporte($module);
         $tableau = $this->lireFichierDepose($controle);
 
         if ($tableau === null) {
@@ -262,6 +266,7 @@ class ImportExport extends PageTransverse
             return;
         }
 
+        $this->exigerEcritureDuModuleImporte($module);
         $tableau = $this->lireFichierDepose($controle);
 
         if ($tableau === null) {
@@ -512,14 +517,17 @@ class ImportExport extends PageTransverse
     // =====================================================================
 
     /**
-     * Les onglets « Sauvegardes de la base » et « Restaurer » et leurs gestes de
-     * LECTURE (téléchargement d'une sauvegarde, export d'une table) exigent au
-     * moins la LECTURE de `PARAM` — ce qu'exigeait la page entière avant le
-     * 09/11/2026 (le gérant, `PARAM = L`, les gardait : PA-119). Un rôle qui ne
-     * fait que VOIR la page (droit `IMPORT_EXPORT`, `PARAM = -`) n'y a pas
-     * accès. Les gestes d'écriture ont en plus `exigerEcriture(self::MODULE)`
-     * (`PARAM = C` : les administrateurs).
+     * Les onglets « Sauvegardes de la base » et « Restaurer » et leurs gestes de LECTURE
+     * (téléchargement d'une sauvegarde, export d'une table) exigent le droit `IMPORT_EXPORT` en
+     * ÉCRITURE (`C`) : une sauvegarde est la copie intégrale de la base, et `IMPORT_EXPORT = L`
+     * est accordé à tous les rôles par défaut (il ne commande que la visibilité de la page).
      */
+    /** L'import d'un module exige en plus l'ÉCRITURE du module importé (clients M3, stocks M6…). */
+    private function exigerEcritureDuModuleImporte(\App\Shared\ImportExport\Data\ModuleImport $module): void
+    {
+        $this->exigerEcriture($module->module);
+    }
+
     private function exigerRoleAdministration(): void
     {
         abort_unless($this->accesSauvegardes(), 403);
@@ -529,7 +537,7 @@ class ImportExport extends PageTransverse
     {
         $utilisateur = auth()->user();
 
-        return $utilisateur !== null && $utilisateur->estActif() && $utilisateur->niveauSurModule(self::MODULE) !== '-';
+        return $utilisateur !== null && $utilisateur->estActif() && $utilisateur->niveauSurModule(self::MODULE) === 'C';
     }
 
     public function fermerModales(): void
@@ -637,7 +645,7 @@ class ImportExport extends PageTransverse
 
     private function ongletValide(): string
     {
-        // Un rôle sans lecture de `PARAM` n'a que l'onglet « Importer ».
+        // Un rôle sans écriture de `IMPORT_EXPORT` n'a que l'onglet « Importer » (lecture seule).
         if (! $this->accesSauvegardes()) {
             return 'importer';
         }

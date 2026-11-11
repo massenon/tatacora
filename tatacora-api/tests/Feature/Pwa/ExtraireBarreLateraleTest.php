@@ -61,7 +61,8 @@ final class ExtraireBarreLateraleTest extends TestCase
             mkdir($sortie, 0777, true);
         }
 
-        $roles = Role::query()->orderBy('libelle')->pluck('libelle')->all();
+        // Le role d'ESSAI « lecteur » (TestCase::seed) n'appartient pas au socle livre.
+        $roles = Role::query()->whereIn('libelle', array_keys(RolePermissionSeeder::MATRICE))->orderBy('libelle')->pluck('libelle')->all();
         $this->assertGreaterThanOrEqual(11, count($roles), 'Les onze roles du seeder sont attendus.');
 
         $resultat = [];

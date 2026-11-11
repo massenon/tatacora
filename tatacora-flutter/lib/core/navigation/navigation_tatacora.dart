@@ -504,47 +504,13 @@ List<DestinationMenu> get toutesLesDestinations => [
   for (final g in groupesMenu) ...g.destinations,
 ];
 
-/// Les entrées que la vue MASQUE à un rôle, en plus du masquage par module —
-/// `MenuLateral::ROUTES_MASQUEES_PAR_ROLE` (`tatacora-api/app/Pwa/Support/
-/// MenuLateral.php`), traduit en NOMS d'entrée.
-///
-/// ## Pourquoi (Phase 1B, 08/10/2026)
-///
-/// Le Flutter ne filtrait que par module : un `gerant` voyait onze entrées (douze depuis « Synchronisation », 21/10/2026)
-/// que la vue lui cache. C'est le premier des trois niveaux du RBAC
-/// (masquage d'interface) ; une entrée qui mène à un refus est de plus une
-/// entrée inerte aux yeux de l'utilisateur (Article 3.3). La liste est celle
-/// du serveur, vérifiée par `barre_laterale_blade_test.dart` contre la barre
-/// que la vue rend à chaque rôle : si le serveur change, ce test rougit.
-///
-/// 09/11/2026 (PO) : « Import & Export », « Appairage Postes » et « Synchronisation »
-/// n'y figurent PLUS — visibles de TOUS les rôles par défaut (le gérant les voit),
-/// comme au serveur (`ROUTES_MASQUEES_PAR_ROLE` ne les porte plus).
-const Map<String, Set<String>> nomsMasquesParRole = {
-  'gerant': {
-    'Tourisme',
-    'Véhicules & Locations',
-    'Comptabilité',
-    'Personnel & Paie',
-    'États & Rapports',
-    'Notifications',
-    'Rôles & Permissions',
-    'Paramètres',
-    'Clients & Créances',
-    'Facturation',
-  },
-};
-
-/// Vrai si [role] ne doit pas voir l'entrée [nom] — insensible à la casse et
-/// aux accents (« Gérant », « gerant »).
-bool entreeMasqueePourRole(String role, String nom) {
-  final cle = role
-      .trim()
-      .toLowerCase()
-      .replaceAll('é', 'e')
-      .replaceAll('è', 'e');
-  return nomsMasquesParRole[cle]?.contains(nom) ?? false;
-}
+// 11/11/2026 (PO) : le masquage d'interface PAR NOM DE RÔLE (`nomsMasquesParRole`,
+// `entreeMasqueePourRole`, traduction de `MenuLateral::ROUTES_MASQUEES_PAR_ROLE`, décision du
+// 03/09/2026 : le gérant ne voyait pas Tourisme, Véhicules, Comptabilité, Personnel & Paie…) est
+// CADUC et SUPPRIMÉ, au serveur comme au poste. La barre latérale, la recherche globale, la garde
+// du routeur et le tableau de bord ne suivent que le RBAC ([destinationAccessible]) : un module à
+// `-` est masqué, `L` ou `C` est visible. Seule exigence de rôle qui subsiste : [rolesExiges]
+// (« Comptes utilisateurs », administrateurs).
 
 /// L'ACCÈS à une destination — UNE règle, lue par la barre latérale, la
 /// recherche globale ET la garde du routeur ([accesRoute]) : le droit de
@@ -560,18 +526,13 @@ bool destinationAccessible(
   return roles == null || roles.contains(roleNormalise(role));
 }
 
-/// La VISIBILITÉ au menu : l'accès, puis le masquage d'interface par rôle
-/// ([nomsMasquesParRole]). Le masquage par rôle ne garde AUCUNE route — au
-/// serveur, `ROUTES_MASQUEES_PAR_ROLE` ne touche que la barre ; le middleware
-/// `module:` ne lit que le niveau du module. Le gérant atteint donc encore
-/// « Paramètres » par son menu de compte, comme dans la vue.
+/// La VISIBILITÉ au menu : l'accès ([destinationAccessible]) et rien d'autre — plus aucun
+/// masquage par nom de rôle depuis le 11/11/2026. Garde de route et menu lisent la même règle.
 bool destinationVisible(
   DestinationMenu d, {
   required GardeAcces droits,
   required String? role,
-}) =>
-    destinationAccessible(d, droits: droits, role: role) &&
-    !entreeMasqueePourRole(role ?? '', d.nom);
+}) => destinationAccessible(d, droits: droits, role: role);
 
 /// Les routes ouvertes à TOUT compte connecté — celles que la vue sert sans
 /// middleware `module:` (`routes/web.php` : `pwa.accueil`, `pwa.mon-profil`,

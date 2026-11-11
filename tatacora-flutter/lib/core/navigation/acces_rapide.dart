@@ -38,19 +38,10 @@
 ///
 /// ## RBAC — la règle du serveur, pas celle de la barre latérale
 ///
-/// `moduleAccessible()` seul : AUCUN masquage par rôle
-/// (`ROUTES_MASQUEES_PAR_ROLE` ne s'applique qu'à la barre latérale). Le
-/// gérant a `C` sur les quatorze modules (`RolePermissionSeeder::MATRICE`),
-/// et la barre latérale lui cache onze routes, dont quatre que ce panneau
-/// désigne : `pwa.clients`, `pwa.facturation`, `pwa.comptabilite.hub` et
-/// `pwa.etats.studio`. Il voit donc dans « Aller à » « Clients »,
-/// « Facturation », « Comptabilité » et « États & Rapports », et dans « Sur
-/// cette page » « Générer un état » (accueil), « Ajouter un client » et
-/// « Facturer le séjour » (réservations), « Facturation » (hébergement) —
-/// toutes cachées par la barre latérale. C'est ce que la vue rend, et ce
-/// poste le rend aussi. L'incohérence est celle du serveur ; elle est NOMMÉE
-/// ici, pas corrigée seul (à remonter à l'Architecte, D346 complétée le
-/// 13/10/2026).
+/// `moduleAccessible()` seul : AUCUN masquage par rôle — ni ici, ni (depuis le 11/11/2026) dans
+/// la barre latérale, qui ne suit plus que le RBAC. Le gérant (`C` sur les quatorze modules,
+/// `RolePermissionSeeder::MATRICE`) voit donc dans « Aller à » « Clients », « Facturation »,
+/// « Comptabilité » et « États & Rapports », ET les mêmes entrées dans la barre latérale.
 library;
 
 import '../rbac/garde_acces.dart';
