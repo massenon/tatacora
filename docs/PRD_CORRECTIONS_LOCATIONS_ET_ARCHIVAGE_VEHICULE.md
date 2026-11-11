@@ -1,5 +1,8 @@
 # PRD — Deux corrections du module Véhicules & Locations (M8)
 
+> **Note du 11/11/2026 :** ce document décrit l'état au 27/10/2026 ; état actuel : voir `CLAUDE.md` (racine) et `RESTE_A_FAIRE.md`. Points devenus faux :
+> - statut « rien n'est encore corrigé » : faux, B1 et B2 sont livrés (`RESTE_A_FAIRE.md`).
+
 > Statut : **à valider par le Product Owner** (rédigé le 27/10/2026, rien n'est
 > encore corrigé). Origine : deux écarts relevés pendant la livraison de
 > l'annulation d'un contrat de location (schéma poste v38,

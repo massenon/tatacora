@@ -1,5 +1,9 @@
 # Spécification produit — Synchronisation et installation, V2 (combler les écarts constatés)
 
+> **Note du 11/11/2026 :** ce document décrit l'état au 29/10/2026 (brouillon) ; état actuel : voir `CLAUDE.md` (racine) et `RESTE_A_FAIRE.md`. Points devenus faux :
+> - `periodeSynchronisation` vaut désormais 1 minute (`periodeDemandeServeur` 30 s) ;
+> - le signal serveur par WebSocket/Reverb/Pusher reste écarté (décision du PO du 08/11/2026) ; schéma poste actuel : v59.
+
 > **Statut** : brouillon à valider par le Product Owner — 29/10/2026. **Documentation seule** : aucun code ni test modifié.
 > **Base factuelle** : `docs/BLUEPRINT_SYNCHRONISATION_MULTI_POSTES.md` (§1.5, §3, §4, §5, §7, §8), `docs/PRD_REINSTALLATION_ET_DEMARRAGE_RESILIENT.md` (R4), `tatacora-flutter/installer/tatacora.iss`, `tatacora-flutter/build_windows.bat`, `tatacora-flutter/README_DEPLOY.md`, et le code cité en `fichier:ligne` (relu le 29/10/2026, commit `dfdca88`).
 > **Abréviations** : `API/` = `tatacora-api/app/Shared/Sync/` ; `FL/` = `tatacora-flutter/lib/` ; `SYNC/` = `FL/features/synchronisation/`.

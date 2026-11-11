@@ -1,5 +1,8 @@
 # Journal des lots du client Flutter (archive de l'ancien CLAUDE.md)
 
+> **Note du 11/11/2026 :** ce document décrit l'état au 10/11/2026 (archive de l'ancien CLAUDE.md du poste) ; état actuel : voir `CLAUDE.md` (racine) et `RESTE_A_FAIRE.md`. Points devenus faux :
+> - les effectifs de tests et versions de schéma cités dans les premières sections sont ceux de leur date ; actuel : schéma v59, Flutter 5 831 + 24 ignorés, PHP ~2 700.
+
 > Copie INTÉGRALE de l'ancien `tatacora-flutter/CLAUDE.md` au 28/10/2026, déplacée ici pour
 > alléger le contexte chargé à chaque session. À lire À LA DEMANDE (chercher le module ou le
 > lot concerné) ; les nouveaux lots s'ajoutent ICI, jamais dans `CLAUDE.md`.

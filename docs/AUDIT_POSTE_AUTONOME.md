@@ -1,5 +1,9 @@
 # Audit du poste autonome — « le poste est plus privilégié »
 
+> **Note du 11/11/2026 :** ce document décrit l'état au 26/10/2026 ; état actuel : voir `CLAUDE.md` (racine) et `RESTE_A_FAIRE.md`. Points devenus faux :
+> - schémas cités (v38 à v40) : le schéma actuel est v59 ;
+> - synchronisation : 1 minute par défaut, plus 5 minutes.
+
 Décision du Product Owner (26/10/2026) : **tous les modules doivent être
 opérationnels sur le poste, que la synchronisation soit active ou non.
 Désactivée, le poste fonctionne sans le serveur.**

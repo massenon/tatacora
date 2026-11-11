@@ -1,3 +1,5 @@
+> Mis à jour le 11/11/2026 (période de synchronisation des postes : 1 minute).
+
 # Tâches planifiées (cron) — serveur TATACORA sur cPanel
 
 > Source de vérité du planning : `tatacora-api/routes/console.php`.
@@ -57,4 +59,4 @@ Exécuter une passe à la main (diagnostic) : `php artisan schedule:run`.
 | Tâche | Raison |
 |---|---|
 | Synthèse quotidienne, états planifiés, couverture des congés | Domaine non implémenté : une tâche qui ne fait rien rendrait le planning faussement complet (`TachesPlanifieesTest`). |
-| Synchronisation des postes | Ce sont les **postes** qui appellent le serveur (toutes les 5 min, et toutes les 30 s pour suivre le bouton « Synchroniser ») ; le serveur ne pousse rien. |
+| Synchronisation des postes | Ce sont les **postes** qui appellent le serveur (toutes les minutes par défaut, et toutes les 30 s pour suivre le bouton « Synchroniser ») ; le serveur ne pousse rien. |

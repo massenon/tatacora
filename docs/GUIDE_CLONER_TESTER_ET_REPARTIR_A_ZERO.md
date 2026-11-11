@@ -1,8 +1,12 @@
 # Guide : cloner, tester, mettre à jour, repartir d'une base propre (web + poste)
 
+> Mis à jour le 11/11/2026 : la branche `claude/quirky-johnson-2pbs4t` est à jour de `main`
+> (plus de PR #2 en attente) ; effectifs de tests actuels : PHP ~2 700, poste 5 831 + 24 ignorés
+> (procédure fiable : `CLAUDE.md` à la racine, `--concurrency=1` après `migrate:fresh` de `tatacora_test`).
+> Les sections « état des travaux » (E) restent datées du 20/10/2026.
+>
 > Rédigé le 20/10/2026 pour le Product Owner. Il porte sur la branche de
-> travail `claude/quirky-johnson-2pbs4t`, celle de la PR #2, **pas encore
-> fusionnée dans `main`**.
+> travail `claude/quirky-johnson-2pbs4t`.
 
 ## 0. Avant tout : la bonne branche
 
@@ -116,7 +120,7 @@ celui qu'attend la version « dev » du poste (section B3).
 `tatacora_test`, à créer vide dans MySQL :
 
 ```bash
-php artisan test                # ~12 min, 1 787 tests au 20/10/2026
+php artisan test                # ~2 700 tests au 11/11/2026 (1 787 au 20/10/2026)
 ```
 
 ### A2. Déployer la branche sur cPanel (logirestock.digitonpro.com)
@@ -306,7 +310,7 @@ attendez le **vert**.
 
 ```bat
 flutter analyze
-flutter test        REM ~9 min, 3 717 tests au 20/10/2026
+flutter test        REM --concurrency=1 : 5 831 tests + 24 ignorés au 11/11/2026 (3 717 au 20/10/2026)
 ```
 
 Ils exigent PHP, Node et la base MySQL `tatacora_test` : plusieurs tests
@@ -407,7 +411,7 @@ Les tests, mesurés le 20/10/2026, sont tous verts : serveur 1 787, poste
 1. Changer le mot de passe SMTP communiqué pendant le développement.
 2. Faire valider par l'expert-comptable le format du fichier des écritures
    attendu par la DGI Bénin (colonnes, encodage).
-3. Fusionner la PR #2 dans `main` quand les essais vous conviennent.
+3. (Fait) la branche est fusionnée dans `main`.
 4. Au déploiement : `migrate`, `verifier-production`, ligne cron, sauvegarde
    du dossier `storage/app/private/archives/`.
 
