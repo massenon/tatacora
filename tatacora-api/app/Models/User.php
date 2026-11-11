@@ -129,7 +129,7 @@ class User extends Authenticatable
         // Droit IMPLICITE des utilisateurs système (11/11/2026, PO) : voir
         // `MODULES_IMPLICITES_SYSTEME`. Un seul endroit, relu par le menu, les gardes, la page et
         // la réponse de connexion que le poste mémorise.
-        if (in_array($module, self::MODULES_IMPLICITES_SYSTEME, true) && $this->estUtilisateurSysteme()) {
+        if (in_array($module, self::MODULES_IMPLICITES_SYSTEME, true) && $this->estRoleSystemeImportExport()) {
             return 'C';
         }
 
@@ -168,7 +168,19 @@ class User extends Authenticatable
     public const ROLES_ADMINISTRATION = ['administrateur', 'super_admin'];
 
     /**
-     * Les modules dont les UTILISATEURS SYSTÈME (`ROLES_ADMINISTRATION`) ont TOUJOURS l'écriture,
+     * Les rôles « SYSTÈME » d'Import & Export (PO, 11/11/2026) : `super_admin`, `administrateur`,
+     * `comptable`, `gerant` ET `barman` ont TOUJOURS l'accès complet à l'écran, quelle que soit la
+     * ligne `IMPORT_EXPORT` en base. Les autres rôles du socle (réceptionniste, cuisine, magasinier,
+     * achats, véhicules, guide, rh) restent pilotés par leur droit. Auteur unique de la liste ; le
+     * poste la miroite (`rolesSystemeImportExport`). La sauvegarde étant la copie intégrale de la
+     * base, le barman y accède par décision du PO.
+     *
+     * @var list<string>
+     */
+    public const ROLES_SYSTEME_IMPORT_EXPORT = ['super_admin', 'administrateur', 'comptable', 'gerant', 'barman'];
+
+    /**
+     * Les modules dont les rôles `ROLES_SYSTEME_IMPORT_EXPORT` ont TOUJOURS l'écriture,
      * même sans RBAC (ligne absente, `-` ou `L` en base) — directive PO du 11/11/2026 : « Import &
      * Export, avec ses trois onglets ». Droit implicite documenté, pas un masquage : il est servi
      * par `niveauSurModule()`, donc par le menu, `VerifierAccesModule`, la page et la connexion.
@@ -233,10 +245,10 @@ class User extends Authenticatable
         return in_array((string) $this->role?->libelle, self::ROLES_ADMINISTRATION, true);
     }
 
-    /** Un utilisateur SYSTÈME : `super_admin` ou `administrateur` (`ROLES_ADMINISTRATION`). */
-    public function estUtilisateurSysteme(): bool
+    /** Rôle « système » d'Import & Export — voir `ROLES_SYSTEME_IMPORT_EXPORT`. */
+    public function estRoleSystemeImportExport(): bool
     {
-        return $this->estAdministrateur();
+        return in_array((string) $this->role?->libelle, self::ROLES_SYSTEME_IMPORT_EXPORT, true);
     }
 
     /** Le comptable OU le gérant — voir `ROLES_COMPTABILITE_SENSIBLE`. */
