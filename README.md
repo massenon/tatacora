@@ -103,7 +103,7 @@ Fiches du personnel, bulletins de paie, congés et plannings.
 | **Serveur web** | Laravel 12, Livewire 4, Tailwind, MySQL |
 | **Poste** | Flutter (Windows), base locale SQLite (Drift) |
 | **Synchronisation** | Hors ligne d'abord, envoi ordonné par file, aucune saisie perdue ni écrasée |
-| **Qualité** | Environ 2 700 tests côté serveur et 5 800 côté poste |
+| **Qualité** | Environ 2 700 tests côté serveur et 5 831 côté poste (+ 24 ignorés) |
 | **Langue** | Tout le logiciel est en français |
 
 ---
