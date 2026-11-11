@@ -277,7 +277,7 @@ void main() {
     expect(r.map((x) => x['statut']), ['synchronise', 'synchronise', 'rejete']);
     expect(
       r[2]['motif'],
-      'Seul le comptable peut rouvrir un exercice clôturé.',
+      'Seul le comptable ou le gérant peut rouvrir un exercice clôturé.',
     );
     expect(serveur['statuts'], {'2031': 'cloture', '2032': 'ouvert'});
   });

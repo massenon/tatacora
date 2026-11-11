@@ -1,4 +1,6 @@
-import '../../../core/rbac/regle_archivage.dart' show roleNormalise;
+import '../../../core/rbac/regle_archivage.dart'
+    show roleNormalise, rolesAdministration;
+import '../../../core/rbac/regles_roles.dart' show rolesComptabiliteSensible;
 
 /// Les pièces saisies à la main AVANT la v44 (28/10/2026, lot A3) : ni marquées,
 /// ni envoyées. Un geste explicite du hub (« Envoyer mes anciennes pièces
@@ -24,11 +26,11 @@ const List<String> journauxDesModulesEtDeCloture = [
   'AN',
 ];
 
-/// Les rôles admis au geste : l'administration et le comptable.
+/// Les rôles admis au geste : l'administration, le comptable et le gérant (équivalence
+/// `rolesComptabiliteSensible`, 11/11/2026).
 const Set<String> rolesEnvoiAnciennesPieces = {
-  'administrateur',
-  'super_admin',
-  'comptable',
+  ...rolesAdministration,
+  ...rolesComptabiliteSensible,
 };
 
 bool peutEnvoyerAnciennesPieces(String? role) =>

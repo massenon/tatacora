@@ -336,6 +336,7 @@ try {
             'journaux_reserves' => ClotureExerciceService::JOURNAUX_RESERVES,
             'centre' => ClotureExerciceService::CENTRE_DE_CLOTURE,
             'role_reouverture' => ClotureExerciceService::ROLE_REOUVERTURE,
+            'roles_comptabilite_sensible' => \App\Models\User::ROLES_COMPTABILITE_SENSIBLE,
             'motif_min' => ClotureExerciceService::MOTIF_LONGUEUR_MIN,
             'classes_gestion' => ClotureExerciceService::CLASSES_GESTION,
             'classes_bilan' => ClotureExerciceService::CLASSES_BILAN,

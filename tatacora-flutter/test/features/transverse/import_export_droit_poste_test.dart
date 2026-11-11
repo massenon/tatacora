@@ -2,11 +2,13 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart' show StateProvider;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
+import 'package:tatacora_flutter/features/auth/data/session_repository_local.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/synchronisation/presentation/providers_synchronisation.dart'
     show cheminConfigurationPosteProvider;
@@ -81,6 +83,62 @@ void main() {
       expect(find.byKey(const Key('ie-modele')), findsOneWidget);
     });
   }
+
+  // 11/11/2026 (PO) : les utilisateurs SYSTÈME ont TOUJOURS l'accès complet, même sans RBAC. La
+  // session est bâtie par le dépôt local (le chemin réel : ligne `utilisateurs_local`), pas à la main.
+  for (final role in const ['administrateur', 'super_admin']) {
+    for (final ligne in const ['absente', '-', 'L']) {
+      testWidgets('$role, ligne IMPORT_EXPORT $ligne : trois onglets et '
+          'tous les gestes', (tester) async {
+        FlutterSecureStorage.setMockInitialValues({});
+        final droits = {...socle(role)};
+        if (ligne == 'absente') {
+          droits.remove('IMPORT_EXPORT');
+        } else {
+          droits['IMPORT_EXPORT'] = ligne;
+        }
+        final depot = SessionRepositoryLocal(db);
+        final Session connectee = (await tester.runAsync(() async {
+          await depot.creerCompte(
+            login: 'sys-$role',
+            nom: 'Système',
+            motDePasse: 'motdepasse123',
+            role: role,
+            droits: droits,
+          );
+          return depot.connecter('sys-$role', 'motdepasse123');
+        }))!;
+        expect(
+          connectee.droits.peutEcrire(ModuleTatacora.importExport),
+          isTrue,
+        );
+        await monter(tester, connectee);
+        expect(find.byKey(const Key('ie-onglet-importer')), findsOneWidget);
+        expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsOneWidget);
+        expect(find.byKey(const Key('ie-onglet-restaurer')), findsOneWidget);
+        expect(find.byKey(const Key('ie-modele')), findsOneWidget);
+      });
+    }
+  }
+
+  testWidgets('le gérant dont la ligne est à L reste en lecture seule (le '
+      'droit implicite ne le concerne pas)', (tester) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    final depot = SessionRepositoryLocal(db);
+    final Session connectee = (await tester.runAsync(() async {
+      await depot.creerCompte(
+        login: 'g1',
+        nom: 'Gérant',
+        motDePasse: 'motdepasse123',
+        role: 'gerant',
+        droits: {...socle('gerant'), 'IMPORT_EXPORT': 'L'},
+      );
+      return depot.connecter('g1', 'motdepasse123');
+    }))!;
+    await monter(tester, connectee);
+    expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsNothing);
+    expect(find.byKey(const Key('ie-modele')), findsNothing);
+  });
 
   mainRolesEnLecture();
 

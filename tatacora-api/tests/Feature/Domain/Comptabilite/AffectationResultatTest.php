@@ -507,24 +507,33 @@ final class AffectationResultatTest extends TestCase
     }
 
     #[Test]
-    public function seul_le_comptable_affecte_et_contrepasse(): void
+    public function le_comptable_et_le_gerant_affectent_et_contrepassent_l_administrateur_non(): void
     {
         $this->aujourdhuiEn2027();
         $this->benefice();
+        $admin = $this->utilisateur('administrateur');
         $gerant = $this->utilisateur('gerant');
-        $this->actingAs($gerant);
+        $this->actingAs($admin);
 
         $this->refus(
-            fn () => $this->service()->affecter($this->n1->refresh(), $this->ventilation(ran: '70000'), '2027-04-30', $gerant),
-            'Seul le comptable',
+            fn () => $this->service()->affecter($this->n1->refresh(), $this->ventilation(ran: '70000'), '2027-04-30', $admin),
+            'Seul le comptable ou le gérant',
         );
 
-        $this->service()->affecter($this->n1, $this->ventilation(ran: '70000'), '2027-04-30', $this->comptable);
+        // Le gérant passe l'affectation (équivalence `User::ROLES_COMPTABILITE_SENSIBLE`)...
+        $this->service()->affecter($this->n1, $this->ventilation(ran: '70000'), '2027-04-30', $gerant);
+        $this->assertSame(1, AffectationResultat::query()->whereNull('contrepassee_le')->count());
+        $this->assertTrue($this->service()->etat($this->n1->refresh(), $gerant)['peutAffecter']);
+        $this->assertFalse($this->service()->etat($this->n1, $admin)['peutAffecter']);
+
+        // ... l'administrateur ne la contre-passe pas, le gérant oui.
         $this->refus(
-            fn () => $this->service()->contrepasser($this->n1, $gerant, 'Motif assez long'),
-            'Seul le comptable',
+            fn () => $this->service()->contrepasser($this->n1, $admin, 'Motif assez long'),
+            'Seul le comptable ou le gérant',
         );
         $this->assertSame(1, AffectationResultat::query()->whereNull('contrepassee_le')->count());
+        $this->service()->contrepasser($this->n1, $gerant, 'Motif assez long');
+        $this->assertSame(0, AffectationResultat::query()->whereNull('contrepassee_le')->count());
     }
 
     // ------------------------------------------------------------------
@@ -701,10 +710,16 @@ final class AffectationResultatTest extends TestCase
     }
 
     #[Test]
-    public function la_web_refuse_le_non_comptable_avec_la_phrase_du_service(): void
+    public function la_web_refuse_l_administrateur_avec_la_phrase_du_service_et_ouvre_au_gerant(): void
     {
         $this->benefice();
         $this->actingAs($this->utilisateur('gerant'));
+
+        $this->hub($this->n1->refresh())
+            ->assertSee(__('comptabilite_pwa.affectation_passer'))
+            ->assertDontSee(__('comptabilite_pwa.affectation_reserve_comptable'));
+
+        $this->actingAs($this->utilisateur('administrateur'));
 
         $this->hub($this->n1->refresh())
             ->assertSee(__('comptabilite_pwa.affectation_reserve_comptable'))

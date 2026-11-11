@@ -251,7 +251,7 @@ class AffectationResultatService
             'proposition' => $proposition['ventilation'],
             'reserveLegalePropose' => $proposition['reserveLegalePropose'],
             'plafondReserveLegaleAtteint' => $proposition['plafondAtteint'],
-            'peutAffecter' => $utilisateur !== null && $utilisateur->role?->libelle === self::ROLE,
+            'peutAffecter' => $utilisateur !== null && $utilisateur->estComptableOuGerant(),
             'forme' => $forme->value,
             'estSociete' => $forme->estSociete(),
             'postes' => self::postes($forme, $estBenefice),
@@ -441,7 +441,7 @@ class AffectationResultatService
         ?string $pieceOrigineId = null,
         ?array $lignesDuPoste = null,
     ): AffectationResultat {
-        if ($auteur->role?->libelle !== self::ROLE) {
+        if (! $auteur->estComptableOuGerant()) {
             throw new RuntimeException(__('comptabilite.affectation_reservee'));
         }
 
@@ -568,7 +568,7 @@ class AffectationResultatService
      */
     public function contrepasser(ExerciceComptable $exercice, User $auteur, string $motif, ?string $reference = null): AffectationResultat
     {
-        if ($auteur->role?->libelle !== self::ROLE) {
+        if (! $auteur->estComptableOuGerant()) {
             throw new RuntimeException(__('comptabilite.affectation_reservee'));
         }
 

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../../core/rbac/regles_roles.dart';
 import '../domain/mot_de_passe_perdu.dart';
 import '../domain/session.dart';
 import '../domain/session_repository.dart';
@@ -429,7 +430,7 @@ final class SessionRepositoryLocal implements SessionRepository {
       role: ligne.role,
       // MEME fabrique que la voie serveur : une seconde lecture de la matrice
       // divergerait de la premiere, et c'est le RBAC qui en paierait le prix.
-      droits: GardeAcces.depuisJson(droits),
+      droits: GardeAcces.depuisJson(droitsAvecImplicites(droits, ligne.role)),
       changementObligatoire: ligne.changementObligatoire,
     );
   }

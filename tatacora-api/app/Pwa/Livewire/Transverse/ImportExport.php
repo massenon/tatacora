@@ -53,6 +53,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *
  * ## Qui voit quoi (11/11/2026, PO : le CRUD de la page suit le droit `IMPORT_EXPORT`)
  *
+ * EXCEPTION (PO, 11/11/2026) : les utilisateurs SYSTÈME (`super_admin`, `administrateur`) ont
+ * TOUJOURS l'accès complet (écran, trois onglets, import, sauvegarde, téléchargement, export,
+ * restauration), même sans RBAC : `User::niveauSurModule('IMPORT_EXPORT')` rend `C` pour eux
+ * (`User::MODULES_IMPLICITES_SYSTEME`), quelle que soit la ligne en base. Le reste suit le RBAC.
+ *
  * `IMPORT_EXPORT` en `L` : la page s'ouvre en LECTURE SEULE (fiche des colonnes attendues,
  * historique, bandeau « Accès lecture seule »), sans onglets de sauvegarde ni geste. En `C`
  * (gérant, comptable, administrateurs par défaut) : import (modèle, contrôle, confirmation),

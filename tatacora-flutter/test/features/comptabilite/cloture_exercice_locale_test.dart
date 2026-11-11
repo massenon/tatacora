@@ -413,6 +413,37 @@ void main() {
     );
   });
 
+  group('Le gérant a les gestes du comptable (11/11/2026)', () {
+    test('le gérant rouvre un exercice clôturé', () async {
+      await exploiter();
+      await service.demarrer(id2031, auteurId: auteurEssai);
+      await service.cloturer(id2031, auteurId: auteurEssai);
+      await db
+          .into(db.utilisateursLocal)
+          .insert(
+            UtilisateursLocalCompanion.insert(
+              id: 'u-gerant-ok',
+              login: 'gerant-ok',
+              nom: 'Gérant',
+              role: 'gerant',
+              droitsJson: '{}',
+              sel: 's',
+              empreinte: 'e',
+              iterations: 1,
+              dateCreation: DateTime(2026, 10, 1),
+              dateMotDePasse: DateTime(2026, 10, 1),
+            ),
+          );
+      await service.rouvrir(
+        id2031,
+        auteurId: 'u-gerant-ok',
+        motif: 'Un motif assez long',
+      );
+      expect(await service.clotureActive(id2031), isNull);
+      expect((await service.clotures()).single.rouvertePar, 'u-gerant-ok');
+    });
+  });
+
   group('Les comptes de résultat suivent la correspondance des comptes', () {
     test(
       'un compte choisi reçoit le résultat ; son défaut n’est plus utilisé',

@@ -19,7 +19,7 @@ abstract final class MessagesAffectation {
   static const gabarits = <String, String>{
     // lang/fr/comptabilite.php
     'comptabilite.affectation_reservee':
-        "Seul le comptable peut passer ou contre-passer l'affectation du résultat.",
+        "Seul le comptable ou le gérant peut passer ou contre-passer l'affectation du résultat.",
     'comptabilite.affectation_exige_cloture':
         "L'exercice :annee n'est pas clôturé : son résultat ne peut pas être affecté avant sa clôture.",
     'comptabilite.affectation_resultat_nul':
@@ -134,7 +134,7 @@ abstract final class MessagesAffectation {
     'comptabilite_pwa.affectation_contrepasser_motif':
         'Motif de la contre-passation',
     'comptabilite_pwa.affectation_reserve_comptable':
-        'Seul le comptable peut passer ou contre-passer l’affectation du résultat.',
+        'Seul le comptable ou le gérant peut passer ou contre-passer l’affectation du résultat.',
     'comptabilite_pwa.affectation_non_affectable':
         'L’affectation se passe dans l’exercice :suivant, qui doit exister et être ouvert.',
     'comptabilite_pwa.affectation_faite':

@@ -146,4 +146,96 @@ final class ImportExportDroitTest extends TestCase
         $page()->assertOk()->assertSee('Sauvegardes de la base');
         $composant()->assertViewHas('peutEcrire', true);
     }
+    /**
+     * Directive PO du 11/11/2026 : les utilisateurs SYSTÈME ont TOUJOURS l'accès complet à Import &
+     * Export (trois onglets, tous les gestes), même sans RBAC — ligne absente, `-` ou `L`.
+     *
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function systemeEtNiveaux(): array
+    {
+        $cas = [];
+        foreach (['administrateur', 'super_admin'] as $role) {
+            foreach (['-', 'L'] as $niveau) {
+                $cas["$role en $niveau"] = [$role, $niveau];
+            }
+        }
+
+        return $cas;
+    }
+
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\DataProvider('systemeEtNiveaux')]
+    public function les_utilisateurs_systeme_gardent_l_acces_complet_quelle_que_soit_la_ligne_en_base(string $role, string $niveau): void
+    {
+        $service = app(RolePermissionService::class);
+        $service->definirNiveau(Role::where('libelle', $role)->firstOrFail(), 'IMPORT_EXPORT', $niveau);
+        $compte = $this->compte($role);
+
+        // La ligne stockée est bien celle de la matrice modifiée (le droit est implicite, pas réécrit).
+        $this->assertSame($niveau, Role::where('libelle', $role)->firstOrFail()->niveauSurModule('IMPORT_EXPORT'));
+        $this->assertSame('C', $compte->niveauSurModule('IMPORT_EXPORT'));
+
+        $this->actingAs($compte);
+        Client::create(['nom' => 'Client '.$role, 'telephone' => '+229 01 00 00 00 14', 'type_client' => 'particulier']);
+
+        foreach (['importer', 'sauvegardes', 'restaurer'] as $onglet) {
+            $this->get(route('pwa.import-export', ['onglet' => $onglet]))->assertOk()
+                ->assertSee('Sauvegardes de la base')->assertSee('Restaurer');
+            Livewire::test(ImportExport::class, ['onglet' => $onglet])
+                ->assertViewHas('onglet', $onglet)
+                ->assertViewHas('peutEcrire', true)
+                ->assertViewHas('accesAdministration', true);
+        }
+
+        Livewire::test(ImportExport::class)
+            ->call('ouvrirExport')->assertOk()
+            ->set('tableExport', 'clients')->call('exporterTable')
+            ->assertHasNoErrors()->assertFileDownloaded('clients.json');
+        Livewire::test(ImportExport::class)->call('genererSauvegarde')->assertOk();
+        Livewire::test(ImportExport::class)->call('retirerSauvegarde', 'inexistante.sql.gz')->assertOk();
+        Livewire::test(ImportExport::class)->call('restaurerArchive', 'hors_service', 'inconnu')->assertOk();
+        $rapport = Livewire::test(ImportExport::class)
+            ->set('moduleImport', 'm3-clients')
+            ->set('fichierImport', UploadedFile::fake()->createWithContent('clients.csv', "Nom / Raison sociale;Type de client;Téléphone;Email\nImport {$role};particulier;+229 01 97 00 00 07;\n"))
+            ->call('controlerFichierImport')->assertHasNoErrors()->get('rapportControle');
+        $this->assertTrue($rapport['ok']);
+
+        // La purge reste au super_admin seul ; l'administrateur n'y gagne rien.
+        $page = Livewire::test(ImportExport::class);
+        $page->assertViewHas('estSuperAdmin', $role === 'super_admin');
+        if ($role !== 'super_admin') {
+            Livewire::test(ImportExport::class)->call('purgerArchive')->assertForbidden();
+        }
+    }
+
+    #[Test]
+    public function la_ligne_import_export_supprimee_ne_limite_pas_l_administrateur_mais_limite_les_autres(): void
+    {
+        $role = Role::where('libelle', 'administrateur')->firstOrFail();
+        $role->permissions()->detach($role->permissions()->where('module', 'IMPORT_EXPORT')->pluck('permissions.id'));
+        $this->assertSame('-', $role->fresh()->niveauSurModule('IMPORT_EXPORT'));
+        $this->assertSame('C', $this->compte('administrateur')->niveauSurModule('IMPORT_EXPORT'));
+
+        // Le gérant, lui, suit son droit : `L` = lecture seule, jamais plus.
+        app(RolePermissionService::class)->definirNiveau(Role::where('libelle', 'gerant')->firstOrFail(), 'IMPORT_EXPORT', 'L');
+        $this->actingAs($this->compte('gerant'));
+        Livewire::test(ImportExport::class)->assertViewHas('peutEcrire', false)->call('genererSauvegarde')->assertForbidden();
+    }
+
+    #[Test]
+    public function la_regle_implicite_est_portee_par_user_et_par_la_reponse_de_connexion(): void
+    {
+        $this->assertSame(['IMPORT_EXPORT'], User::MODULES_IMPLICITES_SYSTEME);
+        $this->assertSame(['administrateur', 'super_admin'], User::ROLES_ADMINISTRATION);
+        $this->assertTrue($this->compte('super_admin')->estUtilisateurSysteme());
+        $this->assertTrue($this->compte('administrateur')->estUtilisateurSysteme());
+        $this->assertFalse($this->compte('gerant')->estUtilisateurSysteme());
+        $this->assertFalse($this->compte('comptable')->estUtilisateurSysteme());
+        $this->assertFalse($this->compte('barman')->estUtilisateurSysteme());
+        // Les autres modules d'un administrateur ne sont PAS relevés : le reste suit le RBAC.
+        $role = Role::where('libelle', 'administrateur')->firstOrFail();
+        app(RolePermissionService::class)->definirNiveau($role, 'M3', 'L');
+        $this->assertSame('L', $this->compte('administrateur')->niveauSurModule('M3'));
+    }
 }

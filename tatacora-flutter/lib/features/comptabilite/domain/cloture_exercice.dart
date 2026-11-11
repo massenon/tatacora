@@ -36,7 +36,9 @@ const centreDeCloture = 'Structure';
 /// (`ClotureExerciceService::MOTIF_LONGUEUR_MIN`).
 const longueurMinMotifReouverture = 10;
 
-/// Le rôle qui peut rouvrir (décision du PO du 20/10/2026 : « LE COMPTABLE »).
+/// Le rôle de référence qui peut rouvrir (décision du PO du 20/10/2026 : « LE COMPTABLE »). Le
+/// gérant a les mêmes gestes depuis le 11/11/2026 : le jugement passe par `estComptableOuGerant`
+/// (`core/rbac/regles_roles.dart`).
 const roleReouverture = 'comptable';
 
 /// Le solde d'un compte de GESTION, pour UN centre, sur les pièces validées

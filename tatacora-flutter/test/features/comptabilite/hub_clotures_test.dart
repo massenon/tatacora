@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/drift.dart' show Variable, driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -622,6 +622,34 @@ void main() {
       expect(find.byKey(const Key('compta-cloture-cloturer')), findsOneWidget);
     });
 
+    testWidgets(
+      'le GÉRANT rouvre comme le comptable (équivalence 11/11/2026)',
+      (tester) async {
+        await cloturerDirect();
+        await db.customUpdate(
+          "UPDATE utilisateurs_local SET role = 'gerant' WHERE id = ?",
+          variables: [Variable.withString(auteurEssai)],
+          updates: {db.utilisateursLocal},
+        );
+        await monter(tester, role: 'gerant');
+
+        expect(find.byKey(const Key('compta-cloture-rouvrir')), findsOneWidget);
+        expect(
+          find.byKey(const Key('compta-cloture-reouverture-reservee')),
+          findsNothing,
+        );
+        await tester.enterText(
+          find.byKey(const Key('compta-cloture-motif')),
+          'Facture fournisseur oubliée',
+        );
+        await taper(tester, 'compta-cloture-rouvrir');
+        expect(
+          (await dao.exerciceDeLAnnee(annee))!.statut,
+          StatutExercice.enCloture,
+        );
+      },
+    );
+
     testWidgets('un autre rôle ne voit ni motif ni bouton : la phrase du '
         'serveur', (tester) async {
       await cloturerDirect();
@@ -635,7 +663,7 @@ void main() {
               find.byKey(const Key('compta-cloture-reouverture-reservee')),
             )
             .data,
-        'Seul le comptable peut rouvrir un exercice clôturé.',
+        'Seul le comptable ou le gérant peut rouvrir un exercice clôturé.',
       );
     });
   });

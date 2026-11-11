@@ -41,7 +41,7 @@ abstract final class MessagesCloture {
     'comptabilite.libelle_reouverture':
         "Réouverture de l'exercice :annee — :motif",
     'comptabilite.reouverture_reservee':
-        'Seul le comptable peut rouvrir un exercice clôturé.',
+        'Seul le comptable ou le gérant peut rouvrir un exercice clôturé.',
     'comptabilite.reouverture_non_cloture':
         "L'exercice :annee n'est pas clôturé : il n'y a rien à rouvrir.",
     'comptabilite.reouverture_motif':
@@ -94,7 +94,7 @@ abstract final class MessagesCloture {
         'Réservé au comptable. Les pièces de clôture et d’à-nouveaux sont contre-passées (rien ne s’efface) et l’exercice repasse en clôture.',
     'comptabilite_pwa.reouvrir_motif': 'Motif de la réouverture',
     'comptabilite_pwa.reouvrir_reserve':
-        'Seul le comptable peut rouvrir un exercice clôturé.',
+        'Seul le comptable ou le gérant peut rouvrir un exercice clôturé.',
     'comptabilite_pwa.exercice_rouvert':
         'Exercice :annee rouvert : il repasse en clôture.',
     'comptabilite_pwa.archive_ecran': 'Archive légale',

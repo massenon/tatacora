@@ -454,6 +454,7 @@ try {
         'constantes' => [
             'journal' => AffectationResultatService::JOURNAL,
             'role' => AffectationResultatService::ROLE,
+            'roles_comptabilite_sensible' => \App\Models\User::ROLES_COMPTABILITE_SENSIBLE,
             'motif_min' => AffectationResultatService::MOTIF_LONGUEUR_MIN,
             'postes' => AffectationResultatService::POSTES,
             'postes_benefice' => AffectationResultatService::POSTES_BENEFICE,

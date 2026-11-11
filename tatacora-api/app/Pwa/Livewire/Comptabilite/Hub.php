@@ -1154,7 +1154,7 @@ class Hub extends PageComptabilite
             // L'affectation du résultat (09/11/2026) : la carte de l'exercice
             // clôturé (le consulté, sinon son précédent).
             'carteAffectation' => $this->carteAffectation(),
-            'peutRouvrir' => auth()->user()?->role?->libelle === ClotureExerciceService::ROLE_REOUVERTURE,
+            'peutRouvrir' => auth()->user()?->estComptableOuGerant() ?? false,
             // « Résultat reporté » de chaque exercice DÉJÀ clôturé : celui que sa
             // clôture a écrit (131/139), lu sur la clôture active — jamais
             // recalculé. Un exercice non clôturé n'a pas encore de résultat reporté.

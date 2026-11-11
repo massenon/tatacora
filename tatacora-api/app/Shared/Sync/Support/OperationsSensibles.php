@@ -27,8 +27,8 @@ namespace App\Shared\Sync\Support;
  *  - réglages de la facturation normalisée (mode, API, opérateur) et FORME JURIDIQUE :
  *    administrateur (09/11/2026, `GestionnaireParametres::refusDeDroit`) ;
  *  - clôture d'exercice (démarrer, reprendre, clôturer) : écriture sur M10, et
- *    réouverture / affectation du résultat / contre-passation : rôle `comptable`
- *    (20/10/2026 et 09/11/2026, dans `ClotureExerciceService` et
+ *    réouverture / affectation du résultat / contre-passation : rôle `comptable` ou `gerant`
+ *    (`User::ROLES_COMPTABILITE_SENSIBLE`, 11/11/2026 ; 20/10/2026 et 09/11/2026, dans `ClotureExerciceService` et
  *    `AffectationResultatService`) ;
  *  - purge définitive (unités d'hébergement, véhicules) : `super_admin` + écriture `PARAM`.
  *
@@ -48,8 +48,8 @@ final class OperationsSensibles
      * @var array<string, string>
      */
     public const PAR_TABLE = [
-        'demandes_cloture_exercice' => 'clôture, réouverture, affectation du résultat et contre-passation (droit comptable)',
-        'pieces_saisie' => 'affectation du résultat de l\'exercice (rôle comptable ; une pièce ordinaire est une saisie courante)',
+        'demandes_cloture_exercice' => 'clôture, réouverture, affectation du résultat et contre-passation (écriture M10 ; réouverture et affectation : comptable ou gérant)',
+        'pieces_saisie' => 'affectation du résultat de l\'exercice (rôle comptable ou gérant ; une pièce ordinaire est une saisie courante)',
         'parametres_systeme' => 'clés réservées à l\'administrateur (mode MECeF, API, opérateur, forme juridique)',
         'utilisateurs' => 'suppression d\'un compte (super administrateur)',
     ];

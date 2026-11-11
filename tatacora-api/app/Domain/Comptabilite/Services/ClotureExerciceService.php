@@ -75,7 +75,11 @@ class ClotureExerciceService
 
     public const CENTRE_DE_CLOTURE = 'Structure';
 
-    /** Décision du PO du 20/10/2026 : « Qui a le droit de rouvrir ? LE COMPTABLE ». */
+    /**
+     * Décision du PO du 20/10/2026 : « Qui a le droit de rouvrir ? LE COMPTABLE » ; le GÉRANT a les
+     * mêmes gestes depuis le 11/11/2026 : le jugement passe par `User::estComptableOuGerant()`
+     * (`User::ROLES_COMPTABILITE_SENSIBLE`) ; cette constante nomme le rôle de référence.
+     */
     public const ROLE_REOUVERTURE = 'comptable';
 
     public const MOTIF_LONGUEUR_MIN = 10;
@@ -230,13 +234,13 @@ class ClotureExerciceService
     }
 
     /**
-     * La RÉOUVERTURE contrôlée — le comptable seul, motif obligatoire.
+     * La RÉOUVERTURE contrôlée — le comptable ou le gérant (`User::ROLES_COMPTABILITE_SENSIBLE`), motif obligatoire.
      *
      * @throws RuntimeException rôle, statut, motif, N+1 clôturé
      */
     public function rouvrir(ExerciceComptable $exercice, User $auteur, string $motif): ExerciceComptable
     {
-        if ($auteur->role?->libelle !== self::ROLE_REOUVERTURE) {
+        if (! $auteur->estComptableOuGerant()) {
             throw new RuntimeException(__('comptabilite.reouverture_reservee'));
         }
 
