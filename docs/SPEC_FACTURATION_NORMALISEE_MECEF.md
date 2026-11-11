@@ -1,6 +1,6 @@
 # Spécification — facturation normalisée du Bénin (MECeF)
 
-Statut : lots 0 à 4 de la session du 07/11/2026 (le lot 4 applique les décisions du PO, §10). Source : décisions du PO, pilote
+Statut : à jour, relue en entier le 11/11/2026 (défaut `desactive`, clés, adresses par défaut, `poste.json`, rejeu de 30 minutes, jeton jamais descendu : vérifiés au code). Lots 0 à 4 de la session du 07/11/2026 (le lot 4 applique les décisions du PO, §10). Source : décisions du PO, pilote
 `eltrade-cc300-driver` (lu), paquet `laraSgmefQR` (lu, jamais copié). **Aucun
 essai n'a été fait contre un vrai boîtier ni un vrai compte DGI** : les contrats
 ci-dessous sont ceux des documents lus, éprouvés contre de FAUX serveurs.
@@ -34,6 +34,8 @@ la normalisation se lit sur `normalisation_statut`), `numero_mecef` et `qr_code_
 Le serveur NE certifie PAS en mode `boitier` : la facture créée au web reste « en attente
 de normalisation par le poste » ; un poste avec boîtier la reprend à son passage (la
 descente la lui apporte). Le serveur n'appelle JAMAIS le boîtier.
+
+> Écart connu du code, constaté le 11/11/2026 : le texte d'aide du réglage « Mode » (web `RegistreParametres` et poste `registre_parametres_local.dart`) dit encore « Désactivé : factures de démonstration, sans valeur fiscale » ; le comportement réel est celui du §1 (facture simple, aucune mention). Le texte d'aide n'a pas été corrigé ici (code hors périmètre de ce passage).
 
 ## 2. Réglages (clés et règles)
 

@@ -3,6 +3,8 @@
 Document commercial **NON FISCAL**, web (PWA) et poste (hors ligne), même rendu A4.
 Modèle papier : « FACTURE PROFORMA », réf. `N°0045 FP-GCN/2026`.
 
+Mis à jour le 11/11/2026 (relue en entier ; défauts `GCN`, 30 jours et interrupteurs « Non » vérifiés dans `ReglagesDocuments`, numéro provisoire `PROV-FP-…` dans `proforma_dao.dart`).
+
 ## 1. Numéro
 - Format : `N°` + rang sur 4 chiffres + ` FP-` + RÉFÉRENCE FACTURE + `/` + année. Ex. `N°0045 FP-GCN/2026`.
 - La RÉFÉRENCE FACTURE (`facture_reference`, défaut `GCN`) est un réglage (Paramètres > Identité & Légal).
@@ -34,7 +36,7 @@ Les factures n'ont PAS de date de validité (l'interrupteur ne vise que les prof
 
 ## 5. Signature et cachet
 Réglages : `signataire_nom`, `signataire_fonction`, images `signature` et `cachet` (<= 400 Ko, réduites
-automatiquement par la règle des reçus de dépense), interrupteur `facture_signature_affichee` (Oui/Non).
+automatiquement par la règle des reçus de dépense ; depuis le 11/11/2026 elles se téléversent aussi AU POSTE, rangées localement puis envoyées par la file), interrupteur `facture_signature_affichee` (Oui/Non).
 S'applique aux PROFORMAS et aux FACTURES (PDF A4 serveur et poste ; ticket exclu).
 Non = aucun bloc. Oui sans image = nom et fonction seulement.
 
@@ -59,7 +61,7 @@ quand l'objet existe ; sinon proforma vide avec le client prérempli. Lignes tou
 ## 9. Synchronisation
 Montée : table `proformas` (+ lignes dans la charge), identifiant né au poste, gestionnaire idempotent
 (`GestionnaireProformas`, module M2), journal d'audit. Descente : aux autres postes et à la PWA.
-Poste : schéma v52, tables `proformas_local`, `lignes_proforma_local`.
+Poste : tables `proformas_local`, `lignes_proforma_local`, `sequences_proforma_local`, introduites au schéma v52 (le schéma courant du poste est v59).
 
 ## 10. Tests
 Numérotation (séquence, année, rejeu), montant en lettres (table + parité), PDF (contenu, jamais MECeF/QR/NIM/DEMO),

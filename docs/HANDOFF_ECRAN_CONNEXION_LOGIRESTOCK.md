@@ -1,5 +1,7 @@
 # Handoff — Écran de connexion LogiReStock (web PWA + poste Windows)
 
+> **Note du 11/11/2026 — document HISTORIQUE** (passation du 29/10/2026, corps conservé). L'écran est livré (`pwa-invite.blade.php`, `ecran_connexion.dart`, `mesures_connexion.dart`). Les valeurs « indicatives » mesurées sur la capture AgriERP (§2) et la colonne « Avant » du tableau du §3 ne font pas foi : la police et les tailles ont été révisées le 09/11/2026 (colonne « Depuis le 09/11/2026 »), et le code ainsi que `lang/fr` priment sur ce document.
+
 > Source : écran de connexion d'AgriERP (capture du PO, 29/10/2026), à reprendre pour
 > **LogiReStock — TATACORA AFRIQUE** avec le concept de TATACORA (restauration,
 > hébergement, éco-tourisme, stock, location…). Le web (Blade/Livewire) reste le

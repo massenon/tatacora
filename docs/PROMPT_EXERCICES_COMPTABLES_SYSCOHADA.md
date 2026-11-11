@@ -1,5 +1,7 @@
 # Prompt d'implémentation — sélecteur d'exercice, passage N → N+1, clôture SYSCOHADA
 
+> **Note du 11/11/2026 — document HISTORIQUE** (prompt de départ pour un autre projet, corps inchangé). Il s'arrête à la clôture et à l'archive : il ne couvre PAS ce que TATACORA a ajouté ensuite, à savoir l'affectation du résultat selon la forme juridique (entreprise individuelle par défaut, `forme_juridique`), la clôture menée aussi au poste par demande de synchronisation, ni les états financiers révisés (TAFIRE, bilan). Pour l'état réel : `CLOTURE_EXERCICE_SYSCOHADA.md` (§4 ter, §5, §5 bis).
+
 > À coller tel quel à Claude dans l'autre projet. Il reprend ce que TATACORA fait
 > réellement (`docs/CLOTURE_EXERCICE_SYSCOHADA.md`, `ExerciceConsulte`,
 > `ClotureExerciceService`). Adaptez les noms de tables et de langage à votre pile.
